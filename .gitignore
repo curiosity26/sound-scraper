@@ -1,0 +1,59 @@
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editors
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# Rust
+core/target/
+**/*.rs.bk
+
+# Node / React Native
+node_modules/
+npm-debug.log*
+yarn-error.log
+.metro-health-check*
+*.jsbundle
+coverage/
+.yarn/*
+!.yarn/patches
+!.yarn/releases
+
+# Xcode / CocoaPods (macOS app)
+app/macos/build/
+app/macos/Pods/
+DerivedData/
+xcuserdata/
+*.xcuserstate
+*.xccheckout
+*.hmap
+*.moved-aside
+**/.xcode.env.local
+vendor/bundle/
+
+# Visual Studio / MSBuild (Windows app)
+.vs/
+*.user
+*.suo
+*.VC.db
+*.VC.opendb
+*.ipch
+*.pdb
+*.ilk
+*.obj
+*.tlog
+*.binlog
+[Bb]in/
+[Oo]bj/
+app/windows/x64/
+app/windows/ARM64/
+app/windows/Debug/
+app/windows/Release/
+app/windows/packages/
+*AppPackages*
+*BundleArtifacts*

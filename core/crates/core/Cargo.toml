@@ -1,0 +1,19 @@
+[package]
+name = "sound_scraper_core"
+description = "Sound Scraper core: recorder, encoder, library, tags and the C ABI"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+build = "build.rs"
+
+[lib]
+# staticlib is linked by the macOS (libsound_scraper_core.a) and Windows
+# (sound_scraper_core.lib) apps; rlib is for Rust tests and tools.
+crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+sound_scraper_capture = { path = "../capture" }
+
+[build-dependencies]
+cbindgen = "0.29"

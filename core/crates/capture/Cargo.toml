@@ -1,0 +1,9 @@
+[package]
+name = "sound_scraper_capture"
+description = "Sound Scraper system/app audio capture backends"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]

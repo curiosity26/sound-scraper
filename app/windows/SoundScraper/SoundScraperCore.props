@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Builds the Rust core (core/) with cargo and links sound_scraper_core.lib. -->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <SoundScraperCoreDir>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)', '..', '..', '..', 'core'))</SoundScraperCoreDir>
+    <RustTarget Condition="'$(Platform)'=='x64'">x86_64-pc-windows-msvc</RustTarget>
+    <RustTarget Condition="'$(Platform)'=='ARM64'">aarch64-pc-windows-msvc</RustTarget>
+    <RustTarget Condition="'$(Platform)'=='Win32' Or '$(Platform)'=='x86'">i686-pc-windows-msvc</RustTarget>
+    <RustProfile Condition="'$(Configuration)'=='Release'">release</RustProfile>
+    <RustProfile Condition="'$(RustProfile)'==''">debug</RustProfile>
+    <RustProfileFlag Condition="'$(RustProfile)'=='release'">--release</RustProfileFlag>
+    <SoundScraperCoreLibDir>$(SoundScraperCoreDir)target\$(RustTarget)\$(RustProfile)\</SoundScraperCoreLibDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(SoundScraperCoreDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>$(SoundScraperCoreLibDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <!-- sound_scraper_core plus the system libs Rust's std needs on Windows. -->
+      <AdditionalDependencies>sound_scraper_core.lib;ws2_32.lib;userenv.lib;ntdll.lib;bcrypt.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <Target Name="BuildSoundScraperCore" BeforeTargets="ClCompile">
+    <Error Condition="'$(RustTarget)'==''" Text="No Rust target mapped for platform '$(Platform)'." />
+    <Exec Command="cargo build --manifest-path &quot;$(SoundScraperCoreDir)Cargo.toml&quot; -p sound_scraper_core --target $(RustTarget) $(RustProfileFlag)" />
+  </Target>
+</Project>
