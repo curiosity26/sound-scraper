@@ -25,6 +25,25 @@ typedef enum SsStatus {
   SS_STATUS_ERROR = 1,
 } SsStatus;
 
+typedef enum SsRecorderEventKind {
+  /*
+   `state` changed.
+   */
+  SS_RECORDER_EVENT_KIND_STATE_CHANGED = 0,
+  /*
+   About 10 Hz while recording or paused: `elapsed_ms`, `peak`, `rms`.
+   */
+  SS_RECORDER_EVENT_KIND_PROGRESS = 1,
+  /*
+   A recording was finalized at `path`.
+   */
+  SS_RECORDER_EVENT_KIND_FINISHED = 2,
+  /*
+   Recording failed; see `message`.
+   */
+  SS_RECORDER_EVENT_KIND_ERROR = 3,
+} SsRecorderEventKind;
+
 /*
  Opaque list of apps from `ss_audio_apps_list`.
  */
@@ -32,9 +51,40 @@ typedef struct SsAudioAppList SsAudioAppList;
 
 /*
  Opaque recorder handle. Create with `ss_recorder_create`, free with
- `ss_recorder_destroy`.
+ `ss_recorder_destroy`. Its functions may be called from any thread.
  */
 typedef struct SsRecorder SsRecorder;
+
+/*
+ A recorder event. Pointers are valid only during the callback.
+ */
+typedef struct SsRecorderEvent {
+  enum SsRecorderEventKind kind;
+  enum SsRecorderState state;
+  /*
+   Recorded time, excluding pauses.
+   */
+  uint64_t elapsed_ms;
+  /*
+   Linear levels (0..1) over the last interval; 0 while paused.
+   */
+  float peak;
+  float rms;
+  /*
+   UTF-8; non-NULL for `SS_RECORDER_EVENT_KIND_FINISHED` only.
+   */
+  const char *path;
+  /*
+   UTF-8; non-NULL for `SS_RECORDER_EVENT_KIND_ERROR` only.
+   */
+  const char *message;
+} SsRecorderEvent;
+
+/*
+ Receives recorder events, on a recorder thread or the calling thread.
+ It must return quickly and must not call back into the same recorder.
+ */
+typedef void (*SsRecorderCallback)(const struct SsRecorderEvent *event, void *user_data);
 
 /*
  An app that can be recorded on its own. Strings are UTF-8 and owned by the
@@ -67,6 +117,11 @@ typedef struct SsCaptureReport {
   float peak;
 } SsCaptureReport;
 
+/*
+ Input rates LAME accepts without resampling.
+ */
+#define SUPPORTED_RATES { 8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000, }
+
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
@@ -78,26 +133,99 @@ extern "C" {
 const char *ss_version(void);
 
 /*
- Creates a recorder in the Idle state. Never returns NULL.
+ Creates a recorder in the Idle state that saves to the default recordings
+ folder. Never returns NULL.
  */
 struct SsRecorder *ss_recorder_create(void);
 
 /*
- Destroys a recorder. Passing NULL is a no-op.
+ Destroys a recorder, finalizing any recording in progress. NULL is a no-op.
 
  # Safety
  `recorder` must be NULL or a handle from `ss_recorder_create` that has
- not already been destroyed.
+ not already been destroyed, with no other call on it in progress.
  */
 void ss_recorder_destroy(struct SsRecorder *recorder);
 
 /*
- Current state of `recorder`; Idle when `recorder` is NULL.
+ Current state of `recorder`; Idle when `recorder` is NULL. Never blocks.
 
  # Safety
  `recorder` must be NULL or a live handle from `ss_recorder_create`.
  */
 enum SsRecorderState ss_recorder_state(const struct SsRecorder *recorder);
+
+/*
+ Recorded time in milliseconds, excluding pauses. Never blocks.
+
+ # Safety
+ `recorder` must be NULL or a live handle from `ss_recorder_create`.
+ */
+uint64_t ss_recorder_elapsed_ms(const struct SsRecorder *recorder);
+
+/*
+ Sets (or with NULL, clears) the event callback. Only while Idle.
+
+ # Safety
+ `recorder` must be a live handle; `user_data` must stay valid, and be
+ usable from any thread, until the callback is replaced or the recorder
+ is destroyed.
+ */
+enum SsStatus ss_recorder_set_callback(struct SsRecorder *recorder,
+                                       SsRecorderCallback callback,
+                                       void *user_data);
+
+/*
+ Starts recording one app (`app_pid` non-zero) or all system audio
+ (`app_pid` 0) to a new `.mp3.part` in the recordings folder. May block
+ while macOS asks for the audio-capture permission; call off the UI thread.
+
+ # Safety
+ `recorder` must be NULL or a live handle from `ss_recorder_create`.
+ */
+enum SsStatus ss_recorder_start(struct SsRecorder *recorder, uint32_t app_pid);
+
+/*
+ Pauses: the file and encoder stay open and incoming audio is dropped.
+
+ # Safety
+ `recorder` must be NULL or a live handle from `ss_recorder_create`.
+ */
+enum SsStatus ss_recorder_pause(struct SsRecorder *recorder);
+
+/*
+ Resumes after `ss_recorder_pause`.
+
+ # Safety
+ `recorder` must be NULL or a live handle from `ss_recorder_create`.
+ */
+enum SsStatus ss_recorder_resume(struct SsRecorder *recorder);
+
+/*
+ Stops and finalizes (flush, Xing/LAME tag, ID3 tags, rename to `.mp3`).
+ Blocks until done. On success `*out_path` (if not NULL) receives the
+ file's UTF-8 path, to be freed with `ss_string_free`.
+
+ # Safety
+ `recorder` must be NULL or a live handle; `out_path` must be NULL or
+ writable.
+ */
+enum SsStatus ss_recorder_stop(struct SsRecorder *recorder, char **out_path);
+
+/*
+ Finishes `.mp3.part` files left in the recordings folder by a crash.
+ Returns how many were recovered, or -1 on error. Call at startup, before
+ any recording starts.
+ */
+int32_t ss_recover_partial_recordings(void);
+
+/*
+ Frees a string returned by this library. NULL is a no-op.
+
+ # Safety
+ `s` must be NULL or a string from this library not already freed.
+ */
+void ss_string_free(char *s);
 
 /*
  Message for the last `SS_STATUS_ERROR` returned on this thread. Valid until

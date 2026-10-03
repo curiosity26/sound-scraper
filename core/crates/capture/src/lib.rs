@@ -4,7 +4,7 @@
 //! - macOS: Core Audio process taps, ScreenCaptureKit fallback ([`macos`]).
 //! - Linux: PipeWire (later).
 
-use std::{fmt, sync::mpsc::Sender};
+use std::{fmt, sync::mpsc::SyncSender};
 
 #[cfg(target_os = "macos")]
 pub mod macos;
@@ -85,7 +85,10 @@ pub trait CaptureBackend: Send {
     fn list_outputs(&self) -> Vec<OutputDevice>;
     /// Running apps, with the ones playing sound first, for the app picker.
     fn list_audio_apps(&self) -> Vec<AppTarget>;
-    fn start(&mut self, source: CaptureSource, sink: Sender<AudioChunk>) -> Result<Session, CaptureError>;
+    /// Starts delivering audio to `sink`. Backends use `try_send` so a full
+    /// queue drops audio instead of blocking the real-time thread. Stopping
+    /// the session drops the sender, which disconnects the receiver.
+    fn start(&mut self, source: CaptureSource, sink: SyncSender<AudioChunk>) -> Result<Session, CaptureError>;
     fn stop(&mut self, session: Session);
 }
 
@@ -110,7 +113,7 @@ impl CaptureBackend for Unsupported {
     fn list_audio_apps(&self) -> Vec<AppTarget> {
         Vec::new()
     }
-    fn start(&mut self, _: CaptureSource, _: Sender<AudioChunk>) -> Result<Session, CaptureError> {
+    fn start(&mut self, _: CaptureSource, _: SyncSender<AudioChunk>) -> Result<Session, CaptureError> {
         Err(CaptureError::Unsupported("no capture backend for this OS yet"))
     }
     fn stop(&mut self, _: Session) {}
@@ -122,7 +125,7 @@ mod tests {
 
     #[test]
     fn capturing_a_missing_app_fails() {
-        let (tx, _rx) = std::sync::mpsc::channel();
+        let (tx, _rx) = std::sync::mpsc::sync_channel(1);
         let mut backend = default_backend();
         let app = AppTarget { pid: u32::MAX, bundle_id: None, name: "nobody".into(), icon: None, is_playing: false };
         assert!(backend.start(CaptureSource::App { app }, tx).is_err());

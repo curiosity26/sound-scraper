@@ -30,8 +30,9 @@ for arch in $ARCHS; do
   esac
   rustup target list --installed 2>/dev/null | grep -qx "$triple" || {
     echo "error: Rust target $triple missing; run: rustup target add $triple" >&2; exit 1; }
-  # Xcode's SDK variables are for the app target; keep them away from host build scripts.
-  env -u SDKROOT -u LIBRARY_PATH \
+  # Use the plain macOS SDK for both host build scripts and C deps (LAME's
+  # configure needs it to link test programs).
+  env -u LIBRARY_PATH SDKROOT="$(xcrun --sdk macosx --show-sdk-path)" \
     cargo build --manifest-path "$CORE_DIR/Cargo.toml" -p sound_scraper_core \
     --target "$triple" $PROFILE_FLAG
   slices+=("$CORE_DIR/target/$triple/$PROFILE_DIR/$LIB")

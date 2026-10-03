@@ -1,7 +1,7 @@
 //! Windows capture: WASAPI loopback for system audio, process loopback
 //! (build 20348+) for a single app. Stub until milestone 1.
 
-use std::sync::mpsc::Sender;
+use std::sync::mpsc::SyncSender;
 
 use crate::{AppTarget, AudioChunk, CaptureBackend, CaptureError, CaptureSource, OutputDevice, Session};
 
@@ -23,7 +23,7 @@ impl CaptureBackend for WasapiCapture {
         Vec::new()
     }
 
-    fn start(&mut self, _source: CaptureSource, _sink: Sender<AudioChunk>) -> Result<Session, CaptureError> {
+    fn start(&mut self, _source: CaptureSource, _sink: SyncSender<AudioChunk>) -> Result<Session, CaptureError> {
         Err(CaptureError::NotImplemented)
     }
 

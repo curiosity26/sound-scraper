@@ -11,7 +11,7 @@ use std::{
     ffi::{CStr, c_void},
     mem::{MaybeUninit, size_of},
     ptr::{self, NonNull},
-    sync::mpsc::Sender,
+    sync::mpsc::SyncSender,
 };
 
 use objc2::{AnyThread, rc::Retained};
@@ -70,7 +70,7 @@ impl CaptureBackend for MacCapture {
         audio_apps().unwrap_or_default()
     }
 
-    fn start(&mut self, source: CaptureSource, sink: Sender<AudioChunk>) -> Result<Session, CaptureError> {
+    fn start(&mut self, source: CaptureSource, sink: SyncSender<AudioChunk>) -> Result<Session, CaptureError> {
         let running = unsafe { Running::start(&source, sink)? };
         self.next_id += 1;
         self.running.insert(self.next_id, running);
@@ -213,12 +213,12 @@ struct Running {
 unsafe impl Send for Running {}
 
 struct IoContext {
-    sink: Sender<AudioChunk>,
+    sink: SyncSender<AudioChunk>,
     sample_rate: u32,
 }
 
 impl Running {
-    unsafe fn start(source: &CaptureSource, sink: Sender<AudioChunk>) -> Result<Self, CaptureError> {
+    unsafe fn start(source: &CaptureSource, sink: SyncSender<AudioChunk>) -> Result<Self, CaptureError> {
         // Without the permission the tap is created but never delivers audio,
         // so ask up front (this shows the system prompt the first time).
         if !permission::ensure_audio_capture() {
@@ -415,7 +415,8 @@ unsafe extern "C-unwind" fn io_proc(
             (out, planes.len() as u16)
         }
     };
-    let _ = ctx.sink.send(AudioChunk { samples, sample_rate: ctx.sample_rate, channels });
+    // A full queue means the consumer is behind; drop rather than block.
+    let _ = ctx.sink.try_send(AudioChunk { samples, sample_rate: ctx.sample_rate, channels });
     0
 }
 

@@ -5,6 +5,7 @@
 
 #include <NativeModules.h>
 
+#include <memory>
 #include <thread>
 
 #include "codegen/NativeSoundScraperDataTypes.g.h"
@@ -19,6 +20,25 @@ struct SoundScraperModule {
   using ModuleSpec = SoundScraperCodegen::SoundScraperSpec;
   using AudioApp = SoundScraperCodegen::SoundScraperSpec_AudioApp;
   using CaptureReport = SoundScraperCodegen::SoundScraperSpec_CaptureReport;
+  using RecorderEvent = SoundScraperCodegen::SoundScraperSpec_RecorderEvent;
+
+  REACT_EVENT(onRecorderEvent)
+  std::function<void(RecorderEvent)> onRecorderEvent;
+
+  REACT_INIT(Initialize)
+  void Initialize(winrt::Microsoft::ReactNative::ReactContext const &context) noexcept {
+    m_sink = std::make_shared<EventSink>(EventSink{context, onRecorderEvent});
+    m_recorder = ss_recorder_create();
+    // Rust owns this pointer's lifetime via the callback; freed in the destructor.
+    m_sinkRef = new std::weak_ptr<EventSink>(m_sink);
+    ss_recorder_set_callback(m_recorder, &SoundScraperModule::OnRecorderEvent, m_sinkRef);
+  }
+
+  ~SoundScraperModule() {
+    m_sink.reset(); // late events become no-ops
+    ss_recorder_destroy(m_recorder); // finalizes an in-progress recording
+    delete m_sinkRef;
+  }
 
   REACT_SYNC_METHOD(getVersion)
   std::string getVersion() noexcept {
@@ -63,6 +83,100 @@ struct SoundScraperModule {
       result.Resolve(out);
     }).detach();
   }
+
+  REACT_METHOD(recorderStart)
+  void recorderStart(double appPid, ::React::ReactPromise<void> &&result) noexcept {
+    std::thread([recorder = m_recorder, appPid, result = std::move(result)]() mutable {
+      if (ss_recorder_start(recorder, static_cast<uint32_t>(appPid)) != SS_STATUS_OK) {
+        result.Reject(ss_last_error_message());
+        return;
+      }
+      result.Resolve();
+    }).detach();
+  }
+
+  REACT_METHOD(recorderPause)
+  void recorderPause() noexcept {
+    ss_recorder_pause(m_recorder);
+  }
+
+  REACT_METHOD(recorderResume)
+  void recorderResume() noexcept {
+    ss_recorder_resume(m_recorder);
+  }
+
+  REACT_METHOD(recorderStop)
+  void recorderStop(::React::ReactPromise<std::string> &&result) noexcept {
+    std::thread([recorder = m_recorder, result = std::move(result)]() mutable {
+      char *path = nullptr;
+      if (ss_recorder_stop(recorder, &path) != SS_STATUS_OK) {
+        result.Reject(ss_last_error_message());
+        return;
+      }
+      std::string out = path ? path : "";
+      ss_string_free(path);
+      result.Resolve(out);
+    }).detach();
+  }
+
+  REACT_SYNC_METHOD(recorderState)
+  std::string recorderState() noexcept {
+    return StateName(ss_recorder_state(m_recorder));
+  }
+
+  REACT_SYNC_METHOD(recoverPartialRecordings)
+  double recoverPartialRecordings() noexcept {
+    return ss_recover_partial_recordings();
+  }
+
+ private:
+  struct EventSink {
+    winrt::Microsoft::ReactNative::ReactContext context;
+    std::function<void(RecorderEvent)> emit;
+  };
+
+  static std::string StateName(SsRecorderState state) noexcept {
+    switch (state) {
+      case SS_RECORDER_STATE_RECORDING: return "recording";
+      case SS_RECORDER_STATE_PAUSED: return "paused";
+      case SS_RECORDER_STATE_FINALIZING: return "finalizing";
+      default: return "idle";
+    }
+  }
+
+  static std::string KindName(SsRecorderEventKind kind) noexcept {
+    switch (kind) {
+      case SS_RECORDER_EVENT_KIND_PROGRESS: return "progress";
+      case SS_RECORDER_EVENT_KIND_FINISHED: return "finished";
+      case SS_RECORDER_EVENT_KIND_ERROR: return "error";
+      default: return "state";
+    }
+  }
+
+  static void OnRecorderEvent(const SsRecorderEvent *event, void *userData) {
+    auto sink = static_cast<std::weak_ptr<EventSink> *>(userData)->lock();
+    if (!sink) {
+      return;
+    }
+    // Copy everything now: the event's strings only live during this call.
+    RecorderEvent out;
+    out.kind = KindName(event->kind);
+    out.state = StateName(event->state);
+    out.elapsedMs = static_cast<double>(event->elapsed_ms);
+    out.peak = event->peak;
+    out.rms = event->rms;
+    if (event->path) {
+      out.path = event->path;
+    }
+    if (event->message) {
+      out.message = event->message;
+    }
+    sink->context.JSDispatcher().Post([sink, out = std::move(out)]() { sink->emit(out); });
+  }
+
+  SsRecorder *m_recorder{nullptr};
+  std::shared_ptr<EventSink> m_sink;
+  std::weak_ptr<EventSink> *m_sinkRef{nullptr};
 };
 
 } // namespace SoundScraper

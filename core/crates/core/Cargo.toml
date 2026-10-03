@@ -16,6 +16,8 @@ crate-type = ["staticlib", "rlib"]
 sound_scraper_capture = { path = "../capture" }
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 hound = "3.5"
+id3 = "1.17"
+mp3lame-encoder = "0.2"
 
 [build-dependencies]
 cbindgen = "0.29"

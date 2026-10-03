@@ -24,6 +24,18 @@ app/                          React Native 0.83 (TypeScript)
 
 The chain: `App.tsx` → `src/native/SoundScraper.ts` → Turbo Module `SoundScraper` → native module → `ss_*` functions in the Rust static library.
 
+## Recording (milestone 2)
+
+The app's RecordBar records the selected source to MP3 (192 kbps CBR, at the device's sample rate):
+
+- **Record** creates `~/Music/Sound Scraper/<Source> YYYY-MM-DD HH-MM.mp3.part` and starts encoding on its own thread. A bounded queue sits between capture and the encoder, so a slow disk drops audio instead of blocking the audio callback.
+- **Pause** keeps the capture, encoder and file open and drops incoming audio. Resuming continues the same file, so the gap is simply absent, and elapsed time excludes paused time.
+- **Stop** flushes LAME, writes the Xing/LAME header (correct duration and seeking), writes ID3v2.4 tags (title = file name, recording date, encoder; "Recorded from <App>" as the comment for app sources) and renames `.part` to `.mp3`.
+- **Crash recovery:** on launch, leftover `.part` files have any truncated final frame trimmed, get an "Info" duration header and tags, and are renamed to `.mp3`.
+- If no audio arrives within 3 s (on macOS, usually a missing permission), the recorder emits a warning event.
+
+C API: `ss_recorder_start/pause/resume/stop`, `ss_recorder_state`, `ss_recorder_elapsed_ms`, `ss_recorder_set_callback` (state, ~10 Hz progress with elapsed time and peak/RMS levels, finished, error) and `ss_recover_partial_recordings`. The RN module forwards events as `onRecorderEvent`.
+
 ## Capture test (milestone 1)
 
 The screen lists "All system audio" plus the apps that currently have audio (♪ = playing now). **Record 10 s test** writes `~/Music/Sound Scraper/<source> capture test <date>.wav` (32-bit float, device rate) and reports duration and peak level. The same test runs from the command line:
@@ -79,6 +91,8 @@ npm run macos               # or open macos/SoundScraper.xcworkspace and Run
 
 The Xcode target has a **Build Rust core** phase (before Compile Sources) that runs `core/scripts/build-apple.sh` for the active `ARCHS`/`CONFIGURATION`. It writes `core/target/apple/<Configuration>/libsound_scraper_core.a`, which the target links with `-lsound_scraper_core -framework CoreAudio`. Header search path: `core/include`.
 
+Debug builds are signed with the local self-signed identity "GolfNutz Dev" (Manual signing, Debug only), so macOS keeps the System Audio Recording permission across rebuilds. If that identity isn't in your keychain, change `CODE_SIGN_IDENTITY` for Debug to `-` (ad-hoc) or to your own certificate. Expect to re-allow the permission after rebuilding.
+
 If Xcode can't find Node (nvm), put `export NODE_BINARY=$(command -v node)` in `app/macos/.xcode.env.local`.
 
 ## Windows
@@ -99,6 +113,10 @@ npm run windows             # or open windows\SoundScraper.sln in Visual Studio
 ```
 
 `SoundScraperCore.props` adds a `BuildSoundScraperCore` target that runs `cargo build -p sound_scraper_core --target <x86_64|aarch64|i686>-pc-windows-msvc` (`--release` for Release) before compilation, adds `core/include` to the include path and links `sound_scraper_core.lib` plus the system libs Rust's std needs.
+
+## Licensing
+
+LAME is LGPL. For now `mp3lame-sys` compiles it from source and links it **statically** into the core. Linking it dynamically wasn't practical yet: the only libmp3lame on this Mac is Homebrew's x86_64 build, and shipping our own dylib inside the macOS and Windows app bundles is packaging work (milestone 5). Before any distribution, LAME must be shipped as a separate dynamic library (or the app must ship relinkable object files).
 
 ## Changing the native API
 

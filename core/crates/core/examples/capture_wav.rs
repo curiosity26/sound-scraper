@@ -3,12 +3,12 @@
 //!   cargo run --example capture_wav -- list
 //!   cargo run --example capture_wav -- [seconds] [app-pid]
 
-use sound_scraper_core::capture_test;
+use sound_scraper_core::{capture_test, sources};
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.first().map(String::as_str) == Some("list") {
-        for app in capture_test::audio_apps() {
+        for app in sources::audio_apps() {
             let marker = if app.is_playing { "♪" } else { " " };
             println!("{marker} {:>6}  {}  ({})", app.pid, app.name, app.bundle_id.unwrap_or_default());
         }

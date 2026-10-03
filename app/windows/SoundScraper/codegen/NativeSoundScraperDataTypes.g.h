@@ -31,4 +31,14 @@ struct SoundScraperSpec_CaptureReport {
     double peak;
 };
 
+struct SoundScraperSpec_RecorderEvent {
+    std::string kind;
+    std::string state;
+    double elapsedMs;
+    double peak;
+    double rms;
+    std::optional<std::string> path;
+    std::optional<std::string> message;
+};
+
 } // namespace SoundScraperCodegen

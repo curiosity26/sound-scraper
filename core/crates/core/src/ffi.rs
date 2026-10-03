@@ -7,20 +7,23 @@
 
 use std::{
     cell::RefCell,
-    ffi::{CString, c_char},
+    ffi::{CString, c_char, c_void},
     panic::{AssertUnwindSafe, catch_unwind},
     ptr,
+    sync::{Arc, Mutex},
 };
 
 use crate::{
-    capture_test,
-    recorder::{Recorder, RecorderState},
+    capture_test, paths,
+    recorder::{self, Recorder, RecorderEvent, RecorderState, Status},
+    sources,
 };
 
 /// Opaque recorder handle. Create with `ss_recorder_create`, free with
-/// `ss_recorder_destroy`.
+/// `ss_recorder_destroy`. Its functions may be called from any thread.
 pub struct SsRecorder {
-    inner: Recorder,
+    inner: Mutex<Recorder>,
+    status: Arc<Status>,
 }
 
 /// Recorder state as seen from C.
@@ -44,6 +47,39 @@ impl From<RecorderState> for SsRecorderState {
     }
 }
 
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SsRecorderEventKind {
+    /// `state` changed.
+    StateChanged = 0,
+    /// About 10 Hz while recording or paused: `elapsed_ms`, `peak`, `rms`.
+    Progress = 1,
+    /// A recording was finalized at `path`.
+    Finished = 2,
+    /// Recording failed; see `message`.
+    Error = 3,
+}
+
+/// A recorder event. Pointers are valid only during the callback.
+#[repr(C)]
+pub struct SsRecorderEvent {
+    pub kind: SsRecorderEventKind,
+    pub state: SsRecorderState,
+    /// Recorded time, excluding pauses.
+    pub elapsed_ms: u64,
+    /// Linear levels (0..1) over the last interval; 0 while paused.
+    pub peak: f32,
+    pub rms: f32,
+    /// UTF-8; non-NULL for `SS_RECORDER_EVENT_KIND_FINISHED` only.
+    pub path: *const c_char,
+    /// UTF-8; non-NULL for `SS_RECORDER_EVENT_KIND_ERROR` only.
+    pub message: *const c_char,
+}
+
+/// Receives recorder events, on a recorder thread or the calling thread.
+/// It must return quickly and must not call back into the same recorder.
+pub type SsRecorderCallback = Option<unsafe extern "C" fn(event: *const SsRecorderEvent, user_data: *mut c_void)>;
+
 static VERSION_C: &str = concat!(env!("CARGO_PKG_VERSION"), "\0");
 
 /// Core version as a NUL-terminated UTF-8 string with static lifetime.
@@ -53,17 +89,20 @@ pub extern "C" fn ss_version() -> *const c_char {
     VERSION_C.as_ptr().cast()
 }
 
-/// Creates a recorder in the Idle state. Never returns NULL.
+/// Creates a recorder in the Idle state that saves to the default recordings
+/// folder. Never returns NULL.
 #[unsafe(no_mangle)]
 pub extern "C" fn ss_recorder_create() -> *mut SsRecorder {
-    Box::into_raw(Box::new(SsRecorder { inner: Recorder::new() }))
+    let recorder = Recorder::new();
+    let status = recorder.status();
+    Box::into_raw(Box::new(SsRecorder { inner: Mutex::new(recorder), status }))
 }
 
-/// Destroys a recorder. Passing NULL is a no-op.
+/// Destroys a recorder, finalizing any recording in progress. NULL is a no-op.
 ///
 /// # Safety
 /// `recorder` must be NULL or a handle from `ss_recorder_create` that has
-/// not already been destroyed.
+/// not already been destroyed, with no other call on it in progress.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ss_recorder_destroy(recorder: *mut SsRecorder) {
     if !recorder.is_null() {
@@ -71,15 +110,172 @@ pub unsafe extern "C" fn ss_recorder_destroy(recorder: *mut SsRecorder) {
     }
 }
 
-/// Current state of `recorder`; Idle when `recorder` is NULL.
+/// Current state of `recorder`; Idle when `recorder` is NULL. Never blocks.
 ///
 /// # Safety
 /// `recorder` must be NULL or a live handle from `ss_recorder_create`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ss_recorder_state(recorder: *const SsRecorder) -> SsRecorderState {
-    match unsafe { recorder.as_ref() } {
-        Some(r) => r.inner.state().into(),
-        None => SsRecorderState::Idle,
+    unsafe { recorder.as_ref() }.map_or(SsRecorderState::Idle, |r| r.status.state().into())
+}
+
+/// Recorded time in milliseconds, excluding pauses. Never blocks.
+///
+/// # Safety
+/// `recorder` must be NULL or a live handle from `ss_recorder_create`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_recorder_elapsed_ms(recorder: *const SsRecorder) -> u64 {
+    unsafe { recorder.as_ref() }.map_or(0, |r| r.status.elapsed().as_millis() as u64)
+}
+
+struct CallbackTarget {
+    callback: unsafe extern "C" fn(*const SsRecorderEvent, *mut c_void),
+    user_data: *mut c_void,
+}
+
+// The caller promises user_data may be used from recorder threads.
+unsafe impl Send for CallbackTarget {}
+unsafe impl Sync for CallbackTarget {}
+
+/// Sets (or with NULL, clears) the event callback. Only while Idle.
+///
+/// # Safety
+/// `recorder` must be a live handle; `user_data` must stay valid, and be
+/// usable from any thread, until the callback is replaced or the recorder
+/// is destroyed.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_recorder_set_callback(
+    recorder: *mut SsRecorder,
+    callback: SsRecorderCallback,
+    user_data: *mut c_void,
+) -> SsStatus {
+    let Some(r) = (unsafe { recorder.as_ref() }) else { return fail("recorder is NULL") };
+    let mut inner = r.inner.lock().unwrap_or_else(|e| e.into_inner());
+    if inner.state() != RecorderState::Idle {
+        return fail("the callback can only be changed while idle");
+    }
+    let sink: Option<recorder::EventSink> = callback.map(|callback| {
+        let target = CallbackTarget { callback, user_data };
+        let status = r.status.clone();
+        Arc::new(move |event: &RecorderEvent| deliver(&target, &status, event)) as recorder::EventSink
+    });
+    inner.set_event_sink(sink);
+    SsStatus::Ok
+}
+
+fn deliver(target: &CallbackTarget, status: &Status, event: &RecorderEvent) {
+    let mut c = SsRecorderEvent {
+        kind: SsRecorderEventKind::StateChanged,
+        state: status.state().into(),
+        elapsed_ms: status.elapsed().as_millis() as u64,
+        peak: 0.0,
+        rms: 0.0,
+        path: ptr::null(),
+        message: ptr::null(),
+    };
+    let text;
+    match event {
+        RecorderEvent::StateChanged(state) => c.state = (*state).into(),
+        RecorderEvent::Progress { elapsed, peak, rms } => {
+            c.kind = SsRecorderEventKind::Progress;
+            c.elapsed_ms = elapsed.as_millis() as u64;
+            (c.peak, c.rms) = (*peak, *rms);
+        }
+        RecorderEvent::Finished { path } => {
+            c.kind = SsRecorderEventKind::Finished;
+            text = CString::new(path.to_string_lossy().into_owned()).unwrap_or_default();
+            c.path = text.as_ptr();
+        }
+        RecorderEvent::Error { message } => {
+            c.kind = SsRecorderEventKind::Error;
+            text = CString::new(message.replace('\0', " ")).unwrap_or_default();
+            c.message = text.as_ptr();
+        }
+    }
+    unsafe { (target.callback)(&c, target.user_data) };
+}
+
+fn with_recorder(
+    recorder: *const SsRecorder,
+    f: impl FnOnce(&mut Recorder) -> Result<(), String>,
+) -> SsStatus {
+    let Some(r) = (unsafe { recorder.as_ref() }) else { return fail("recorder is NULL") };
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        let mut inner = r.inner.lock().unwrap_or_else(|e| e.into_inner());
+        f(&mut inner)
+    }));
+    match result {
+        Ok(Ok(())) => SsStatus::Ok,
+        Ok(Err(message)) => fail(message),
+        Err(_) => fail("recorder panicked"),
+    }
+}
+
+/// Starts recording one app (`app_pid` non-zero) or all system audio
+/// (`app_pid` 0) to a new `.mp3.part` in the recordings folder. May block
+/// while macOS asks for the audio-capture permission; call off the UI thread.
+///
+/// # Safety
+/// `recorder` must be NULL or a live handle from `ss_recorder_create`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_recorder_start(recorder: *mut SsRecorder, app_pid: u32) -> SsStatus {
+    with_recorder(recorder, |r| r.start(sources::source_for_pid((app_pid != 0).then_some(app_pid))))
+}
+
+/// Pauses: the file and encoder stay open and incoming audio is dropped.
+///
+/// # Safety
+/// `recorder` must be NULL or a live handle from `ss_recorder_create`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_recorder_pause(recorder: *mut SsRecorder) -> SsStatus {
+    with_recorder(recorder, Recorder::pause)
+}
+
+/// Resumes after `ss_recorder_pause`.
+///
+/// # Safety
+/// `recorder` must be NULL or a live handle from `ss_recorder_create`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_recorder_resume(recorder: *mut SsRecorder) -> SsStatus {
+    with_recorder(recorder, Recorder::resume)
+}
+
+/// Stops and finalizes (flush, Xing/LAME tag, ID3 tags, rename to `.mp3`).
+/// Blocks until done. On success `*out_path` (if not NULL) receives the
+/// file's UTF-8 path, to be freed with `ss_string_free`.
+///
+/// # Safety
+/// `recorder` must be NULL or a live handle; `out_path` must be NULL or
+/// writable.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_recorder_stop(recorder: *mut SsRecorder, out_path: *mut *mut c_char) -> SsStatus {
+    with_recorder(recorder, |r| {
+        let path = r.stop()?;
+        if !out_path.is_null() {
+            let c = CString::new(path.to_string_lossy().into_owned()).unwrap_or_default();
+            unsafe { out_path.write(c.into_raw()) };
+        }
+        Ok(())
+    })
+}
+
+/// Finishes `.mp3.part` files left in the recordings folder by a crash.
+/// Returns how many were recovered, or -1 on error. Call at startup, before
+/// any recording starts.
+#[unsafe(no_mangle)]
+pub extern "C" fn ss_recover_partial_recordings() -> i32 {
+    catch_unwind(|| recorder::recover_partials(&paths::recordings_dir()).iter().filter(|r| r.is_ok()).count() as i32)
+        .unwrap_or(-1)
+}
+
+/// Frees a string returned by this library. NULL is a no-op.
+///
+/// # Safety
+/// `s` must be NULL or a string from this library not already freed.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_string_free(s: *mut c_char) {
+    if !s.is_null() {
+        drop(unsafe { CString::from_raw(s) });
     }
 }
 
@@ -130,7 +326,7 @@ pub struct SsAudioAppList {
 /// `ss_audio_app_list_free`. Never returns NULL.
 #[unsafe(no_mangle)]
 pub extern "C" fn ss_audio_apps_list() -> *mut SsAudioAppList {
-    let found = catch_unwind(capture_test::audio_apps).unwrap_or_default();
+    let found = catch_unwind(sources::audio_apps).unwrap_or_default();
     let mut strings = Vec::new();
     let mut apps = Vec::new();
     for app in found {
@@ -139,7 +335,7 @@ pub extern "C" fn ss_audio_apps_list() -> *mut SsAudioAppList {
         apps.push(SsAudioApp {
             pid: app.pid,
             name: name.as_ptr(),
-            bundle_id: bundle_id.as_ref().map_or(ptr::null(), |b| b.as_ptr()),
+            bundle_id: bundle_id.as_ref().map_or(ptr::null(), |b: &CString| b.as_ptr()),
             is_playing: app.is_playing,
         });
         strings.push(name);
@@ -229,11 +425,11 @@ pub unsafe extern "C" fn ss_capture_test_wav(app_pid: u32, seconds: f64, out_rep
 /// not already been freed.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ss_capture_report_free(report: *mut SsCaptureReport) {
-    if let Some(r) = unsafe { report.as_mut() } {
-        if !r.path.is_null() {
-            drop(unsafe { CString::from_raw(r.path) });
-            r.path = ptr::null_mut();
-        }
+    if let Some(r) = unsafe { report.as_mut() }
+        && !r.path.is_null()
+    {
+        drop(unsafe { CString::from_raw(r.path) });
+        r.path = ptr::null_mut();
     }
 }
 

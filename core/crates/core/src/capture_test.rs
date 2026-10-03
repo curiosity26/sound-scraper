@@ -7,7 +7,9 @@ use std::{
     time::{Duration, Instant},
 };
 
-use sound_scraper_capture::{AppTarget, CaptureSource, default_backend};
+use sound_scraper_capture::{CaptureSource, default_backend};
+
+use crate::{paths, sources};
 
 #[derive(Debug, Clone)]
 pub struct CaptureReport {
@@ -19,36 +21,16 @@ pub struct CaptureReport {
     pub peak: f32,
 }
 
-/// Running apps with audio, for the source picker.
-pub fn audio_apps() -> Vec<AppTarget> {
-    default_backend().list_audio_apps()
-}
-
 /// Records `seconds` of audio from `app_pid` (or all system audio when
 /// `None`) into a new WAV file under the recordings folder.
 pub fn record_test_wav(app_pid: Option<u32>, seconds: f64) -> Result<CaptureReport, String> {
     if !(seconds > 0.0 && seconds <= 600.0) {
         return Err(format!("seconds must be in (0, 600], got {seconds}"));
     }
-    let source = match app_pid {
-        None => CaptureSource::System { device: None },
-        Some(pid) => CaptureSource::App {
-            app: audio_apps().into_iter().find(|a| a.pid == pid).unwrap_or(AppTarget {
-                pid,
-                bundle_id: None,
-                name: format!("pid {pid}"),
-                icon: None,
-                is_playing: false,
-            }),
-        },
-    };
-    let label = match &source {
-        CaptureSource::System { .. } => "System audio".to_string(),
-        CaptureSource::App { app } => app.name.clone(),
-    };
-    let path = recordings_dir().join(format!(
+    let source = sources::source_for_pid(app_pid);
+    let path = paths::recordings_dir().join(format!(
         "{} capture test {}.wav",
-        sanitize(&label),
+        paths::sanitize(&sources::source_label(&source)),
         chrono::Local::now().format("%Y-%m-%d %H-%M-%S")
     ));
     record(source, seconds, &path)
@@ -56,7 +38,7 @@ pub fn record_test_wav(app_pid: Option<u32>, seconds: f64) -> Result<CaptureRepo
 
 fn record(source: CaptureSource, seconds: f64, path: &Path) -> Result<CaptureReport, String> {
     let mut backend = default_backend();
-    let (tx, rx) = mpsc::channel();
+    let (tx, rx) = mpsc::sync_channel(256);
     // Early returns drop the backend, which tears the capture down.
     let session = backend.start(source, tx).map_err(|e| e.to_string())?;
 
@@ -103,17 +85,4 @@ fn record(source: CaptureSource, seconds: f64, path: &Path) -> Result<CaptureRep
         w.finalize().map_err(|e| e.to_string())?;
     }
     result.map(|()| report)
-}
-
-/// `~/Music/Sound Scraper` (docs/design.md §5).
-pub fn recordings_dir() -> PathBuf {
-    let home = std::env::var_os("HOME")
-        .or_else(|| std::env::var_os("USERPROFILE"))
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("."));
-    home.join("Music").join("Sound Scraper")
-}
-
-fn sanitize(name: &str) -> String {
-    name.chars().map(|c| if r#"/\:*?"<>|"#.contains(c) { '_' } else { c }).collect()
 }
