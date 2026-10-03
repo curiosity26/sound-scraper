@@ -17,17 +17,17 @@ VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/C
 
 VOLNAME="Sound Scraper"
 WORK=$(mktemp -d)
-# Icon for the .dmg file, from its own artwork (the opened disk uses the app icon).
+# Installer icon (the .dmg file and the mounted disk), from its own artwork.
+# The app inside the window shows its own (app) icon.
 ICONSET="$WORK/dmg.iconset"
 mkdir "$ICONSET"
 for s in 16 32 128 256 512; do
   sips -z $s $s "$ROOT/assets/dmg/icon-dmg-source.png" --out "$ICONSET/icon_${s}x${s}.png" >/dev/null
-  # No 1024 px slice: it would add ~1.7 MB to the installer.
+  # No 1024 px slice: it would add ~1.7 MB twice (volume icon + file icon).
   [ $s -lt 512 ] && sips -z $((s * 2)) $((s * 2)) "$ROOT/assets/dmg/icon-dmg-source.png" --out "$ICONSET/icon_${s}x${s}@2x.png" >/dev/null
 done
 DMG_ICNS="$WORK/dmg.icns"
 iconutil -c icns "$ICONSET" -o "$DMG_ICNS"
-APP_ICNS="$APP/Contents/Resources/AppIcon.icns"
 STAGE=$(mktemp -d)
 cleanup() { [ -n "${MOUNT:-}" ] && hdiutil detach -quiet -force "$MOUNT" 2>/dev/null; rm -rf "$STAGE" "$WORK"; }
 trap cleanup EXIT
@@ -46,7 +46,7 @@ MOUNT=$(hdiutil attach -readwrite -noverify -noautoopen "$WORK/rw.dmg" | awk -F'
 chflags hidden "$MOUNT/.background"
 osascript "$ROOT/scripts/dmg-layout.applescript" "$VOLNAME"
 # Volume icon last: Finder's layout pass drops a .VolumeIcon.icns added earlier.
-cp "$APP_ICNS" "$MOUNT/.VolumeIcon.icns"
+cp "$DMG_ICNS" "$MOUNT/.VolumeIcon.icns"
 SetFile -a V "$MOUNT/.VolumeIcon.icns"
 SetFile -a C "$MOUNT"
 rm -rf "$MOUNT/.fseventsd" "$MOUNT/.Trashes"
