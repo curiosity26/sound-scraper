@@ -170,6 +170,18 @@ Windows capture uses WASAPI. All system audio is shared-mode loopback on the def
 
 C++/WinRT module notes (`SoundScraperModule.h`): it must be a `REACT_TURBO_MODULE` because it emits events. Under the New Architecture, `ReactContext::JSDispatcher()` is empty and posting to it silently does nothing, so promises and events go through `ReactContext::CallInvoker()`. `REACT_EVENT` members are filled in after `REACT_INIT`, so they're read at emit time.
 
+## Release builds
+
+**macOS:** `scripts/package-macos.sh` builds a universal (arm64 + x86_64) Release app with the JS bundled in, and writes `dist/SoundScraper-<version>.dmg` with "Sound Scraper.app" and an Applications shortcut. It signs with `SIGN_IDENTITY` (default: the local self-signed "GolfNutz Dev"). Such builds aren't notarized, so the first launch needs right-click › Open.
+
+For distribution, get an Apple **Developer ID Application** certificate, then:
+
+1. Set `CODE_SIGN_IDENTITY` (Release) to it and set `ENABLE_HARDENED_RUNTIME = YES`. Hardened runtime is off for now because its library validation rejects the embedded frameworks (Hermes, LAME) when the signing certificate has no Team ID, as self-signed ones don't.
+2. Run `SIGN_IDENTITY="Developer ID Application: …" scripts/package-macos.sh`.
+3. Notarize and staple: `xcrun notarytool submit dist/SoundScraper-<v>.dmg --keychain-profile <profile> --wait && xcrun stapler staple dist/SoundScraper-<v>.dmg`.
+
+**Windows:** `.\scripts\package-windows.ps1 -Platform ARM64 -Thumbprint <SHA1>` builds a Release MSIX into `dist\`. The package identity is `com.alexboyce.soundscraper` with publisher `CN=alexboyce`, so the signing certificate's subject must be `CN=alexboyce`. To install a test-signed package, the certificate has to be trusted on that machine (Local Machine › Trusted People). For public distribution, use a code-signing certificate from a CA, or the Microsoft Store.
+
 ## Licensing
 
 LAME (LGPL) is linked **dynamically**. `core/vendor/mp3lame-sys` is a fork of `mp3lame-sys` that builds the bundled LAME 3.100 source as a shared library: `libmp3lame.0.dylib` on macOS (install name `@rpath/libmp3lame.0.dylib`, embedded in `Contents/Frameworks` by the "Embed LAME (LGPL)" build phase) and `libmp3lame.dll` on Windows (shipped next to the exe and in the MSIX). Users can swap in their own LAME build. The LAME source is in `core/vendor/mp3lame-sys/lame-3.100`.

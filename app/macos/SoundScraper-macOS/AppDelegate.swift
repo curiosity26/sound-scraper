@@ -8,7 +8,7 @@ struct SoundScraperApp: App {
   @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
   var body: some Scene {
-    Window("SoundScraper", id: "main") {
+    Window("Sound Scraper", id: "main") {
       ReactNativeView(factory: appDelegate.reactNativeFactory)
     }
     .defaultSize(width: 1280, height: 720)

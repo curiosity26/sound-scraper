@@ -57,3 +57,6 @@ app/windows/Release/
 app/windows/packages/
 *AppPackages*
 *BundleArtifacts*
+
+# Installers
+dist/
