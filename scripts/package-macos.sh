@@ -15,10 +15,19 @@ APP="$ROOT/app/macos/build/Release/Build/Products/Release/SoundScraper.app"
 codesign --verify --deep --strict "$APP"
 VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist")
 
-ICNS="$APP/Contents/Resources/AppIcon.icns"
 VOLNAME="Sound Scraper"
-STAGE=$(mktemp -d)
 WORK=$(mktemp -d)
+# Installer icon (the .dmg file and the mounted disk), from its own artwork.
+ICONSET="$WORK/dmg.iconset"
+mkdir "$ICONSET"
+for s in 16 32 128 256 512; do
+  sips -z $s $s "$ROOT/assets/dmg/icon-dmg-source.png" --out "$ICONSET/icon_${s}x${s}.png" >/dev/null
+  # No 1024 px slice: it would add ~1.7 MB twice (volume icon + file icon).
+  [ $s -lt 512 ] && sips -z $((s * 2)) $((s * 2)) "$ROOT/assets/dmg/icon-dmg-source.png" --out "$ICONSET/icon_${s}x${s}@2x.png" >/dev/null
+done
+ICNS="$WORK/dmg.icns"
+iconutil -c icns "$ICONSET" -o "$ICNS"
+STAGE=$(mktemp -d)
 cleanup() { [ -n "${MOUNT:-}" ] && hdiutil detach -quiet -force "$MOUNT" 2>/dev/null; rm -rf "$STAGE" "$WORK"; }
 trap cleanup EXIT
 ditto "$APP" "$STAGE/$VOLNAME.app"
