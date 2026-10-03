@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, useColorScheme, View } from 'react-native';
 
 import { LibraryTable } from './src/LibraryTable';
+import { TagEditor } from './src/TagEditor';
 import {
   type AudioApp,
   getCoreVersion,
@@ -38,6 +39,8 @@ function App(): React.JSX.Element {
   const [peak, setPeak] = useState(0);
   const [message, setMessage] = useState<{ text: string; isError: boolean }>();
   const [recordings, setRecordings] = useState<Recording[]>([]);
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [tagTargets, setTagTargets] = useState<string[]>();
 
   const refreshLibrary = useCallback(async () => {
     try {
@@ -87,6 +90,18 @@ function App(): React.JSX.Element {
       librarySubscription.remove();
     };
   }, [refreshLibrary]);
+
+  useEffect(() => {
+    const names = new Set(recordings.map(r => r.fileName));
+    setChecked(prev => {
+      const next = new Set([...prev].filter(n => names.has(n)));
+      return next.size === prev.size ? prev : next;
+    });
+    setTagTargets(prev => {
+      const next = prev?.filter(n => names.has(n));
+      return next && next.length === prev?.length ? prev : next;
+    });
+  }, [recordings]);
 
   const onRename = useCallback(
     async (r: Recording, newName: string) => {
@@ -181,14 +196,28 @@ function App(): React.JSX.Element {
         </Text>
       )}
 
-      <LibraryTable
-        recordings={recordings}
-        onRename={onRename}
-        onTrash={onTrash}
-        onReveal={r => library.reveal(r.fileName)}
-        textStyle={fg}
-        isDark={isDark}
-      />
+      <View style={styles.libraryRow}>
+        <LibraryTable
+          recordings={recordings}
+          onRename={onRename}
+          onTrash={onTrash}
+          onReveal={r => library.reveal(r.fileName)}
+          onEditTags={setTagTargets}
+          checked={checked}
+          onCheckedChange={setChecked}
+          textStyle={fg}
+          isDark={isDark}
+        />
+        {tagTargets && tagTargets.length > 0 && (
+          <TagEditor
+            fileNames={tagTargets}
+            onSaved={refreshLibrary}
+            onClose={() => setTagTargets(undefined)}
+            textStyle={fg}
+            isDark={isDark}
+          />
+        )}
+      </View>
     </View>
   );
 }
@@ -237,6 +266,7 @@ const styles = StyleSheet.create({
   caption: { fontSize: 14, marginTop: 4, marginBottom: 20, opacity: 0.7 },
   message: { marginTop: 12, fontSize: 13, lineHeight: 18 },
   error: { color: colors.error },
+  libraryRow: { flex: 1, flexDirection: 'row' },
 });
 
 export default App;

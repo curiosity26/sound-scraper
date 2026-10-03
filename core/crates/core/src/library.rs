@@ -17,7 +17,10 @@ use notify_debouncer_mini::{
 };
 use rusqlite::{Connection, OptionalExtension, params};
 
-use crate::{mp3, paths};
+use crate::{
+    mp3, paths,
+    tags::{self, TagEdit, TagFields, TagVersion},
+};
 
 const SCHEMA_VERSION: i64 = 1;
 
@@ -41,6 +44,8 @@ pub type Trasher = Box<dyn Fn(&Path) -> Result<(), String> + Send>;
 
 pub struct Library {
     dir: PathBuf,
+    /// Extracted cover images, for the UI to display.
+    covers_dir: PathBuf,
     db: Connection,
     trasher: Trasher,
     watcher: Option<Debouncer<RecommendedWatcher>>,
@@ -58,7 +63,8 @@ impl Library {
         std::fs::create_dir_all(&dir).map_err(|e| format!("creating {}: {e}", dir.display()))?;
         let db = Connection::open(db_path).map_err(|e| format!("opening {}: {e}", db_path.display()))?;
         migrate(&db).map_err(|e| format!("preparing the library index: {e}"))?;
-        Ok(Self { dir, db, trasher, watcher: None })
+        let covers_dir = db_path.parent().unwrap_or(Path::new(".")).join("covers");
+        Ok(Self { dir, covers_dir, db, trasher, watcher: None })
     }
 
     pub fn dir(&self) -> &Path {
@@ -183,6 +189,42 @@ impl Library {
         Ok(())
     }
 
+    /// The recording's editable tags.
+    pub fn read_tags(&self, file_name: &str) -> Result<TagFields, String> {
+        tags::read(&self.existing(file_name)?)
+    }
+
+    /// Writes the embedded cover to the cover cache and returns its path, or
+    /// `None` if the recording has no cover. Files are named by content, so
+    /// an unchanged cover is written once.
+    pub fn export_cover(&self, file_name: &str) -> Result<Option<PathBuf>, String> {
+        let Some((mime, data)) = tags::read_cover(&self.existing(file_name)?) else { return Ok(None) };
+        std::fs::create_dir_all(&self.covers_dir).map_err(|e| format!("creating {}: {e}", self.covers_dir.display()))?;
+        let path = self.covers_dir.join(format!("{:016x}.{}", fnv1a(&data), tags::cover_extension(&mime)));
+        if !path.exists() {
+            std::fs::write(&path, &data).map_err(|e| format!("writing {}: {e}", path.display()))?;
+        }
+        Ok(Some(path))
+    }
+
+    /// Applies one edit to several recordings (bulk edit). All names are
+    /// checked first; each file is then written atomically. Returns the first
+    /// error after attempting every file.
+    pub fn write_tags(&mut self, file_names: &[String], edit: &TagEdit, version: TagVersion) -> Result<(), String> {
+        let paths: Vec<PathBuf> = file_names.iter().map(|n| self.existing(n)).collect::<Result<_, _>>()?;
+        let mut first_error = None;
+        for (name, path) in file_names.iter().zip(&paths) {
+            if let Err(e) = tags::write(path, edit, version) {
+                first_error.get_or_insert(format!("{name}: {e}"));
+            }
+            // Re-read on the next list, whatever happened.
+            self.db
+                .execute("DELETE FROM recordings WHERE file_name = ?1", [name])
+                .map_err(|e| format!("library index: {e}"))?;
+        }
+        first_error.map_or(Ok(()), Err)
+    }
+
     /// Shows the recording selected in Finder / Explorer.
     pub fn reveal(&self, file_name: &str) -> Result<(), String> {
         reveal_in_file_manager(&self.existing(file_name)?)
@@ -302,6 +344,11 @@ fn update_title_if_default(path: &Path, old_stem: &str, new_stem: &str) -> Resul
     tag.write_to_path(path, version).map_err(|e| format!("updating the title tag: {e}"))
 }
 
+/// Stable 64-bit FNV-1a, for content-addressed cover file names.
+fn fnv1a(data: &[u8]) -> u64 {
+    data.iter().fold(0xcbf2_9ce4_8422_2325, |h, &b| (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3))
+}
+
 fn move_to_trash(path: &Path) -> Result<(), String> {
     #[allow(unused_mut)]
     let mut trash = trash::TrashContext::default();
@@ -319,11 +366,43 @@ fn reveal_in_file_manager(path: &Path) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     let status = std::process::Command::new("open").arg("-R").arg(path).status();
     #[cfg(target_os = "windows")]
-    let status = std::process::Command::new("explorer").arg(format!("/select,{}", path.display())).status();
+    return reveal_windows(path);
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     let status = std::process::Command::new("xdg-open").arg(path.parent().unwrap_or(path)).status();
-    // explorer.exe returns 1 even on success, so only spawn failures count.
+    #[cfg(not(target_os = "windows"))]
     status.map(|_| ()).map_err(|e| format!("showing {}: {e}", path.display()))
+}
+
+/// Opens Explorer on the folder with the file selected. Uses the Shell API
+/// (works from packaged apps, no command-line quoting) on its own STA thread.
+#[cfg(target_os = "windows")]
+fn reveal_windows(path: &Path) -> Result<(), String> {
+    use windows::{
+        Win32::{
+            System::Com::{COINIT_APARTMENTTHREADED, CoInitializeEx, CoUninitialize},
+            UI::Shell::{ILCreateFromPathW, ILFree, SHOpenFolderAndSelectItems},
+        },
+        core::HSTRING,
+    };
+    let wide = HSTRING::from(path.as_os_str());
+    let shown = path.display().to_string();
+    std::thread::spawn(move || unsafe {
+        let com = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+        let pidl = ILCreateFromPathW(&wide);
+        let result = if pidl.is_null() {
+            Err(format!("showing {shown}: path not found"))
+        } else {
+            let r = SHOpenFolderAndSelectItems(pidl, None, 0).map_err(|e| format!("showing {shown}: {e}"));
+            ILFree(Some(pidl));
+            r
+        };
+        if com.is_ok() {
+            CoUninitialize();
+        }
+        result
+    })
+    .join()
+    .unwrap_or_else(|_| Err("showing the file panicked".into()))
 }
 
 /// For tests and tools: blocks until `on_change` fires or the timeout passes.
@@ -489,6 +568,43 @@ mod tests {
         f.library.trash("Old.mp3").unwrap();
         assert_eq!(*f.trashed.lock().unwrap(), [path]);
         assert!(f.library.list().unwrap().is_empty());
+    }
+
+    #[test]
+    fn bulk_tag_edit_updates_only_the_given_fields_and_the_list() {
+        let mut f = fixture();
+        add(&f.dir, "One", 0.3, Some("One"));
+        add(&f.dir, "Two", 0.3, Some("Two"));
+        f.library.list().unwrap();
+        let cover = f.dir.join("cover.png");
+        std::fs::write(&cover, crate::tags::tests::PNG_1X1).unwrap();
+
+        let edit = TagEdit {
+            album: Some(Some("Shared".into())),
+            artist: Some(None),
+            cover: crate::tags::CoverEdit::Set(cover),
+            ..Default::default()
+        };
+        f.library.write_tags(&["One.mp3".into(), "Two.mp3".into()], &edit, TagVersion::V24).unwrap();
+
+        let list = f.library.list().unwrap();
+        for (name, title) in [("One.mp3", "One"), ("Two.mp3", "Two")] {
+            let r = list.iter().find(|r| r.file_name == name).unwrap();
+            assert_eq!((r.title.as_str(), r.album.as_deref(), r.artist.as_deref()), (title, Some("Shared"), None));
+            assert!(f.library.read_tags(name).unwrap().has_cover);
+        }
+        let exported = f.library.export_cover("One.mp3").unwrap().unwrap();
+        assert_eq!(std::fs::read(&exported).unwrap(), crate::tags::tests::PNG_1X1);
+        assert_eq!(f.library.export_cover("Two.mp3").unwrap().unwrap(), exported, "same image, same cache file");
+    }
+
+    #[test]
+    fn bulk_tag_edit_checks_every_name_first() {
+        let mut f = fixture();
+        add(&f.dir, "One", 0.3, Some("One"));
+        let edit = TagEdit { album: Some(Some("X".into())), ..Default::default() };
+        assert!(f.library.write_tags(&["One.mp3".into(), "Missing.mp3".into()], &edit, TagVersion::V24).is_err());
+        assert_eq!(f.library.read_tags("One.mp3").unwrap().album, None, "nothing written");
     }
 
     #[test]

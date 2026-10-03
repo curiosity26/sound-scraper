@@ -50,6 +50,40 @@ export type Recording = {
   recordedAtMs: number;
 };
 
+/** Mirrors SsTags in sound_scraper.h. */
+export type Tags = {
+  title: string | null;
+  artist: string | null;
+  album: string | null;
+  albumArtist: string | null;
+  /** "YYYY", "YYYY-MM" or "YYYY-MM-DD". */
+  date: string | null;
+  genre: string | null;
+  comment: string | null;
+  track: number | null;
+  /** Extracted front cover image, or null if none. */
+  coverPath: string | null;
+};
+
+/** Mirrors SsTagEdit: only the fields listed in `fields` change. */
+export type TagEdit = {
+  /** Any of: title, artist, album, albumArtist, date, track, genre, comment. */
+  fields: Array<string>;
+  title: string | null;
+  artist: string | null;
+  album: string | null;
+  albumArtist: string | null;
+  date: string | null;
+  genre: string | null;
+  comment: string | null;
+  track: number | null;
+  /** 'keep' | 'remove' | 'set' (embed the image at coverPath). */
+  cover: string;
+  coverPath: string | null;
+  /** Write ID3v2.3 instead of ID3v2.4, for older players. */
+  id3v23: boolean;
+};
+
 export interface Spec extends TurboModule {
   readonly onRecorderEvent: CodegenTypes.EventEmitter<RecorderEvent>;
   /** Fires (payload "changed") when recordings change on disk. */
@@ -80,6 +114,12 @@ export interface Spec extends TurboModule {
   trashRecording(fileName: string): Promise<void>;
   /** Shows the file in Finder / Explorer. */
   revealRecording(fileName: string): void;
+
+  readTags(fileName: string): Promise<Tags>;
+  /** Applies one edit to every listed recording (bulk edit). */
+  writeTags(fileNames: Array<string>, edit: TagEdit): Promise<void>;
+  /** Native open dialog for a JPEG/PNG; resolves with its path, or null if cancelled. */
+  pickImage(): Promise<string | null>;
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>('SoundScraper');

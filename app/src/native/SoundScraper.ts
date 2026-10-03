@@ -6,9 +6,18 @@ import type {
   CaptureReport,
   RecorderEvent,
   Recording,
+  TagEdit,
+  Tags,
 } from './NativeSoundScraper';
 
-export type { AudioApp, CaptureReport, RecorderEvent, Recording };
+export type {
+  AudioApp,
+  CaptureReport,
+  RecorderEvent,
+  Recording,
+  TagEdit,
+  Tags,
+};
 
 export type RecorderState = 'idle' | 'recording' | 'paused' | 'finalizing';
 
@@ -57,6 +66,12 @@ export const library = {
     NativeSoundScraper.revealRecording(fileName),
   onChanged: (listener: () => void): EventSubscription =>
     NativeSoundScraper.onLibraryChanged(() => listener()),
+  readTags: (fileName: string): Promise<Tags> =>
+    NativeSoundScraper.readTags(fileName),
+  writeTags: (fileNames: string[], edit: TagEdit): Promise<void> =>
+    NativeSoundScraper.writeTags(fileNames, edit),
+  /** Native open dialog for a cover image; null if cancelled. */
+  pickImage: (): Promise<string | null> => NativeSoundScraper.pickImage(),
 };
 
 if (__DEV__) {

@@ -5,8 +5,12 @@
 
 #include <NativeModules.h>
 
+#include <commdlg.h>
+
 #include <memory>
 #include <thread>
+
+#pragma comment(lib, "comdlg32.lib")
 
 #include "codegen/NativeSoundScraperDataTypes.g.h"
 #include "codegen/NativeSoundScraperSpec.g.h"
@@ -35,6 +39,8 @@ struct SoundScraperModule {
   using CaptureReport = SoundScraperCodegen::SoundScraperSpec_CaptureReport;
   using RecorderEvent = SoundScraperCodegen::SoundScraperSpec_RecorderEvent;
   using Recording = SoundScraperCodegen::SoundScraperSpec_Recording;
+  using Tags = SoundScraperCodegen::SoundScraperSpec_Tags;
+  using TagEdit = SoundScraperCodegen::SoundScraperSpec_TagEdit;
 
   REACT_EVENT(onLibraryChanged)
   std::function<void(std::string)> onLibraryChanged;
@@ -213,6 +219,95 @@ struct SoundScraperModule {
   REACT_METHOD(revealRecording)
   void revealRecording(std::string fileName) noexcept {
     ss_library_reveal(m_library, fileName.c_str());
+  }
+
+  REACT_METHOD(readTags)
+  void readTags(std::string fileName, ::React::ReactPromise<Tags> &&result) noexcept {
+    RunOffThread([library = m_library, fileName, result](auto dispatcher) {
+      const SsTags *t = library ? ss_library_read_tags(library, fileName.c_str()) : nullptr;
+      if (!t) {
+        dispatcher.Post([result, message = std::string(library ? ss_last_error_message() : "library unavailable")]() {
+          result.Reject(message.c_str());
+        });
+        return;
+      }
+      auto opt = [](const char *s) { return s ? std::optional<std::string>(s) : std::nullopt; };
+      Tags out;
+      out.title = opt(t->title);
+      out.artist = opt(t->artist);
+      out.album = opt(t->album);
+      out.albumArtist = opt(t->album_artist);
+      out.date = opt(t->date);
+      out.genre = opt(t->genre);
+      out.comment = opt(t->comment);
+      if (t->track > 0) {
+        out.track = static_cast<double>(t->track);
+      }
+      out.coverPath = opt(t->cover_path);
+      ss_tags_free(t);
+      dispatcher.Post([result, out]() { result.Resolve(out); });
+    });
+  }
+
+  REACT_METHOD(writeTags)
+  void writeTags(std::vector<std::string> const &fileNames, TagEdit &&edit, ::React::ReactPromise<void> &&result) noexcept {
+    RunOffThread([library = m_library, fileNames, edit = std::move(edit), result](auto dispatcher) {
+      static const std::pair<const char *, uint32_t> bits[] = {
+          {"title", SS_TAG_TITLE}, {"artist", SS_TAG_ARTIST}, {"album", SS_TAG_ALBUM},
+          {"albumArtist", SS_TAG_ALBUM_ARTIST}, {"date", SS_TAG_DATE}, {"track", SS_TAG_TRACK},
+          {"genre", SS_TAG_GENRE}, {"comment", SS_TAG_COMMENT}};
+      SsTagEdit e{};
+      for (auto const &field : edit.fields) {
+        for (auto const &[name, bit] : bits) {
+          if (field == name) {
+            e.set_mask |= bit;
+          }
+        }
+      }
+      auto str = [](std::optional<std::string> const &s) { return s ? s->c_str() : nullptr; };
+      e.title = str(edit.title);
+      e.artist = str(edit.artist);
+      e.album = str(edit.album);
+      e.album_artist = str(edit.albumArtist);
+      e.date = str(edit.date);
+      e.genre = str(edit.genre);
+      e.comment = str(edit.comment);
+      e.track = edit.track && *edit.track > 0 ? static_cast<uint32_t>(*edit.track) : 0;
+      e.cover = edit.cover == "set" ? SS_COVER_EDIT_SET : edit.cover == "remove" ? SS_COVER_EDIT_REMOVE : SS_COVER_EDIT_KEEP;
+      e.cover_path = str(edit.coverPath);
+      e.version = edit.id3v23 ? SS_TAG_VERSION_ID3V23 : SS_TAG_VERSION_ID3V24;
+      std::vector<const char *> names;
+      for (auto const &n : fileNames) {
+        names.push_back(n.c_str());
+      }
+      if (ss_library_write_tags(library, names.data(), names.size(), &e) != SS_STATUS_OK) {
+        dispatcher.Post([result, message = std::string(ss_last_error_message())]() { result.Reject(message.c_str()); });
+        return;
+      }
+      dispatcher.Post([result]() { result.Resolve(); });
+    });
+  }
+
+  REACT_METHOD(pickImage)
+  void pickImage(::React::ReactPromise<std::optional<std::string>> &&result) noexcept {
+    RunOffThread([result](auto dispatcher) {
+      // The common dialog needs an STA thread of its own.
+      CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+      wchar_t file[MAX_PATH * 4] = L"";
+      OPENFILENAMEW ofn{};
+      ofn.lStructSize = sizeof(ofn);
+      ofn.lpstrFilter = L"Images (*.jpg;*.jpeg;*.png)\0*.jpg;*.jpeg;*.png\0";
+      ofn.lpstrFile = file;
+      ofn.nMaxFile = static_cast<DWORD>(std::size(file));
+      ofn.lpstrTitle = L"Choose cover art";
+      ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+      std::optional<std::string> picked;
+      if (GetOpenFileNameW(&ofn)) {
+        picked = winrt::to_string(file);
+      }
+      CoUninitialize();
+      dispatcher.Post([result, picked]() { result.Resolve(picked); });
+    });
   }
 
  private:

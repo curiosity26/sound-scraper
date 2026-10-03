@@ -19,6 +19,7 @@ use crate::{
     paths,
     recorder::{self, Recorder, RecorderEvent, RecorderState, Status},
     sources,
+    tags::{CoverEdit, TagEdit, TagVersion},
 };
 
 /// Opaque recorder handle. Create with `ss_recorder_create`, free with
@@ -663,6 +664,177 @@ pub unsafe extern "C" fn ss_library_set_callback(
             l.unwatch();
             Ok(())
         }
+    })
+    .map_or_else(|status| status, |()| SsStatus::Ok)
+}
+
+/// A recording's editable tags. Strings are UTF-8, NULL when not set, and
+/// owned by this struct; free it with `ss_tags_free`.
+#[repr(C)]
+pub struct SsTags {
+    pub title: *const c_char,
+    pub artist: *const c_char,
+    pub album: *const c_char,
+    pub album_artist: *const c_char,
+    /// "YYYY", "YYYY-MM" or "YYYY-MM-DD".
+    pub date: *const c_char,
+    pub genre: *const c_char,
+    pub comment: *const c_char,
+    /// Track number; 0 when not set.
+    pub track: u32,
+    /// Path of the embedded front cover, extracted to the app's cover cache
+    /// (NULL when there is no cover).
+    pub cover_path: *const c_char,
+}
+
+#[repr(C)]
+struct SsTagsOwned {
+    tags: SsTags, // first, so a *SsTags is a *SsTagsOwned
+    strings: Vec<CString>,
+}
+
+/// Bits for `SsTagEdit::set_mask`: which fields the edit changes.
+pub const SS_TAG_TITLE: u32 = 1 << 0;
+pub const SS_TAG_ARTIST: u32 = 1 << 1;
+pub const SS_TAG_ALBUM: u32 = 1 << 2;
+pub const SS_TAG_ALBUM_ARTIST: u32 = 1 << 3;
+pub const SS_TAG_DATE: u32 = 1 << 4;
+pub const SS_TAG_TRACK: u32 = 1 << 5;
+pub const SS_TAG_GENRE: u32 = 1 << 6;
+pub const SS_TAG_COMMENT: u32 = 1 << 7;
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SsCoverEdit {
+    Keep = 0,
+    Remove = 1,
+    /// Embed the JPEG/PNG at `cover_path`.
+    Set = 2,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SsTagVersion {
+    Id3v24 = 0,
+    Id3v23 = 1,
+}
+
+/// A tag change for one or more recordings. Fields whose bit is not in
+/// `set_mask` are left alone; a set field with a NULL or empty string (or
+/// `track` 0) is cleared.
+#[repr(C)]
+pub struct SsTagEdit {
+    pub set_mask: u32,
+    pub title: *const c_char,
+    pub artist: *const c_char,
+    pub album: *const c_char,
+    pub album_artist: *const c_char,
+    pub date: *const c_char,
+    pub genre: *const c_char,
+    pub comment: *const c_char,
+    pub track: u32,
+    pub cover: SsCoverEdit,
+    pub cover_path: *const c_char,
+    pub version: SsTagVersion,
+}
+
+/// Reads a recording's tags (and extracts its cover). Returns NULL on
+/// failure (see `ss_last_error_message`).
+///
+/// # Safety
+/// `library` must be a live handle; `file_name` must be NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_library_read_tags(library: *mut SsLibrary, file_name: *const c_char) -> *const SsTags {
+    let read = with_library(library, |l| {
+        let name = unsafe { arg_str(file_name, "file_name")? };
+        Ok((l.read_tags(name)?, l.export_cover(name)?))
+    });
+    let Ok((fields, cover)) = read else { return ptr::null() };
+    let mut strings = Vec::new();
+    let mut keep = |s: Option<&str>| -> *const c_char {
+        s.map_or(ptr::null(), |s| {
+            let c = c_string(s);
+            let p = c.as_ptr();
+            strings.push(c);
+            p
+        })
+    };
+    let tags = SsTags {
+        title: keep(fields.title.as_deref()),
+        artist: keep(fields.artist.as_deref()),
+        album: keep(fields.album.as_deref()),
+        album_artist: keep(fields.album_artist.as_deref()),
+        date: keep(fields.date.as_deref()),
+        genre: keep(fields.genre.as_deref()),
+        comment: keep(fields.comment.as_deref()),
+        track: fields.track.unwrap_or(0),
+        cover_path: keep(cover.as_ref().map(|p| p.to_string_lossy()).as_deref()),
+    };
+    Box::into_raw(Box::new(SsTagsOwned { tags, strings })).cast_const().cast()
+}
+
+/// Frees tags from `ss_library_read_tags`. NULL is a no-op.
+///
+/// # Safety
+/// `tags` must be NULL or a pointer from `ss_library_read_tags` not already freed.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_tags_free(tags: *const SsTags) {
+    if !tags.is_null() {
+        drop(unsafe { Box::from_raw(tags.cast_mut().cast::<SsTagsOwned>()) });
+    }
+}
+
+/// Applies `edit` to each of `count` recordings (bulk edit), atomically per
+/// file. All names are checked before anything is written.
+///
+/// # Safety
+/// `library` must be a live handle; `file_names` must point to `count`
+/// NUL-terminated UTF-8 strings; `edit` must be valid, with its strings
+/// NULL or NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_library_write_tags(
+    library: *mut SsLibrary,
+    file_names: *const *const c_char,
+    count: usize,
+    edit: *const SsTagEdit,
+) -> SsStatus {
+    with_library(library, |l| {
+        let e = unsafe { edit.as_ref() }.ok_or("edit is NULL")?;
+        if file_names.is_null() && count > 0 {
+            return Err("file_names is NULL".into());
+        }
+        let names = (0..count)
+            .map(|i| unsafe { arg_str(*file_names.add(i), "file_names[i]") }.map(str::to_string))
+            .collect::<Result<Vec<_>, _>>()?;
+        let text = |bit: u32, s: *const c_char| -> Result<Option<Option<String>>, String> {
+            if e.set_mask & bit == 0 {
+                return Ok(None);
+            }
+            if s.is_null() {
+                return Ok(Some(None));
+            }
+            Ok(Some(Some(unsafe { arg_str(s, "tag field")? }.to_string())))
+        };
+        let edit = TagEdit {
+            title: text(SS_TAG_TITLE, e.title)?,
+            artist: text(SS_TAG_ARTIST, e.artist)?,
+            album: text(SS_TAG_ALBUM, e.album)?,
+            album_artist: text(SS_TAG_ALBUM_ARTIST, e.album_artist)?,
+            date: text(SS_TAG_DATE, e.date)?,
+            genre: text(SS_TAG_GENRE, e.genre)?,
+            comment: text(SS_TAG_COMMENT, e.comment)?,
+            track: (e.set_mask & SS_TAG_TRACK != 0).then_some((e.track > 0).then_some(e.track)),
+            cover: match e.cover {
+                SsCoverEdit::Keep => CoverEdit::Keep,
+                SsCoverEdit::Remove => CoverEdit::Remove,
+                SsCoverEdit::Set => CoverEdit::Set(unsafe { arg_str(e.cover_path, "cover_path")? }.into()),
+            },
+        };
+        let version = match e.version {
+            SsTagVersion::Id3v24 => TagVersion::V24,
+            SsTagVersion::Id3v23 => TagVersion::V23,
+        };
+        l.write_tags(&names, &edit, version)
     })
     .map_or_else(|status| status, |()| SsStatus::Ok)
 }

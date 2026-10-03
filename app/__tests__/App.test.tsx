@@ -25,6 +25,9 @@ jest.mock('../src/native/NativeSoundScraper', () => ({
     renameRecording: jest.fn(),
     trashRecording: jest.fn(),
     revealRecording: jest.fn(),
+    readTags: jest.fn(),
+    writeTags: jest.fn(),
+    pickImage: jest.fn(),
   },
 }));
 
@@ -101,5 +104,81 @@ describe('library model', () => {
     expect(formatDuration(3_725_000)).toBe('1:02:05');
     expect(formatSize(2_500_000)).toBe('2.4 MB');
     expect(formatSize(300)).toBe('1 KB');
+  });
+});
+
+describe('tag model', () => {
+  const {
+    mergeTags,
+    mergeCovers,
+    buildEdit,
+    validate,
+    fileUri,
+  } = require('../src/tagModel');
+  const tags = (extra: object = {}) => ({
+    title: null,
+    artist: null,
+    album: null,
+    albumArtist: null,
+    date: null,
+    genre: null,
+    comment: null,
+    track: null,
+    coverPath: null,
+    ...extra,
+  });
+
+  test('merges shared and mixed values', () => {
+    const m = mergeTags([
+      tags({ title: 'A', album: 'Same', track: 1 }),
+      tags({ title: 'B', album: 'Same', track: 1 }),
+    ]);
+    expect(m.title).toEqual({ kind: 'mixed' });
+    expect(m.album).toEqual({ kind: 'value', text: 'Same' });
+    expect(m.track).toEqual({ kind: 'value', text: '1' });
+    expect(m.artist).toEqual({ kind: 'value', text: '' });
+    expect(
+      mergeCovers([
+        tags({ coverPath: '/c.png' }),
+        tags({ coverPath: '/c.png' }),
+      ]),
+    ).toEqual({
+      kind: 'image',
+      path: '/c.png',
+    });
+    expect(mergeCovers([tags({ coverPath: '/c.png' }), tags()]).kind).toBe(
+      'mixed',
+    );
+  });
+
+  test('builds an edit for only the changed fields', () => {
+    const e = buildEdit(
+      { album: ' New ', artist: '', track: '7' },
+      { kind: 'keep' },
+      false,
+    );
+    expect(e.fields).toEqual(['artist', 'album', 'track']);
+    expect(e.album).toBe('New');
+    expect(e.artist).toBeNull();
+    expect(e.track).toBe(7);
+    expect(e.cover).toBe('keep');
+    const c = buildEdit({}, { kind: 'set', path: 'C:\\x.png' }, true);
+    expect(c.fields).toEqual([]);
+    expect([c.cover, c.coverPath, c.id3v23]).toEqual([
+      'set',
+      'C:\\x.png',
+      true,
+    ]);
+  });
+
+  test('validates track and date and builds file URIs', () => {
+    expect(validate('track', '12')).toBeNull();
+    expect(validate('track', 'x')).not.toBeNull();
+    expect(validate('date', '2026-10')).toBeNull();
+    expect(validate('date', '10/3/2026')).not.toBeNull();
+    expect(fileUri('/Users/a/My Cover.png')).toBe(
+      'file:///Users/a/My%20Cover.png',
+    );
+    expect(fileUri('C:\\covers\\a.png')).toBe('file:///C:/covers/a.png');
   });
 });

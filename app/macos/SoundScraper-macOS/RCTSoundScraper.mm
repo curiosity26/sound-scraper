@@ -1,5 +1,11 @@
 #import "RCTSoundScraper.h"
 
+#import <AppKit/AppKit.h>
+#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
+
+#include <string>
+#include <vector>
+
 #include "sound_scraper.h"
 
 static NSString *SSString(const char *s)
@@ -302,6 +308,105 @@ RCT_EXPORT_MODULE(SoundScraper)
   dispatch_async(_libraryQueue, ^{
     SsLibrary *library = [self library];
     ss_library_reveal(library, fileName.UTF8String);
+  });
+}
+
+- (void)readTags:(NSString *)fileName resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject
+{
+  dispatch_async(_libraryQueue, ^{
+    const SsTags *t = ss_library_read_tags([self library], fileName.UTF8String);
+    if (!t) {
+      reject(@"tags_failed", SSString(ss_last_error_message()), SSLastError());
+      return;
+    }
+    id null = [NSNull null];
+    NSDictionary *result = @{
+      @"title" : SSString(t->title) ?: null,
+      @"artist" : SSString(t->artist) ?: null,
+      @"album" : SSString(t->album) ?: null,
+      @"albumArtist" : SSString(t->album_artist) ?: null,
+      @"date" : SSString(t->date) ?: null,
+      @"genre" : SSString(t->genre) ?: null,
+      @"comment" : SSString(t->comment) ?: null,
+      @"track" : t->track > 0 ? @(t->track) : null,
+      @"coverPath" : SSString(t->cover_path) ?: null,
+    };
+    ss_tags_free(t);
+    resolve(result);
+  });
+}
+
+- (void)writeTags:(NSArray *)fileNames
+             edit:(JS::NativeSoundScraper::TagEdit &)edit
+          resolve:(RCTPromiseResolveBlock)resolve
+           reject:(RCTPromiseRejectBlock)reject
+{
+  // `edit` wraps a dictionary that's only valid during this call: copy it.
+  static NSDictionary<NSString *, NSNumber *> *bits = @{
+    @"title" : @(SS_TAG_TITLE),
+    @"artist" : @(SS_TAG_ARTIST),
+    @"album" : @(SS_TAG_ALBUM),
+    @"albumArtist" : @(SS_TAG_ALBUM_ARTIST),
+    @"date" : @(SS_TAG_DATE),
+    @"track" : @(SS_TAG_TRACK),
+    @"genre" : @(SS_TAG_GENRE),
+    @"comment" : @(SS_TAG_COMMENT),
+  };
+  uint32_t mask = 0;
+  for (NSString *field : edit.fields()) {
+    mask |= bits[field].unsignedIntValue;
+  }
+  NSArray<NSString *> *values = @[
+    edit.title() ?: @"", edit.artist() ?: @"", edit.album() ?: @"", edit.albumArtist() ?: @"",
+    edit.date() ?: @"", edit.genre() ?: @"", edit.comment() ?: @""
+  ];
+  uint32_t track = edit.track().has_value() ? (uint32_t)MAX(0.0, *edit.track()) : 0;
+  NSString *coverMode = edit.cover();
+  NSString *coverPath = edit.coverPath();
+  BOOL id3v23 = edit.id3v23();
+  NSArray<NSString *> *names = [fileNames copy];
+
+  dispatch_async(_libraryQueue, ^{
+    std::vector<const char *> cNames;
+    for (NSString *name in names) {
+      cNames.push_back(name.UTF8String);
+    }
+    SsTagEdit e = {};
+    e.set_mask = mask;
+    e.title = values[0].UTF8String;
+    e.artist = values[1].UTF8String;
+    e.album = values[2].UTF8String;
+    e.album_artist = values[3].UTF8String;
+    e.date = values[4].UTF8String;
+    e.genre = values[5].UTF8String;
+    e.comment = values[6].UTF8String;
+    e.track = track;
+    e.cover = [coverMode isEqualToString:@"set"] ? SS_COVER_EDIT_SET
+        : [coverMode isEqualToString:@"remove"]  ? SS_COVER_EDIT_REMOVE
+                                                 : SS_COVER_EDIT_KEEP;
+    e.cover_path = coverPath.UTF8String;
+    e.version = id3v23 ? SS_TAG_VERSION_ID3V23 : SS_TAG_VERSION_ID3V24;
+    if (ss_library_write_tags([self library], cNames.data(), cNames.size(), &e) != SS_STATUS_OK) {
+      reject(@"tags_failed", SSString(ss_last_error_message()), SSLastError());
+      return;
+    }
+    resolve(nil);
+  });
+}
+
+- (void)pickImage:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject
+{
+  dispatch_async(dispatch_get_main_queue(), ^{
+    NSOpenPanel *panel = [NSOpenPanel openPanel];
+    panel.title = @"Choose cover art";
+    panel.allowedContentTypes = @[ UTTypePNG, UTTypeJPEG ];
+    panel.allowsMultipleSelection = NO;
+    panel.canChooseDirectories = NO;
+    if ([panel runModal] == NSModalResponseOK && panel.URL) {
+      resolve(panel.URL.path);
+    } else {
+      resolve([NSNull null]);
+    }
   });
 }
 

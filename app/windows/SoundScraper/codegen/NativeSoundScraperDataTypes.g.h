@@ -52,4 +52,31 @@ struct SoundScraperSpec_Recording {
     double recordedAtMs;
 };
 
+struct SoundScraperSpec_TagEdit {
+    std::vector<std::string> fields;
+    std::optional<std::string> title;
+    std::optional<std::string> artist;
+    std::optional<std::string> album;
+    std::optional<std::string> albumArtist;
+    std::optional<std::string> date;
+    std::optional<std::string> genre;
+    std::optional<std::string> comment;
+    std::optional<double> track;
+    std::string cover;
+    std::optional<std::string> coverPath;
+    bool id3v23;
+};
+
+struct SoundScraperSpec_Tags {
+    std::optional<std::string> title;
+    std::optional<std::string> artist;
+    std::optional<std::string> album;
+    std::optional<std::string> albumArtist;
+    std::optional<std::string> date;
+    std::optional<std::string> genre;
+    std::optional<std::string> comment;
+    std::optional<double> track;
+    std::optional<std::string> coverPath;
+};
+
 } // namespace SoundScraperCodegen

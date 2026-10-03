@@ -63,6 +63,39 @@ inline winrt::Microsoft::ReactNative::FieldMap GetStructInfo(SoundScraperSpec_Re
     return fieldMap;
 }
 
+inline winrt::Microsoft::ReactNative::FieldMap GetStructInfo(SoundScraperSpec_TagEdit*) noexcept {
+    winrt::Microsoft::ReactNative::FieldMap fieldMap {
+        {L"fields", &SoundScraperSpec_TagEdit::fields},
+        {L"title", &SoundScraperSpec_TagEdit::title},
+        {L"artist", &SoundScraperSpec_TagEdit::artist},
+        {L"album", &SoundScraperSpec_TagEdit::album},
+        {L"albumArtist", &SoundScraperSpec_TagEdit::albumArtist},
+        {L"date", &SoundScraperSpec_TagEdit::date},
+        {L"genre", &SoundScraperSpec_TagEdit::genre},
+        {L"comment", &SoundScraperSpec_TagEdit::comment},
+        {L"track", &SoundScraperSpec_TagEdit::track},
+        {L"cover", &SoundScraperSpec_TagEdit::cover},
+        {L"coverPath", &SoundScraperSpec_TagEdit::coverPath},
+        {L"id3v23", &SoundScraperSpec_TagEdit::id3v23},
+    };
+    return fieldMap;
+}
+
+inline winrt::Microsoft::ReactNative::FieldMap GetStructInfo(SoundScraperSpec_Tags*) noexcept {
+    winrt::Microsoft::ReactNative::FieldMap fieldMap {
+        {L"title", &SoundScraperSpec_Tags::title},
+        {L"artist", &SoundScraperSpec_Tags::artist},
+        {L"album", &SoundScraperSpec_Tags::album},
+        {L"albumArtist", &SoundScraperSpec_Tags::albumArtist},
+        {L"date", &SoundScraperSpec_Tags::date},
+        {L"genre", &SoundScraperSpec_Tags::genre},
+        {L"comment", &SoundScraperSpec_Tags::comment},
+        {L"track", &SoundScraperSpec_Tags::track},
+        {L"coverPath", &SoundScraperSpec_Tags::coverPath},
+    };
+    return fieldMap;
+}
+
 struct SoundScraperSpec : winrt::Microsoft::ReactNative::TurboModuleSpec {
   static constexpr auto methods = std::tuple{
       SyncMethod<std::string() noexcept>{0, L"getVersion"},
@@ -78,8 +111,11 @@ struct SoundScraperSpec : winrt::Microsoft::ReactNative::TurboModuleSpec {
       Method<void(std::string, std::string, Promise<std::string>) noexcept>{10, L"renameRecording"},
       Method<void(std::string, Promise<void>) noexcept>{11, L"trashRecording"},
       Method<void(std::string) noexcept>{12, L"revealRecording"},
-      EventEmitter<void(SoundScraperSpec_RecorderEvent)>{13, L"onRecorderEvent"},
-      EventEmitter<void(std::string)>{14, L"onLibraryChanged"},
+      Method<void(std::string, Promise<SoundScraperSpec_Tags>) noexcept>{13, L"readTags"},
+      Method<void(std::vector<std::string>, SoundScraperSpec_TagEdit, Promise<void>) noexcept>{14, L"writeTags"},
+      Method<void(Promise<std::optional<std::string>>) noexcept>{15, L"pickImage"},
+      EventEmitter<void(SoundScraperSpec_RecorderEvent)>{16, L"onRecorderEvent"},
+      EventEmitter<void(std::string)>{17, L"onLibraryChanged"},
   };
 
   template <class TModule>
@@ -151,12 +187,27 @@ struct SoundScraperSpec : winrt::Microsoft::ReactNative::TurboModuleSpec {
           "revealRecording",
           "    REACT_METHOD(revealRecording) void revealRecording(std::string fileName) noexcept { /* implementation */ }\n"
           "    REACT_METHOD(revealRecording) static void revealRecording(std::string fileName) noexcept { /* implementation */ }\n");
-    REACT_SHOW_EVENTEMITTER_SPEC_ERRORS(
+    REACT_SHOW_METHOD_SPEC_ERRORS(
           13,
+          "readTags",
+          "    REACT_METHOD(readTags) void readTags(std::string fileName, ::React::ReactPromise<SoundScraperSpec_Tags> &&result) noexcept { /* implementation */ }\n"
+          "    REACT_METHOD(readTags) static void readTags(std::string fileName, ::React::ReactPromise<SoundScraperSpec_Tags> &&result) noexcept { /* implementation */ }\n");
+    REACT_SHOW_METHOD_SPEC_ERRORS(
+          14,
+          "writeTags",
+          "    REACT_METHOD(writeTags) void writeTags(std::vector<std::string> const & fileNames, SoundScraperSpec_TagEdit && edit, ::React::ReactPromise<void> &&result) noexcept { /* implementation */ }\n"
+          "    REACT_METHOD(writeTags) static void writeTags(std::vector<std::string> const & fileNames, SoundScraperSpec_TagEdit && edit, ::React::ReactPromise<void> &&result) noexcept { /* implementation */ }\n");
+    REACT_SHOW_METHOD_SPEC_ERRORS(
+          15,
+          "pickImage",
+          "    REACT_METHOD(pickImage) void pickImage(::React::ReactPromise<std::optional<std::string>> &&result) noexcept { /* implementation */ }\n"
+          "    REACT_METHOD(pickImage) static void pickImage(::React::ReactPromise<std::optional<std::string>> &&result) noexcept { /* implementation */ }\n");
+    REACT_SHOW_EVENTEMITTER_SPEC_ERRORS(
+          16,
           "onRecorderEvent",
           "    REACT_EVENT(onRecorderEvent) std::function<void(SoundScraperSpec_RecorderEvent)> onRecorderEvent;\n");
     REACT_SHOW_EVENTEMITTER_SPEC_ERRORS(
-          14,
+          17,
           "onLibraryChanged",
           "    REACT_EVENT(onLibraryChanged) std::function<void(std::string)> onLibraryChanged;\n");
   }

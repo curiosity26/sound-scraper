@@ -7,6 +7,25 @@
 #include <stdbool.h>
 
 /*
+ Bits for `SsTagEdit::set_mask`: which fields the edit changes.
+ */
+#define SS_TAG_TITLE (1 << 0)
+
+#define SS_TAG_ARTIST (1 << 1)
+
+#define SS_TAG_ALBUM (1 << 2)
+
+#define SS_TAG_ALBUM_ARTIST (1 << 3)
+
+#define SS_TAG_DATE (1 << 4)
+
+#define SS_TAG_TRACK (1 << 5)
+
+#define SS_TAG_GENRE (1 << 6)
+
+#define SS_TAG_COMMENT (1 << 7)
+
+/*
  Recorder state as seen from C.
  */
 typedef enum SsRecorderState {
@@ -43,6 +62,20 @@ typedef enum SsRecorderEventKind {
    */
   SS_RECORDER_EVENT_KIND_ERROR = 3,
 } SsRecorderEventKind;
+
+typedef enum SsCoverEdit {
+  SS_COVER_EDIT_KEEP = 0,
+  SS_COVER_EDIT_REMOVE = 1,
+  /*
+   Embed the JPEG/PNG at `cover_path`.
+   */
+  SS_COVER_EDIT_SET = 2,
+} SsCoverEdit;
+
+typedef enum SsTagVersion {
+  SS_TAG_VERSION_ID3V24 = 0,
+  SS_TAG_VERSION_ID3V23 = 1,
+} SsTagVersion;
 
 /*
  Opaque list of apps from `ss_audio_apps_list`.
@@ -162,6 +195,52 @@ typedef struct SsRecording {
  removed or changed on disk.
  */
 typedef void (*SsLibraryCallback)(void *user_data);
+
+/*
+ A recording's editable tags. Strings are UTF-8, NULL when not set, and
+ owned by this struct; free it with `ss_tags_free`.
+ */
+typedef struct SsTags {
+  const char *title;
+  const char *artist;
+  const char *album;
+  const char *album_artist;
+  /*
+   "YYYY", "YYYY-MM" or "YYYY-MM-DD".
+   */
+  const char *date;
+  const char *genre;
+  const char *comment;
+  /*
+   Track number; 0 when not set.
+   */
+  uint32_t track;
+  /*
+   Path of the embedded front cover, extracted to the app's cover cache
+   (NULL when there is no cover).
+   */
+  const char *cover_path;
+} SsTags;
+
+/*
+ A tag change for one or more recordings. Fields whose bit is not in
+ `set_mask` are left alone; a set field with a NULL or empty string (or
+ `track` 0) is cleared.
+ */
+typedef struct SsTagEdit {
+  uint32_t set_mask;
+  const char *title;
+  const char *artist;
+  const char *album;
+  const char *album_artist;
+  const char *date;
+  const char *genre;
+  const char *comment;
+  uint32_t track;
+  enum SsCoverEdit cover;
+  const char *cover_path;
+  enum SsTagVersion version;
+} SsTagEdit;
 
 /*
  Input rates LAME accepts without resampling.
@@ -421,6 +500,37 @@ enum SsStatus ss_library_reveal(struct SsLibrary *library, const char *file_name
 enum SsStatus ss_library_set_callback(struct SsLibrary *library,
                                       SsLibraryCallback callback,
                                       void *user_data);
+
+/*
+ Reads a recording's tags (and extracts its cover). Returns NULL on
+ failure (see `ss_last_error_message`).
+
+ # Safety
+ `library` must be a live handle; `file_name` must be NUL-terminated UTF-8.
+ */
+const struct SsTags *ss_library_read_tags(struct SsLibrary *library, const char *file_name);
+
+/*
+ Frees tags from `ss_library_read_tags`. NULL is a no-op.
+
+ # Safety
+ `tags` must be NULL or a pointer from `ss_library_read_tags` not already freed.
+ */
+void ss_tags_free(const struct SsTags *tags);
+
+/*
+ Applies `edit` to each of `count` recordings (bulk edit), atomically per
+ file. All names are checked before anything is written.
+
+ # Safety
+ `library` must be a live handle; `file_names` must point to `count`
+ NUL-terminated UTF-8 strings; `edit` must be valid, with its strings
+ NULL or NUL-terminated UTF-8.
+ */
+enum SsStatus ss_library_write_tags(struct SsLibrary *library,
+                                    const char *const *file_names,
+                                    size_t count,
+                                    const struct SsTagEdit *edit);
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -892,6 +892,7 @@ dependencies = [
  "rusqlite",
  "sound_scraper_capture",
  "trash",
+ "windows",
 ]
 
 [[package]]

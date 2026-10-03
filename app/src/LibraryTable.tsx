@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
   Alert,
   FlatList,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -29,9 +30,19 @@ type Props = {
   onRename: (r: Recording, newName: string) => Promise<void>;
   onTrash: (r: Recording) => void;
   onReveal: (r: Recording) => void;
+  /** Opens the tag editor for these recordings. */
+  onEditTags: (fileNames: string[]) => void;
+  /** Checked rows (multi-select for bulk tag edits). */
+  checked: Set<string>;
+  onCheckedChange: (checked: Set<string>) => void;
   textStyle: object;
   isDark: boolean;
 };
+
+const isWindows = Platform.OS === 'windows';
+const REVEAL_LABEL = isWindows ? 'Show in Explorer' : 'Show in Finder';
+const TRASH_LABEL = isWindows ? 'Move to Recycle Bin' : 'Move to Trash';
+const TRASH_NAME = isWindows ? 'the Recycle Bin' : 'the Trash';
 
 const COLUMNS: { key: SortKey; label: string; flex: number }[] = [
   { key: 'name', label: 'Name', flex: 4 },
@@ -53,6 +64,22 @@ export function LibraryTable(props: Props): React.JSX.Element {
     () => sortRecordings(filterRecordings(recordings, query), sort),
     [recordings, query, sort],
   );
+  const { checked, onCheckedChange } = props;
+  const allChecked =
+    rows.length > 0 && rows.every(r => checked.has(r.fileName));
+  const toggle = (fileName: string) => {
+    const next = new Set(checked);
+    if (next.has(fileName)) {
+      next.delete(fileName);
+    } else {
+      next.add(fileName);
+    }
+    onCheckedChange(next);
+  };
+  const toggleAll = () =>
+    onCheckedChange(
+      allChecked ? new Set() : new Set(rows.map(r => r.fileName)),
+    );
 
   const commitRename = async () => {
     if (!editing) {
@@ -67,12 +94,12 @@ export function LibraryTable(props: Props): React.JSX.Element {
 
   const confirmTrash = (r: Recording) =>
     Alert.alert(
-      `Move "${displayName(r)}" to the Trash?`,
+      `Move "${displayName(r)}" to ${TRASH_NAME}?`,
       undefined,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Move to Trash',
+          text: TRASH_LABEL,
           style: 'destructive',
           onPress: () => props.onTrash(r),
         },
@@ -91,6 +118,16 @@ export function LibraryTable(props: Props): React.JSX.Element {
               : `${rows.length} of ${recordings.length}`}
           </Text>
         </Text>
+        {checked.size > 0 && (
+          <Pressable
+            testID="edit-checked-tags"
+            onPress={() => props.onEditTags([...checked])}
+          >
+            <Text style={styles.toolbarLink}>
+              Edit tags of {checked.size} selected
+            </Text>
+          </Pressable>
+        )}
         <TextInput
           testID="library-search"
           style={[styles.search, textStyle, isDark && styles.inputDark]}
@@ -101,6 +138,11 @@ export function LibraryTable(props: Props): React.JSX.Element {
       </View>
 
       <View style={[styles.row, styles.header]}>
+        <Pressable onPress={toggleAll} style={styles.check}>
+          <Text style={[styles.checkText, textStyle]}>
+            {allChecked ? '☑' : '☐'}
+          </Text>
+        </Pressable>
         {COLUMNS.map(c => (
           <Pressable
             key={c.key}
@@ -135,6 +177,15 @@ export function LibraryTable(props: Props): React.JSX.Element {
                 onPress={() => setSelected(r.fileName)}
                 style={[styles.row, isSelected && styles.rowSelected]}
               >
+                <Pressable
+                  testID={`check-${r.fileName}`}
+                  onPress={() => toggle(r.fileName)}
+                  style={styles.check}
+                >
+                  <Text style={[styles.checkText, textStyle]}>
+                    {checked.has(r.fileName) ? '☑' : '☐'}
+                  </Text>
+                </Pressable>
                 <View style={{ flex: COLUMNS[0].flex }}>
                   {isEditing ? (
                     <TextInput
@@ -213,11 +264,16 @@ export function LibraryTable(props: Props): React.JSX.Element {
                         }
                       />
                       <Action
-                        label="Show in Finder"
+                        testID="edit-tags"
+                        label="Edit tags"
+                        onPress={() => props.onEditTags([r.fileName])}
+                      />
+                      <Action
+                        label={REVEAL_LABEL}
                         onPress={() => props.onReveal(r)}
                       />
                       <Action
-                        label="Move to Trash"
+                        label={TRASH_LABEL}
                         onPress={() => confirmTrash(r)}
                         destructive
                       />
@@ -306,5 +362,13 @@ const styles = StyleSheet.create({
   action: { paddingVertical: 2 },
   actionText: { color: colors.accent, fontSize: 13 },
   destructive: { color: colors.error },
+  toolbarLink: {
+    color: colors.accent,
+    fontSize: 13,
+    marginLeft: 'auto',
+    marginRight: 12,
+  },
+  check: { width: 20 },
+  checkText: { fontSize: 14 },
   empty: { padding: 16, opacity: 0.6, fontSize: 13 },
 });

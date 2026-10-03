@@ -38,7 +38,7 @@ C API: `ss_recorder_start/pause/resume/stop`, `ss_recorder_state`, `ss_recorder_
 
 ## Library (milestone 3)
 
-Below the RecordBar, the library lists the `.mp3` files in `~/Music/Sound Scraper`: name, duration, date recorded, size and artist/album. Click a column header to sort (click again to reverse), and type in the search box to filter by name, title, artist or album. Select a row for **Rename**, **Show in Finder** and **Move to Trash**.
+Below the RecordBar, the library lists the `.mp3` files in `~/Music/Sound Scraper`: name, duration, date recorded, size and artist/album. Click a column header to sort (click again to reverse), and type in the search box to filter by name, title, artist or album. Select a row for **Rename**, **Edit tags**, **Show in Finder** (Explorer on Windows) and **Move to Trash** (Recycle Bin).
 
 - The folder is the source of truth. A SQLite index (`~/Library/Application Support/Sound Scraper/library.db` on macOS, `%APPDATA%\Sound Scraper\library.db` on Windows) caches duration and tags, keyed by file name and invalidated by size and mtime. It's rebuilt if missing or outdated.
 - A folder watcher (kqueue on macOS, ReadDirectoryChangesW on Windows) refreshes the list about 0.3 s after outside changes.
@@ -46,6 +46,16 @@ Below the RecordBar, the library lists the `.mp3` files in `~/Music/Sound Scrape
 - Trash uses `NSFileManager` on macOS (no Finder automation prompt) and the Recycle Bin on Windows.
 
 C API: `ss_library_open/destroy/list/rename/trash/reveal/set_callback` and `ss_recording_list_*`.
+
+## Tag editor (milestone 4)
+
+Select a recording and click **Edit tags**, or tick several rows (the header box selects all) and click **Edit tags of N selected**. The side panel edits Title, Artist, Album, Album artist, Year/date, Track #, Genre, Comment and the cover art. **Choose image…** uses the native file dialog (JPEG/PNG). In a bulk edit, fields that differ show "Multiple values" and are written only if you type in them; a dot marks changed fields.
+
+- Saved as ID3v2.4 with no ID3v1 tag. An "ID3v2.3" checkbox writes v2.3 for older players (the date goes into TYER/TDAT).
+- Every save writes to a temporary copy (`.<name>.tagging`) and atomically replaces the original, so a failed or interrupted save never damages the recording. Frames you didn't edit are kept.
+- Cover art is shown from a content-addressed cache next to the library index (`covers/<hash>.png|jpg`).
+
+C API: `ss_library_read_tags`/`ss_tags_free` and `ss_library_write_tags` (an `SsTagEdit` with a `set_mask` of `SS_TAG_*` bits; fields not in the mask are left alone).
 
 ## Capture test (milestone 1)
 

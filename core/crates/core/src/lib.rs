@@ -8,6 +8,7 @@ pub mod mp3;
 pub mod paths;
 pub mod recorder;
 pub mod sources;
+pub mod tags;
 
 pub use recorder::{Recorder, RecorderEvent, RecorderState};
 
