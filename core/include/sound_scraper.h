@@ -532,6 +532,32 @@ enum SsStatus ss_library_write_tags(struct SsLibrary *library,
                                     size_t count,
                                     const struct SsTagEdit *edit);
 
+/*
+ The settings as JSON (see core/crates/core/src/settings.rs):
+ `{"recordingsDir": string|null, "quality": "cbr128"|"cbr192"|"cbr256"|
+ "cbr320"|"vbr0"|"vbr2", "id3Version": "2.4"|"2.3", "lastSource":
+ null|{"kind":"system"}|{"kind":"app","id":string|null,"name":string}}`,
+ plus `"effectiveRecordingsDir"`. Free with `ss_string_free`.
+ */
+char *ss_settings_get(void);
+
+/*
+ Validates and saves settings JSON (unknown keys are ignored; missing
+ keys take defaults). Call `ss_library_apply_settings` afterwards.
+
+ # Safety
+ `json` must be NUL-terminated UTF-8.
+ */
+enum SsStatus ss_settings_set(const char *json);
+
+/*
+ Points the library at the recordings folder from the saved settings.
+
+ # Safety
+ `library` must be a live handle from `ss_library_open`.
+ */
+enum SsStatus ss_library_apply_settings(struct SsLibrary *library);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif  // __cplusplus

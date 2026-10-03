@@ -25,7 +25,7 @@ use std::{
 
 use sound_scraper_capture::{AudioChunk, CaptureBackend, CaptureSource, Session, default_backend};
 
-use crate::{mp3, paths, sources};
+use crate::{mp3, paths, settings::Quality, sources};
 
 pub const PART_EXT: &str = ".mp3.part";
 
@@ -74,12 +74,12 @@ pub type BackendFactory = Box<dyn Fn() -> Box<dyn CaptureBackend> + Send>;
 #[derive(Debug, Clone)]
 pub struct RecorderOptions {
     pub dir: PathBuf,
-    pub bitrate_kbps: u32,
+    pub quality: Quality,
 }
 
 impl Default for RecorderOptions {
     fn default() -> Self {
-        Self { dir: paths::recordings_dir(), bitrate_kbps: 192 }
+        Self { dir: paths::recordings_dir(), quality: Quality::default() }
     }
 }
 
@@ -130,6 +130,11 @@ impl Recorder {
         Self { options, backend_factory, events: None, status: Arc::default(), active: None }
     }
 
+    /// Folder and quality for the next recording (ignored while one runs).
+    pub fn set_options(&mut self, options: RecorderOptions) {
+        self.options = options;
+    }
+
     pub fn set_event_sink(&mut self, sink: Option<EventSink>) {
         self.events = sink;
     }
@@ -176,7 +181,7 @@ impl Recorder {
                 CaptureSource::App { app } => Some(format!("Recorded from {}", app.name)),
                 CaptureSource::System { .. } => None,
             },
-            bitrate_kbps: self.options.bitrate_kbps,
+            quality: self.options.quality,
             paused: paused.clone(),
             status: self.status.clone(),
             events: self.events.clone(),
@@ -266,7 +271,7 @@ struct EncodeJob {
     part: PathBuf,
     title: String,
     comment: Option<String>,
-    bitrate_kbps: u32,
+    quality: Quality,
     paused: Arc<AtomicBool>,
     status: Arc<Status>,
     events: Option<EventSink>,
@@ -302,7 +307,7 @@ impl EncodeJob {
             match received {
                 Ok(chunk) if !self.paused.load(Ordering::Acquire) => {
                     if encoder.is_none() {
-                        encoder = Some(mp3::Mp3Encoder::new(chunk.sample_rate, self.bitrate_kbps)?);
+                        encoder = Some(mp3::Mp3Encoder::new(chunk.sample_rate, self.quality)?);
                         self.status.sample_rate.store(chunk.sample_rate, Ordering::Release);
                     }
                     to_stereo(&chunk, &mut stereo);
@@ -541,7 +546,7 @@ mod tests {
 
     fn recorder(dir: &Path) -> (Recorder, Arc<Mutex<Vec<RecorderEvent>>>) {
         let mut r = Recorder::with_backend(
-            RecorderOptions { dir: dir.to_owned(), bitrate_kbps: 192 },
+            RecorderOptions { dir: dir.to_owned(), quality: Quality::Cbr192 },
             ToneBackend::factory(48000, 2),
         );
         let events = Arc::new(Mutex::new(Vec::new()));
@@ -615,7 +620,7 @@ mod tests {
     fn stopping_before_any_audio_leaves_no_file() {
         let dir = crate::paths::tempdir();
         let mut r = Recorder::with_backend(
-            RecorderOptions { dir: dir.clone(), bitrate_kbps: 192 },
+            RecorderOptions { dir: dir.clone(), quality: Quality::Cbr192 },
             ToneBackend::factory(48000, 2),
         );
         r.start(system()).unwrap();
@@ -629,7 +634,7 @@ mod tests {
     fn warns_when_no_audio_arrives() {
         let dir = crate::paths::tempdir();
         let mut r = Recorder::with_backend(
-            RecorderOptions { dir, bitrate_kbps: 192 },
+            RecorderOptions { dir, quality: Quality::Cbr192 },
             Box::new(|| Box::new(SilentBackend) as Box<dyn CaptureBackend>),
         );
         let (tx, rx) = mpsc::channel();

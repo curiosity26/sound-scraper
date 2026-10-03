@@ -74,11 +74,49 @@ export const library = {
   pickImage: (): Promise<string | null> => NativeSoundScraper.pickImage(),
 };
 
+export type Quality =
+  | 'cbr128'
+  | 'cbr192'
+  | 'cbr256'
+  | 'cbr320'
+  | 'vbr0'
+  | 'vbr2';
+
+export type SourceRef =
+  | { kind: 'system' }
+  | { kind: 'app'; id: string | null; name: string };
+
+/** Mirrors core/crates/core/src/settings.rs. */
+export type Settings = {
+  /** null = the default ~/Music/Sound Scraper. */
+  recordingsDir: string | null;
+  quality: Quality;
+  id3Version: '2.4' | '2.3';
+  lastSource: SourceRef | null;
+};
+
+export const settings = {
+  get: (): Settings & { effectiveRecordingsDir: string } =>
+    JSON.parse(NativeSoundScraper.getSettings()),
+  /** Saves settings (validated by the core) and re-points the library. */
+  set: (value: Settings): Promise<void> =>
+    NativeSoundScraper.setSettings(
+      JSON.stringify({
+        recordingsDir: value.recordingsDir,
+        quality: value.quality,
+        id3Version: value.id3Version,
+        lastSource: value.lastSource,
+      }),
+    ),
+  pickFolder: (): Promise<string | null> => NativeSoundScraper.pickFolder(),
+};
+
 if (__DEV__) {
   // Lets the debugger console drive the same module instance as the UI.
   (globalThis as { __soundScraper?: unknown }).__soundScraper = {
     recorder,
     library,
+    settings,
     listAudioApps,
   };
 }

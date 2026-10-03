@@ -6,6 +6,7 @@
 #include <NativeModules.h>
 
 #include <commdlg.h>
+#include <shobjidl.h>
 
 #include <memory>
 #include <thread>
@@ -304,6 +305,52 @@ struct SoundScraperModule {
       std::optional<std::string> picked;
       if (GetOpenFileNameW(&ofn)) {
         picked = winrt::to_string(file);
+      }
+      CoUninitialize();
+      dispatcher.Post([result, picked]() { result.Resolve(picked); });
+    });
+  }
+
+  REACT_SYNC_METHOD(getSettings)
+  std::string getSettings() noexcept {
+    char *json = ss_settings_get();
+    std::string out = json ? json : "{}";
+    ss_string_free(json);
+    return out;
+  }
+
+  REACT_METHOD(setSettings)
+  void setSettings(std::string json, ::React::ReactPromise<void> &&result) noexcept {
+    RunOffThread([library = m_library, json, result](auto dispatcher) {
+      if (ss_settings_set(json.c_str()) != SS_STATUS_OK ||
+          (library && ss_library_apply_settings(library) != SS_STATUS_OK)) {
+        dispatcher.Post([result, message = std::string(ss_last_error_message())]() { result.Reject(message.c_str()); });
+        return;
+      }
+      dispatcher.Post([result]() { result.Resolve(); });
+    });
+  }
+
+  REACT_METHOD(pickFolder)
+  void pickFolder(::React::ReactPromise<std::optional<std::string>> &&result) noexcept {
+    RunOffThread([result](auto dispatcher) {
+      CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+      std::optional<std::string> picked;
+      {
+        winrt::com_ptr<IFileOpenDialog> dialog;
+        if (SUCCEEDED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(dialog.put())))) {
+          FILEOPENDIALOGOPTIONS options{};
+          dialog->GetOptions(&options);
+          dialog->SetOptions(options | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM);
+          dialog->SetTitle(L"Choose the recordings folder");
+          winrt::com_ptr<IShellItem> item;
+          PWSTR path = nullptr;
+          if (SUCCEEDED(dialog->Show(nullptr)) && SUCCEEDED(dialog->GetResult(item.put())) &&
+              SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &path))) {
+            picked = winrt::to_string(path);
+            CoTaskMemFree(path);
+          }
+        }
       }
       CoUninitialize();
       dispatcher.Post([result, picked]() { result.Resolve(picked); });

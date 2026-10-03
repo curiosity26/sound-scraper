@@ -888,6 +888,8 @@ dependencies = [
  "notify",
  "notify-debouncer-mini",
  "rusqlite",
+ "serde",
+ "serde_json",
  "sound_scraper_capture",
  "trash",
  "windows",

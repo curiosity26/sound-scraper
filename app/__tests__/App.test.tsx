@@ -28,6 +28,16 @@ jest.mock('../src/native/NativeSoundScraper', () => ({
     readTags: jest.fn(),
     writeTags: jest.fn(),
     pickImage: jest.fn(),
+    getSettings: () =>
+      JSON.stringify({
+        recordingsDir: null,
+        effectiveRecordingsDir: '/tmp',
+        quality: 'cbr192',
+        id3Version: '2.4',
+        lastSource: null,
+      }),
+    setSettings: jest.fn(() => Promise.resolve()),
+    pickFolder: jest.fn(),
   },
 }));
 

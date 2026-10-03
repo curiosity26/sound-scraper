@@ -114,8 +114,11 @@ struct SoundScraperSpec : winrt::Microsoft::ReactNative::TurboModuleSpec {
       Method<void(std::string, Promise<SoundScraperSpec_Tags>) noexcept>{13, L"readTags"},
       Method<void(std::vector<std::string>, SoundScraperSpec_TagEdit, Promise<void>) noexcept>{14, L"writeTags"},
       Method<void(Promise<std::optional<std::string>>) noexcept>{15, L"pickImage"},
-      EventEmitter<void(SoundScraperSpec_RecorderEvent)>{16, L"onRecorderEvent"},
-      EventEmitter<void(std::string)>{17, L"onLibraryChanged"},
+      SyncMethod<std::string() noexcept>{16, L"getSettings"},
+      Method<void(std::string, Promise<void>) noexcept>{17, L"setSettings"},
+      Method<void(Promise<std::optional<std::string>>) noexcept>{18, L"pickFolder"},
+      EventEmitter<void(SoundScraperSpec_RecorderEvent)>{19, L"onRecorderEvent"},
+      EventEmitter<void(std::string)>{20, L"onLibraryChanged"},
   };
 
   template <class TModule>
@@ -202,12 +205,27 @@ struct SoundScraperSpec : winrt::Microsoft::ReactNative::TurboModuleSpec {
           "pickImage",
           "    REACT_METHOD(pickImage) void pickImage(::React::ReactPromise<std::optional<std::string>> &&result) noexcept { /* implementation */ }\n"
           "    REACT_METHOD(pickImage) static void pickImage(::React::ReactPromise<std::optional<std::string>> &&result) noexcept { /* implementation */ }\n");
-    REACT_SHOW_EVENTEMITTER_SPEC_ERRORS(
+    REACT_SHOW_METHOD_SPEC_ERRORS(
           16,
+          "getSettings",
+          "    REACT_SYNC_METHOD(getSettings) std::string getSettings() noexcept { /* implementation */ }\n"
+          "    REACT_SYNC_METHOD(getSettings) static std::string getSettings() noexcept { /* implementation */ }\n");
+    REACT_SHOW_METHOD_SPEC_ERRORS(
+          17,
+          "setSettings",
+          "    REACT_METHOD(setSettings) void setSettings(std::string json, ::React::ReactPromise<void> &&result) noexcept { /* implementation */ }\n"
+          "    REACT_METHOD(setSettings) static void setSettings(std::string json, ::React::ReactPromise<void> &&result) noexcept { /* implementation */ }\n");
+    REACT_SHOW_METHOD_SPEC_ERRORS(
+          18,
+          "pickFolder",
+          "    REACT_METHOD(pickFolder) void pickFolder(::React::ReactPromise<std::optional<std::string>> &&result) noexcept { /* implementation */ }\n"
+          "    REACT_METHOD(pickFolder) static void pickFolder(::React::ReactPromise<std::optional<std::string>> &&result) noexcept { /* implementation */ }\n");
+    REACT_SHOW_EVENTEMITTER_SPEC_ERRORS(
+          19,
           "onRecorderEvent",
           "    REACT_EVENT(onRecorderEvent) std::function<void(SoundScraperSpec_RecorderEvent)> onRecorderEvent;\n");
     REACT_SHOW_EVENTEMITTER_SPEC_ERRORS(
-          17,
+          20,
           "onLibraryChanged",
           "    REACT_EVENT(onLibraryChanged) std::function<void(std::string)> onLibraryChanged;\n");
   }

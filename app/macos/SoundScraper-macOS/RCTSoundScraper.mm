@@ -410,6 +410,49 @@ RCT_EXPORT_MODULE(SoundScraper)
   });
 }
 
+- (NSString *)getSettings
+{
+  char *json = ss_settings_get();
+  NSString *result = SSString(json) ?: @"{}";
+  ss_string_free(json);
+  return result;
+}
+
+- (void)setSettings:(NSString *)json resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject
+{
+  NSString *copy = [json copy];
+  dispatch_async(_libraryQueue, ^{
+    if (ss_settings_set(copy.UTF8String) != SS_STATUS_OK) {
+      reject(@"settings_failed", SSString(ss_last_error_message()), SSLastError());
+      return;
+    }
+    SsLibrary *library = [self library];
+    if (library && ss_library_apply_settings(library) != SS_STATUS_OK) {
+      reject(@"settings_failed", SSString(ss_last_error_message()), SSLastError());
+      return;
+    }
+    resolve(nil);
+  });
+}
+
+- (void)pickFolder:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject
+{
+  dispatch_async(dispatch_get_main_queue(), ^{
+    NSOpenPanel *panel = [NSOpenPanel openPanel];
+    panel.title = @"Choose the recordings folder";
+    panel.prompt = @"Use Folder";
+    panel.canChooseFiles = NO;
+    panel.canChooseDirectories = YES;
+    panel.canCreateDirectories = YES;
+    panel.allowsMultipleSelection = NO;
+    if ([panel runModal] == NSModalResponseOK && panel.URL) {
+      resolve(panel.URL.path);
+    } else {
+      resolve([NSNull null]);
+    }
+  });
+}
+
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
     (const facebook::react::ObjCTurboModule::InitParams &)params
 {

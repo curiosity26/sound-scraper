@@ -33,6 +33,8 @@ type Props = {
   fileNames: string[];
   onSaved: () => void;
   onClose: () => void;
+  /** Default for the "Save as ID3v2.3" option (from settings). */
+  defaultId3v23: boolean;
   textStyle: object;
   isDark: boolean;
 };
@@ -44,7 +46,7 @@ export function TagEditor(props: Props): React.JSX.Element {
   const [loadError, setLoadError] = useState<string>();
   const [edits, setEdits] = useState<Partial<Record<Field, string>>>({});
   const [cover, setCover] = useState<CoverChange>({ kind: 'keep' });
-  const [id3v23, setId3v23] = useState(false);
+  const [id3v23, setId3v23] = useState(props.defaultId3v23);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ text: string; isError: boolean }>();
 

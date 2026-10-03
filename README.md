@@ -57,6 +57,17 @@ Select a recording and click **Edit tags**, or tick several rows (the header box
 
 C API: `ss_library_read_tags`/`ss_tags_free` and `ss_library_write_tags` (an `SsTagEdit` with a `set_mask` of `SS_TAG_*` bits; fields not in the mask are left alone).
 
+## Settings and About (milestone 5)
+
+**Settings** (header › Settings) are saved by the Rust core as `settings.json` in the app data folder (`~/Library/Application Support/Sound Scraper` on macOS; on Windows the MSIX package's redirected AppData). They cover:
+
+- **Recordings folder:** a native folder picker, or "Use default" for `~/Music/Sound Scraper`. The library switches to the new folder right away (its index is reset).
+- **MP3 quality:** CBR 128/192/256/320 kbps or LAME VBR V0/V2 (Xing header, correct duration). It applies from the next recording.
+- **Default ID3 version:** 2.4 or 2.3, the tag editor's starting choice.
+- **Last capture source:** remembered by bundle ID or executable path and re-selected at launch if that app has audio.
+
+**About** lists the third-party licenses, LAME first with its LGPL notice. Regenerate the list after dependency changes with `python3 scripts/gen-licenses.py` (writes `app/src/licenses.json`).
+
 ## Capture test (milestone 1)
 
 The screen lists "All system audio" plus the apps that currently have audio (♪ = playing now). **Record 10 s test** writes `~/Music/Sound Scraper/<source> capture test <date>.wav` (32-bit float, device rate) and reports duration and peak level. The same test runs from the command line:

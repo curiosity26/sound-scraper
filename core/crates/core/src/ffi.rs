@@ -16,9 +16,8 @@ use std::{
 use crate::{
     capture_test,
     library::{Library, Recording},
-    paths,
     recorder::{self, Recorder, RecorderEvent, RecorderState, Status},
-    sources,
+    settings, sources,
     tags::{CoverEdit, TagEdit, TagVersion},
 };
 
@@ -222,7 +221,11 @@ fn with_recorder(
 /// `recorder` must be NULL or a live handle from `ss_recorder_create`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ss_recorder_start(recorder: *mut SsRecorder, app_pid: u32) -> SsStatus {
-    with_recorder(recorder, |r| r.start(sources::source_for_pid((app_pid != 0).then_some(app_pid))))
+    with_recorder(recorder, |r| {
+        let s = settings::load();
+        r.set_options(recorder::RecorderOptions { dir: s.recordings_dir(), quality: s.quality });
+        r.start(sources::source_for_pid((app_pid != 0).then_some(app_pid)))
+    })
 }
 
 /// Pauses: the file and encoder stay open and incoming audio is dropped.
@@ -267,7 +270,7 @@ pub unsafe extern "C" fn ss_recorder_stop(recorder: *mut SsRecorder, out_path: *
 /// any recording starts.
 #[unsafe(no_mangle)]
 pub extern "C" fn ss_recover_partial_recordings() -> i32 {
-    catch_unwind(|| recorder::recover_partials(&paths::recordings_dir()).iter().filter(|r| r.is_ok()).count() as i32)
+    catch_unwind(|| recorder::recover_partials(&settings::load().recordings_dir()).iter().filter(|r| r.is_ok()).count() as i32)
         .unwrap_or(-1)
 }
 
@@ -837,6 +840,43 @@ pub unsafe extern "C" fn ss_library_write_tags(
         l.write_tags(&names, &edit, version)
     })
     .map_or_else(|status| status, |()| SsStatus::Ok)
+}
+
+/// The settings as JSON (see core/crates/core/src/settings.rs):
+/// `{"recordingsDir": string|null, "quality": "cbr128"|"cbr192"|"cbr256"|
+/// "cbr320"|"vbr0"|"vbr2", "id3Version": "2.4"|"2.3", "lastSource":
+/// null|{"kind":"system"}|{"kind":"app","id":string|null,"name":string}}`,
+/// plus `"effectiveRecordingsDir"`. Free with `ss_string_free`.
+#[unsafe(no_mangle)]
+pub extern "C" fn ss_settings_get() -> *mut c_char {
+    let s = settings::load();
+    let mut json = serde_json::to_value(&s).unwrap_or_default();
+    json["effectiveRecordingsDir"] = serde_json::Value::String(s.recordings_dir().to_string_lossy().into_owned());
+    c_string(&json.to_string()).into_raw()
+}
+
+/// Validates and saves settings JSON (unknown keys are ignored; missing
+/// keys take defaults). Call `ss_library_apply_settings` afterwards.
+///
+/// # Safety
+/// `json` must be NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_settings_set(json: *const c_char) -> SsStatus {
+    let result = (|| -> Result<(), String> {
+        let text = unsafe { arg_str(json, "json")? };
+        let parsed: settings::Settings = serde_json::from_str(text).map_err(|e| format!("invalid settings: {e}"))?;
+        settings::save(&parsed)
+    })();
+    result.map_or_else(fail, |()| SsStatus::Ok)
+}
+
+/// Points the library at the recordings folder from the saved settings.
+///
+/// # Safety
+/// `library` must be a live handle from `ss_library_open`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_library_apply_settings(library: *mut SsLibrary) -> SsStatus {
+    with_library(library, |l| l.set_dir(settings::load().recordings_dir())).map_or_else(|status| status, |()| SsStatus::Ok)
 }
 
 #[cfg(test)]

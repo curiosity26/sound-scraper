@@ -56,7 +56,7 @@ impl Library {
     pub fn open_default() -> Result<Self, String> {
         let db_dir = paths::app_data_dir();
         std::fs::create_dir_all(&db_dir).map_err(|e| format!("creating {}: {e}", db_dir.display()))?;
-        Self::open(paths::recordings_dir(), &db_dir.join("library.db"), Box::new(move_to_trash))
+        Self::open(crate::settings::load().recordings_dir(), &db_dir.join("library.db"), Box::new(move_to_trash))
     }
 
     pub fn open(dir: PathBuf, db_path: &Path, trasher: Trasher) -> Result<Self, String> {
@@ -69,6 +69,27 @@ impl Library {
 
     pub fn dir(&self) -> &Path {
         &self.dir
+    }
+
+    /// Points the library at another folder (after a settings change). The
+    /// index is cleared and rebuilt on the next list; a running watcher
+    /// follows the new folder through `rewatch`.
+    pub fn set_dir(&mut self, dir: PathBuf) -> Result<(), String> {
+        if dir == self.dir {
+            return Ok(());
+        }
+        std::fs::create_dir_all(&dir).map_err(|e| format!("creating {}: {e}", dir.display()))?;
+        self.db.execute("DELETE FROM recordings", []).map_err(|e| format!("library index: {e}"))?;
+        let old = std::mem::replace(&mut self.dir, dir);
+        if let Some(watcher) = self.watcher.as_mut() {
+            let _ = watcher.watcher().unwatch(&old);
+            // Re-register on the new folder (the callback is kept).
+            watcher
+                .watcher()
+                .watch(&self.dir, RecursiveMode::NonRecursive)
+                .map_err(|e| format!("watching {}: {e}", self.dir.display()))?;
+        }
+        Ok(())
     }
 
     /// Scans the folder, refreshing the index for new or changed files and
@@ -605,6 +626,19 @@ mod tests {
         let edit = TagEdit { album: Some(Some("X".into())), ..Default::default() };
         assert!(f.library.write_tags(&["One.mp3".into(), "Missing.mp3".into()], &edit, TagVersion::V24).is_err());
         assert_eq!(f.library.read_tags("One.mp3").unwrap().album, None, "nothing written");
+    }
+
+    #[test]
+    fn set_dir_lists_the_new_folder() {
+        let mut f = fixture();
+        add(&f.dir, "Old", 0.3, None);
+        assert_eq!(f.library.list().unwrap().len(), 1);
+        let other = paths::tempdir().join("Elsewhere");
+        f.library.set_dir(other.clone()).unwrap();
+        assert!(f.library.list().unwrap().is_empty());
+        add(&other, "New", 0.3, None);
+        let names: Vec<_> = f.library.list().unwrap().into_iter().map(|r| r.file_name).collect();
+        assert_eq!(names, ["New.mp3"]);
     }
 
     #[test]

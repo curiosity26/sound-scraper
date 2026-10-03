@@ -1,8 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { StyleSheet, Text, useColorScheme, View } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  useColorScheme,
+  View,
+} from 'react-native';
 
 import { LibraryTable } from './src/LibraryTable';
 import { TagEditor } from './src/TagEditor';
+import { AboutPanel } from './src/AboutPanel';
+import { panelStyles, SettingsPanel } from './src/SettingsPanel';
 import {
   type AudioApp,
   getCoreVersion,
@@ -10,6 +18,7 @@ import {
   listAudioApps,
   recorder,
   type RecorderState,
+  settings,
   type Recording,
 } from './src/native/SoundScraper';
 import { RecordBar } from './src/RecordBar';
@@ -32,7 +41,7 @@ function App(): React.JSX.Element {
   const { version, error } = useCoreVersion();
 
   const [apps, setApps] = useState<AudioApp[]>(() => safeList());
-  const [selectedPid, setSelectedPid] = useState(0);
+  const [selectedPid, setSelectedPid] = useState(() => rememberedPid(apps0()));
   const [state, setState] = useState<RecorderState>(() => safeState());
   const [starting, setStarting] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);
@@ -41,6 +50,7 @@ function App(): React.JSX.Element {
   const [recordings, setRecordings] = useState<Recording[]>([]);
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [tagTargets, setTagTargets] = useState<string[]>();
+  const [overlay, setOverlay] = useState<'settings' | 'about'>();
 
   const refreshLibrary = useCallback(async () => {
     try {
@@ -136,7 +146,9 @@ function App(): React.JSX.Element {
     setMessage(undefined);
     setElapsedMs(0);
     try {
-      await recorder.start(apps.find(a => a.pid === selectedPid));
+      const app = apps.find(a => a.pid === selectedPid);
+      await recorder.start(app);
+      rememberSource(app);
     } catch (e) {
       setMessage({ text: `Couldn't start: ${errorText(e)}`, isError: true });
     } finally {
@@ -154,7 +166,20 @@ function App(): React.JSX.Element {
 
   return (
     <View style={[styles.root, isDark ? styles.rootDark : styles.rootLight]}>
-      <Text style={[styles.title, fg]}>Sound Scraper</Text>
+      <View style={styles.titleRow}>
+        <Text style={[styles.title, fg]}>Sound Scraper</Text>
+        <View style={styles.headerLinks}>
+          <Pressable
+            onPress={() => setOverlay('settings')}
+            testID="open-settings"
+          >
+            <Text style={styles.headerLink}>Settings</Text>
+          </Pressable>
+          <Pressable onPress={() => setOverlay('about')} testID="open-about">
+            <Text style={styles.headerLink}>About</Text>
+          </Pressable>
+        </View>
+      </View>
       {version ? (
         <Text style={[styles.caption, fg]} testID="core-version">
           Rust core v{version}
@@ -212,14 +237,69 @@ function App(): React.JSX.Element {
           <TagEditor
             fileNames={tagTargets}
             onSaved={refreshLibrary}
+            defaultId3v23={safeSettings()?.id3Version === '2.3'}
             onClose={() => setTagTargets(undefined)}
             textStyle={fg}
             isDark={isDark}
           />
         )}
       </View>
+
+      {overlay && (
+        <View
+          style={[
+            panelStyles.overlay,
+            isDark ? styles.rootDark : styles.rootLight,
+          ]}
+        >
+          {overlay === 'settings' ? (
+            <SettingsPanel
+              onClose={() => setOverlay(undefined)}
+              onFolderChanged={refreshLibrary}
+              textStyle={fg}
+            />
+          ) : (
+            <AboutPanel onClose={() => setOverlay(undefined)} textStyle={fg} />
+          )}
+        </View>
+      )}
     </View>
   );
+}
+
+function apps0(): AudioApp[] {
+  return safeList();
+}
+
+function safeSettings() {
+  try {
+    return settings.get();
+  } catch {
+    return undefined;
+  }
+}
+
+/** The PID of the remembered app if it's running, else 0 (system audio). */
+function rememberedPid(apps: AudioApp[]): number {
+  const last = safeSettings()?.lastSource;
+  if (last?.kind !== 'app') {
+    return 0;
+  }
+  const match = apps.find(
+    a => (last.id && a.bundleId === last.id) || a.name === last.name,
+  );
+  return match?.pid ?? 0;
+}
+
+function rememberSource(app: AudioApp | undefined) {
+  const current = safeSettings();
+  if (!current) {
+    return;
+  }
+  const lastSource = app
+    ? { kind: 'app' as const, id: app.bundleId, name: app.name }
+    : { kind: 'system' as const };
+  settings.set({ ...current, lastSource }).catch(() => {});
 }
 
 function errorText(e: unknown): string {
@@ -267,6 +347,13 @@ const styles = StyleSheet.create({
   message: { marginTop: 12, fontSize: 13, lineHeight: 18 },
   error: { color: colors.error },
   libraryRow: { flex: 1, flexDirection: 'row' },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerLinks: { flexDirection: 'row', gap: 16 },
+  headerLink: { color: colors.accent, fontSize: 13 },
 });
 
 export default App;

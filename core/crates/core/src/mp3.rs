@@ -11,7 +11,9 @@ use std::{
     path::Path,
 };
 
-use mp3lame_encoder::{Bitrate, Builder, FlushGap, InterleavedPcm, Quality};
+use mp3lame_encoder::{Bitrate, Builder, FlushGap, InterleavedPcm, Quality as LameQuality, VbrMode};
+
+use crate::settings::Quality;
 
 /// Input rates LAME accepts without resampling.
 pub const SUPPORTED_RATES: [u32; 9] = [8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000];
@@ -24,24 +26,28 @@ pub struct Mp3Encoder {
 }
 
 impl Mp3Encoder {
-    pub fn new(sample_rate: u32, bitrate_kbps: u32) -> Result<Self, String> {
+    pub fn new(sample_rate: u32, quality: Quality) -> Result<Self, String> {
         if !SUPPORTED_RATES.contains(&sample_rate) {
             return Err(format!("{sample_rate} Hz is not supported yet (resampling isn't implemented)"));
         }
-        let brate = match bitrate_kbps {
-            128 => Bitrate::Kbps128,
-            192 => Bitrate::Kbps192,
-            256 => Bitrate::Kbps256,
-            320 => Bitrate::Kbps320,
-            other => return Err(format!("unsupported bitrate {other} kbps")),
-        };
         let lame_err = |e: mp3lame_encoder::BuildError| format!("LAME setup failed: {e:?}");
         let mut b = Builder::new().ok_or("LAME failed to initialize")?;
         b.set_num_channels(2).map_err(lame_err)?;
         b.set_sample_rate(sample_rate).map_err(lame_err)?;
-        b.set_brate(brate).map_err(lame_err)?;
-        b.set_quality(Quality::Good).map_err(lame_err)?;
+        b.set_quality(LameQuality::Good).map_err(lame_err)?;
         b.set_to_write_vbr_tag(true).map_err(lame_err)?;
+        let cbr = |b: &mut Builder, rate| b.set_brate(rate);
+        match quality {
+            Quality::Cbr128 => cbr(&mut b, Bitrate::Kbps128),
+            Quality::Cbr192 => cbr(&mut b, Bitrate::Kbps192),
+            Quality::Cbr256 => cbr(&mut b, Bitrate::Kbps256),
+            Quality::Cbr320 => cbr(&mut b, Bitrate::Kbps320),
+            Quality::Vbr0 | Quality::Vbr2 => {
+                b.set_vbr_mode(VbrMode::Mtrh).map_err(lame_err)?;
+                b.set_vbr_quality(if quality == Quality::Vbr0 { LameQuality::Best } else { LameQuality::NearBest })
+            }
+        }
+        .map_err(lame_err)?;
         Ok(Self { inner: b.build().map_err(lame_err)?, out: Vec::new() })
     }
 
@@ -244,7 +250,7 @@ pub(crate) mod tests {
     }
 
     pub(crate) fn encode_all(samples: &[f32], rate: u32, with_tag: bool) -> Vec<u8> {
-        let mut enc = Mp3Encoder::new(rate, 192).unwrap();
+        let mut enc = Mp3Encoder::new(rate, Quality::Cbr192).unwrap();
         let mut out = enc.encode(samples).unwrap().to_vec();
         out.extend_from_slice(enc.flush().unwrap());
         if with_tag {
@@ -282,7 +288,20 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn vbr_has_a_xing_header_and_correct_duration() {
+        let samples = sine(2.0, 48000);
+        let mut enc = Mp3Encoder::new(48000, Quality::Vbr0).unwrap();
+        let mut out = enc.encode(&samples).unwrap().to_vec();
+        out.extend_from_slice(enc.flush().unwrap());
+        let tag = enc.lame_tag().unwrap();
+        out[..tag.len()].copy_from_slice(&tag);
+        let s = scan_bytes(&out);
+        assert!(s.has_info_tag);
+        assert!((s.duration_secs() - 2.0).abs() < 0.1, "duration {}", s.duration_secs());
+    }
+
+    #[test]
     fn rejects_unsupported_rates() {
-        assert!(Mp3Encoder::new(96000, 192).is_err());
+        assert!(Mp3Encoder::new(96000, Quality::Cbr192).is_err());
     }
 }

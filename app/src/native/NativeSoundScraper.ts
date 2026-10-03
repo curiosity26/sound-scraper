@@ -120,6 +120,13 @@ export interface Spec extends TurboModule {
   writeTags(fileNames: Array<string>, edit: TagEdit): Promise<void>;
   /** Native open dialog for a JPEG/PNG; resolves with its path, or null if cancelled. */
   pickImage(): Promise<string | null>;
+
+  /** Settings as JSON (schema in core/crates/core/src/ffi.rs, ss_settings_get). */
+  getSettings(): string;
+  /** Validates and saves settings JSON, then re-points the library. */
+  setSettings(json: string): Promise<void>;
+  /** Native folder chooser; resolves with the path, or null if cancelled. */
+  pickFolder(): Promise<string | null>;
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>('SoundScraper');
