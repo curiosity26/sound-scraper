@@ -172,7 +172,7 @@ C++/WinRT module notes (`SoundScraperModule.h`): it must be a `REACT_TURBO_MODUL
 
 ## Release builds
 
-**macOS:** `scripts/package-macos.sh` builds an Apple silicon (arm64) Release app (Intel Macs aren't targeted; macOS 26 is their last release) with the JS bundled in, and writes `dist/SoundScraper-<version>.dmg` with "Sound Scraper.app" and an Applications shortcut. It signs with `SIGN_IDENTITY` (default: the local self-signed "GolfNutz Dev"). Such builds aren't notarized, so the first launch needs right-click › Open.
+**macOS:** `scripts/package-macos.sh` builds an Apple silicon (arm64) Release app. It needs a one-time `/usr/bin/python3 -m venv .venv-dmg && .venv-dmg/bin/pip install dmgbuild` for the styled installer window (background and layout from `scripts/gen-dmg-background.sh` and `scripts/dmg-settings.py`). The app (Intel Macs aren't targeted; macOS 26 is their last release) with the JS bundled in, and writes `dist/SoundScraper-<version>.dmg` with "Sound Scraper.app" and an Applications shortcut. It signs with `SIGN_IDENTITY` (default: the local self-signed "GolfNutz Dev"). Such builds aren't notarized, so the first launch needs right-click › Open.
 
 For distribution, get an Apple **Developer ID Application** certificate, then:
 

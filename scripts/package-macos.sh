@@ -17,20 +17,19 @@ VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/C
 
 ICNS="$APP/Contents/Resources/AppIcon.icns"
 STAGE=$(mktemp -d)
-WORK=$(mktemp -d)
-trap 'rm -rf "$STAGE" "$WORK"' EXIT
+trap 'rm -rf "$STAGE"' EXIT
 ditto "$APP" "$STAGE/Sound Scraper.app"
-ln -s /Applications "$STAGE/Applications"
-cp "$ICNS" "$STAGE/.VolumeIcon.icns"
 
-# Build writable, flag the volume as having a custom icon, then compress.
-hdiutil create -quiet -volname "Sound Scraper" -srcfolder "$STAGE" -ov -format UDRW "$WORK/rw.dmg"
-MOUNT=$(hdiutil attach -nobrowse -noautoopen "$WORK/rw.dmg" | awk -F'\t' '/\/Volumes\//{print $NF}')
-SetFile -a C "$MOUNT"
-hdiutil detach -quiet "$MOUNT"
+# Styled installer window (background with a drag arrow, big icons) via
+# dmgbuild, which writes the Finder layout directly (no Finder scripting).
+# One-time setup: /usr/bin/python3 -m venv .venv-dmg && .venv-dmg/bin/pip install dmgbuild
+DMGBUILD="$ROOT/.venv-dmg/bin/dmgbuild"
+[ -x "$DMGBUILD" ] || { echo "error: run: /usr/bin/python3 -m venv .venv-dmg && .venv-dmg/bin/pip install dmgbuild" >&2; exit 1; }
 mkdir -p "$ROOT/dist"
 DMG="$ROOT/dist/SoundScraper-$VERSION.dmg"
-hdiutil convert -quiet "$WORK/rw.dmg" -format UDZO -ov -o "$DMG"
+"$DMGBUILD" -s "$ROOT/scripts/dmg-settings.py" \
+  -D app="$STAGE/Sound Scraper.app" -D icon="$ICNS" -D background="$ROOT/assets/dmg/background.tiff" \
+  "Sound Scraper" "$DMG" >/dev/null
 codesign --sign "$IDENTITY" "$DMG"
 
 # Finder icon for the .dmg file itself (stored in extended attributes, so it
