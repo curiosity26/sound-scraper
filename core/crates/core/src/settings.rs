@@ -46,6 +46,9 @@ pub struct Settings {
     /// "2.4" or "2.3".
     pub id3_version: String,
     pub last_source: Option<SourceRef>,
+    /// Skin id, or an absolute path to an unpacked skin folder (for skin
+    /// authors). `None` = the Default skin.
+    pub skin: Option<String>,
 }
 
 impl Default for Settings {
@@ -56,6 +59,7 @@ impl Default for Settings {
             quality: Quality::default(),
             id3_version: default_id3_version().into(),
             last_source: None,
+            skin: None,
         }
     }
 }
@@ -154,6 +158,7 @@ mod tests {
             quality: Quality::Vbr0,
             id3_version: "2.3".into(),
             last_source: Some(SourceRef::App { id: Some("com.spotify.client".into()), name: "Spotify".into() }),
+            skin: Some("com.example.green".into()),
         };
         save_to(&path, &s).unwrap();
         assert_eq!(load_from(&path), s);

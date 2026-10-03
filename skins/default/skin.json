@@ -1,0 +1,598 @@
+{
+  "$schema": "../../skin.schema.json",
+  "author": "Sound Scraper",
+  "colors": {
+    "accent": "#9fd630",
+    "background": "#e2742b",
+    "cream": "#f3ead0",
+    "lcdBackground": "#0d1709",
+    "lcdGhost": "#b8f23e1a",
+    "lcdHot": "#ffb03a",
+    "lcdLit": "#b8f23e",
+    "panel": "#2a2522",
+    "record": "#ff4a3a",
+    "text": "#1b1410"
+  },
+  "description": "Orange deck plastic, a slime-green LCD and a mix tape.",
+  "fonts": {
+    "digits": {
+      "cell": [
+        14,
+        26
+      ],
+      "glyphs": "0123456789:.- ",
+      "sprite": "digits.png"
+    },
+    "lcd": {
+      "cell": [
+        12,
+        16
+      ],
+      "glyphs": " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,:;!?'\"-+/()[]&#%@*_<>=$~|●▶■⏸♪▼",
+      "sprite": "font-lcd.png"
+    },
+    "tiny": {
+      "cell": [
+        6,
+        8
+      ],
+      "glyphs": " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,:;!?'\"-+/()[]&#%@*_<>=$~|●▶■⏸♪▼",
+      "sprite": "font-tiny.png"
+    }
+  },
+  "format": 1,
+  "id": "com.alexboyce.soundscraper.default",
+  "name": "Default",
+  "panels": {
+    "library": {
+      "controls": {
+        "accent": "@accent",
+        "background": "@panel",
+        "border": "#4a423c",
+        "button": "@background",
+        "buttonText": "@text",
+        "text": "@cream"
+      },
+      "frame": {
+        "image": "frame.png",
+        "slice": [
+          22,
+          6,
+          6,
+          6
+        ]
+      },
+      "minSize": [
+        480,
+        280
+      ],
+      "resizable": true,
+      "scrollbar": {
+        "image": "scrollbar.png",
+        "thumb": [
+          12,
+          0,
+          10,
+          24
+        ],
+        "thumbSlice": [
+          4,
+          0,
+          4,
+          0
+        ],
+        "track": [
+          0,
+          0,
+          10,
+          32
+        ]
+      },
+      "table": {
+        "alternate": "#2a2421",
+        "background": "#221d1a",
+        "grid": "#3a3430",
+        "header": "@background",
+        "headerText": "@text",
+        "selection": "@accent",
+        "selectionText": "#10180a",
+        "text": "@cream"
+      }
+    },
+    "main": {
+      "background": "main.png",
+      "dragRegion": [
+        [
+          0,
+          0,
+          420,
+          150
+        ]
+      ],
+      "elements": {
+        "close": {
+          "rect": [
+            400,
+            5,
+            12,
+            10
+          ],
+          "sprite": {
+            "image": "buttons.png",
+            "states": {
+              "normal": [
+                48,
+                54
+              ],
+              "pressed": [
+                60,
+                54
+              ]
+            }
+          }
+        },
+        "elapsed": {
+          "align": "right",
+          "font": "digits",
+          "rect": [
+            20,
+            32,
+            112,
+            26
+          ]
+        },
+        "levels": {
+          "rect": [
+            146,
+            32,
+            112,
+            20
+          ],
+          "style": {
+            "clip": "@record",
+            "gap": 1,
+            "hot": "@lcdHot",
+            "off": "@lcdGhost",
+            "on": "@lcdLit",
+            "rows": 2,
+            "segments": 28
+          }
+        },
+        "minimize": {
+          "rect": [
+            372,
+            5,
+            12,
+            10
+          ],
+          "sprite": {
+            "image": "buttons.png",
+            "states": {
+              "normal": [
+                0,
+                54
+              ],
+              "pressed": [
+                12,
+                54
+              ]
+            }
+          }
+        },
+        "pause": {
+          "rect": [
+            64,
+            128,
+            48,
+            18
+          ],
+          "sprite": {
+            "image": "buttons.png",
+            "states": {
+              "active": [
+                96,
+                18
+              ],
+              "disabled": [
+                144,
+                18
+              ],
+              "normal": [
+                0,
+                18
+              ],
+              "pressed": [
+                48,
+                18
+              ]
+            }
+          }
+        },
+        "record": {
+          "rect": [
+            12,
+            128,
+            48,
+            18
+          ],
+          "sprite": {
+            "image": "buttons.png",
+            "states": {
+              "active": [
+                96,
+                0
+              ],
+              "disabled": [
+                144,
+                0
+              ],
+              "normal": [
+                0,
+                0
+              ],
+              "pressed": [
+                48,
+                0
+              ]
+            }
+          }
+        },
+        "shade": {
+          "rect": [
+            386,
+            5,
+            12,
+            10
+          ],
+          "sprite": {
+            "image": "buttons.png",
+            "states": {
+              "normal": [
+                24,
+                54
+              ],
+              "pressed": [
+                36,
+                54
+              ]
+            }
+          }
+        },
+        "source": {
+          "font": "lcd",
+          "rect": [
+            14,
+            107,
+            384,
+            16
+          ],
+          "style": {
+            "pad": true
+          }
+        },
+        "status": {
+          "font": "lcd",
+          "rect": [
+            20,
+            74,
+            120,
+            16
+          ],
+          "style": {
+            "pad": true
+          }
+        },
+        "stop": {
+          "rect": [
+            116,
+            128,
+            48,
+            18
+          ],
+          "sprite": {
+            "image": "buttons.png",
+            "states": {
+              "active": [
+                96,
+                36
+              ],
+              "disabled": [
+                144,
+                36
+              ],
+              "normal": [
+                0,
+                36
+              ],
+              "pressed": [
+                48,
+                36
+              ]
+            }
+          }
+        },
+        "toggleLibrary": {
+          "rect": [
+            278,
+            129,
+            66,
+            16
+          ],
+          "sprite": {
+            "image": "buttons.png",
+            "states": {
+              "active": [
+                132,
+                64
+              ],
+              "normal": [
+                0,
+                64
+              ],
+              "pressed": [
+                66,
+                64
+              ]
+            }
+          }
+        },
+        "toggleSettings": {
+          "rect": [
+            346,
+            129,
+            66,
+            16
+          ],
+          "sprite": {
+            "image": "buttons.png",
+            "states": {
+              "active": [
+                132,
+                80
+              ],
+              "normal": [
+                0,
+                80
+              ],
+              "pressed": [
+                66,
+                80
+              ]
+            }
+          }
+        },
+        "visualizer": {
+          "rect": [
+            146,
+            58,
+            112,
+            34
+          ],
+          "style": {
+            "grid": "@lcdGhost",
+            "line": "@lcdLit"
+          }
+        }
+      },
+      "shade": {
+        "background": "shade.png",
+        "dragRegion": [
+          [
+            0,
+            0,
+            420,
+            18
+          ]
+        ],
+        "elements": {
+          "close": {
+            "rect": [
+              400,
+              4,
+              12,
+              10
+            ],
+            "sprite": {
+              "image": "buttons.png",
+              "states": {
+                "normal": [
+                  48,
+                  54
+                ],
+                "pressed": [
+                  60,
+                  54
+                ]
+              }
+            }
+          },
+          "elapsed": {
+            "align": "right",
+            "font": "tiny",
+            "rect": [
+              160,
+              5,
+              48,
+              8
+            ]
+          },
+          "levels": {
+            "rect": [
+              214,
+              5,
+              84,
+              8
+            ],
+            "style": {
+              "clip": "@record",
+              "gap": 1,
+              "hot": "@lcdHot",
+              "off": "@lcdGhost",
+              "on": "@lcdLit",
+              "rows": 1,
+              "segments": 21
+            }
+          },
+          "minimize": {
+            "rect": [
+              372,
+              4,
+              12,
+              10
+            ],
+            "sprite": {
+              "image": "buttons.png",
+              "states": {
+                "normal": [
+                  0,
+                  54
+                ],
+                "pressed": [
+                  12,
+                  54
+                ]
+              }
+            }
+          },
+          "record": {
+            "rect": [
+              306,
+              3,
+              12,
+              12
+            ],
+            "sprite": {
+              "image": "buttons.png",
+              "states": {
+                "active": [
+                  24,
+                  96
+                ],
+                "disabled": [
+                  36,
+                  96
+                ],
+                "normal": [
+                  0,
+                  96
+                ],
+                "pressed": [
+                  12,
+                  96
+                ]
+              }
+            }
+          },
+          "shade": {
+            "rect": [
+              386,
+              4,
+              12,
+              10
+            ],
+            "sprite": {
+              "image": "buttons.png",
+              "states": {
+                "normal": [
+                  24,
+                  54
+                ],
+                "pressed": [
+                  36,
+                  54
+                ]
+              }
+            }
+          },
+          "status": {
+            "font": "tiny",
+            "rect": [
+              98,
+              5,
+              60,
+              8
+            ]
+          },
+          "stop": {
+            "rect": [
+              320,
+              3,
+              12,
+              12
+            ],
+            "sprite": {
+              "image": "buttons.png",
+              "states": {
+                "active": [
+                  72,
+                  96
+                ],
+                "disabled": [
+                  84,
+                  96
+                ],
+                "normal": [
+                  48,
+                  96
+                ],
+                "pressed": [
+                  60,
+                  96
+                ]
+              }
+            }
+          }
+        },
+        "size": [
+          420,
+          18
+        ]
+      },
+      "size": [
+        420,
+        150
+      ]
+    },
+    "settings": {
+      "controls": {
+        "accent": "@accent",
+        "background": "@panel",
+        "border": "#4a423c",
+        "button": "@background",
+        "buttonText": "@text",
+        "text": "@cream"
+      },
+      "frame": {
+        "image": "frame.png",
+        "slice": [
+          22,
+          6,
+          6,
+          6
+        ]
+      },
+      "minSize": [
+        420,
+        360
+      ],
+      "resizable": false
+    }
+  },
+  "version": "1.0",
+  "visualizer": {
+    "presets": [
+      {
+        "bands": 28,
+        "color": "@lcdLit",
+        "kind": "spectrum",
+        "name": "Bars",
+        "peak": "@lcdHot"
+      },
+      {
+        "color": "@lcdLit",
+        "kind": "oscilloscope",
+        "name": "Scope"
+      }
+    ]
+  }
+}

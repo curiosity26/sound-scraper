@@ -558,6 +558,52 @@ enum SsStatus ss_settings_set(const char *json);
  */
 enum SsStatus ss_library_apply_settings(struct SsLibrary *library);
 
+/*
+ Resolves a skin for the UI as JSON (see core/crates/skin/src/resolve.rs,
+ `ResolvedSkin`): image paths are absolute, `@token` colors resolved, and
+ what the skin leaves out comes from the Default skin. `id_or_path` is an
+ installed skin's id, an absolute path to an unpacked skin folder, or
+ NULL/"" for the Default skin. NULL on failure (see
+ `ss_last_error_message`). Free with `ss_string_free`.
+
+ # Safety
+ `id_or_path` must be NULL or NUL-terminated UTF-8.
+ */
+char *ss_skin_load(const char *id_or_path);
+
+/*
+ The skin chosen in the settings (`"skin"`), resolved as by
+ `ss_skin_load`. If it no longer loads, the Default skin is returned with
+ the reason first in `warnings`. Free with `ss_string_free`.
+ */
+char *ss_skin_load_current(void);
+
+/*
+ Validates a `.sskin` archive and installs it into the Skins folder
+ (replacing a skin with the same id). Returns the installed skin's summary
+ as JSON (`{"id", "name", "author", "version", "dir", "builtin", "error"}`),
+ or NULL on failure with a message naming the file and problem. Free with
+ `ss_string_free`.
+
+ # Safety
+ `archive_path` must be NUL-terminated UTF-8.
+ */
+char *ss_skin_install(const char *archive_path);
+
+/*
+ Installed skins as a JSON array of summaries (see `ss_skin_install`),
+ the Default skin first. Free with `ss_string_free`.
+ */
+char *ss_skins_list(void);
+
+/*
+ Uninstalls a skin by id. The Default skin can't be removed.
+
+ # Safety
+ `id` must be NUL-terminated UTF-8.
+ */
+enum SsStatus ss_skin_remove(const char *id);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif  // __cplusplus

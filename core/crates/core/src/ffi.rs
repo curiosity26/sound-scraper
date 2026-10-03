@@ -17,7 +17,7 @@ use crate::{
     capture_test,
     library::{Library, Recording},
     recorder::{self, Recorder, RecorderEvent, RecorderState, Status},
-    settings, sources,
+    settings, skins, sources,
     tags::{CoverEdit, TagEdit, TagVersion},
 };
 
@@ -882,6 +882,76 @@ pub unsafe extern "C" fn ss_library_apply_settings(library: *mut SsLibrary) -> S
     with_library(library, |l| l.set_dir(settings::load().recordings_dir())).map_or_else(|status| status, |()| SsStatus::Ok)
 }
 
+/// Serializes a skin result as JSON for the UI, or records the error and
+/// returns NULL.
+fn json_or_null<T: serde::Serialize>(result: Result<T, String>) -> *mut c_char {
+    match result.and_then(|v| serde_json::to_string(&v).map_err(|e| e.to_string())) {
+        Ok(json) => c_string(&json).into_raw(),
+        Err(e) => {
+            fail(e);
+            ptr::null_mut()
+        }
+    }
+}
+
+fn catch<T>(what: &str, f: impl FnOnce() -> Result<T, String>) -> Result<T, String> {
+    catch_unwind(AssertUnwindSafe(f)).unwrap_or_else(|_| Err(format!("{what} failed unexpectedly")))
+}
+
+/// Resolves a skin for the UI as JSON (see core/crates/skin/src/resolve.rs,
+/// `ResolvedSkin`): image paths are absolute, `@token` colors resolved, and
+/// what the skin leaves out comes from the Default skin. `id_or_path` is an
+/// installed skin's id, an absolute path to an unpacked skin folder, or
+/// NULL/"" for the Default skin. NULL on failure (see
+/// `ss_last_error_message`). Free with `ss_string_free`.
+///
+/// # Safety
+/// `id_or_path` must be NULL or NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_skin_load(id_or_path: *const c_char) -> *mut c_char {
+    let arg = if id_or_path.is_null() { Ok(None) } else { unsafe { arg_str(id_or_path, "id_or_path") }.map(Some) };
+    json_or_null(catch("loading the skin", || skins::load(&skins::store(), arg?)))
+}
+
+/// The skin chosen in the settings (`"skin"`), resolved as by
+/// `ss_skin_load`. If it no longer loads, the Default skin is returned with
+/// the reason first in `warnings`. Free with `ss_string_free`.
+#[unsafe(no_mangle)]
+pub extern "C" fn ss_skin_load_current() -> *mut c_char {
+    json_or_null(catch("loading the skin", || skins::load_current(&skins::store())))
+}
+
+/// Validates a `.sskin` archive and installs it into the Skins folder
+/// (replacing a skin with the same id). Returns the installed skin's summary
+/// as JSON (`{"id", "name", "author", "version", "dir", "builtin", "error"}`),
+/// or NULL on failure with a message naming the file and problem. Free with
+/// `ss_string_free`.
+///
+/// # Safety
+/// `archive_path` must be NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_skin_install(archive_path: *const c_char) -> *mut c_char {
+    let path = unsafe { arg_str(archive_path, "archive_path") };
+    json_or_null(catch("installing the skin", || skins::store().install(std::path::Path::new(path?))))
+}
+
+/// Installed skins as a JSON array of summaries (see `ss_skin_install`),
+/// the Default skin first. Free with `ss_string_free`.
+#[unsafe(no_mangle)]
+pub extern "C" fn ss_skins_list() -> *mut c_char {
+    json_or_null(catch("listing skins", || Ok(skins::store().list())))
+}
+
+/// Uninstalls a skin by id. The Default skin can't be removed.
+///
+/// # Safety
+/// `id` must be NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_skin_remove(id: *const c_char) -> SsStatus {
+    let result = catch("removing the skin", || skins::store().remove(unsafe { arg_str(id, "id")? }));
+    result.map_or_else(fail, |()| SsStatus::Ok)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -908,6 +978,16 @@ mod tests {
         assert_eq!(status, SsStatus::Error);
         let message = unsafe { CStr::from_ptr(ss_last_error_message()) };
         assert_eq!(message.to_str().unwrap(), "out_report is NULL");
+    }
+
+    #[test]
+    fn skin_calls_report_errors() {
+        let json = unsafe { ss_skin_load(c"com.example.not-installed".as_ptr()) };
+        assert!(json.is_null());
+        let message = unsafe { CStr::from_ptr(ss_last_error_message()) };
+        assert!(message.to_str().unwrap().contains("not installed"));
+        assert_eq!(unsafe { ss_skin_remove(c"com.alexboyce.soundscraper.default".as_ptr()) }, SsStatus::Error);
+        assert!(unsafe { ss_skin_install(ptr::null()) }.is_null());
     }
 
     #[test]

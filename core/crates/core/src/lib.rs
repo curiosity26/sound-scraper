@@ -8,6 +8,7 @@ pub mod mp3;
 pub mod paths;
 pub mod recorder;
 pub mod settings;
+pub mod skins;
 pub mod sources;
 pub mod tags;
 
