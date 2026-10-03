@@ -17,16 +17,17 @@ VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/C
 
 VOLNAME="Sound Scraper"
 WORK=$(mktemp -d)
-# Installer icon (the .dmg file and the mounted disk), from its own artwork.
+# Mounted-disk icon, from its own artwork (the .dmg file keeps the app icon).
 ICONSET="$WORK/dmg.iconset"
 mkdir "$ICONSET"
 for s in 16 32 128 256 512; do
   sips -z $s $s "$ROOT/assets/dmg/icon-dmg-source.png" --out "$ICONSET/icon_${s}x${s}.png" >/dev/null
-  # No 1024 px slice: it would add ~1.7 MB twice (volume icon + file icon).
+  # No 1024 px slice: it would add ~1.7 MB to the installer.
   [ $s -lt 512 ] && sips -z $((s * 2)) $((s * 2)) "$ROOT/assets/dmg/icon-dmg-source.png" --out "$ICONSET/icon_${s}x${s}@2x.png" >/dev/null
 done
-ICNS="$WORK/dmg.icns"
-iconutil -c icns "$ICONSET" -o "$ICNS"
+VOLUME_ICNS="$WORK/dmg.icns"
+iconutil -c icns "$ICONSET" -o "$VOLUME_ICNS"
+APP_ICNS="$APP/Contents/Resources/AppIcon.icns"
 STAGE=$(mktemp -d)
 cleanup() { [ -n "${MOUNT:-}" ] && hdiutil detach -quiet -force "$MOUNT" 2>/dev/null; rm -rf "$STAGE" "$WORK"; }
 trap cleanup EXIT
@@ -45,7 +46,7 @@ MOUNT=$(hdiutil attach -readwrite -noverify -noautoopen "$WORK/rw.dmg" | awk -F'
 chflags hidden "$MOUNT/.background"
 osascript "$ROOT/scripts/dmg-layout.applescript" "$VOLNAME"
 # Volume icon last: Finder's layout pass drops a .VolumeIcon.icns added earlier.
-cp "$ICNS" "$MOUNT/.VolumeIcon.icns"
+cp "$VOLUME_ICNS" "$MOUNT/.VolumeIcon.icns"
 SetFile -a V "$MOUNT/.VolumeIcon.icns"
 SetFile -a C "$MOUNT"
 rm -rf "$MOUNT/.fseventsd" "$MOUNT/.Trashes"
@@ -57,8 +58,8 @@ DMG="$ROOT/dist/SoundScraper-$VERSION.dmg"
 hdiutil convert -quiet "$WORK/rw.dmg" -format UDZO -imagekey zlib-level=9 -ov -o "$DMG"
 codesign --sign "$IDENTITY" "$DMG"
 
-# Finder icon for the .dmg file itself (stored in extended attributes, so it
+# Finder icon for the .dmg file itself: the app icon (stored in extended attributes, so it
 # doesn't affect the signature; it may not survive every download/transfer).
 osascript -l JavaScript -e "ObjC.import('AppKit'); \
-  \$.NSWorkspace.sharedWorkspace.setIconForFileOptions(\$.NSImage.alloc.initWithContentsOfFile('$ICNS'), '$DMG', 0)" >/dev/null
+  \$.NSWorkspace.sharedWorkspace.setIconForFileOptions(\$.NSImage.alloc.initWithContentsOfFile('$APP_ICNS'), '$DMG', 0)" >/dev/null
 echo "Built $DMG ($(du -h "$DMG" | cut -f1), signed by $IDENTITY)"
