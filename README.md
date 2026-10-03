@@ -60,7 +60,7 @@ cargo run --example capture_wav -- 10 <pid>      # 10 s of one app
 
 macOS uses Core Audio process taps (macOS 14.2+), so the app needs the **System Audio Recording** permission. The app asks for it on the first capture. Without it, the tap delivers nothing; the test then fails with "no audio arrived" or "permission denied". Dev builds are ad-hoc signed, so a rebuild can make macOS forget the grant, and you'll be asked again. The CLI example inherits the permission of the app that launched it (Terminal, an IDE…).
 
-Windows capture (WASAPI loopback) is still a stub.
+On Windows the same test uses WASAPI (see below).
 
 ## Versions
 
@@ -108,26 +108,46 @@ If Xcode can't find Node (nvm), put `export NODE_BINARY=$(command -v node)` in `
 
 ## Windows
 
-Requirements (see the [react-native-windows system requirements](https://microsoft.github.io/react-native-windows/docs/rnw-dependencies)): Windows 10/11, Visual Studio 2022 with the "Desktop development with C++" and "WinUI application development" workloads, Node 22, and Rust via rustup (MSVC toolchain):
+Tested on Windows 11 ARM64 (build 22621) in Parallels. Requirements:
+
+- Visual Studio 2026 (18.6.1 or later, as RN Windows 0.83 requires) with the "Desktop development with C++", ".NET desktop development" and "Universal Windows Platform development" workloads, the ARM64 (or x64) C++ build tools, "Universal Windows Platform support" and the Windows 11 SDK 10.0.22621
+- Node.js 22.14 or later, Git, and Rust via rustup (MSVC toolchain) with your target: `rustup target add aarch64-pc-windows-msvc` (or `x86_64-pc-windows-msvc`)
+- Developer Mode on (Settings › System › For developers) and long paths enabled (`reg add HKLM\SYSTEM\CurrentControlSet\Control\FileSystem /v LongPathsEnabled /t REG_DWORD /d 1 /f` from an admin terminal)
+
+Keep the clone on a local disk with a short path (e.g. `C:\src\SoundScraper`). Don't build from a shared folder or copy `node_modules` across from macOS; run `npm ci` in Windows.
+
+**RN Windows 0.83.2 CLI bug:** its CLI needs PowerShell 7 and won't load without it ("unknown command 'run-windows'"; Metro then bundles the iOS/Android sources). Either install PowerShell 7, or preload `app/scripts/rnw-cli-shim.js` as shown below. The shim is used for every CLI, Metro and MSBuild step.
 
 ```powershell
-rustup target add x86_64-pc-windows-msvc   # and/or aarch64-pc-windows-msvc
+cd C:\src\SoundScraper\app
+$env:NODE_OPTIONS = "-r $PWD\scripts\rnw-cli-shim.js"
+npm ci
+npm run codegen:windows          # after changing src/native/NativeSoundScraper.ts
+
+# Terminal 1: Metro (Debug builds load JS from it)
+npx react-native start
+
+# Terminal 2: build, then install/launch
+$msbuild = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -find "MSBuild\Current\Bin\arm64\MSBuild.exe"
+& $msbuild windows\SoundScraper.sln /restore /m /p:Configuration=Debug /p:Platform=ARM64 /p:AppxBundle=Never
+npx react-native run-windows --arch ARM64 --no-build   # or register the layout, below
 ```
 
-Build and run:
+Without the CLI, the first install needs the framework packages the app depends on. Install them once, then register the build layout:
 
 ```powershell
-cd app
-npm install
-npm run codegen:windows     # regenerates windows/SoundScraper/codegen from src/native
-npm run windows             # or open windows\SoundScraper.sln in Visual Studio
+Add-AppxPackage windows\SoundScraper.Package\AppPackages\*\Dependencies\ARM64\Microsoft.WindowsAppRuntime.1.8.msix
+$sdk = "${env:ProgramFiles(x86)}\Microsoft SDKs\Windows Kits\10\ExtensionSDKs"
+Add-AppxPackage "$sdk\Microsoft.VCLibs\14.0\Appx\Debug\arm64\Microsoft.VCLibs.arm64.Debug.14.00.appx"
+Add-AppxPackage "$sdk\Microsoft.VCLibs.Desktop\14.0\Appx\Debug\arm64\Microsoft.VCLibs.arm64.Debug.14.00.Desktop.appx"
+Add-AppxPackage -Register windows\SoundScraper.Package\bin\ARM64\Debug\AppxManifest.xml
 ```
 
-`SoundScraperCore.props` adds a `BuildSoundScraperCore` target that runs `cargo build -p sound_scraper_core --target <x86_64|aarch64|i686>-pc-windows-msvc` (`--release` for Release) before compilation, adds `core/include` to the include path and links `sound_scraper_core.lib` plus the system libs Rust's std needs.
+`SoundScraperCore.props` adds a `BuildSoundScraperCore` target that runs `cargo build -p sound_scraper_core --target <aarch64|x86_64|i686>-pc-windows-msvc` (`--release` for Release) before compilation, adds `core/include` to the include path and links `sound_scraper_core.lib` plus the system libs Rust's std needs. LAME and SQLite are compiled with MSVC by their crates, so no LLVM is needed. The linker's LNK4098 warning (Rust's release CRT vs. the Debug app's debug CRT) is expected.
 
-## Licensing
+Windows capture uses WASAPI. All system audio is shared-mode loopback on the default output device. A single app is captured with process loopback, including its child processes (Windows 10 build 20348 or later). Apps appear in the picker once they have an audio session, i.e. after they start playing. `cargo run -p sound_scraper_capture --example audio_sessions` lists every output device and its sessions.
 
-LAME is LGPL. For now `mp3lame-sys` compiles it from source and links it **statically** into the core. Linking it dynamically wasn't practical yet: the only libmp3lame on this Mac is Homebrew's x86_64 build, and shipping our own dylib inside the macOS and Windows app bundles is packaging work (milestone 5). Before any distribution, LAME must be shipped as a separate dynamic library (or the app must ship relinkable object files).
+C++/WinRT module notes (`SoundScraperModule.h`): it must be a `REACT_TURBO_MODULE` because it emits events. Under the New Architecture, `ReactContext::JSDispatcher()` is empty and posting to it silently does nothing, so promises and events go through `ReactContext::CallInvoker()`. `REACT_EVENT` members are filled in after `REACT_INIT`, so they're read at emit time.
 
 ## Changing the native API
 

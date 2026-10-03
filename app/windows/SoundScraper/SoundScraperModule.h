@@ -14,7 +14,20 @@
 
 namespace SoundScraper {
 
-REACT_MODULE(SoundScraperModule, L"SoundScraper")
+// Schedules work on the JS thread. Under the New Architecture the context's
+// JSDispatcher is empty (Post silently does nothing); the CallInvoker works.
+struct JsThread {
+  std::shared_ptr<facebook::react::CallInvoker> invoker;
+
+  template <class F>
+  void Post(F f) const noexcept {
+    if (invoker) {
+      invoker->invokeAsync(std::function<void()>(std::move(f)));
+    }
+  }
+};
+
+REACT_TURBO_MODULE(SoundScraperModule, L"SoundScraper")
 struct SoundScraperModule {
   // Compile-time check against the shared TS spec (src/native/NativeSoundScraper.ts).
   using ModuleSpec = SoundScraperCodegen::SoundScraperSpec;
@@ -31,7 +44,8 @@ struct SoundScraperModule {
 
   REACT_INIT(Initialize)
   void Initialize(winrt::Microsoft::ReactNative::ReactContext const &context) noexcept {
-    m_sink = std::make_shared<EventSink>(EventSink{context, onRecorderEvent, onLibraryChanged});
+    m_js = JsThread{context.CallInvoker()};
+    m_sink = std::make_shared<EventSink>(EventSink{m_js, this});
     m_recorder = ss_recorder_create();
     // Rust owns this pointer's lifetime via the callback; freed in the destructor.
     m_sinkRef = new std::weak_ptr<EventSink>(m_sink);
@@ -76,10 +90,10 @@ struct SoundScraperModule {
   REACT_METHOD(recordTestWav)
   void recordTestWav(double appPid, double seconds, ::React::ReactPromise<CaptureReport> &&result) noexcept {
     // ss_capture_test_wav blocks for the whole recording.
-    std::thread([appPid, seconds, result = std::move(result)]() mutable {
+    RunOffThread([appPid, seconds, result](auto dispatcher) {
       SsCaptureReport report{};
       if (ss_capture_test_wav(static_cast<uint32_t>(appPid), seconds, &report) != SS_STATUS_OK) {
-        result.Reject(ss_last_error_message());
+        dispatcher.Post([result, message = std::string(ss_last_error_message())]() { result.Reject(message.c_str()); });
         return;
       }
       CaptureReport out;
@@ -89,19 +103,19 @@ struct SoundScraperModule {
       out.channels = report.channels;
       out.peak = report.peak;
       ss_capture_report_free(&report);
-      result.Resolve(out);
-    }).detach();
+      dispatcher.Post([result, out]() { result.Resolve(out); });
+    });
   }
 
   REACT_METHOD(recorderStart)
   void recorderStart(double appPid, ::React::ReactPromise<void> &&result) noexcept {
-    std::thread([recorder = m_recorder, appPid, result = std::move(result)]() mutable {
+    RunOffThread([recorder = m_recorder, appPid, result](auto dispatcher) {
       if (ss_recorder_start(recorder, static_cast<uint32_t>(appPid)) != SS_STATUS_OK) {
-        result.Reject(ss_last_error_message());
+        dispatcher.Post([result, message = std::string(ss_last_error_message())]() { result.Reject(message.c_str()); });
         return;
       }
-      result.Resolve();
-    }).detach();
+      dispatcher.Post([result]() { result.Resolve(); });
+    });
   }
 
   REACT_METHOD(recorderPause)
@@ -116,16 +130,16 @@ struct SoundScraperModule {
 
   REACT_METHOD(recorderStop)
   void recorderStop(::React::ReactPromise<std::string> &&result) noexcept {
-    std::thread([recorder = m_recorder, result = std::move(result)]() mutable {
+    RunOffThread([recorder = m_recorder, result](auto dispatcher) {
       char *path = nullptr;
       if (ss_recorder_stop(recorder, &path) != SS_STATUS_OK) {
-        result.Reject(ss_last_error_message());
+        dispatcher.Post([result, message = std::string(ss_last_error_message())]() { result.Reject(message.c_str()); });
         return;
       }
       std::string out = path ? path : "";
       ss_string_free(path);
-      result.Resolve(out);
-    }).detach();
+      dispatcher.Post([result, out]() { result.Resolve(out); });
+    });
   }
 
   REACT_SYNC_METHOD(recorderState)
@@ -140,10 +154,12 @@ struct SoundScraperModule {
 
   REACT_METHOD(listRecordings)
   void listRecordings(::React::ReactPromise<std::vector<Recording>> &&result) noexcept {
-    std::thread([library = m_library, result = std::move(result)]() mutable {
+    RunOffThread([library = m_library, result](auto dispatcher) {
       SsRecordingList *list = library ? ss_library_list(library) : nullptr;
       if (!list) {
-        result.Reject(library ? ss_last_error_message() : "library unavailable");
+        dispatcher.Post([result, message = std::string(library ? ss_last_error_message() : "library unavailable")]() {
+          result.Reject(message.c_str());
+        });
         return;
       }
       std::vector<Recording> items;
@@ -165,33 +181,33 @@ struct SoundScraperModule {
         items.push_back(std::move(out));
       }
       ss_recording_list_free(list);
-      result.Resolve(items);
-    }).detach();
+      dispatcher.Post([result, items = std::move(items)]() { result.Resolve(items); });
+    });
   }
 
   REACT_METHOD(renameRecording)
   void renameRecording(std::string fileName, std::string newName, ::React::ReactPromise<std::string> &&result) noexcept {
-    std::thread([library = m_library, fileName, newName, result = std::move(result)]() mutable {
+    RunOffThread([library = m_library, fileName, newName, result](auto dispatcher) {
       char *renamed = nullptr;
       if (ss_library_rename(library, fileName.c_str(), newName.c_str(), &renamed) != SS_STATUS_OK) {
-        result.Reject(ss_last_error_message());
+        dispatcher.Post([result, message = std::string(ss_last_error_message())]() { result.Reject(message.c_str()); });
         return;
       }
       std::string out = renamed ? renamed : "";
       ss_string_free(renamed);
-      result.Resolve(out);
-    }).detach();
+      dispatcher.Post([result, out]() { result.Resolve(out); });
+    });
   }
 
   REACT_METHOD(trashRecording)
   void trashRecording(std::string fileName, ::React::ReactPromise<void> &&result) noexcept {
-    std::thread([library = m_library, fileName, result = std::move(result)]() mutable {
+    RunOffThread([library = m_library, fileName, result](auto dispatcher) {
       if (ss_library_trash(library, fileName.c_str()) != SS_STATUS_OK) {
-        result.Reject(ss_last_error_message());
+        dispatcher.Post([result, message = std::string(ss_last_error_message())]() { result.Reject(message.c_str()); });
         return;
       }
-      result.Resolve();
-    }).detach();
+      dispatcher.Post([result]() { result.Resolve(); });
+    });
   }
 
   REACT_METHOD(revealRecording)
@@ -200,18 +216,21 @@ struct SoundScraperModule {
   }
 
  private:
+  // REACT_EVENT members are filled in after REACT_INIT, so events read them
+  // from the live module at emit time (on the JS thread). The sink is reset
+  // in the destructor, which makes late events no-ops.
   struct EventSink {
-    winrt::Microsoft::ReactNative::ReactContext context;
-    std::function<void(RecorderEvent)> emit;
-    std::function<void(std::string)> emitLibraryChanged;
+    JsThread js;
+    SoundScraperModule *module;
   };
 
   static void OnLibraryChanged(void *userData) {
     auto sink = static_cast<std::weak_ptr<EventSink> *>(userData)->lock();
     if (sink) {
-      sink->context.JSDispatcher().Post([sink]() {
-        if (sink->emitLibraryChanged) {
-          sink->emitLibraryChanged("changed");
+      std::weak_ptr<EventSink> weak = sink;
+      sink->js.Post([weak]() {
+        if (auto s = weak.lock(); s && s->module->onLibraryChanged) {
+          s->module->onLibraryChanged("changed");
         }
       });
     }
@@ -253,13 +272,22 @@ struct SoundScraperModule {
     if (event->message) {
       out.message = event->message;
     }
-    sink->context.JSDispatcher().Post([sink, out = std::move(out)]() {
-      if (sink->emit) {
-        sink->emit(out);
+    std::weak_ptr<EventSink> weak = sink;
+    sink->js.Post([weak, out = std::move(out)]() {
+      if (auto s = weak.lock(); s && s->module->onRecorderEvent) {
+        s->module->onRecorderEvent(out);
       }
     });
   }
 
+  // Runs blocking core calls off the JS thread, then settles the promise on
+  // the JS thread (touching the JS runtime from other threads crashes Hermes).
+  template <class Work>
+  void RunOffThread(Work work) noexcept {
+    std::thread([js = m_js, work = std::move(work)]() mutable { work(js); }).detach();
+  }
+
+  JsThread m_js;
   SsRecorder *m_recorder{nullptr};
   SsLibrary *m_library{nullptr};
   std::shared_ptr<EventSink> m_sink;

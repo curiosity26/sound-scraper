@@ -194,7 +194,15 @@ function App(): React.JSX.Element {
 }
 
 function errorText(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
+  // Native rejections arrive as Error on macOS but as plain
+  // {code, message} objects on Windows.
+  if (e instanceof Error) {
+    return e.message;
+  }
+  if (e && typeof e === 'object' && 'message' in e) {
+    return String((e as { message: unknown }).message);
+  }
+  return String(e);
 }
 
 function safeList(): AudioApp[] {
