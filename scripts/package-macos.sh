@@ -16,20 +16,36 @@ codesign --verify --deep --strict "$APP"
 VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist")
 
 ICNS="$APP/Contents/Resources/AppIcon.icns"
+VOLNAME="Sound Scraper"
 STAGE=$(mktemp -d)
-trap 'rm -rf "$STAGE"' EXIT
-ditto "$APP" "$STAGE/Sound Scraper.app"
+WORK=$(mktemp -d)
+cleanup() { [ -n "${MOUNT:-}" ] && hdiutil detach -quiet -force "$MOUNT" 2>/dev/null; rm -rf "$STAGE" "$WORK"; }
+trap cleanup EXIT
+ditto "$APP" "$STAGE/$VOLNAME.app"
+ln -s /Applications "$STAGE/Applications"
+mkdir "$STAGE/.background"
+cp "$ROOT/assets/dmg/background.tiff" "$STAGE/.background/background.tiff"
 
-# Styled installer window (background with a drag arrow, big icons) via
-# dmgbuild, which writes the Finder layout directly (no Finder scripting).
-# One-time setup: /usr/bin/python3 -m venv .venv-dmg && .venv-dmg/bin/pip install dmgbuild
-DMGBUILD="$ROOT/.venv-dmg/bin/dmgbuild"
-[ -x "$DMGBUILD" ] || { echo "error: run: /usr/bin/python3 -m venv .venv-dmg && .venv-dmg/bin/pip install dmgbuild" >&2; exit 1; }
+# Styled installer window: mount a writable image where Finder can see it and
+# let Finder lay it out (macOS asks once to allow controlling Finder).
+if [ -d "/Volumes/$VOLNAME" ]; then
+  echo "error: eject the mounted \"$VOLNAME\" disk first" >&2; exit 1
+fi
+hdiutil create -quiet -volname "$VOLNAME" -srcfolder "$STAGE" -fs HFS+ -format UDRW -ov "$WORK/rw.dmg"
+MOUNT=$(hdiutil attach -readwrite -noverify -noautoopen "$WORK/rw.dmg" | awk -F'\t' '/\/Volumes\//{print $NF}')
+chflags hidden "$MOUNT/.background"
+osascript "$ROOT/scripts/dmg-layout.applescript" "$VOLNAME"
+# Volume icon last: Finder's layout pass drops a .VolumeIcon.icns added earlier.
+cp "$ICNS" "$MOUNT/.VolumeIcon.icns"
+SetFile -a V "$MOUNT/.VolumeIcon.icns"
+SetFile -a C "$MOUNT"
+rm -rf "$MOUNT/.fseventsd" "$MOUNT/.Trashes"
+sync
+hdiutil detach -quiet "$MOUNT"; MOUNT=
+
 mkdir -p "$ROOT/dist"
 DMG="$ROOT/dist/SoundScraper-$VERSION.dmg"
-"$DMGBUILD" -s "$ROOT/scripts/dmg-settings.py" \
-  -D app="$STAGE/Sound Scraper.app" -D icon="$ICNS" -D background="$ROOT/assets/dmg/background.tiff" \
-  "Sound Scraper" "$DMG" >/dev/null
+hdiutil convert -quiet "$WORK/rw.dmg" -format UDZO -imagekey zlib-level=9 -ov -o "$DMG"
 codesign --sign "$IDENTITY" "$DMG"
 
 # Finder icon for the .dmg file itself (stored in extended attributes, so it

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Draws the DMG window background (assets/dmg/background.png, @2x and a
 # combined background.tiff) for
-# scripts/package-macos.sh. Layout must match scripts/dmg-settings.py:
+# scripts/package-macos.sh. Layout must match scripts/dmg-layout.applescript:
 # 640x420 window, 128 px icons centered at (170,215) and (470,215).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

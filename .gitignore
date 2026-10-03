@@ -61,5 +61,3 @@ app/windows/packages/
 # Installers
 dist/
 
-# Packaging tools (scripts/package-macos.sh)
-.venv-dmg/
