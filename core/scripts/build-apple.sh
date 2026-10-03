@@ -22,6 +22,7 @@ else
 fi
 
 slices=()
+lame_slices=()
 for arch in $ARCHS; do
   case "$arch" in
     arm64) triple=aarch64-apple-darwin ;;
@@ -36,9 +37,18 @@ for arch in $ARCHS; do
     cargo build --manifest-path "$CORE_DIR/Cargo.toml" -p sound_scraper_core \
     --target "$triple" $PROFILE_FLAG
   slices+=("$CORE_DIR/target/$triple/$PROFILE_DIR/$LIB")
+  lame_slices+=("$CORE_DIR/target/$triple/$PROFILE_DIR/libmp3lame.0.dylib")
 done
 
 mkdir -p "$OUT_DIR"
 lipo -create "${slices[@]}" -output "$OUT_DIR/$LIB.tmp"
 mv "$OUT_DIR/$LIB.tmp" "$OUT_DIR/$LIB"
 echo "Built $OUT_DIR/$LIB ($ARCHS, $CONFIGURATION)"
+
+# LAME is LGPL and ships as its own dylib in Contents/Frameworks. One copy
+# serves every configuration (the Xcode project embeds it from here).
+LAME_DIR="$CORE_DIR/target/apple"
+lipo -create "${lame_slices[@]}" -output "$LAME_DIR/libmp3lame.0.dylib.tmp"
+mv "$LAME_DIR/libmp3lame.0.dylib.tmp" "$LAME_DIR/libmp3lame.0.dylib"
+ln -sf libmp3lame.0.dylib "$LAME_DIR/libmp3lame.dylib"
+echo "Built $LAME_DIR/libmp3lame.0.dylib ($(lipo -archs "$LAME_DIR/libmp3lame.0.dylib"))"

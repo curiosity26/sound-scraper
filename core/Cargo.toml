@@ -7,3 +7,7 @@ version = "0.1.0"
 edition = "2024"
 license = "UNLICENSED"
 publish = false
+
+# LAME built as a shared library (LGPL), see vendor/mp3lame-sys/Cargo.toml.
+[patch.crates-io]
+mp3lame-sys = { path = "vendor/mp3lame-sys" }

@@ -159,6 +159,10 @@ Windows capture uses WASAPI. All system audio is shared-mode loopback on the def
 
 C++/WinRT module notes (`SoundScraperModule.h`): it must be a `REACT_TURBO_MODULE` because it emits events. Under the New Architecture, `ReactContext::JSDispatcher()` is empty and posting to it silently does nothing, so promises and events go through `ReactContext::CallInvoker()`. `REACT_EVENT` members are filled in after `REACT_INIT`, so they're read at emit time.
 
+## Licensing
+
+LAME (LGPL) is linked **dynamically**. `core/vendor/mp3lame-sys` is a fork of `mp3lame-sys` that builds the bundled LAME 3.100 source as a shared library: `libmp3lame.0.dylib` on macOS (install name `@rpath/libmp3lame.0.dylib`, embedded in `Contents/Frameworks` by the "Embed LAME (LGPL)" build phase) and `libmp3lame.dll` on Windows (shipped next to the exe and in the MSIX). Users can swap in their own LAME build. The LAME source is in `core/vendor/mp3lame-sys/lame-3.100`.
+
 ## Changing the native API
 
 1. Add the function to `core/crates/core/src/ffi.rs`, then run `cargo build` to regenerate the header.

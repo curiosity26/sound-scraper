@@ -11,7 +11,12 @@ use std::{
     ffi::{CStr, c_void},
     mem::{MaybeUninit, size_of},
     ptr::{self, NonNull},
-    sync::mpsc::SyncSender,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, AtomicU64, Ordering},
+        mpsc::SyncSender,
+    },
+    time::{Duration, Instant},
 };
 
 use objc2::{AnyThread, rc::Retained};
@@ -201,20 +206,58 @@ fn is_helper_of(p: &AudioProcess, app: &AppTarget) -> bool {
     }
 }
 
-/// Owns one tap + aggregate device + IO proc. Dropping it tears them down.
+/// Owns one tap + aggregate device + IO proc + silence watchdog. Dropping it
+/// tears them down.
 struct Running {
     tap: AudioObjectID,
     aggregate: AudioObjectID,
     io_proc: AudioDeviceIOProcID,
-    ctx: *mut IoContext,
+    /// The IO proc's client data (one strong count of `IoContext`).
+    ctx: *const IoContext,
+    watchdog: Option<(Arc<AtomicBool>, std::thread::JoinHandle<()>)>,
 }
 
 // The raw handles are only touched from start/drop, never shared.
 unsafe impl Send for Running {}
 
+/// Shared by the IO proc (real-time thread) and the silence watchdog.
 struct IoContext {
     sink: SyncSender<AudioChunk>,
     sample_rate: u32,
+    channels: u16,
+    started: Instant,
+    frames_sent: AtomicU64,
+    /// Nanoseconds after `started` when audio (or fill) was last sent.
+    last_sent_ns: AtomicU64,
+}
+
+/// A tap delivers nothing while nothing is playing (the aggregate device
+/// idles), so after this long without audio the watchdog inserts silence up
+/// to wall-clock time, keeping quiet stretches in the recording.
+const SILENCE_GAP: Duration = Duration::from_millis(100);
+
+impl IoContext {
+    fn mark_sent(&self, frames: u64) {
+        self.frames_sent.fetch_add(frames, Ordering::AcqRel);
+        self.last_sent_ns.store(self.started.elapsed().as_nanos() as u64, Ordering::Release);
+    }
+
+    /// Called by the watchdog: fills the gap if the tap has been quiet.
+    fn fill_silence(&self) {
+        let now = self.started.elapsed();
+        let last = Duration::from_nanos(self.last_sent_ns.load(Ordering::Acquire));
+        if now.saturating_sub(last) < SILENCE_GAP {
+            return;
+        }
+        let expected = (now.as_secs_f64() * f64::from(self.sample_rate)) as u64;
+        let missing = expected.saturating_sub(self.frames_sent.load(Ordering::Acquire));
+        if missing == 0 {
+            return;
+        }
+        self.mark_sent(missing);
+        let samples = vec![0.0; missing as usize * self.channels as usize];
+        let _ = self.sink.try_send(AudioChunk { samples, sample_rate: self.sample_rate, channels: self.channels });
+    }
 }
 
 impl Running {
@@ -234,7 +277,7 @@ impl Running {
 
         let mut tap: AudioObjectID = 0;
         check(unsafe { AudioHardwareCreateProcessTap(Some(&desc), &mut tap) }, "creating the process tap")?;
-        let mut running = Running { tap, aggregate: 0, io_proc: None, ctx: ptr::null_mut() };
+        let mut running = Running { tap, aggregate: 0, io_proc: None, ctx: ptr::null(), watchdog: None };
 
         let format: AudioStreamBasicDescription = unsafe { get_property(tap, kAudioTapPropertyFormat, None)? };
         if format.mFormatFlags & kAudioFormatFlagIsFloat == 0 || format.mBitsPerChannel != 32 {
@@ -255,25 +298,50 @@ impl Running {
             "creating the aggregate device",
         )?;
 
-        running.ctx = Box::into_raw(Box::new(IoContext { sink, sample_rate: format.mSampleRate as u32 }));
+        let ctx = Arc::new(IoContext {
+            sink,
+            sample_rate: format.mSampleRate as u32,
+            channels: format.mChannelsPerFrame.max(1) as u16,
+            started: Instant::now(),
+            frames_sent: AtomicU64::new(0),
+            last_sent_ns: AtomicU64::new(0),
+        });
+        running.ctx = Arc::into_raw(ctx.clone());
         check(
             unsafe {
                 AudioDeviceCreateIOProcID(
                     running.aggregate,
                     Some(io_proc),
-                    running.ctx.cast(),
+                    running.ctx.cast_mut().cast(),
                     NonNull::from(&mut running.io_proc),
                 )
             },
             "creating the IO proc",
         )?;
         check(unsafe { AudioDeviceStart(running.aggregate, running.io_proc) }, "starting the aggregate device")?;
+
+        let stop = Arc::new(AtomicBool::new(false));
+        let watchdog_stop = stop.clone();
+        let watchdog = std::thread::Builder::new()
+            .name("sound-scraper-silence".into())
+            .spawn(move || {
+                while !watchdog_stop.load(Ordering::Acquire) {
+                    std::thread::sleep(Duration::from_millis(20));
+                    ctx.fill_silence();
+                }
+            })
+            .map_err(|e| CaptureError::Os(e.to_string()))?;
+        running.watchdog = Some((stop, watchdog));
         Ok(running)
     }
 }
 
 impl Drop for Running {
     fn drop(&mut self) {
+        if let Some((stop, thread)) = self.watchdog.take() {
+            stop.store(true, Ordering::Release);
+            let _ = thread.join();
+        }
         unsafe {
             if self.aggregate != 0 {
                 if self.io_proc.is_some() {
@@ -286,7 +354,7 @@ impl Drop for Running {
                 AudioHardwareDestroyProcessTap(self.tap);
             }
             if !self.ctx.is_null() {
-                drop(Box::from_raw(self.ctx));
+                drop(Arc::from_raw(self.ctx));
             }
         }
     }
@@ -415,6 +483,7 @@ unsafe extern "C-unwind" fn io_proc(
             (out, planes.len() as u16)
         }
     };
+    ctx.mark_sent((samples.len() / channels.max(1) as usize) as u64);
     // A full queue means the consumer is behind; drop rather than block.
     let _ = ctx.sink.try_send(AudioChunk { samples, sample_rate: ctx.sample_rate, channels });
     0
@@ -503,4 +572,43 @@ fn check(status: i32, what: &str) -> Result<(), CaptureError> {
         status.to_string()
     };
     Err(CaptureError::Os(format!("{what} failed (OSStatus {detail})")))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn context(started: Instant) -> (IoContext, std::sync::mpsc::Receiver<AudioChunk>) {
+        let (tx, rx) = std::sync::mpsc::sync_channel(8);
+        let ctx = IoContext {
+            sink: tx,
+            sample_rate: 48000,
+            channels: 2,
+            started,
+            frames_sent: AtomicU64::new(0),
+            last_sent_ns: AtomicU64::new(0),
+        };
+        (ctx, rx)
+    }
+
+    #[test]
+    fn fills_quiet_stretches_up_to_wall_clock_time() {
+        let (ctx, rx) = context(Instant::now() - Duration::from_millis(500));
+        ctx.fill_silence();
+        let chunk = rx.try_recv().expect("a silence chunk");
+        let frames = chunk.samples.len() / 2;
+        assert!((23_500..=25_500).contains(&frames), "about 0.5 s of frames, got {frames}");
+        assert!(chunk.samples.iter().all(|&s| s == 0.0));
+        // Just filled: no second chunk until another gap opens.
+        ctx.fill_silence();
+        assert!(rx.try_recv().is_err());
+    }
+
+    #[test]
+    fn leaves_flowing_audio_alone() {
+        let (ctx, rx) = context(Instant::now() - Duration::from_millis(500));
+        ctx.mark_sent(24_000); // the IO proc just delivered audio
+        ctx.fill_silence();
+        assert!(rx.try_recv().is_err());
+    }
 }

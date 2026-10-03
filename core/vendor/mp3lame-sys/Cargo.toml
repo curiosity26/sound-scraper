@@ -1,0 +1,29 @@
+# Local fork of mp3lame-sys 0.1.11 (LGPL-3.0, https://github.com/DoumanAsh/mp3lame-sys)
+# that builds LAME 3.100 as a *shared* library instead of a static one, so the
+# app links LAME dynamically as the LGPL requires. Bindings (src/) are unchanged.
+[package]
+name = "mp3lame-sys"
+version = "0.1.11"
+edition = "2018"
+license = "LGPL-3.0"
+description = "Bindings to mp3lame library (Sound Scraper fork: shared library build)"
+links = "mp3lame"
+publish = false
+build = "build.rs"
+
+[lib]
+name = "mp3lame_sys"
+path = "src/lib.rs"
+
+[features]
+decoder = []
+target_host = []
+
+[dependencies]
+libc = { version = "0.2", default-features = false }
+
+[target.'cfg(unix)'.build-dependencies]
+autotools = "0.2.6"
+
+[target.'cfg(windows)'.build-dependencies]
+cc = "1"

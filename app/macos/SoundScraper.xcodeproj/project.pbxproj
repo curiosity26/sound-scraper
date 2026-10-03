@@ -10,10 +10,25 @@
 		23A745E82D93E140EF816F07 /* RCTSoundScraper.mm in Sources */ = {isa = PBXBuildFile; fileRef = AF2788C4B7C1A4DEEEE2FC8D /* RCTSoundScraper.mm */; };
 		5142014D2437B4B30078DB4F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5142014C2437B4B30078DB4F /* AppDelegate.swift */; };
 		514201522437B4B40078DB4F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 514201512437B4B40078DB4F /* Assets.xcassets */; };
+		7DA2F8BAA33E2107FB6F3B2F /* libmp3lame.0.dylib in Embed LAME (LGPL) */ = {isa = PBXBuildFile; fileRef = 7CE960E07A17729A1088F365 /* libmp3lame.0.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		F6AC4F5485CDFD084586FDC1 /* libPods-SoundScraper-macOS.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 0611457090C7612CA6A5F3B2 /* libPods-SoundScraper-macOS.a */; };
 		FA7DD333D6844B22CA71C689 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 79E74B956427CCFF212B2D96 /* PrivacyInfo.xcprivacy */; };
 		FAD4F5693A8D32AB335EED29 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 79E74B956427CCFF212B2D96 /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		F98C37349ECB3B8DB7194940 /* Embed LAME (LGPL) */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				7DA2F8BAA33E2107FB6F3B2F /* libmp3lame.0.dylib in Embed LAME (LGPL) */,
+			);
+			name = "Embed LAME (LGPL)";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		0611457090C7612CA6A5F3B2 /* libPods-SoundScraper-macOS.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-SoundScraper-macOS.a"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -25,6 +40,7 @@
 		514201562437B4B40078DB4F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		514201592437B4B40078DB4F /* SoundScraper.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SoundScraper.entitlements; sourceTree = "<group>"; };
 		79E74B956427CCFF212B2D96 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		7CE960E07A17729A1088F365 /* libmp3lame.0.dylib */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = "compiled.mach-o.dylib"; name = libmp3lame.0.dylib; path = ../../core/target/apple/libmp3lame.0.dylib; sourceTree = SOURCE_ROOT; };
 		9C815E70E28E16317FD7C541 /* Pods-SoundScraper-macOS.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SoundScraper-macOS.debug.xcconfig"; path = "Target Support Files/Pods-SoundScraper-macOS/Pods-SoundScraper-macOS.debug.xcconfig"; sourceTree = "<group>"; };
 		AF2788C4B7C1A4DEEEE2FC8D /* RCTSoundScraper.mm */ = {isa = PBXFileReference; includeInIndex = 1; path = RCTSoundScraper.mm; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
@@ -98,6 +114,7 @@
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
 				79E74B956427CCFF212B2D96 /* PrivacyInfo.xcprivacy */,
 				3550C70DD4C2D1702F1EAAD9 /* Pods */,
+				7CE960E07A17729A1088F365 /* libmp3lame.0.dylib */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -146,6 +163,7 @@
 				381D8A6E24576A4E00465D17 /* Bundle React Native code and images */,
 				A9293D0BE587DAC38FE9F6CB /* [CP] Embed Pods Frameworks */,
 				47851C3F42AEE1BB41FCCC8D /* [CP] Copy Pods Resources */,
+				F98C37349ECB3B8DB7194940 /* Embed LAME (LGPL) */,
 			);
 			buildRules = (
 			);
@@ -410,11 +428,12 @@
 					"$(SRCROOT)/../../core/include",
 				);
 				INFOPLIST_FILE = "SoundScraper-macos/Info.plist";
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../Frameworks";
 				LIBRARY_SEARCH_PATHS = (
 					"$(SDKROOT)/usr/lib/swift",
 					"$(inherited)",
 					"$(SRCROOT)/../../core/target/apple/$(CONFIGURATION)",
+					"$(SRCROOT)/../../core/target/apple",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				OTHER_LDFLAGS = (
@@ -424,6 +443,7 @@
 					"-lsound_scraper_core",
 					"-framework",
 					CoreAudio,
+					"-lmp3lame",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.$(PRODUCT_NAME:rfc1034identifier)";
 				PRODUCT_NAME = SoundScraper;
@@ -446,11 +466,12 @@
 					"$(SRCROOT)/../../core/include",
 				);
 				INFOPLIST_FILE = "SoundScraper-macos/Info.plist";
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../Frameworks";
 				LIBRARY_SEARCH_PATHS = (
 					"$(SDKROOT)/usr/lib/swift",
 					"$(inherited)",
 					"$(SRCROOT)/../../core/target/apple/$(CONFIGURATION)",
+					"$(SRCROOT)/../../core/target/apple",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				OTHER_LDFLAGS = (
@@ -460,6 +481,7 @@
 					"-lsound_scraper_core",
 					"-framework",
 					CoreAudio,
+					"-lmp3lame",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.$(PRODUCT_NAME:rfc1034identifier)";
 				PRODUCT_NAME = SoundScraper;
