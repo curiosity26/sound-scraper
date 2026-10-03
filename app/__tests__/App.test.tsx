@@ -20,6 +20,11 @@ jest.mock('../src/native/NativeSoundScraper', () => ({
     recorderState: () => 'idle',
     recoverPartialRecordings: () => 0,
     onRecorderEvent: () => ({ remove: jest.fn() }),
+    onLibraryChanged: () => ({ remove: jest.fn() }),
+    listRecordings: jest.fn(() => Promise.resolve([])),
+    renameRecording: jest.fn(),
+    trashRecording: jest.fn(),
+    revealRecording: jest.fn(),
   },
 }));
 
@@ -38,4 +43,63 @@ test('renders the core version and an idle record bar', async () => {
 test('formats elapsed time', () => {
   expect(formatElapsed(0)).toBe('0:00.0');
   expect(formatElapsed(65_432)).toBe('1:05.4');
+});
+
+describe('library model', () => {
+  const {
+    filterRecordings,
+    sortRecordings,
+    nextSort,
+    formatDuration,
+    formatSize,
+  } = require('../src/libraryModel');
+  const rec = (fileName: string, extra: object = {}) => ({
+    fileName,
+    path: `/x/${fileName}`,
+    title: fileName.replace('.mp3', ''),
+    artist: null,
+    album: null,
+    durationMs: 1000,
+    sizeBytes: 1000,
+    recordedAtMs: 0,
+    ...extra,
+  });
+  const items = [
+    rec('b.mp3', { durationMs: 3000, recordedAtMs: 2, artist: 'Zed' }),
+    rec('A.mp3', { durationMs: 1000, recordedAtMs: 3, album: 'Live' }),
+    rec('c.mp3', { durationMs: 2000, recordedAtMs: 1 }),
+  ];
+  const names = (xs: { fileName: string }[]) => xs.map(x => x.fileName);
+
+  test('filters by name, artist and album', () => {
+    expect(names(filterRecordings(items, 'zed'))).toEqual(['b.mp3']);
+    expect(names(filterRecordings(items, 'LIVE'))).toEqual(['A.mp3']);
+    expect(filterRecordings(items, '  ')).toHaveLength(3);
+  });
+
+  test('sorts by column and direction', () => {
+    expect(
+      names(sortRecordings(items, { key: 'date', ascending: false })),
+    ).toEqual(['A.mp3', 'b.mp3', 'c.mp3']);
+    expect(
+      names(sortRecordings(items, { key: 'name', ascending: true })),
+    ).toEqual(['A.mp3', 'b.mp3', 'c.mp3']);
+    expect(
+      names(sortRecordings(items, { key: 'duration', ascending: true })),
+    ).toEqual(['A.mp3', 'c.mp3', 'b.mp3']);
+    expect(nextSort({ key: 'date', ascending: false }, 'date')).toEqual({
+      key: 'date',
+      ascending: true,
+    });
+    expect(nextSort({ key: 'date', ascending: false }, 'name').ascending).toBe(
+      true,
+    );
+  });
+
+  test('formats duration and size', () => {
+    expect(formatDuration(65_400)).toBe('1:05');
+    expect(formatDuration(3_725_000)).toBe('1:02:05');
+    expect(formatSize(2_500_000)).toBe('2.4 MB');
+    expect(formatSize(300)).toBe('1 KB');
+  });
 });

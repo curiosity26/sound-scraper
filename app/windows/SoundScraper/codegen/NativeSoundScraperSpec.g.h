@@ -49,6 +49,20 @@ inline winrt::Microsoft::ReactNative::FieldMap GetStructInfo(SoundScraperSpec_Re
     return fieldMap;
 }
 
+inline winrt::Microsoft::ReactNative::FieldMap GetStructInfo(SoundScraperSpec_Recording*) noexcept {
+    winrt::Microsoft::ReactNative::FieldMap fieldMap {
+        {L"fileName", &SoundScraperSpec_Recording::fileName},
+        {L"path", &SoundScraperSpec_Recording::path},
+        {L"title", &SoundScraperSpec_Recording::title},
+        {L"artist", &SoundScraperSpec_Recording::artist},
+        {L"album", &SoundScraperSpec_Recording::album},
+        {L"durationMs", &SoundScraperSpec_Recording::durationMs},
+        {L"sizeBytes", &SoundScraperSpec_Recording::sizeBytes},
+        {L"recordedAtMs", &SoundScraperSpec_Recording::recordedAtMs},
+    };
+    return fieldMap;
+}
+
 struct SoundScraperSpec : winrt::Microsoft::ReactNative::TurboModuleSpec {
   static constexpr auto methods = std::tuple{
       SyncMethod<std::string() noexcept>{0, L"getVersion"},
@@ -60,7 +74,12 @@ struct SoundScraperSpec : winrt::Microsoft::ReactNative::TurboModuleSpec {
       Method<void(Promise<std::string>) noexcept>{6, L"recorderStop"},
       SyncMethod<std::string() noexcept>{7, L"recorderState"},
       SyncMethod<double() noexcept>{8, L"recoverPartialRecordings"},
-      EventEmitter<void(SoundScraperSpec_RecorderEvent)>{9, L"onRecorderEvent"},
+      Method<void(Promise<std::vector<SoundScraperSpec_Recording>>) noexcept>{9, L"listRecordings"},
+      Method<void(std::string, std::string, Promise<std::string>) noexcept>{10, L"renameRecording"},
+      Method<void(std::string, Promise<void>) noexcept>{11, L"trashRecording"},
+      Method<void(std::string) noexcept>{12, L"revealRecording"},
+      EventEmitter<void(SoundScraperSpec_RecorderEvent)>{13, L"onRecorderEvent"},
+      EventEmitter<void(std::string)>{14, L"onLibraryChanged"},
   };
 
   template <class TModule>
@@ -112,10 +131,34 @@ struct SoundScraperSpec : winrt::Microsoft::ReactNative::TurboModuleSpec {
           "recoverPartialRecordings",
           "    REACT_SYNC_METHOD(recoverPartialRecordings) double recoverPartialRecordings() noexcept { /* implementation */ }\n"
           "    REACT_SYNC_METHOD(recoverPartialRecordings) static double recoverPartialRecordings() noexcept { /* implementation */ }\n");
-    REACT_SHOW_EVENTEMITTER_SPEC_ERRORS(
+    REACT_SHOW_METHOD_SPEC_ERRORS(
           9,
+          "listRecordings",
+          "    REACT_METHOD(listRecordings) void listRecordings(::React::ReactPromise<std::vector<SoundScraperSpec_Recording>> &&result) noexcept { /* implementation */ }\n"
+          "    REACT_METHOD(listRecordings) static void listRecordings(::React::ReactPromise<std::vector<SoundScraperSpec_Recording>> &&result) noexcept { /* implementation */ }\n");
+    REACT_SHOW_METHOD_SPEC_ERRORS(
+          10,
+          "renameRecording",
+          "    REACT_METHOD(renameRecording) void renameRecording(std::string fileName, std::string newName, ::React::ReactPromise<std::string> &&result) noexcept { /* implementation */ }\n"
+          "    REACT_METHOD(renameRecording) static void renameRecording(std::string fileName, std::string newName, ::React::ReactPromise<std::string> &&result) noexcept { /* implementation */ }\n");
+    REACT_SHOW_METHOD_SPEC_ERRORS(
+          11,
+          "trashRecording",
+          "    REACT_METHOD(trashRecording) void trashRecording(std::string fileName, ::React::ReactPromise<void> &&result) noexcept { /* implementation */ }\n"
+          "    REACT_METHOD(trashRecording) static void trashRecording(std::string fileName, ::React::ReactPromise<void> &&result) noexcept { /* implementation */ }\n");
+    REACT_SHOW_METHOD_SPEC_ERRORS(
+          12,
+          "revealRecording",
+          "    REACT_METHOD(revealRecording) void revealRecording(std::string fileName) noexcept { /* implementation */ }\n"
+          "    REACT_METHOD(revealRecording) static void revealRecording(std::string fileName) noexcept { /* implementation */ }\n");
+    REACT_SHOW_EVENTEMITTER_SPEC_ERRORS(
+          13,
           "onRecorderEvent",
           "    REACT_EVENT(onRecorderEvent) std::function<void(SoundScraperSpec_RecorderEvent)> onRecorderEvent;\n");
+    REACT_SHOW_EVENTEMITTER_SPEC_ERRORS(
+          14,
+          "onLibraryChanged",
+          "    REACT_EVENT(onLibraryChanged) std::function<void(std::string)> onLibraryChanged;\n");
   }
 };
 

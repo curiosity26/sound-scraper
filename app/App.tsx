@@ -1,12 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, useColorScheme, View } from 'react-native';
 
+import { LibraryTable } from './src/LibraryTable';
 import {
   type AudioApp,
   getCoreVersion,
+  library,
   listAudioApps,
   recorder,
   type RecorderState,
+  type Recording,
 } from './src/native/SoundScraper';
 import { RecordBar } from './src/RecordBar';
 import { SourcePicker } from './src/SourcePicker';
@@ -34,6 +37,18 @@ function App(): React.JSX.Element {
   const [elapsedMs, setElapsedMs] = useState(0);
   const [peak, setPeak] = useState(0);
   const [message, setMessage] = useState<{ text: string; isError: boolean }>();
+  const [recordings, setRecordings] = useState<Recording[]>([]);
+
+  const refreshLibrary = useCallback(async () => {
+    try {
+      setRecordings(await library.list());
+    } catch (e) {
+      setMessage({
+        text: `Couldn't read the library: ${errorText(e)}`,
+        isError: true,
+      });
+    }
+  }, []);
 
   useEffect(() => {
     const recovered = safeRecover();
@@ -45,6 +60,8 @@ function App(): React.JSX.Element {
         isError: false,
       });
     }
+    refreshLibrary();
+    const librarySubscription = library.onChanged(refreshLibrary);
     const subscription = recorder.onEvent(e => {
       switch (e.kind) {
         case 'state':
@@ -65,8 +82,39 @@ function App(): React.JSX.Element {
           break;
       }
     });
-    return () => subscription.remove();
-  }, []);
+    return () => {
+      subscription.remove();
+      librarySubscription.remove();
+    };
+  }, [refreshLibrary]);
+
+  const onRename = useCallback(
+    async (r: Recording, newName: string) => {
+      try {
+        const renamed = await library.rename(r.fileName, newName);
+        setMessage({ text: `Renamed to ${renamed}`, isError: false });
+      } catch (e) {
+        setMessage({ text: `Couldn't rename: ${errorText(e)}`, isError: true });
+      }
+      refreshLibrary();
+    },
+    [refreshLibrary],
+  );
+
+  const onTrash = useCallback(
+    async (r: Recording) => {
+      try {
+        await library.trash(r.fileName);
+      } catch (e) {
+        setMessage({
+          text: `Couldn't move to Trash: ${errorText(e)}`,
+          isError: true,
+        });
+      }
+      refreshLibrary();
+    },
+    [refreshLibrary],
+  );
 
   const onRecord = useCallback(async () => {
     setStarting(true);
@@ -132,6 +180,15 @@ function App(): React.JSX.Element {
           {message.text}
         </Text>
       )}
+
+      <LibraryTable
+        recordings={recordings}
+        onRename={onRename}
+        onTrash={onTrash}
+        onReveal={r => library.reveal(r.fileName)}
+        textStyle={fg}
+        isDark={isDark}
+      />
     </View>
   );
 }

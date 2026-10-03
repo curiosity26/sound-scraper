@@ -21,22 +21,31 @@ struct SoundScraperModule {
   using AudioApp = SoundScraperCodegen::SoundScraperSpec_AudioApp;
   using CaptureReport = SoundScraperCodegen::SoundScraperSpec_CaptureReport;
   using RecorderEvent = SoundScraperCodegen::SoundScraperSpec_RecorderEvent;
+  using Recording = SoundScraperCodegen::SoundScraperSpec_Recording;
+
+  REACT_EVENT(onLibraryChanged)
+  std::function<void(std::string)> onLibraryChanged;
 
   REACT_EVENT(onRecorderEvent)
   std::function<void(RecorderEvent)> onRecorderEvent;
 
   REACT_INIT(Initialize)
   void Initialize(winrt::Microsoft::ReactNative::ReactContext const &context) noexcept {
-    m_sink = std::make_shared<EventSink>(EventSink{context, onRecorderEvent});
+    m_sink = std::make_shared<EventSink>(EventSink{context, onRecorderEvent, onLibraryChanged});
     m_recorder = ss_recorder_create();
     // Rust owns this pointer's lifetime via the callback; freed in the destructor.
     m_sinkRef = new std::weak_ptr<EventSink>(m_sink);
     ss_recorder_set_callback(m_recorder, &SoundScraperModule::OnRecorderEvent, m_sinkRef);
+    m_library = ss_library_open(); // NULL if unavailable; calls then report an error
+    if (m_library) {
+      ss_library_set_callback(m_library, &SoundScraperModule::OnLibraryChanged, m_sinkRef);
+    }
   }
 
   ~SoundScraperModule() {
     m_sink.reset(); // late events become no-ops
     ss_recorder_destroy(m_recorder); // finalizes an in-progress recording
+    ss_library_destroy(m_library);
     delete m_sinkRef;
   }
 
@@ -129,11 +138,84 @@ struct SoundScraperModule {
     return ss_recover_partial_recordings();
   }
 
+  REACT_METHOD(listRecordings)
+  void listRecordings(::React::ReactPromise<std::vector<Recording>> &&result) noexcept {
+    std::thread([library = m_library, result = std::move(result)]() mutable {
+      SsRecordingList *list = library ? ss_library_list(library) : nullptr;
+      if (!list) {
+        result.Reject(library ? ss_last_error_message() : "library unavailable");
+        return;
+      }
+      std::vector<Recording> items;
+      for (size_t i = 0, n = ss_recording_list_len(list); i < n; i++) {
+        const SsRecording *r = ss_recording_list_get(list, i);
+        Recording out;
+        out.fileName = r->file_name;
+        out.path = r->path;
+        out.title = r->title;
+        if (r->artist) {
+          out.artist = r->artist;
+        }
+        if (r->album) {
+          out.album = r->album;
+        }
+        out.durationMs = static_cast<double>(r->duration_ms);
+        out.sizeBytes = static_cast<double>(r->size_bytes);
+        out.recordedAtMs = static_cast<double>(r->recorded_at_ms);
+        items.push_back(std::move(out));
+      }
+      ss_recording_list_free(list);
+      result.Resolve(items);
+    }).detach();
+  }
+
+  REACT_METHOD(renameRecording)
+  void renameRecording(std::string fileName, std::string newName, ::React::ReactPromise<std::string> &&result) noexcept {
+    std::thread([library = m_library, fileName, newName, result = std::move(result)]() mutable {
+      char *renamed = nullptr;
+      if (ss_library_rename(library, fileName.c_str(), newName.c_str(), &renamed) != SS_STATUS_OK) {
+        result.Reject(ss_last_error_message());
+        return;
+      }
+      std::string out = renamed ? renamed : "";
+      ss_string_free(renamed);
+      result.Resolve(out);
+    }).detach();
+  }
+
+  REACT_METHOD(trashRecording)
+  void trashRecording(std::string fileName, ::React::ReactPromise<void> &&result) noexcept {
+    std::thread([library = m_library, fileName, result = std::move(result)]() mutable {
+      if (ss_library_trash(library, fileName.c_str()) != SS_STATUS_OK) {
+        result.Reject(ss_last_error_message());
+        return;
+      }
+      result.Resolve();
+    }).detach();
+  }
+
+  REACT_METHOD(revealRecording)
+  void revealRecording(std::string fileName) noexcept {
+    ss_library_reveal(m_library, fileName.c_str());
+  }
+
  private:
   struct EventSink {
     winrt::Microsoft::ReactNative::ReactContext context;
     std::function<void(RecorderEvent)> emit;
+    std::function<void(std::string)> emitLibraryChanged;
   };
+
+  static void OnLibraryChanged(void *userData) {
+    auto sink = static_cast<std::weak_ptr<EventSink> *>(userData)->lock();
+    if (sink) {
+      sink->context.JSDispatcher().Post([sink]() {
+        if (sink->emitLibraryChanged) {
+          sink->emitLibraryChanged("changed");
+        }
+      });
+    }
+  }
 
   static std::string StateName(SsRecorderState state) noexcept {
     switch (state) {
@@ -171,10 +253,15 @@ struct SoundScraperModule {
     if (event->message) {
       out.message = event->message;
     }
-    sink->context.JSDispatcher().Post([sink, out = std::move(out)]() { sink->emit(out); });
+    sink->context.JSDispatcher().Post([sink, out = std::move(out)]() {
+      if (sink->emit) {
+        sink->emit(out);
+      }
+    });
   }
 
   SsRecorder *m_recorder{nullptr};
+  SsLibrary *m_library{nullptr};
   std::shared_ptr<EventSink> m_sink;
   std::weak_ptr<EventSink> *m_sinkRef{nullptr};
 };

@@ -35,8 +35,25 @@ export type RecorderEvent = {
   message: string | null;
 };
 
+/** Mirrors SsRecording in sound_scraper.h. */
+export type Recording = {
+  /** Name inside the recordings folder; identifies the recording. */
+  fileName: string;
+  path: string;
+  /** ID3 title, or the file name without extension. */
+  title: string;
+  artist: string | null;
+  album: string | null;
+  durationMs: number;
+  sizeBytes: number;
+  /** Unix time in milliseconds. */
+  recordedAtMs: number;
+};
+
 export interface Spec extends TurboModule {
   readonly onRecorderEvent: CodegenTypes.EventEmitter<RecorderEvent>;
+  /** Fires (payload "changed") when recordings change on disk. */
+  readonly onLibraryChanged: CodegenTypes.EventEmitter<string>;
 
   /** Rust core version, from `ss_version()` in sound_scraper.h. */
   getVersion(): string;
@@ -55,6 +72,14 @@ export interface Spec extends TurboModule {
   recorderState(): string;
   /** Finishes recordings left by a crash; returns how many. */
   recoverPartialRecordings(): number;
+
+  /** Rescans the recordings folder; newest first. */
+  listRecordings(): Promise<Array<Recording>>;
+  /** Renames on disk (sanitized, de-duplicated); resolves with the new file name. */
+  renameRecording(fileName: string, newName: string): Promise<string>;
+  trashRecording(fileName: string): Promise<void>;
+  /** Shows the file in Finder / Explorer. */
+  revealRecording(fileName: string): void;
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>('SoundScraper');

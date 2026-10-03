@@ -50,10 +50,21 @@ typedef enum SsRecorderEventKind {
 typedef struct SsAudioAppList SsAudioAppList;
 
 /*
+ Opaque handle to the recordings library (`~/Music/Sound Scraper`).
+ Its functions may be called from any thread.
+ */
+typedef struct SsLibrary SsLibrary;
+
+/*
  Opaque recorder handle. Create with `ss_recorder_create`, free with
  `ss_recorder_destroy`. Its functions may be called from any thread.
  */
 typedef struct SsRecorder SsRecorder;
+
+/*
+ Opaque list from `ss_library_list`.
+ */
+typedef struct SsRecordingList SsRecordingList;
 
 /*
  A recorder event. Pointers are valid only during the callback.
@@ -116,6 +127,41 @@ typedef struct SsCaptureReport {
    */
   float peak;
 } SsCaptureReport;
+
+/*
+ One recording. Strings are UTF-8 and owned by the list.
+ */
+typedef struct SsRecording {
+  /*
+   Name inside the recordings folder; pass it to the other library calls.
+   */
+  const char *file_name;
+  const char *path;
+  /*
+   ID3 title, or the file name without extension.
+   */
+  const char *title;
+  /*
+   NULL when not tagged.
+   */
+  const char *artist;
+  /*
+   NULL when not tagged.
+   */
+  const char *album;
+  uint64_t duration_ms;
+  uint64_t size_bytes;
+  /*
+   Unix time in milliseconds.
+   */
+  int64_t recorded_at_ms;
+} SsRecording;
+
+/*
+ Called (debounced, on a watcher thread) when recordings are added,
+ removed or changed on disk.
+ */
+typedef void (*SsLibraryCallback)(void *user_data);
 
 /*
  Input rates LAME accepts without resampling.
@@ -283,6 +329,98 @@ enum SsStatus ss_capture_test_wav(uint32_t app_pid,
  not already been freed.
  */
 void ss_capture_report_free(struct SsCaptureReport *report);
+
+/*
+ Opens the default library, creating the folder and index if needed.
+ Returns NULL on failure (see `ss_last_error_message`).
+ */
+struct SsLibrary *ss_library_open(void);
+
+/*
+ Closes a library (stopping its watcher). NULL is a no-op.
+
+ # Safety
+ `library` must be NULL or a handle from `ss_library_open` not already
+ destroyed, with no other call on it in progress.
+ */
+void ss_library_destroy(struct SsLibrary *library);
+
+/*
+ Rescans the folder and returns the recordings, newest first. Free with
+ `ss_recording_list_free`. Returns NULL on failure.
+
+ # Safety
+ `library` must be NULL or a live handle from `ss_library_open`.
+ */
+struct SsRecordingList *ss_library_list(struct SsLibrary *library);
+
+/*
+ Number of recordings in `list` (0 for NULL).
+
+ # Safety
+ `list` must be NULL or a live list from `ss_library_list`.
+ */
+size_t ss_recording_list_len(const struct SsRecordingList *list);
+
+/*
+ Recording at `index`, or NULL when out of range. Valid until the list is freed.
+
+ # Safety
+ `list` must be NULL or a live list from `ss_library_list`.
+ */
+const struct SsRecording *ss_recording_list_get(const struct SsRecordingList *list, size_t index);
+
+/*
+ Frees a list from `ss_library_list`. NULL is a no-op.
+
+ # Safety
+ `list` must be NULL or a list not already freed.
+ */
+void ss_recording_list_free(struct SsRecordingList *list);
+
+/*
+ Renames a recording (sanitized, `.mp3` kept, " (2)" on collision; the
+ ID3 title follows if it still matched the old name). On success
+ `*out_file_name` (if not NULL) receives the new file name, to be freed
+ with `ss_string_free`.
+
+ # Safety
+ `library` must be a live handle; `file_name` and `new_name` must be
+ NUL-terminated UTF-8; `out_file_name` must be NULL or writable.
+ */
+enum SsStatus ss_library_rename(struct SsLibrary *library,
+                                const char *file_name,
+                                const char *new_name,
+                                char **out_file_name);
+
+/*
+ Moves a recording to the Trash / Recycle Bin.
+
+ # Safety
+ `library` must be a live handle; `file_name` must be NUL-terminated UTF-8.
+ */
+enum SsStatus ss_library_trash(struct SsLibrary *library, const char *file_name);
+
+/*
+ Shows the recording selected in Finder / Explorer.
+
+ # Safety
+ `library` must be a live handle; `file_name` must be NUL-terminated UTF-8.
+ */
+enum SsStatus ss_library_reveal(struct SsLibrary *library, const char *file_name);
+
+/*
+ Starts watching the folder; `callback(user_data)` fires on changes.
+ NULL callback stops watching.
+
+ # Safety
+ `library` must be a live handle; `user_data` must stay valid, and be
+ usable from any thread, until the callback is replaced or the library
+ is destroyed.
+ */
+enum SsStatus ss_library_set_callback(struct SsLibrary *library,
+                                      SsLibraryCallback callback,
+                                      void *user_data);
 
 #ifdef __cplusplus
 }  // extern "C"

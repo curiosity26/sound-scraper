@@ -5,9 +5,10 @@ import type {
   AudioApp,
   CaptureReport,
   RecorderEvent,
+  Recording,
 } from './NativeSoundScraper';
 
-export type { AudioApp, CaptureReport, RecorderEvent };
+export type { AudioApp, CaptureReport, RecorderEvent, Recording };
 
 export type RecorderState = 'idle' | 'recording' | 'paused' | 'finalizing';
 
@@ -44,10 +45,25 @@ export const recorder = {
   recoverPartials: (): number => NativeSoundScraper.recoverPartialRecordings(),
 };
 
+export const library = {
+  /** Rescans the recordings folder; newest first. */
+  list: (): Promise<Recording[]> => NativeSoundScraper.listRecordings(),
+  /** Renames on disk; resolves with the new file name. */
+  rename: (fileName: string, newName: string): Promise<string> =>
+    NativeSoundScraper.renameRecording(fileName, newName),
+  trash: (fileName: string): Promise<void> =>
+    NativeSoundScraper.trashRecording(fileName),
+  reveal: (fileName: string): void =>
+    NativeSoundScraper.revealRecording(fileName),
+  onChanged: (listener: () => void): EventSubscription =>
+    NativeSoundScraper.onLibraryChanged(() => listener()),
+};
+
 if (__DEV__) {
   // Lets the debugger console drive the same module instance as the UI.
-  (globalThis as {__soundScraper?: unknown}).__soundScraper = {
+  (globalThis as { __soundScraper?: unknown }).__soundScraper = {
     recorder,
+    library,
     listAudioApps,
   };
 }

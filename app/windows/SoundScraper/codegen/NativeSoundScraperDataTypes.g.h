@@ -41,4 +41,15 @@ struct SoundScraperSpec_RecorderEvent {
     std::optional<std::string> message;
 };
 
+struct SoundScraperSpec_Recording {
+    std::string fileName;
+    std::string path;
+    std::string title;
+    std::optional<std::string> artist;
+    std::optional<std::string> album;
+    double durationMs;
+    double sizeBytes;
+    double recordedAtMs;
+};
+
 } // namespace SoundScraperCodegen

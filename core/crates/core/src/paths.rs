@@ -11,6 +11,24 @@ pub fn recordings_dir() -> PathBuf {
     home.join("Music").join("Sound Scraper")
 }
 
+/// Per-user app data folder (library index etc.): `~/Library/Application
+/// Support/Sound Scraper` on macOS, `%APPDATA%\Sound Scraper` on Windows.
+pub fn app_data_dir() -> PathBuf {
+    let home = std::env::var_os("HOME").map(PathBuf::from);
+    if cfg!(target_os = "macos") {
+        if let Some(home) = home {
+            return home.join("Library/Application Support/Sound Scraper");
+        }
+    } else if cfg!(target_os = "windows") {
+        if let Some(appdata) = std::env::var_os("APPDATA") {
+            return PathBuf::from(appdata).join("Sound Scraper");
+        }
+    } else if let Some(data) = std::env::var_os("XDG_DATA_HOME").map(PathBuf::from).or(home.map(|h| h.join(".local/share"))) {
+        return data.join("sound-scraper");
+    }
+    recordings_dir().join(".sound-scraper")
+}
+
 /// Replaces characters that are illegal in file names on macOS or Windows.
 pub fn sanitize(name: &str) -> String {
     let cleaned: String = name
@@ -66,11 +84,13 @@ mod tests {
     }
 
     pub(crate) fn tempdir() -> PathBuf {
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let dir = std::env::temp_dir().join(format!(
             "sound-scraper-test-{}-{}",
             std::process::id(),
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+            NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         ));
+        let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }

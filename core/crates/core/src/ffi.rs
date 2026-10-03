@@ -14,7 +14,9 @@ use std::{
 };
 
 use crate::{
-    capture_test, paths,
+    capture_test,
+    library::{Library, Recording},
+    paths,
     recorder::{self, Recorder, RecorderEvent, RecorderState, Status},
     sources,
 };
@@ -431,6 +433,238 @@ pub unsafe extern "C" fn ss_capture_report_free(report: *mut SsCaptureReport) {
         drop(unsafe { CString::from_raw(r.path) });
         r.path = ptr::null_mut();
     }
+}
+
+/// Opaque handle to the recordings library (`~/Music/Sound Scraper`).
+/// Its functions may be called from any thread.
+pub struct SsLibrary {
+    inner: Mutex<Library>,
+}
+
+/// One recording. Strings are UTF-8 and owned by the list.
+#[repr(C)]
+pub struct SsRecording {
+    /// Name inside the recordings folder; pass it to the other library calls.
+    pub file_name: *const c_char,
+    pub path: *const c_char,
+    /// ID3 title, or the file name without extension.
+    pub title: *const c_char,
+    /// NULL when not tagged.
+    pub artist: *const c_char,
+    /// NULL when not tagged.
+    pub album: *const c_char,
+    pub duration_ms: u64,
+    pub size_bytes: u64,
+    /// Unix time in milliseconds.
+    pub recorded_at_ms: i64,
+}
+
+/// Opaque list from `ss_library_list`.
+pub struct SsRecordingList {
+    items: Vec<SsRecording>,
+    _strings: Vec<CString>,
+}
+
+/// Called (debounced, on a watcher thread) when recordings are added,
+/// removed or changed on disk.
+pub type SsLibraryCallback = Option<unsafe extern "C" fn(user_data: *mut c_void)>;
+
+/// Opens the default library, creating the folder and index if needed.
+/// Returns NULL on failure (see `ss_last_error_message`).
+#[unsafe(no_mangle)]
+pub extern "C" fn ss_library_open() -> *mut SsLibrary {
+    match catch_unwind(Library::open_default) {
+        Ok(Ok(library)) => Box::into_raw(Box::new(SsLibrary { inner: Mutex::new(library) })),
+        Ok(Err(message)) => {
+            fail(message);
+            ptr::null_mut()
+        }
+        Err(_) => {
+            fail("opening the library panicked");
+            ptr::null_mut()
+        }
+    }
+}
+
+/// Closes a library (stopping its watcher). NULL is a no-op.
+///
+/// # Safety
+/// `library` must be NULL or a handle from `ss_library_open` not already
+/// destroyed, with no other call on it in progress.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_library_destroy(library: *mut SsLibrary) {
+    if !library.is_null() {
+        drop(unsafe { Box::from_raw(library) });
+    }
+}
+
+fn with_library<T>(library: *const SsLibrary, f: impl FnOnce(&mut Library) -> Result<T, String>) -> Result<T, SsStatus> {
+    let Some(l) = (unsafe { library.as_ref() }) else { return Err(fail("library is NULL")) };
+    match catch_unwind(AssertUnwindSafe(|| f(&mut l.inner.lock().unwrap_or_else(|e| e.into_inner())))) {
+        Ok(Ok(value)) => Ok(value),
+        Ok(Err(message)) => Err(fail(message)),
+        Err(_) => Err(fail("library call panicked")),
+    }
+}
+
+/// Borrows a C string argument as UTF-8.
+unsafe fn arg_str<'a>(s: *const c_char, name: &str) -> Result<&'a str, String> {
+    if s.is_null() {
+        return Err(format!("{name} is NULL"));
+    }
+    unsafe { std::ffi::CStr::from_ptr(s) }.to_str().map_err(|_| format!("{name} is not UTF-8"))
+}
+
+fn c_string(s: &str) -> CString {
+    CString::new(s.replace('\0', " ")).unwrap_or_default()
+}
+
+/// Rescans the folder and returns the recordings, newest first. Free with
+/// `ss_recording_list_free`. Returns NULL on failure.
+///
+/// # Safety
+/// `library` must be NULL or a live handle from `ss_library_open`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_library_list(library: *mut SsLibrary) -> *mut SsRecordingList {
+    let Ok(recordings) = with_library(library, Library::list) else { return ptr::null_mut() };
+    let mut strings = Vec::new();
+    let mut keep = |s: Option<&str>| -> *const c_char {
+        match s {
+            Some(s) => {
+                let c = c_string(s);
+                let p = c.as_ptr();
+                strings.push(c);
+                p
+            }
+            None => ptr::null(),
+        }
+    };
+    let items = recordings
+        .iter()
+        .map(|r: &Recording| SsRecording {
+            file_name: keep(Some(&r.file_name)),
+            path: keep(Some(&r.path.to_string_lossy())),
+            title: keep(Some(&r.title)),
+            artist: keep(r.artist.as_deref()),
+            album: keep(r.album.as_deref()),
+            duration_ms: r.duration_ms,
+            size_bytes: r.size_bytes,
+            recorded_at_ms: r.recorded_at_ms,
+        })
+        .collect();
+    Box::into_raw(Box::new(SsRecordingList { items, _strings: strings }))
+}
+
+/// Number of recordings in `list` (0 for NULL).
+///
+/// # Safety
+/// `list` must be NULL or a live list from `ss_library_list`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_recording_list_len(list: *const SsRecordingList) -> usize {
+    unsafe { list.as_ref() }.map_or(0, |l| l.items.len())
+}
+
+/// Recording at `index`, or NULL when out of range. Valid until the list is freed.
+///
+/// # Safety
+/// `list` must be NULL or a live list from `ss_library_list`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_recording_list_get(list: *const SsRecordingList, index: usize) -> *const SsRecording {
+    unsafe { list.as_ref() }
+        .and_then(|l| l.items.get(index))
+        .map_or(ptr::null(), |r| r as *const SsRecording)
+}
+
+/// Frees a list from `ss_library_list`. NULL is a no-op.
+///
+/// # Safety
+/// `list` must be NULL or a list not already freed.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_recording_list_free(list: *mut SsRecordingList) {
+    if !list.is_null() {
+        drop(unsafe { Box::from_raw(list) });
+    }
+}
+
+/// Renames a recording (sanitized, `.mp3` kept, " (2)" on collision; the
+/// ID3 title follows if it still matched the old name). On success
+/// `*out_file_name` (if not NULL) receives the new file name, to be freed
+/// with `ss_string_free`.
+///
+/// # Safety
+/// `library` must be a live handle; `file_name` and `new_name` must be
+/// NUL-terminated UTF-8; `out_file_name` must be NULL or writable.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_library_rename(
+    library: *mut SsLibrary,
+    file_name: *const c_char,
+    new_name: *const c_char,
+    out_file_name: *mut *mut c_char,
+) -> SsStatus {
+    let result = with_library(library, |l| {
+        let renamed = l.rename(unsafe { arg_str(file_name, "file_name")? }, unsafe { arg_str(new_name, "new_name")? })?;
+        if !out_file_name.is_null() {
+            unsafe { out_file_name.write(c_string(&renamed).into_raw()) };
+        }
+        Ok(())
+    });
+    result.map_or_else(|status| status, |()| SsStatus::Ok)
+}
+
+/// Moves a recording to the Trash / Recycle Bin.
+///
+/// # Safety
+/// `library` must be a live handle; `file_name` must be NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_library_trash(library: *mut SsLibrary, file_name: *const c_char) -> SsStatus {
+    with_library(library, |l| l.trash(unsafe { arg_str(file_name, "file_name")? }))
+        .map_or_else(|status| status, |()| SsStatus::Ok)
+}
+
+/// Shows the recording selected in Finder / Explorer.
+///
+/// # Safety
+/// `library` must be a live handle; `file_name` must be NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_library_reveal(library: *mut SsLibrary, file_name: *const c_char) -> SsStatus {
+    with_library(library, |l| l.reveal(unsafe { arg_str(file_name, "file_name")? }))
+        .map_or_else(|status| status, |()| SsStatus::Ok)
+}
+
+/// Starts watching the folder; `callback(user_data)` fires on changes.
+/// NULL callback stops watching.
+///
+/// # Safety
+/// `library` must be a live handle; `user_data` must stay valid, and be
+/// usable from any thread, until the callback is replaced or the library
+/// is destroyed.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_library_set_callback(
+    library: *mut SsLibrary,
+    callback: SsLibraryCallback,
+    user_data: *mut c_void,
+) -> SsStatus {
+    struct Target(unsafe extern "C" fn(*mut c_void), *mut c_void);
+    // The caller promises user_data may be used from the watcher thread.
+    unsafe impl Send for Target {}
+    unsafe impl Sync for Target {}
+    impl Target {
+        fn call(&self) {
+            unsafe { (self.0)(self.1) }
+        }
+    }
+
+    with_library(library, |l| match callback {
+        Some(callback) => {
+            let target = Target(callback, user_data);
+            l.watch(move || target.call())
+        }
+        None => {
+            l.unwatch();
+            Ok(())
+        }
+    })
+    .map_or_else(|status| status, |()| SsStatus::Ok)
 }
 
 #[cfg(test)]

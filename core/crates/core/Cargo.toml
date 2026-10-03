@@ -18,6 +18,12 @@ chrono = { version = "0.4", default-features = false, features = ["clock"] }
 hound = "3.5"
 id3 = "1.17"
 mp3lame-encoder = "0.2"
+# kqueue instead of FSEvents on macOS: FSEvents batched changes for seconds,
+# and we only watch one flat folder.
+notify = { version = "8", default-features = false, features = ["macos_kqueue"] }
+notify-debouncer-mini = { version = "0.7", default-features = false }
+rusqlite = { version = "0.40", features = ["bundled"] }
+trash = "5"
 
 [build-dependencies]
 cbindgen = "0.29"

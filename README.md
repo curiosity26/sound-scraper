@@ -36,6 +36,17 @@ The app's RecordBar records the selected source to MP3 (192 kbps CBR, at the dev
 
 C API: `ss_recorder_start/pause/resume/stop`, `ss_recorder_state`, `ss_recorder_elapsed_ms`, `ss_recorder_set_callback` (state, ~10 Hz progress with elapsed time and peak/RMS levels, finished, error) and `ss_recover_partial_recordings`. The RN module forwards events as `onRecorderEvent`.
 
+## Library (milestone 3)
+
+Below the RecordBar, the library lists the `.mp3` files in `~/Music/Sound Scraper`: name, duration, date recorded, size and artist/album. Click a column header to sort (click again to reverse), and type in the search box to filter by name, title, artist or album. Select a row for **Rename**, **Show in Finder** and **Move to Trash**.
+
+- The folder is the source of truth. A SQLite index (`~/Library/Application Support/Sound Scraper/library.db` on macOS, `%APPDATA%\Sound Scraper\library.db` on Windows) caches duration and tags, keyed by file name and invalidated by size and mtime. It's rebuilt if missing or outdated.
+- A folder watcher (kqueue on macOS, ReadDirectoryChangesW on Windows) refreshes the list about 0.3 s after outside changes.
+- Rename sanitizes the name, keeps `.mp3`, adds " (2)" on collision and updates the ID3 title only if it still matched the old file name, so custom titles are kept. In-progress `.mp3.part` files aren't listed, so the file being recorded can't be renamed.
+- Trash uses `NSFileManager` on macOS (no Finder automation prompt) and the Recycle Bin on Windows.
+
+C API: `ss_library_open/destroy/list/rename/trash/reveal/set_callback` and `ss_recording_list_*`.
+
 ## Capture test (milestone 1)
 
 The screen lists "All system audio" plus the apps that currently have audio (♪ = playing now). **Record 10 s test** writes `~/Music/Sound Scraper/<source> capture test <date>.wav` (32-bit float, device rate) and reports duration and peak level. The same test runs from the command line:

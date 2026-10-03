@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
   link: { color: colors.accent, fontSize: 14 },
   list: {
     flexGrow: 0,
-    maxHeight: 280,
+    maxHeight: 150,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     borderRadius: 6,
