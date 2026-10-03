@@ -27,6 +27,9 @@
     <ClInclude Include="SoundScraperModule.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="codegen\NativeSoundScraperDataTypes.g.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="codegen\NativeSoundScraperSpec.g.h">
       <Filter>Header Files</Filter>
     </ClInclude>

@@ -103,6 +103,7 @@
   <ItemGroup>
     <ClInclude Include="SoundScraper.h" />
     <ClInclude Include="SoundScraperModule.h" />
+    <ClInclude Include="codegen\NativeSoundScraperDataTypes.g.h" />
     <ClInclude Include="codegen\NativeSoundScraperSpec.g.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="AutolinkedNativeModules.g.h" />

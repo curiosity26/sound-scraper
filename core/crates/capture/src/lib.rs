@@ -29,6 +29,8 @@ pub struct AppTarget {
     pub bundle_id: Option<String>,
     pub name: String,
     pub icon: Option<Vec<u8>>,
+    /// Producing sound right now (sorted to the top of the picker).
+    pub is_playing: bool,
 }
 
 /// What to record: everything the computer plays, or one app.
@@ -66,7 +68,10 @@ impl fmt::Display for CaptureError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Unsupported(why) => write!(f, "unsupported: {why}"),
-            Self::PermissionDenied => f.write_str("audio capture permission denied"),
+            Self::PermissionDenied => f.write_str(
+                "audio capture permission denied (macOS: System Settings › Privacy & Security › \
+                 Screen & System Audio Recording)",
+            ),
             Self::NotImplemented => f.write_str("not implemented"),
             Self::Os(msg) => write!(f, "OS error: {msg}"),
         }
@@ -116,10 +121,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn stub_backend_refuses_to_start() {
+    fn capturing_a_missing_app_fails() {
         let (tx, _rx) = std::sync::mpsc::channel();
         let mut backend = default_backend();
-        let source = CaptureSource::System { device: None };
-        assert!(backend.start(source, tx).is_err());
+        let app = AppTarget { pid: u32::MAX, bundle_id: None, name: "nobody".into(), icon: None, is_playing: false };
+        assert!(backend.start(CaptureSource::App { app }, tx).is_err());
     }
 }

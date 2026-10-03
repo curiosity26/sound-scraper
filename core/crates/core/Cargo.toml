@@ -14,6 +14,8 @@ crate-type = ["staticlib", "rlib"]
 
 [dependencies]
 sound_scraper_capture = { path = "../capture" }
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+hound = "3.5"
 
 [build-dependencies]
 cbindgen = "0.29"

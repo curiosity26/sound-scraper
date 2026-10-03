@@ -419,6 +419,8 @@
 					"-ObjC",
 					"-lc++",
 					"-lsound_scraper_core",
+					"-framework",
+					CoreAudio,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.$(PRODUCT_NAME:rfc1034identifier)";
 				PRODUCT_NAME = SoundScraper;
@@ -453,6 +455,8 @@
 					"-ObjC",
 					"-lc++",
 					"-lsound_scraper_core",
+					"-framework",
+					CoreAudio,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.$(PRODUCT_NAME:rfc1034identifier)";
 				PRODUCT_NAME = SoundScraper;

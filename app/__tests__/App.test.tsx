@@ -8,7 +8,11 @@ import App from '../App';
 
 jest.mock('../src/native/NativeSoundScraper', () => ({
   __esModule: true,
-  default: {getVersion: () => '0.0.0-test'},
+  default: {
+    getVersion: () => '0.0.0-test',
+    listAudioApps: () => [],
+    recordTestWav: jest.fn(),
+  },
 }));
 
 test('renders the core version', async () => {

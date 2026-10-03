@@ -17,10 +17,55 @@ typedef enum SsRecorderState {
 } SsRecorderState;
 
 /*
+ Result of a fallible call. On `SS_STATUS_ERROR`, `ss_last_error_message`
+ describes the failure.
+ */
+typedef enum SsStatus {
+  SS_STATUS_OK = 0,
+  SS_STATUS_ERROR = 1,
+} SsStatus;
+
+/*
+ Opaque list of apps from `ss_audio_apps_list`.
+ */
+typedef struct SsAudioAppList SsAudioAppList;
+
+/*
  Opaque recorder handle. Create with `ss_recorder_create`, free with
  `ss_recorder_destroy`.
  */
 typedef struct SsRecorder SsRecorder;
+
+/*
+ An app that can be recorded on its own. Strings are UTF-8 and owned by the
+ list they came from.
+ */
+typedef struct SsAudioApp {
+  uint32_t pid;
+  const char *name;
+  /*
+   NULL when the process has no bundle ID.
+   */
+  const char *bundle_id;
+  bool is_playing;
+} SsAudioApp;
+
+/*
+ Outcome of `ss_capture_test_wav`. Free `path` with `ss_capture_report_free`.
+ */
+typedef struct SsCaptureReport {
+  /*
+   UTF-8 path of the WAV file that was written.
+   */
+  char *path;
+  uint64_t frames;
+  uint32_t sample_rate;
+  uint16_t channels;
+  /*
+   Largest absolute sample; 0 means the recording was silent.
+   */
+  float peak;
+} SsCaptureReport;
 
 #ifdef __cplusplus
 extern "C" {
@@ -53,6 +98,63 @@ void ss_recorder_destroy(struct SsRecorder *recorder);
  `recorder` must be NULL or a live handle from `ss_recorder_create`.
  */
 enum SsRecorderState ss_recorder_state(const struct SsRecorder *recorder);
+
+/*
+ Message for the last `SS_STATUS_ERROR` returned on this thread. Valid until
+ the next failing call on the same thread; the caller must not free it.
+ */
+const char *ss_last_error_message(void);
+
+/*
+ Apps with audio processes, those playing sound first. Free with
+ `ss_audio_app_list_free`. Never returns NULL.
+ */
+struct SsAudioAppList *ss_audio_apps_list(void);
+
+/*
+ Number of apps in `list` (0 for NULL).
+
+ # Safety
+ `list` must be NULL or a live list from `ss_audio_apps_list`.
+ */
+size_t ss_audio_app_list_len(const struct SsAudioAppList *list);
+
+/*
+ App at `index`, or NULL when out of range. Valid until the list is freed.
+
+ # Safety
+ `list` must be NULL or a live list from `ss_audio_apps_list`.
+ */
+const struct SsAudioApp *ss_audio_app_list_get(const struct SsAudioAppList *list, size_t index);
+
+/*
+ Frees a list from `ss_audio_apps_list`. NULL is a no-op.
+
+ # Safety
+ `list` must be NULL or a list that has not already been freed.
+ */
+void ss_audio_app_list_free(struct SsAudioAppList *list);
+
+/*
+ Records `seconds` of audio to a WAV file in the recordings folder: one
+ app's audio when `app_pid` is non-zero, otherwise all system audio.
+ Blocks for the duration, so call it off the UI thread.
+
+ # Safety
+ `out_report` must point to writable memory for one `SsCaptureReport`.
+ */
+enum SsStatus ss_capture_test_wav(uint32_t app_pid,
+                                  double seconds,
+                                  struct SsCaptureReport *out_report);
+
+/*
+ Frees the strings inside a report filled by `ss_capture_test_wav`.
+
+ # Safety
+ `report` must be NULL or a report filled by `ss_capture_test_wav` that has
+ not already been freed.
+ */
+void ss_capture_report_free(struct SsCaptureReport *report);
 
 #ifdef __cplusplus
 }  // extern "C"

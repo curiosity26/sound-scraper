@@ -22,7 +22,22 @@ app/                          React Native 0.83 (TypeScript)
     SoundScraper/SoundScraperCore.props         runs cargo and links sound_scraper_core.lib
 ```
 
-The chain: `App.tsx` → `getCoreVersion()` → Turbo Module `SoundScraper.getVersion()` → native module → `ss_version()` in the Rust static library. The screen shows "Rust core vX.Y.Z".
+The chain: `App.tsx` → `src/native/SoundScraper.ts` → Turbo Module `SoundScraper` → native module → `ss_*` functions in the Rust static library.
+
+## Capture test (milestone 1)
+
+The screen lists "All system audio" plus the apps that currently have audio (♪ = playing now). **Record 10 s test** writes `~/Music/Sound Scraper/<source> capture test <date>.wav` (32-bit float, device rate) and reports duration and peak level. The same test runs from the command line:
+
+```sh
+cd core
+cargo run --example capture_wav -- list          # apps with audio
+cargo run --example capture_wav -- 10            # 10 s of all system audio
+cargo run --example capture_wav -- 10 <pid>      # 10 s of one app
+```
+
+macOS uses Core Audio process taps (macOS 14.2+), so the app needs the **System Audio Recording** permission. The app asks for it on the first capture. Without it, the tap delivers nothing; the test then fails with "no audio arrived" or "permission denied". Dev builds are ad-hoc signed, so a rebuild can make macOS forget the grant, and you'll be asked again. The CLI example inherits the permission of the app that launched it (Terminal, an IDE…).
+
+Windows capture (WASAPI loopback) is still a stub.
 
 ## Versions
 
@@ -62,7 +77,7 @@ cd macos && RCT_NEW_ARCH_ENABLED=1 pod install && cd ..
 npm run macos               # or open macos/SoundScraper.xcworkspace and Run
 ```
 
-The Xcode target has a **Build Rust core** phase (before Compile Sources) that runs `core/scripts/build-apple.sh` for the active `ARCHS`/`CONFIGURATION`. It writes `core/target/apple/<Configuration>/libsound_scraper_core.a`, which the target links with `-lsound_scraper_core`. Header search path: `core/include`.
+The Xcode target has a **Build Rust core** phase (before Compile Sources) that runs `core/scripts/build-apple.sh` for the active `ARCHS`/`CONFIGURATION`. It writes `core/target/apple/<Configuration>/libsound_scraper_core.a`, which the target links with `-lsound_scraper_core -framework CoreAudio`. Header search path: `core/include`.
 
 If Xcode can't find Node (nvm), put `export NODE_BINARY=$(command -v node)` in `app/macos/.xcode.env.local`.
 
