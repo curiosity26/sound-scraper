@@ -25,7 +25,12 @@ use std::{
 
 use sound_scraper_capture::{AudioChunk, CaptureBackend, CaptureSource, Session, default_backend};
 
-use crate::{mp3, paths, settings::Quality, sources};
+use crate::{
+    mp3, paths,
+    settings::Quality,
+    sources,
+    tags::TagVersion,
+};
 
 pub const PART_EXT: &str = ".mp3.part";
 
@@ -75,11 +80,13 @@ pub type BackendFactory = Box<dyn Fn() -> Box<dyn CaptureBackend> + Send>;
 pub struct RecorderOptions {
     pub dir: PathBuf,
     pub quality: Quality,
+    /// ID3 version for the initial tags.
+    pub tag_version: TagVersion,
 }
 
 impl Default for RecorderOptions {
     fn default() -> Self {
-        Self { dir: paths::recordings_dir(), quality: Quality::default() }
+        Self { dir: paths::recordings_dir(), quality: Quality::default(), tag_version: TagVersion::V24 }
     }
 }
 
@@ -182,6 +189,7 @@ impl Recorder {
                 CaptureSource::System { .. } => None,
             },
             quality: self.options.quality,
+            tag_version: self.options.tag_version,
             paused: paused.clone(),
             status: self.status.clone(),
             events: self.events.clone(),
@@ -272,6 +280,7 @@ struct EncodeJob {
     title: String,
     comment: Option<String>,
     quality: Quality,
+    tag_version: TagVersion,
     paused: Arc<AtomicBool>,
     status: Arc<Status>,
     events: Option<EventSink>,
@@ -280,8 +289,8 @@ struct EncodeJob {
 impl EncodeJob {
     fn run(mut self) -> Result<PathBuf, String> {
         let result = self.encode_until_disconnected();
-        let EncodeJob { file, part, title, comment, .. } = self;
-        let finalized = result.and_then(|encoder| finalize(file, &part, encoder, &title, comment.as_deref()));
+        let EncodeJob { file, part, title, comment, tag_version, .. } = self;
+        let finalized = result.and_then(|encoder| finalize(file, &part, encoder, &title, comment.as_deref(), tag_version));
         if finalized.is_err() && std::fs::metadata(&part).map(|m| m.len() == 0).unwrap_or(false) {
             let _ = std::fs::remove_file(&part);
         }
@@ -337,6 +346,7 @@ fn finalize(
     encoder: Option<mp3::Mp3Encoder>,
     title: &str,
     comment: Option<&str>,
+    tag_version: TagVersion,
 ) -> Result<PathBuf, String> {
     let io_err = |e: std::io::Error| format!("finalizing {}: {e}", part.display());
     let Some(mut encoder) = encoder else {
@@ -349,12 +359,12 @@ fn finalize(
     if let Some(tag) = encoder.lame_tag() {
         mp3::write_first_frame(part, &tag).map_err(io_err)?;
     }
-    write_tags(part, title, comment, false)?;
+    write_tags(part, title, comment, false, tag_version)?;
     publish(part)
 }
 
 /// Initial ID3v2.4 tags (docs/design.md §3, §6).
-fn write_tags(path: &Path, title: &str, comment: Option<&str>, recovered: bool) -> Result<(), String> {
+fn write_tags(path: &Path, title: &str, comment: Option<&str>, recovered: bool, version: TagVersion) -> Result<(), String> {
     use id3::{Tag, TagLike, Timestamp, Version, frame::Comment};
     let now = chrono::Local::now();
     let mut tag = Tag::new();
@@ -376,7 +386,18 @@ fn write_tags(path: &Path, title: &str, comment: Option<&str>, recovered: bool) 
     if let Some(text) = comment {
         tag.add_frame(Comment { lang: "eng".into(), description: String::new(), text });
     }
-    tag.write_to_path(path, Version::Id3v24).map_err(|e| format!("writing tags to {}: {e}", path.display()))
+    let version = match version {
+        TagVersion::V24 => Version::Id3v24,
+        TagVersion::V23 => {
+            // v2.3 has no TDRC: keep the year in TYER.
+            if let Some(ts) = tag.date_recorded() {
+                tag.remove_date_recorded();
+                tag.set_year(ts.year);
+            }
+            Version::Id3v23
+        }
+    };
+    tag.write_to_path(path, version).map_err(|e| format!("writing tags to {}: {e}", path.display()))
 }
 
 /// Renames `<name>.mp3.part` to a free `<name>.mp3`.
@@ -395,7 +416,7 @@ fn part_stem(file_name: &str) -> String {
 /// Finishes `.mp3.part` files left by a crash in `dir`: trims a truncated
 /// final frame, writes a duration header, tags and renames them. Call before
 /// starting a recording (a live recording's `.part` must not be touched).
-pub fn recover_partials(dir: &Path) -> Vec<Result<PathBuf, String>> {
+pub fn recover_partials(dir: &Path, version: TagVersion) -> Vec<Result<PathBuf, String>> {
     let Ok(entries) = std::fs::read_dir(dir) else { return Vec::new() };
     let mut parts: Vec<PathBuf> = entries
         .filter_map(|e| e.ok().map(|e| e.path()))
@@ -408,7 +429,7 @@ pub fn recover_partials(dir: &Path) -> Vec<Result<PathBuf, String>> {
             let title = part_stem(&part.file_name().unwrap().to_string_lossy());
             match mp3::repair(&part) {
                 Ok(scan) if scan.frames > 1 => {
-                    write_tags(&part, &title, None, true)?;
+                    write_tags(&part, &title, None, true, version)?;
                     publish(&part)
                 }
                 Ok(_) | Err(_) => {
@@ -546,7 +567,7 @@ mod tests {
 
     fn recorder(dir: &Path) -> (Recorder, Arc<Mutex<Vec<RecorderEvent>>>) {
         let mut r = Recorder::with_backend(
-            RecorderOptions { dir: dir.to_owned(), quality: Quality::Cbr192 },
+            RecorderOptions { dir: dir.to_owned(), quality: Quality::Cbr192, tag_version: TagVersion::V24 },
             ToneBackend::factory(48000, 2),
         );
         let events = Arc::new(Mutex::new(Vec::new()));
@@ -620,7 +641,7 @@ mod tests {
     fn stopping_before_any_audio_leaves_no_file() {
         let dir = crate::paths::tempdir();
         let mut r = Recorder::with_backend(
-            RecorderOptions { dir: dir.clone(), quality: Quality::Cbr192 },
+            RecorderOptions { dir: dir.clone(), quality: Quality::Cbr192, tag_version: TagVersion::V24 },
             ToneBackend::factory(48000, 2),
         );
         r.start(system()).unwrap();
@@ -634,7 +655,7 @@ mod tests {
     fn warns_when_no_audio_arrives() {
         let dir = crate::paths::tempdir();
         let mut r = Recorder::with_backend(
-            RecorderOptions { dir, quality: Quality::Cbr192 },
+            RecorderOptions { dir, quality: Quality::Cbr192, tag_version: TagVersion::V24 },
             Box::new(|| Box::new(SilentBackend) as Box<dyn CaptureBackend>),
         );
         let (tx, rx) = mpsc::channel();
@@ -660,7 +681,7 @@ mod tests {
         std::fs::write(dir.join("Music 2026-10-03 14-05.mp3.part"), &data).unwrap();
         std::fs::write(dir.join("Empty 2026-10-03 14-06.mp3.part"), b"").unwrap();
 
-        let results = recover_partials(&dir);
+        let results = recover_partials(&dir, TagVersion::V24);
         assert_eq!(results.len(), 2);
         let recovered = results.iter().find_map(|r| r.as_ref().ok()).unwrap();
         assert_eq!(recovered, &dir.join("Music 2026-10-03 14-05.mp3"));

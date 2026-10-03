@@ -223,7 +223,7 @@ fn with_recorder(
 pub unsafe extern "C" fn ss_recorder_start(recorder: *mut SsRecorder, app_pid: u32) -> SsStatus {
     with_recorder(recorder, |r| {
         let s = settings::load();
-        r.set_options(recorder::RecorderOptions { dir: s.recordings_dir(), quality: s.quality });
+        r.set_options(recorder::RecorderOptions { dir: s.recordings_dir(), quality: s.quality, tag_version: s.tag_version() });
         r.start(sources::source_for_pid((app_pid != 0).then_some(app_pid)))
     })
 }
@@ -270,7 +270,10 @@ pub unsafe extern "C" fn ss_recorder_stop(recorder: *mut SsRecorder, out_path: *
 /// any recording starts.
 #[unsafe(no_mangle)]
 pub extern "C" fn ss_recover_partial_recordings() -> i32 {
-    catch_unwind(|| recorder::recover_partials(&settings::load().recordings_dir()).iter().filter(|r| r.is_ok()).count() as i32)
+    catch_unwind(|| {
+        let s = settings::load();
+        recorder::recover_partials(&s.recordings_dir(), s.tag_version())
+    }.iter().filter(|r| r.is_ok()).count() as i32)
         .unwrap_or(-1)
 }
 

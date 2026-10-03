@@ -197,10 +197,10 @@ export function TagEditor(props: Props): React.JSX.Element {
             <Pressable
               testID="save-tags"
               onPress={save}
-              disabled={!dirty || saving || errors.length > 0}
+              disabled={saving || errors.length > 0}
               style={[
                 styles.button,
-                (!dirty || saving || errors.length > 0) && styles.disabled,
+                (saving || errors.length > 0) && styles.disabled,
               ]}
             >
               <Text style={styles.buttonText}>

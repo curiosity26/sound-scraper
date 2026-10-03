@@ -383,6 +383,24 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn id3v23_uses_encodings_windows_can_read() {
+        // Windows' MP3 property handler (Explorer, Media Player) can't read
+        // ID3v2.4's UTF-8 frames; v2.3 must use Latin-1 or UTF-16.
+        let dir = crate::paths::tempdir();
+        let path = mp3(&dir, "a.mp3");
+        let cover = dir.join("c.png");
+        std::fs::write(&cover, PNG_1X1).unwrap();
+        let edit = TagEdit { title: set("Café ☕"), artist: set("Plain"), cover: CoverEdit::Set(cover), ..Default::default() };
+        write(&path, &edit, TagVersion::V23).unwrap();
+        let data = std::fs::read(&path).unwrap();
+        for id in [&b"TIT2"[..], b"TPE1", b"APIC"] {
+            let i = data.windows(4).position(|w| w == id).unwrap();
+            assert!(data[i + 10] <= 1, "{} uses text encoding {}", String::from_utf8_lossy(id), data[i + 10]);
+        }
+        assert_eq!(read(&path).unwrap().title.as_deref(), Some("Café ☕"));
+    }
+
+    #[test]
     fn removes_cover_and_rejects_bad_input_without_touching_the_file() {
         let dir = crate::paths::tempdir();
         let path = mp3(&dir, "a.mp3");
@@ -409,3 +427,4 @@ pub(crate) mod tests {
         assert_eq!(read(&path).unwrap(), TagFields::default());
     }
 }
+

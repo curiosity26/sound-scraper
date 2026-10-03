@@ -88,6 +88,8 @@ export type SourceRef =
 
 /** Mirrors core/crates/core/src/settings.rs. */
 export type Settings = {
+  /** Format version of the saved settings (managed by the core). */
+  version?: number;
   /** null = the default ~/Music/Sound Scraper. */
   recordingsDir: string | null;
   quality: Quality;
@@ -102,6 +104,7 @@ export const settings = {
   set: (value: Settings): Promise<void> =>
     NativeSoundScraper.setSettings(
       JSON.stringify({
+        version: value.version,
         recordingsDir: value.recordingsDir,
         quality: value.quality,
         id3Version: value.id3Version,

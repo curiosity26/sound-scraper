@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { type Quality, settings, type Settings } from './native/SoundScraper';
 import { colors } from './theme';
@@ -87,14 +94,22 @@ export function SettingsPanel(props: Props): React.JSX.Element {
         <Choice
           selected={current.id3Version === '2.4'}
           label="ID3v2.4"
-          detail="Modern players · default"
+          detail={
+            Platform.OS === 'windows'
+              ? 'Modern players (Windows Explorer and Media Player can’t show its cover art)'
+              : 'Modern players · default'
+          }
           onPress={() => save({ id3Version: '2.4' })}
           textStyle={textStyle}
         />
         <Choice
           selected={current.id3Version === '2.3'}
           label="ID3v2.3"
-          detail="For older players and car stereos"
+          detail={
+            Platform.OS === 'windows'
+              ? 'Widest compatibility, shows cover art in Windows · default'
+              : 'For older players, car stereos and Windows'
+          }
           onPress={() => save({ id3Version: '2.3' })}
           textStyle={textStyle}
         />
