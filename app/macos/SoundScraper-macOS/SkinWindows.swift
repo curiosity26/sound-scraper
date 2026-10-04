@@ -134,9 +134,12 @@ final class WindowController: NSObject, NSWindowDelegate {
     window.contentView = factory.rootViewFactory.view(withModuleName: spec.module)
     window.delegate = self
     if !window.setFrameUsingName("Panel-\(name)") {
-      // First time: just below the main panel.
+      // First time: the library below the main panel, settings beside it.
       if let main {
-        window.setFrameTopLeftPoint(NSPoint(x: main.frame.minX, y: main.frame.minY - 8))
+        window.setFrameTopLeftPoint(
+          name == "settings"
+            ? NSPoint(x: main.frame.maxX + 8, y: main.frame.maxY)
+            : NSPoint(x: main.frame.minX, y: main.frame.minY - 8))
       } else {
         window.center()
       }

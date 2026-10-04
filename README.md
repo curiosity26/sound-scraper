@@ -24,6 +24,17 @@ app/                          React Native 0.83 (TypeScript)
 
 The chain: `App.tsx` → `src/native/SoundScraper.ts` → Turbo Module `SoundScraper` → native module → `ss_*` functions in the Rust static library.
 
+## Skins (phase 1, macOS)
+
+The main window is a skinned, frameless panel (WinAMP style). A skin is a folder, or a `.sskin` zip of one, with a `skin.json` manifest ([skin.schema.json](skin.schema.json)) and PNG/JPEG/WebP images (optional `name@2x.png` at exactly double size for Retina). The built-in Default skin lives in [skins/default](skins/default) and is compiled into the core. Anything a skin leaves out falls back to the Default skin, element by element.
+
+- **Main panel:** fixed `size`, `background`, `dragRegion` rects and named `elements` (`record`, `pause`, `stop`, `elapsed`, `status`, `source`, `levels`, `visualizer`, `toggleLibrary`, `toggleSettings`, `minimize`, `shade`, `close`), each with a `rect` and a sprite (states `normal`/`pressed`/`active`/`activePressed`/`disabled`), a sprite `font`, system `text` or `style` parameters. `shade` is the collapsed one-line layout (also toggled by double-clicking a drag region).
+- **Library/Settings:** `minSize`, `resizable`, a nine-slice `frame`, table and control colors and a scroll bar sprite. These are parsed and validated now; the windows still use the plain UI until the snapping panels arrive.
+- **Installing:** Settings › Skin › *Install skin…* validates the archive (≤25 MB, ≤500 files, ≤100 MB unpacked; no absolute, `..` or symlink paths; images, JSON and text only; images decoded, ≤4096 px a side) and installs it to `~/Library/Application Support/Sound Scraper/Skins/<id>/`. *Use skin folder…* loads an unpacked folder in place, for skin authors.
+- **Tools:** `cargo run -p sound_scraper_skin --example preview_skin -- <folder> out.png` renders a skin's panels without the app. `--example gen_default_skin` redraws the Default skin.
+
+C API: `ss_skin_load`, `ss_skin_load_current`, `ss_skin_install`, `ss_skins_list`, `ss_skin_remove` (JSON in and out). Windows keeps the plain UI until skins are ported.
+
 ## Recording (milestone 2)
 
 The app's RecordBar records the selected source to MP3 (192 kbps CBR, at the device's sample rate):
