@@ -66,6 +66,7 @@ pub struct ResolvedPanels {
     pub main: ResolvedMain,
     pub library: ResolvedFramePanel,
     pub settings: ResolvedFramePanel,
+    pub details: ResolvedFramePanel,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -713,12 +714,14 @@ pub fn load_dir(dir: &Path, base: Option<&ResolvedSkin>) -> Result<ResolvedSkin,
     let empty = FramePanel::default();
     let library = r.frame_panel(m.panels.library.as_ref().unwrap_or(&empty), "panels.library", &mut warnings)?;
     let settings = r.frame_panel(m.panels.settings.as_ref().unwrap_or(&empty), "panels.settings", &mut warnings)?;
-    let (library, settings) = match base {
+    let details = r.frame_panel(m.panels.details.as_ref().unwrap_or(&empty), "panels.details", &mut warnings)?;
+    let (library, settings, details) = match base {
         Some(base) => (
             merge_frame(library, m.panels.library.as_ref(), &base.panels.library),
             merge_frame(settings, m.panels.settings.as_ref(), &base.panels.settings),
+            merge_frame(details, m.panels.details.as_ref(), &base.panels.details),
         ),
-        None => (library, settings),
+        None => (library, settings, details),
     };
 
     let mut presets = Vec::new();
@@ -741,7 +744,7 @@ pub fn load_dir(dir: &Path, base: Option<&ResolvedSkin>) -> Result<ResolvedSkin,
         builtin: false,
         colors,
         fonts,
-        panels: ResolvedPanels { main, library, settings },
+        panels: ResolvedPanels { main, library, settings, details },
         visualizer: ResolvedVisualizer { presets },
         warnings,
     })

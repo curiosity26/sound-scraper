@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AboutPanel } from './AboutPanel';
+import { DetailsPane } from './DetailsPane';
 import { LibraryScreen, refreshLibraryViews } from './LibraryScreen';
 import { SettingsPanel } from './SettingsPanel';
 import { MainPanel } from './skin/MainPanel';
@@ -13,6 +14,7 @@ import { SkinProvider, useSkin } from './skin/SkinProvider';
 import { SkinScale } from './skin/SkinImage';
 import { doubleSizeStore, windows } from './skin/skins';
 import { colors } from './theme';
+import { selection } from './selection';
 import type { Message } from './useRecorder';
 
 /** Double size (⌘D), shared by every window. */
@@ -65,7 +67,7 @@ export function MainApp(): React.JSX.Element {
 }
 
 /** Text color and whether the panel is dark, from the skin's controls. */
-function usePanelText(panel: 'library' | 'settings') {
+function usePanelText(panel: 'library' | 'settings' | 'details') {
   const skin = useSkin();
   const c = skin.panels[panel].controls;
   return {
@@ -92,6 +94,7 @@ function LibraryContent(props: { onCount: (n: number) => void }) {
         isDark={isDark}
         compact
         onCount={props.onCount}
+        openDetails={() => windows.setPanelVisible('details', true)}
       />
       {message && (
         <Text
@@ -155,6 +158,62 @@ function SettingsContent() {
   );
 }
 
+function DetailsContent() {
+  const { fg, isDark } = usePanelText('details');
+  const [fileNames, setFileNames] = useState(selection.get());
+  useEffect(() => selection.subscribe(setFileNames), []);
+  const close = () => windows.setPanelVisible('details', false);
+  if (fileNames.length === 0) {
+    return (
+      <View style={styles.content}>
+        <Text style={[styles.message, fg]}>
+          Click a recording in the library to see its details.
+        </Text>
+      </View>
+    );
+  }
+  return (
+    <View style={styles.content}>
+      <DetailsPane
+        fileNames={fileNames}
+        onRenamed={(_, renamed) => selection.set([renamed])}
+        onChanged={refreshLibraryViews}
+        onClose={close}
+        showMenu={(items, x, y) => windows.showMenu(items, -1, x, y, 'details')}
+        textStyle={fg}
+        isDark={isDark}
+      />
+    </View>
+  );
+}
+
+/** The details window: the selected recording(s). Closing it deselects. */
+export function DetailsApp(): React.JSX.Element {
+  const [count, setCount] = useState(selection.get().length);
+  useEffect(() => {
+    const unsubscribe = selection.subscribe(names => setCount(names.length));
+    const subscription = windows.onEvent(e => {
+      if (e.window === 'details' && e.event === 'hidden') {
+        selection.set([]);
+      }
+    });
+    return () => {
+      unsubscribe();
+      subscription.remove();
+    };
+  }, []);
+  return (
+    <Skinned>
+      <SkinPanelFrame
+        panel="details"
+        title={count > 1 ? `Details (${count})` : 'Details'}
+      >
+        <DetailsContent />
+      </SkinPanelFrame>
+    </Skinned>
+  );
+}
+
 /** The settings window: settings, skin and about. */
 export function SettingsApp(): React.JSX.Element {
   return (
@@ -185,3 +244,9 @@ const styles = StyleSheet.create({
   },
   skinErrorText: { color: '#f3ead0', fontSize: 12 },
 });
+
+if (__DEV__) {
+  // Lets the debugger drive the panels (see also native/SoundScraper.ts).
+  const g = globalThis as { __soundScraper?: Record<string, unknown> };
+  g.__soundScraper = { ...g.__soundScraper, selection, windows };
+}

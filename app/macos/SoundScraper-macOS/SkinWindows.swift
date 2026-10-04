@@ -95,6 +95,7 @@ final class WindowController: NSObject, NSWindowDelegate {
   private static let panelSpecs: [String: (module: String, title: String, size: NSSize)] = [
     "library": ("SoundScraperLibrary", "Library", NSSize(width: 840, height: 420)),
     "settings": ("SoundScraperSettings", "Settings", NSSize(width: 460, height: 560)),
+    "details": ("SoundScraperDetails", "Details", NSSize(width: 300, height: 480)),
   ]
 
   // MARK: Windows
@@ -118,7 +119,8 @@ final class WindowController: NSObject, NSWindowDelegate {
     }
     window.makeKeyAndOrderFront(nil)
     main = window
-    for name in Self.panelSpecs.keys.sorted() where (saved[name]?["visible"] as? Bool) == true {
+    // Details shows the selection, which isn't kept between launches.
+    for name in Self.panelSpecs.keys.sorted() where name != "details" && (saved[name]?["visible"] as? Bool) == true {
       setPanel(name, visible: true)
     }
     constrainToScreens()
@@ -250,10 +252,19 @@ final class WindowController: NSObject, NSWindowDelegate {
     {
       window.setFrame(toAppKit(NSRect(x: x, y: y, width: w, height: h)), display: false)
     } else {
-      // First time: docked below (library) or beside (settings) the main panel.
+      // First time: the library below the main panel, settings beside it,
+      // details beside the library (as tall as it).
       let m = toTopLeft(main.frame)
-      let origin = name == "settings" ? NSPoint(x: m.maxX, y: m.minY) : NSPoint(x: m.minX, y: m.maxY)
-      window.setFrame(toAppKit(NSRect(origin: origin, size: spec.size)), display: false)
+      var frame = NSRect(origin: NSPoint(x: m.maxX, y: m.minY), size: spec.size)
+      if name == "library" {
+        frame.origin = NSPoint(x: m.minX, y: m.maxY)
+      } else if name == "details" {
+        if let library = panels["library"], library.isVisible {
+          let l = toTopLeft(library.frame)
+          frame = NSRect(x: l.maxX, y: l.minY, width: spec.size.width, height: l.height)
+        }
+      }
+      window.setFrame(toAppKit(frame), display: false)
     }
     panels[name] = window
     return window
@@ -434,9 +445,10 @@ final class WindowController: NSObject, NSWindowDelegate {
 
   // MARK: Source menu
 
-  /// Pops up a menu at a point in the main window; returns the chosen index or -1.
-  @objc func showMenu(_ items: [String], checked: Int, x: CGFloat, y: CGFloat) -> Int {
-    guard let content = main?.contentView else { return -1 }
+  /// Pops up a menu at a point (from the top left) in a panel; returns the
+  /// chosen index or -1.
+  @objc func showMenu(in panel: String, items: [String], checked: Int, x: CGFloat, y: CGFloat) -> Int {
+    guard let content = window(panel)?.contentView else { return -1 }
     let menu = NSMenu()
     menu.autoenablesItems = false
     let target = MenuTarget()

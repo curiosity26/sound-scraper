@@ -214,7 +214,8 @@ RCT_EXPORT_MODULE(SoundScraperSkins)
   return @(visible);
 }
 
-- (void)showMenu:(NSArray *)items
+- (void)showMenu:(NSString *)panel
+           items:(NSArray *)items
          checked:(double)checked
                x:(double)x
                y:(double)y
@@ -222,8 +223,9 @@ RCT_EXPORT_MODULE(SoundScraperSkins)
           reject:(RCTPromiseRejectBlock)reject
 {
   NSArray<NSString *> *titles = [items copy];
+  NSString *name = [panel copy];
   dispatch_async(dispatch_get_main_queue(), ^{
-    NSInteger chosen = [SSWindowController.shared showMenu:titles checked:(NSInteger)checked x:x y:y];
+    NSInteger chosen = [SSWindowController.shared showMenuIn:name items:titles checked:(NSInteger)checked x:x y:y];
     resolve(@(chosen));
   });
 }

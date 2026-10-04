@@ -136,6 +136,7 @@ fn missing_elements_fall_back_to_default() {
     assert!(skin.panels.main.shade.as_ref().unwrap().elements.values().all(|e| e.fallback));
     assert!(skin.panels.library.frame.is_some());
     assert!(skin.panels.library.title.is_some() && skin.panels.settings.close.is_some());
+    assert!(skin.panels.details.frame.is_some() && skin.panels.details.resizable, "details falls back to Default");
     assert!(skin.warnings.is_empty(), "{:?}", skin.warnings);
 }
 

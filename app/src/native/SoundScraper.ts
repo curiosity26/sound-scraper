@@ -122,7 +122,9 @@ export const settings = {
 
 if (__DEV__) {
   // Lets the debugger console drive the same module instance as the UI.
-  (globalThis as { __soundScraper?: unknown }).__soundScraper = {
+  const g = globalThis as { __soundScraper?: Record<string, unknown> };
+  g.__soundScraper = {
+    ...g.__soundScraper,
     recorder,
     library,
     settings,

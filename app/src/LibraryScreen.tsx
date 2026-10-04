@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { errorText, safeSettings } from './appHelpers';
+import { errorText } from './appHelpers';
+import { DetailsPane, type ShowMenu } from './DetailsPane';
 import { LibraryTable } from './LibraryTable';
 import { library, type Recording } from './native/SoundScraper';
-import { TagEditor } from './TagEditor';
+import { selection } from './selection';
 
 type Props = {
   onMessage: (message: { text: string; isError: boolean }) => void;
@@ -14,6 +15,13 @@ type Props = {
   compact?: boolean;
   /** Reports how many recordings there are (for a title). */
   onCount?: (count: number) => void;
+  /**
+   * Shows the selection in a separate details window (the skinned UI);
+   * without it, the details pane sits beside the table.
+   */
+  openDetails?: () => void;
+  /** Native menus for the details pane's gear (side-pane mode). */
+  showMenu?: ShowMenu;
 };
 
 // Every mounted library view, so a change elsewhere (e.g. the recordings
@@ -30,7 +38,8 @@ export function LibraryScreen(props: Props): React.JSX.Element {
   const { onMessage, textStyle, isDark, onCount } = props;
   const [recordings, setRecordings] = useState<Recording[]>([]);
   const [checked, setChecked] = useState<Set<string>>(new Set());
-  const [tagTargets, setTagTargets] = useState<string[]>();
+  const [selected, setSelected] = useState<string[]>(selection.get());
+  useEffect(() => selection.subscribe(setSelected), []);
 
   const refreshLibrary = useCallback(async () => {
     try {
@@ -57,69 +66,49 @@ export function LibraryScreen(props: Props): React.JSX.Element {
     onCount?.(recordings.length);
   }, [recordings.length, onCount]);
 
+  // Drop vanished recordings from the checks and the selection.
   useEffect(() => {
     const names = new Set(recordings.map(r => r.fileName));
     setChecked(prev => {
       const next = new Set([...prev].filter(n => names.has(n)));
       return next.size === prev.size ? prev : next;
     });
-    setTagTargets(prev => {
-      const next = prev?.filter(n => names.has(n));
-      return next && next.length === prev?.length ? prev : next;
-    });
+    const current = selection.get();
+    if (recordings.length > 0 && current.some(n => !names.has(n))) {
+      selection.set(current.filter(n => names.has(n)));
+    }
   }, [recordings]);
 
-  const onRename = useCallback(
-    async (r: Recording, newName: string) => {
-      try {
-        const renamed = await library.rename(r.fileName, newName);
-        onMessage({ text: `Renamed to ${renamed}`, isError: false });
-      } catch (e) {
-        onMessage({ text: `Couldn't rename: ${errorText(e)}`, isError: true });
-      }
-      refreshLibrary();
-    },
-    [refreshLibrary, onMessage],
-  );
-
-  const onTrash = useCallback(
-    async (r: Recording) => {
-      try {
-        await library.trash(r.fileName);
-      } catch (e) {
-        onMessage({
-          text: `Couldn't move to Trash: ${errorText(e)}`,
-          isError: true,
-        });
-      }
-      refreshLibrary();
-    },
-    [refreshLibrary, onMessage],
-  );
+  const show = (fileNames: string[]) => {
+    selection.set(fileNames);
+    props.openDetails?.();
+  };
 
   return (
     <View style={styles.libraryRow}>
       <LibraryTable
         recordings={recordings}
-        onRename={onRename}
-        onTrash={onTrash}
-        onReveal={r => library.reveal(r.fileName)}
-        onEditTags={setTagTargets}
+        selected={selected.length === 1 ? selected[0] : undefined}
+        onSelect={name => show([name])}
+        onEditTags={show}
         checked={checked}
         onCheckedChange={setChecked}
         textStyle={textStyle}
         isDark={isDark}
         compact={props.compact}
       />
-      {tagTargets && tagTargets.length > 0 && (
-        <TagEditor
-          fileNames={tagTargets}
-          onSaved={refreshLibrary}
-          defaultId3v23={safeSettings()?.id3Version === '2.3'}
-          onClose={() => setTagTargets(undefined)}
-          textStyle={textStyle}
-          isDark={isDark}
-        />
+      {!props.openDetails && selected.length > 0 && (
+        <View style={styles.pane}>
+          <DetailsPane
+            fileNames={selected}
+            onRenamed={(_, renamed) => selection.set([renamed])}
+            onChanged={refreshLibraryViews}
+            onClose={() => selection.set([])}
+            showMenu={props.showMenu}
+            textStyle={textStyle}
+            isDark={isDark}
+          />
+        </View>
       )}
     </View>
   );
@@ -127,4 +116,5 @@ export function LibraryScreen(props: Props): React.JSX.Element {
 
 const styles = StyleSheet.create({
   libraryRow: { flex: 1, flexDirection: 'row' },
+  pane: { width: 300, marginLeft: 16 },
 });

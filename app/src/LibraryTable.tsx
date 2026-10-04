@@ -1,8 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   FlatList,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -29,10 +27,11 @@ import { colors } from './theme';
 
 type Props = {
   recordings: Recording[];
-  onRename: (r: Recording, newName: string) => Promise<void>;
-  onTrash: (r: Recording) => void;
-  onReveal: (r: Recording) => void;
-  /** Opens the tag editor for these recordings. */
+  /** The row shown in the details panel. */
+  selected?: string;
+  /** A row was clicked: show it in the details panel. */
+  onSelect: (fileName: string) => void;
+  /** Opens the details panel for these (checked) recordings. */
   onEditTags: (fileNames: string[]) => void;
   /** Checked rows (multi-select for bulk tag edits). */
   checked: Set<string>;
@@ -51,11 +50,6 @@ export function visibleColumns(width: number): SortKey[] {
       (key === 'artist' ? width >= 620 : key === 'size' ? width >= 470 : true),
   );
 }
-
-const isWindows = Platform.OS === 'windows';
-const REVEAL_LABEL = isWindows ? 'Show in Explorer' : 'Show in Finder';
-const TRASH_LABEL = isWindows ? 'Move to Recycle Bin' : 'Move to Trash';
-const TRASH_NAME = isWindows ? 'the Recycle Bin' : 'the Trash';
 
 const COLUMNS: { key: SortKey; label: string; flex: number }[] = [
   { key: 'name', label: 'Name', flex: 4 },
@@ -76,8 +70,7 @@ export function LibraryTable(props: Props): React.JSX.Element {
   const shown = visibleColumns(width);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<Sort>(DEFAULT_SORT);
-  const [selected, setSelected] = useState<string>();
-  const [editing, setEditing] = useState<{ fileName: string; text: string }>();
+  const { selected } = props;
 
   const rows = useMemo(
     () => sortRecordings(filterRecordings(recordings, query), sort),
@@ -98,32 +91,6 @@ export function LibraryTable(props: Props): React.JSX.Element {
   const toggleAll = () =>
     onCheckedChange(
       allChecked ? new Set() : new Set(rows.map(r => r.fileName)),
-    );
-
-  const commitRename = async () => {
-    if (!editing) {
-      return;
-    }
-    const r = recordings.find(x => x.fileName === editing.fileName);
-    setEditing(undefined);
-    if (r && editing.text.trim() && editing.text.trim() !== displayName(r)) {
-      await props.onRename(r, editing.text);
-    }
-  };
-
-  const confirmTrash = (r: Recording) =>
-    Alert.alert(
-      `Move "${displayName(r)}" to ${TRASH_NAME}?`,
-      undefined,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: TRASH_LABEL,
-          style: 'destructive',
-          onPress: () => props.onTrash(r),
-        },
-      ],
-      { cancelable: true },
     );
 
   return (
@@ -148,7 +115,7 @@ export function LibraryTable(props: Props): React.JSX.Element {
             onPress={() => props.onEditTags([...checked])}
           >
             <Text style={[styles.toolbarLink, t.link, t.cell]}>
-              Edit tags of {checked.size} selected
+              Edit {checked.size} selected
             </Text>
           </Pressable>
         )}
@@ -225,134 +192,68 @@ export function LibraryTable(props: Props): React.JSX.Element {
               t.tableText,
               isSelected && t.selectedText,
             ];
-            const isEditing = editing?.fileName === r.fileName;
             return (
-              <View>
+              <Pressable
+                testID={`recording-${r.fileName}`}
+                onPress={() => props.onSelect(r.fileName)}
+                style={[
+                  styles.row,
+                  t.row,
+                  t.grid,
+                  index % 2 === 1 && t.rowAlternate,
+                  isSelected && styles.rowSelected,
+                  isSelected && t.rowSelected,
+                ]}
+              >
                 <Pressable
-                  testID={`recording-${r.fileName}`}
-                  onPress={() => setSelected(r.fileName)}
-                  style={[
-                    styles.row,
-                    t.row,
-                    t.grid,
-                    index % 2 === 1 && t.rowAlternate,
-                    isSelected && styles.rowSelected,
-                    isSelected && t.rowSelected,
-                  ]}
+                  testID={`check-${r.fileName}`}
+                  onPress={() => toggle(r.fileName)}
+                  style={styles.check}
                 >
-                  <Pressable
-                    testID={`check-${r.fileName}`}
-                    onPress={() => toggle(r.fileName)}
-                    style={styles.check}
-                  >
-                    <Text style={[styles.checkText, cellText]}>
-                      {checked.has(r.fileName) ? '☑' : '☐'}
-                    </Text>
-                  </Pressable>
-                  <View style={{ flex: COLUMNS[0].flex }}>
-                    {isEditing ? (
-                      <TextInput
-                        testID="rename-input"
-                        autoFocus
-                        selectTextOnFocus
-                        style={[
-                          styles.renameInput,
-                          textStyle,
-                          isDark && styles.inputDark,
-                          t.input,
-                        ]}
-                        value={editing.text}
-                        onChangeText={text =>
-                          setEditing({ fileName: r.fileName, text })
-                        }
-                        onSubmitEditing={commitRename}
-                        onKeyPress={e => {
-                          if (e.nativeEvent.key === 'Escape') {
-                            setEditing(undefined);
-                          }
-                        }}
-                      />
-                    ) : (
-                      <Text style={[styles.cell, cellText]} numberOfLines={1}>
-                        {displayName(r)}
-                      </Text>
-                    )}
-                  </View>
-                  <Text
-                    style={[styles.cell, cellText, { flex: COLUMNS[1].flex }]}
-                    numberOfLines={1}
-                  >
-                    {formatDuration(r.durationMs)}
+                  <Text style={[styles.checkText, cellText]}>
+                    {checked.has(r.fileName) ? '☑' : '☐'}
                   </Text>
-                  <Text
-                    style={[styles.cell, cellText, { flex: COLUMNS[2].flex }]}
-                    numberOfLines={1}
-                  >
-                    {formatDate(r.recordedAtMs)}
-                  </Text>
-                  {shown.includes('size') && (
-                    <Text
-                      style={[styles.cell, cellText, { flex: COLUMNS[3].flex }]}
-                      numberOfLines={1}
-                    >
-                      {formatSize(r.sizeBytes)}
-                    </Text>
-                  )}
-                  {shown.includes('artist') && (
-                    <Text
-                      style={[
-                        styles.cell,
-                        styles.dim,
-                        cellText,
-                        { flex: COLUMNS[4].flex },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {[r.artist, r.album].filter(Boolean).join(' / ') || '—'}
-                    </Text>
-                  )}
                 </Pressable>
-                {isSelected && (
-                  <View style={[styles.actions, t.rowSelected]}>
-                    {isEditing ? (
-                      <>
-                        <Action label="Save" onPress={commitRename} />
-                        <Action
-                          label="Cancel"
-                          onPress={() => setEditing(undefined)}
-                        />
-                      </>
-                    ) : (
-                      <>
-                        <Action
-                          testID="rename"
-                          label="Rename"
-                          onPress={() =>
-                            setEditing({
-                              fileName: r.fileName,
-                              text: displayName(r),
-                            })
-                          }
-                        />
-                        <Action
-                          testID="edit-tags"
-                          label="Edit tags"
-                          onPress={() => props.onEditTags([r.fileName])}
-                        />
-                        <Action
-                          label={REVEAL_LABEL}
-                          onPress={() => props.onReveal(r)}
-                        />
-                        <Action
-                          label={TRASH_LABEL}
-                          onPress={() => confirmTrash(r)}
-                          destructive
-                        />
-                      </>
-                    )}
-                  </View>
+                <Text
+                  style={[styles.cell, cellText, { flex: COLUMNS[0].flex }]}
+                  numberOfLines={1}
+                >
+                  {displayName(r)}
+                </Text>
+                <Text
+                  style={[styles.cell, cellText, { flex: COLUMNS[1].flex }]}
+                  numberOfLines={1}
+                >
+                  {formatDuration(r.durationMs)}
+                </Text>
+                <Text
+                  style={[styles.cell, cellText, { flex: COLUMNS[2].flex }]}
+                  numberOfLines={1}
+                >
+                  {formatDate(r.recordedAtMs)}
+                </Text>
+                {shown.includes('size') && (
+                  <Text
+                    style={[styles.cell, cellText, { flex: COLUMNS[3].flex }]}
+                    numberOfLines={1}
+                  >
+                    {formatSize(r.sizeBytes)}
+                  </Text>
                 )}
-              </View>
+                {shown.includes('artist') && (
+                  <Text
+                    style={[
+                      styles.cell,
+                      styles.dim,
+                      cellText,
+                      { flex: COLUMNS[4].flex },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {[r.artist, r.album].filter(Boolean).join(' / ') || '—'}
+                  </Text>
+                )}
+              </Pressable>
             );
           }}
         />
@@ -369,32 +270,6 @@ export function LibraryTable(props: Props): React.JSX.Element {
         )}
       </View>
     </View>
-  );
-}
-
-function Action(props: {
-  label: string;
-  onPress: () => void;
-  destructive?: boolean;
-  testID?: string;
-}) {
-  const t = usePanelStyles();
-  return (
-    <Pressable
-      testID={props.testID}
-      onPress={props.onPress}
-      style={styles.action}
-    >
-      <Text
-        style={[
-          styles.actionText,
-          t.selectedText,
-          props.destructive && styles.destructive,
-        ]}
-      >
-        {props.label}
-      </Text>
-    </Pressable>
   );
 }
 
@@ -432,24 +307,6 @@ const styles = StyleSheet.create({
   rowSelected: { backgroundColor: '#2f6fde22' },
   cell: { fontSize: 13 },
   dim: { opacity: 0.7 },
-  renameInput: {
-    fontSize: 13,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-    borderWidth: 1,
-    borderColor: colors.accent,
-    borderRadius: 4,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 16,
-    paddingHorizontal: 8,
-    paddingBottom: 8,
-    backgroundColor: '#2f6fde22',
-  },
-  action: { paddingVertical: 2 },
-  actionText: { color: colors.accent, fontSize: 13 },
-  destructive: { color: colors.error },
   toolbarLink: {
     color: colors.accent,
     fontSize: 13,

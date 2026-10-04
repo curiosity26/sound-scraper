@@ -58,6 +58,9 @@ pub struct Panels {
     pub library: Option<FramePanel>,
     #[serde(default)]
     pub settings: Option<FramePanel>,
+    /// The details panel for the selected recording(s).
+    #[serde(default)]
+    pub details: Option<FramePanel>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

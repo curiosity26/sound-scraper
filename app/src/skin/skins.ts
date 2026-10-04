@@ -32,6 +32,9 @@ export const skins = {
 
 const flat = (rects: Rect[]) => rects.flatMap(r => r);
 
+/** The side panels (the main panel is "main"). */
+export type PanelName = 'library' | 'settings' | 'details';
+
 export const windows = {
   setMainLayout: (
     size: [number, number],
@@ -50,9 +53,9 @@ export const windows = {
       size[1],
       scale,
     ),
-  /** A library/settings window's chrome (its size is the user's). */
+  /** A side panel's chrome (its size is the user's). */
   setPanelChrome: (
-    panel: 'library' | 'settings',
+    panel: PanelName,
     chrome: {
       drag: Rect[];
       holes: Rect[];
@@ -74,13 +77,17 @@ export const windows = {
     ),
   minimize: () => native().windowAction('minimize'),
   quit: () => native().windowAction('quit'),
-  setPanelVisible: (panel: 'library' | 'settings', visible: boolean) =>
+  setPanelVisible: (panel: PanelName, visible: boolean) =>
     native().setPanelVisible(panel, visible),
-  isPanelVisible: (panel: 'library' | 'settings'): boolean =>
-    native().isPanelVisible(panel),
-  /** Native pop-up menu at (x, y) in the main window; '-' is a separator. */
-  showMenu: (items: string[], checked: number, x: number, y: number) =>
-    native().showMenu(items, checked, x, y),
+  isPanelVisible: (panel: PanelName): boolean => native().isPanelVisible(panel),
+  /** Native pop-up menu at (x, y) in a panel; '-' is a separator. */
+  showMenu: (
+    items: string[],
+    checked: number,
+    x: number,
+    y: number,
+    panel: 'main' | PanelName = 'main',
+  ) => native().showMenu(panel, items, checked, x, y),
   onEvent: (listener: (e: WindowEvent) => void): EventSubscription =>
     native().onWindowEvent(listener),
 };

@@ -5,7 +5,7 @@ import type { CodegenTypes, TurboModule } from 'react-native';
 import { TurboModuleRegistry } from 'react-native';
 
 export type WindowEvent = {
-  /** 'main' | 'library' | 'settings' */
+  /** 'main' | 'library' | 'settings' | 'details' */
   window: string;
   /** 'shown' | 'hidden' | 'toggleShade' (double click on a drag region) | 'toggleDoubleSize' (menu) */
   event: string;
@@ -52,10 +52,12 @@ export interface Spec extends TurboModule {
   setPanelVisible(panel: string, visible: boolean): void;
   isPanelVisible(panel: string): boolean;
   /**
-   * Pops up a native menu at (x, y) in the main window (points from the top
-   * left); resolves with the chosen index, or -1.
+   * Pops up a native menu at (x, y) in a panel window ('main', 'library',
+   * 'settings', 'details'; points from its top left); resolves with the
+   * chosen index, or -1.
    */
   showMenu(
+    panel: string,
     items: Array<string>,
     checked: number,
     x: number,

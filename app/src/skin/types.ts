@@ -124,6 +124,7 @@ export type Skin = {
     main: SkinLayout & { shade: SkinLayout | null };
     library: FramePanel;
     settings: FramePanel;
+    details: FramePanel;
   };
   visualizer: { presets: Array<Record<string, unknown>> };
   warnings: string[];

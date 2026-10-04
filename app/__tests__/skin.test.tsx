@@ -24,7 +24,7 @@ jest.mock('../src/native/NativeSkins', () => ({
   __esModule: true,
   default: mockSkins,
 }));
-const mockCore = {
+const mockCore: Record<string, any> = {
   listAudioApps: () => [],
   recorderStart: jest.fn(() => Promise.resolve()),
   recorderPause: jest.fn(),
@@ -123,6 +123,17 @@ function testSkin(): Skin {
         grip: [14, 14],
       },
       settings: {
+        minSize: null,
+        resizable: true,
+        frame: null,
+        table: {},
+        scrollbar: null,
+        controls: {},
+        title: null,
+        close: null,
+        grip: [14, 14],
+      },
+      details: {
         minSize: null,
         resizable: true,
         frame: null,
@@ -414,4 +425,95 @@ test('narrow libraries hide the less important columns', () => {
   expect(visibleColumns(700)).toHaveLength(5);
   expect(visibleColumns(500)).toEqual(['name', 'duration', 'date', 'size']);
   expect(visibleColumns(400)).toEqual(['name', 'duration', 'date']);
+});
+
+/** The element with `testID` that has handler `prop` (not its host view). */
+function withHandler(
+  tree: ReactTestRenderer.ReactTestRenderer,
+  testID: string,
+  prop: string,
+) {
+  return tree.root
+    .findAllByProps({ testID })
+    .find(n => typeof n.props[prop] === 'function')!;
+}
+
+test('the details pane edits a tag in place and renames', async () => {
+  const { DetailsPane } = require('../src/DetailsPane');
+  mockCore.readTags = jest.fn(() =>
+    Promise.resolve({
+      title: 'Old title',
+      artist: null,
+      album: null,
+      albumArtist: null,
+      date: null,
+      genre: null,
+      comment: null,
+      track: null,
+      coverPath: null,
+    }),
+  );
+  mockCore.listRecordings = jest.fn(() =>
+    Promise.resolve([
+      {
+        fileName: 'Song.mp3',
+        path: '/m/Song.mp3',
+        title: 'Old title',
+        artist: null,
+        album: null,
+        durationMs: 61000,
+        sizeBytes: 2048,
+        recordedAtMs: 0,
+      },
+    ]),
+  );
+  mockCore.writeTags = jest.fn(() => Promise.resolve());
+  mockCore.renameRecording = jest.fn(() => Promise.resolve('New name.mp3'));
+  const onRenamed = jest.fn();
+  let tree: ReactTestRenderer.ReactTestRenderer | undefined;
+  await ReactTestRenderer.act(async () => {
+    tree = ReactTestRenderer.create(
+      <DetailsPane
+        fileNames={['Song.mp3']}
+        onRenamed={onRenamed}
+        onChanged={jest.fn()}
+        onClose={jest.fn()}
+        textStyle={{}}
+        isDark
+      />,
+    );
+  });
+  // Click Title, type, Enter: writes just that field.
+  await ReactTestRenderer.act(async () => {
+    withHandler(tree!, 'details-title', 'onPress').props.onPress();
+  });
+  const input = withHandler(tree!, 'details-title-input', 'onChangeText');
+  await ReactTestRenderer.act(async () => {
+    input.props.onChangeText('New title');
+  });
+  await ReactTestRenderer.act(async () => {
+    tree!.root
+      .findByProps({ testID: 'details-title-input' })
+      .props.onSubmitEditing();
+  });
+  expect(mockCore.writeTags).toHaveBeenCalledWith(
+    ['Song.mp3'],
+    expect.objectContaining({ fields: ['title'], title: 'New title' }),
+  );
+  // Rename through the file name.
+  await ReactTestRenderer.act(async () => {
+    withHandler(tree!, 'details-name', 'onPress').props.onPress();
+  });
+  await ReactTestRenderer.act(async () => {
+    tree!.root
+      .findByProps({ testID: 'details-name-input' })
+      .props.onChangeText('New name');
+  });
+  await ReactTestRenderer.act(async () => {
+    tree!.root
+      .findByProps({ testID: 'details-name-input' })
+      .props.onSubmitEditing();
+  });
+  expect(mockCore.renameRecording).toHaveBeenCalledWith('Song.mp3', 'New name');
+  expect(onRenamed).toHaveBeenCalledWith('Song.mp3', 'New name.mp3');
 });

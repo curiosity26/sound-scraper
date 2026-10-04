@@ -8,12 +8,12 @@ import { NineSlice } from './NineSlice';
 import { buttonState } from './SkinButton';
 import { SpriteCell, useSkinScale } from './SkinImage';
 import { useSkin } from './SkinProvider';
-import { windows } from './skins';
+import { type PanelName, windows } from './skins';
 import { SpriteText } from './SpriteText';
 import type { Rect } from './types';
 
 type Props = {
-  panel: 'library' | 'settings';
+  panel: PanelName;
   title: string;
   children: React.ReactNode;
 };

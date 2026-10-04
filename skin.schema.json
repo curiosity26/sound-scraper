@@ -61,6 +61,10 @@
         },
         "settings": {
           "$ref": "#/$defs/framePanel"
+        },
+        "details": {
+          "$ref": "#/$defs/framePanel",
+          "description": "The details panel for the selected recording(s): cover art and inline tag editing."
         }
       }
     },

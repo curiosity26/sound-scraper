@@ -962,6 +962,17 @@ fn main() {
                     "accent": "@accent", "button": "@background", "buttonText": "@text"
                 }
             },
+            "details": {
+                "minSize": [240, 320],
+                "resizable": true,
+                "frame": { "image": "frame.png", "slice": [22, 6, 6, 6] },
+                "title": { "font": "tiny", "offset": [12, 8] },
+                "close": { "offset": [10, 7], "size": [12, 10], "sprite": sprite(&close) },
+                "controls": {
+                    "background": "@panel", "text": "@cream", "border": "#4a423c",
+                    "accent": "@accent", "button": "@background", "buttonText": "@text"
+                }
+            },
             "settings": {
                 "minSize": [360, 340],
                 "resizable": true,
