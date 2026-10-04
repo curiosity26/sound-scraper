@@ -948,6 +948,9 @@ fn main() {
                 "minSize": [480, 280],
                 "resizable": true,
                 "frame": { "image": "frame.png", "slice": [22, 6, 6, 6] },
+                "title": { "font": "tiny", "offset": [12, 8] },
+                "close": { "offset": [10, 7], "size": [12, 10], "sprite": sprite(&close) },
+                "grip": [14, 14],
                 "table": {
                     "background": "#221d1a", "alternate": "#2a2421", "text": "@cream",
                     "selection": "@accent", "selectionText": "#10180a",
@@ -960,9 +963,11 @@ fn main() {
                 }
             },
             "settings": {
-                "minSize": [420, 360],
+                "minSize": [460, 560],
                 "resizable": false,
                 "frame": { "image": "frame.png", "slice": [22, 6, 6, 6] },
+                "title": { "font": "tiny", "offset": [12, 8] },
+                "close": { "offset": [10, 7], "size": [12, 10], "sprite": sprite(&close) },
                 "controls": {
                     "background": "@panel", "text": "@cream", "border": "#4a423c",
                     "accent": "@accent", "button": "@background", "buttonText": "@text"

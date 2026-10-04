@@ -137,6 +137,25 @@ pub struct ResolvedFramePanel {
     pub table: BTreeMap<String, String>,
     pub scrollbar: Option<ResolvedScrollbar>,
     pub controls: BTreeMap<String, String>,
+    pub title: Option<ResolvedTitle>,
+    pub close: Option<ResolvedClose>,
+    pub grip: [i64; 2],
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResolvedTitle {
+    pub font: Option<String>,
+    pub offset: [i64; 2],
+    pub color: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResolvedClose {
+    pub offset: [i64; 2],
+    pub size: [i64; 2],
+    pub sprite: ResolvedSprite,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -578,7 +597,53 @@ impl Resolver<'_> {
             Some(c) => self.colors_map(c, manifest::CONTROL_COLORS, &format!("{at}.controls"), warnings)?,
             None => BTreeMap::new(),
         };
-        Ok(ResolvedFramePanel { min_size: p.min_size, resizable: p.resizable.unwrap_or(true), frame, table, scrollbar, controls })
+        let title = match &p.title {
+            Some(t) => {
+                if let Some(font) = &t.font
+                    && !self.font_names.contains(font)
+                {
+                    return Err(format!("skin.json: {at}.title.font: no font named \"{font}\""));
+                }
+                let color = match &t.color {
+                    Some(c) => Some(check_color(c, &self.colors, &format!("{at}.title.color"))?),
+                    None => None,
+                };
+                Some(ResolvedTitle { font: t.font.clone(), offset: t.offset, color })
+            }
+            None => None,
+        };
+        let close = match &p.close {
+            Some(c) => {
+                let size = [c.size[0], c.size[1]];
+                check_size(size, &format!("{at}.close"))?;
+                let el = ElementDef {
+                    rect: [0, 0, size[0], size[1]],
+                    sprite: Some(c.sprite.clone()),
+                    font: None,
+                    text: None,
+                    align: None,
+                    style: None,
+                };
+                let sprite = self.element(&el, "close", size, &format!("{at}.close"))?.sprite.expect("sprite given");
+                Some(ResolvedClose { offset: c.offset, size, sprite })
+            }
+            None => None,
+        };
+        let grip = p.grip.unwrap_or([14, 14]);
+        if grip.iter().any(|v| *v < 0 || *v > 256) {
+            return Err(format!("skin.json: {at}.grip must be between 0 and 256"));
+        }
+        Ok(ResolvedFramePanel {
+            min_size: p.min_size,
+            resizable: p.resizable.unwrap_or(true),
+            frame,
+            table,
+            scrollbar,
+            controls,
+            title,
+            close,
+            grip,
+        })
     }
 }
 
@@ -721,6 +786,15 @@ fn merge_frame(mut p: ResolvedFramePanel, raw: Option<&FramePanel>, base: &Resol
     }
     if raw.scrollbar.is_none() {
         p.scrollbar = base.scrollbar.clone();
+    }
+    if raw.title.is_none() {
+        p.title = base.title.clone();
+    }
+    if raw.close.is_none() {
+        p.close = base.close.clone();
+    }
+    if raw.grip.is_none() {
+        p.grip = base.grip;
     }
     for (key, value) in &base.table {
         p.table.entry(key.clone()).or_insert_with(|| value.clone());

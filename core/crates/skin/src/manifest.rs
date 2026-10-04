@@ -198,6 +198,38 @@ pub struct FramePanel {
     /// Control colors: background, text, border, accent, button, buttonText.
     #[serde(default)]
     pub controls: Option<BTreeMap<String, String>>,
+    /// The window title, drawn in the frame's top strip.
+    #[serde(default)]
+    pub title: Option<TitleDef>,
+    /// The close button, placed from the top right corner.
+    #[serde(default)]
+    pub close: Option<CloseDef>,
+    /// Size of the resize hot corner at the bottom right (resizable panels).
+    #[serde(default)]
+    pub grip: Option<[i64; 2]>,
+}
+
+/// Title text: a sprite font (or the system font when omitted), its
+/// top-left corner `offset` from the panel's top left.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TitleDef {
+    #[serde(default)]
+    pub font: Option<String>,
+    pub offset: [i64; 2],
+    /// System-font color when there's no sprite font.
+    #[serde(default)]
+    pub color: Option<String>,
+}
+
+/// A frame's close button: `offset` is [right, top] from the top right
+/// corner; the sprite needs a "normal" state.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CloseDef {
+    pub offset: [i64; 2],
+    pub size: [i64; 2],
+    pub sprite: SpriteDef,
 }
 
 /// A nine-slice frame: `slice` is the `[top, right, bottom, left]` inset

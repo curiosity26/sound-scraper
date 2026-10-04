@@ -135,6 +135,7 @@ fn missing_elements_fall_back_to_default() {
     assert!(skin.colors.contains_key("lcdLit"));
     assert!(skin.panels.main.shade.as_ref().unwrap().elements.values().all(|e| e.fallback));
     assert!(skin.panels.library.frame.is_some());
+    assert!(skin.panels.library.title.is_some() && skin.panels.settings.close.is_some());
     assert!(skin.warnings.is_empty(), "{:?}", skin.warnings);
 }
 
@@ -214,6 +215,15 @@ fn validation_errors_name_the_problem() {
     let mut m = minimal_manifest();
     m["panels"]["main"]["elements"]["record"]["font"] = json!("nope");
     assert!(load_err(m).contains("no font named \"nope\""));
+
+    let mut m = minimal_manifest();
+    m["panels"]["library"] = json!({ "title": { "font": "nope", "offset": [4, 4] } });
+    assert!(load_err(m).contains("panels.library.title.font"));
+
+    let mut m = minimal_manifest();
+    m["panels"]["settings"] = json!({ "close": { "offset": [4, 4], "size": [30, 10],
+        "sprite": { "image": "btn.png", "states": { "normal": [20, 0] } } } });
+    assert!(load_err(m).contains("panels.settings.close.sprite.states.normal"));
 }
 
 #[test]

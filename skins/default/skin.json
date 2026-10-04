@@ -45,6 +45,29 @@
   "name": "Default",
   "panels": {
     "library": {
+      "close": {
+        "offset": [
+          10,
+          7
+        ],
+        "size": [
+          12,
+          10
+        ],
+        "sprite": {
+          "image": "buttons.png",
+          "states": {
+            "normal": [
+              270,
+              18
+            ],
+            "pressed": [
+              282,
+              18
+            ]
+          }
+        }
+      },
       "controls": {
         "accent": "@accent",
         "background": "@panel",
@@ -62,6 +85,10 @@
           6
         ]
       },
+      "grip": [
+        14,
+        14
+      ],
       "minSize": [
         480,
         280
@@ -97,6 +124,13 @@
         "selection": "@accent",
         "selectionText": "#10180a",
         "text": "@cream"
+      },
+      "title": {
+        "font": "tiny",
+        "offset": [
+          12,
+          8
+        ]
       }
     },
     "main": {
@@ -699,6 +733,29 @@
       ]
     },
     "settings": {
+      "close": {
+        "offset": [
+          10,
+          7
+        ],
+        "size": [
+          12,
+          10
+        ],
+        "sprite": {
+          "image": "buttons.png",
+          "states": {
+            "normal": [
+              270,
+              18
+            ],
+            "pressed": [
+              282,
+              18
+            ]
+          }
+        }
+      },
       "controls": {
         "accent": "@accent",
         "background": "@panel",
@@ -717,10 +774,17 @@
         ]
       },
       "minSize": [
-        420,
-        360
+        460,
+        560
       ],
-      "resizable": false
+      "resizable": false,
+      "title": {
+        "font": "tiny",
+        "offset": [
+          12,
+          8
+        ]
+      }
     }
   },
   "version": "1.0",

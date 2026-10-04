@@ -496,6 +496,57 @@
           "additionalProperties": {
             "$ref": "#/$defs/color"
           }
+        },
+        "title": {
+          "type": "object",
+          "required": [
+            "offset"
+          ],
+          "description": "The window title in the frame's top strip.",
+          "properties": {
+            "font": {
+              "type": "string",
+              "description": "A sprite font from fonts; system text when omitted."
+            },
+            "offset": {
+              "$ref": "#/$defs/point",
+              "description": "Top left of the text from the panel's top left."
+            },
+            "color": {
+              "$ref": "#/$defs/color"
+            }
+          }
+        },
+        "close": {
+          "type": "object",
+          "required": [
+            "offset",
+            "size",
+            "sprite"
+          ],
+          "description": "Close button; offset is [right, top] from the top right corner.",
+          "properties": {
+            "offset": {
+              "$ref": "#/$defs/point"
+            },
+            "size": {
+              "$ref": "#/$defs/size"
+            },
+            "sprite": {
+              "$ref": "#/$defs/sprite"
+            }
+          }
+        },
+        "grip": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 256
+          },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "Resize hot corner at the bottom right (resizable panels), default [14, 14]."
         }
       }
     },
