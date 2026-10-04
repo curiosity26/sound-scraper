@@ -2,7 +2,7 @@ import { type EventSubscription, Platform } from 'react-native';
 
 import NativeSkins, { type WindowEvent } from '../native/NativeSkins';
 import { settings } from '../native/SoundScraper';
-import type { Rect, Skin, SkinSummary } from './types';
+import type { Rect, Skin, SkinInspection, SkinSummary } from './types';
 
 /** False where the native side has no skin support. */
 export const skinsAvailable = NativeSkins != null;
@@ -28,7 +28,100 @@ export const skins = {
   remove: (id: string): Promise<void> => native().removeSkin(id),
   pickArchive: (): Promise<string | null> => native().pickSkinArchive(),
   pickFolder: (): Promise<string | null> => native().pickSkinFolder(),
+  /** A folder chooser for other purposes (where to make a new skin). */
+  pickAnyFolder: (title: string, prompt: string): Promise<string | null> =>
+    native().pickFolder(title, prompt),
+  pickSaveLocation: (defaultName: string): Promise<string | null> =>
+    native().pickSkinSaveLocation(defaultName),
+  /** Checks a .sskin without installing it. */
+  inspect: async (archivePath: string): Promise<SkinInspection> =>
+    JSON.parse(await native().inspectSkin(archivePath)),
+  /** A PNG of a skin's main panel: an id, a folder path, or '' for Default. */
+  preview: async (idOrPath: string): Promise<string> =>
+    JSON.parse(await native().skinPreview(idOrPath)),
+  /** Writes a skin folder as a .sskin. */
+  package: async (dir: string, outPath: string): Promise<SkinSummary> =>
+    JSON.parse(await native().packageSkin(dir, outPath)),
+  /** A new skin folder from the Default skin; resolves with its path. */
+  create: async (parent: string, name: string): Promise<string> =>
+    JSON.parse(await native().createSkin(parent, name)),
+  /** Changes whenever the folder's files do. */
+  folderStamp: async (dir: string): Promise<string> =>
+    JSON.parse(await native().skinFolderStamp(dir)),
+  /** Skins opened from the file manager or dropped on a panel. */
+  takeOpened: (): string[] => native().takeOpenedSkinFiles(),
 };
+
+/** An unpacked skin folder (an absolute path) rather than an installed id. */
+export function isFolderSkin(chosen: string | null | undefined): boolean {
+  return chosen != null && /^(\/|[A-Za-z]:[\\/]|\\\\)/.test(chosen);
+}
+
+/** Whether a dropped or opened path is a skin archive (else a folder). */
+export function isSkinArchive(path: string): boolean {
+  return /\.(sskin|zip)$/i.test(path);
+}
+
+/** A value shared by every window (they run in one JS runtime). */
+function shared<T>(initial: T) {
+  let value = initial;
+  const subscribers = new Set<(v: T) => void>();
+  return {
+    get: (): T => value,
+    set: (v: T) => {
+      value = v;
+      subscribers.forEach(l => l(v));
+    },
+    subscribe: (listener: (v: T) => void): (() => void) => {
+      subscribers.add(listener);
+      return () => subscribers.delete(listener);
+    },
+  };
+}
+
+/** The settings window's tab. */
+export const settingsTab = shared<'settings' | 'skin' | 'about'>('settings');
+
+/** A skin waiting for the user to confirm installing it (the install card). */
+export const pendingInstall = shared<
+  { inspection: SkinInspection } | { path: string; error: string } | null
+>(null);
+
+/**
+ * Uses a skin: an installed skin's id, a folder's path, or null for the
+ * Default skin. Saved in the settings; every window re-skins.
+ */
+export async function chooseSkin(skin: string | null): Promise<Skin> {
+  await settings.set({ ...settings.get(), skin });
+  return skinStore.reload();
+}
+
+/**
+ * Handles skins opened from the file manager or dropped on a panel: an
+ * archive gets the install card in the settings' Skin tab; a skin folder is
+ * used straight away (and reloads as it changes).
+ */
+export async function openSkinFiles(paths: string[]): Promise<void> {
+  if (paths.length === 0) {
+    return;
+  }
+  const archive = paths.find(isSkinArchive);
+  const folder = paths.find(p => !isSkinArchive(p));
+  settingsTab.set('skin');
+  windows.setPanelVisible('settings', true);
+  if (archive) {
+    try {
+      pendingInstall.set({ inspection: await skins.inspect(archive) });
+    } catch (e) {
+      pendingInstall.set({
+        path: archive,
+        error: String((e as Error)?.message ?? e),
+      });
+    }
+  } else if (folder) {
+    await chooseSkin(folder);
+  }
+}
 
 const flat = (rects: Rect[]) => rects.flatMap(r => r);
 

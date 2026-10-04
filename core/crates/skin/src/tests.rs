@@ -484,3 +484,101 @@ fn lists_broken_installs_with_an_error() {
     assert_eq!(list.len(), 2);
     assert!(list[1].error.as_ref().unwrap().contains("skin.json"));
 }
+
+#[test]
+fn inspects_without_installing() {
+    let store = store();
+    let archive = tempdir().join("tiny.sskin");
+    zip(&archive, &minimal_entries());
+    let found = store.inspect(&archive).unwrap();
+    assert_eq!((found.id.as_str(), found.name.as_str()), ("com.example.tiny", "Tiny"));
+    assert!(found.installed.is_none());
+    assert!(found.preview.as_ref().is_some_and(|p| p.is_file()));
+    assert_eq!(store.list().len(), 1, "inspecting doesn't install");
+    // Nothing left behind but the preview.
+    let leftovers: Vec<_> = fs::read_dir(store.skins_dir())
+        .unwrap()
+        .flatten()
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .filter(|n| !n.starts_with(".builtin-") && n != ".previews")
+        .collect();
+    assert!(leftovers.is_empty(), "{leftovers:?}");
+    // Once installed, a new copy names the installed one.
+    store.install(&archive).unwrap();
+    assert_eq!(store.inspect(&archive).unwrap().installed.unwrap().id, "com.example.tiny");
+    // A broken archive says why.
+    let bad = tempdir().join("bad.sskin");
+    zip(&bad, &[("readme.txt", b"hi".to_vec())]);
+    assert!(store.inspect(&bad).unwrap_err().contains("skin.json"));
+}
+
+#[test]
+fn previews_are_cached_until_the_skin_changes() {
+    let store = store();
+    let dir = tempdir().join("work");
+    write_skin(&dir, &minimal_manifest());
+    let skin = store.load_dir(&dir).unwrap();
+    let first = store.preview(&skin).unwrap();
+    assert!(first.is_file());
+    assert_eq!(store.preview(&skin).unwrap(), first);
+    fs::write(dir.join("notes.txt"), "changed").unwrap();
+    let second = store.preview(&skin).unwrap();
+    assert_ne!(second, first);
+    assert!(!first.exists(), "the old picture is removed");
+    let default = store.load_default().unwrap();
+    assert!(store.preview(&default).unwrap().is_file());
+}
+
+#[test]
+fn packages_a_folder_that_installs() {
+    let store = store();
+    let dir = tempdir().join("work");
+    write_skin(&dir, &minimal_manifest());
+    fs::create_dir_all(dir.join(".git")).unwrap();
+    fs::write(dir.join(".git/HEAD"), "ref").unwrap();
+    fs::write(dir.join(".DS_Store"), "junk").unwrap();
+    let out = tempdir().join("Tiny.sskin");
+    let packaged = store.package(&dir, &out).unwrap();
+    assert_eq!((packaged.id.as_str(), packaged.dir.as_path()), ("com.example.tiny", out.as_path()));
+    let names: Vec<String> = {
+        let mut zip = zip::ZipArchive::new(fs::File::open(&out).unwrap()).unwrap();
+        (0..zip.len()).map(|i| zip.by_index(i).unwrap().name().to_string()).collect()
+    };
+    assert_eq!(names, ["bg.png", "bg@2x.png", "btn.png", "skin.json"]);
+    assert_eq!(store.install(&out).unwrap().id, "com.example.tiny");
+    // Broken folders aren't packaged.
+    let mut broken = minimal_manifest();
+    broken["panels"]["main"]["background"] = json!("missing.png");
+    let bad = tempdir().join("bad");
+    write_skin(&bad, &broken);
+    let bad_out = tempdir().join("Bad.sskin");
+    assert!(store.package(&bad, &bad_out).unwrap_err().contains("missing.png"));
+    assert!(!bad_out.exists());
+}
+
+#[test]
+fn templates_start_from_the_default_skin() {
+    let store = store();
+    let parent = tempdir();
+    let dir = store.create_from_template(&parent, "Neon Nights").unwrap();
+    assert_eq!(dir, parent.join("Neon Nights"));
+    let skin = store.load_dir(&dir).unwrap();
+    assert_eq!((skin.id.as_str(), skin.name.as_str()), ("com.example.neon-nights", "Neon Nights"));
+    assert!(skin.warnings.is_empty(), "{:?}", skin.warnings);
+    assert!(fs::read_to_string(dir.join("README.md")).unwrap().contains("nine-slice"));
+    assert!(store.create_from_template(&parent, "Neon Nights").unwrap_err().contains("already exists"));
+    assert!(store.create_from_template(&parent, "../up").is_err());
+}
+
+#[test]
+fn folder_stamp_tracks_changes() {
+    let dir = tempdir().join("work");
+    write_skin(&dir, &minimal_manifest());
+    let a = crate::folder_stamp(&dir).unwrap();
+    assert_eq!(crate::folder_stamp(&dir).unwrap(), a);
+    fs::write(dir.join("btn.png"), png(40, 12)).unwrap();
+    let b = crate::folder_stamp(&dir).unwrap();
+    assert_ne!(a, b);
+    fs::write(dir.join(".hidden"), "x").unwrap();
+    assert_eq!(crate::folder_stamp(&dir).unwrap(), b, "dot files don't count");
+}

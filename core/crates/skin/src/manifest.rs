@@ -227,6 +227,10 @@ pub struct TitleDef {
     /// System-font color when there's no sprite font.
     #[serde(default)]
     pub color: Option<String>,
+    /// Behind the text (e.g. to break up a ridged title strip); the
+    /// skin's `panel` color when unset, "#0000" for none.
+    #[serde(default)]
+    pub background: Option<String>,
 }
 
 /// A frame's close button: `offset` is [right, top] from the top right

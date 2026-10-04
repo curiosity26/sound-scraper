@@ -12,8 +12,8 @@ image = { version = "0.25", default-features = false, features = ["png", "jpeg",
 serde = { version = "1", features = ["derive"] }
 serde_ignored = "0.1"
 serde_json = "1"
+sound_scraper_vis = { path = "../vis" }
 zip = { version = "8", default-features = false, features = ["deflate-flate2"] }
 
 [dev-dependencies]
-sound_scraper_vis = { path = "../vis" }
 jsonschema = { version = "0.33", default-features = false }

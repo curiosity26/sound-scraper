@@ -69,10 +69,26 @@ pub fn safe_relative(path: &str) -> Result<PathBuf, String> {
     Ok(clean)
 }
 
+/// A file in an unpacked skin folder.
+pub struct SkinFile {
+    /// Relative, with forward slashes.
+    pub rel: String,
+    pub path: PathBuf,
+    pub len: u64,
+    pub modified: Option<std::time::SystemTime>,
+}
+
 /// Checks an unpacked skin folder: no symlinks, only allowed file types,
 /// and within the file count and size limits. Dot files and folders (e.g.
 /// `.git` in an author's working folder) are ignored.
 pub fn check_folder(root: &Path) -> Result<(), String> {
+    skin_files(root).map(|_| ())
+}
+
+/// The files of an unpacked skin folder, checked as by `check_folder`,
+/// sorted by path.
+pub fn skin_files(root: &Path) -> Result<Vec<SkinFile>, String> {
+    let mut files = Vec::new();
     let mut count = 0usize;
     let mut total = 0u64;
     let mut stack = vec![root.to_path_buf()];
@@ -104,10 +120,37 @@ pub fn check_folder(root: &Path) -> Result<(), String> {
                 if total > MAX_UNPACKED_BYTES {
                     return Err(format!("the skin is larger than {} MB unpacked", MAX_UNPACKED_BYTES / 1024 / 1024));
                 }
+                files.push(SkinFile { rel, path, len: meta.len(), modified: meta.modified().ok() });
             }
         }
     }
-    Ok(())
+    files.sort_by(|a, b| a.rel.cmp(&b.rel));
+    Ok(files)
+}
+
+/// Zips a skin folder's files (as listed by `skin_files`) into `out`, at
+/// the archive's root. Images are stored as they are; text is deflated.
+pub fn write_archive(root: &Path, out: &Path) -> Result<(), String> {
+    use std::io::Write;
+    let files = skin_files(root)?;
+    let temp = out.with_extension("sskin-partial");
+    let result = (|| {
+        let file = fs::File::create(&temp).map_err(|e| format!("{}: {e}", temp.display()))?;
+        let mut zip = zip::ZipWriter::new(file);
+        for f in &files {
+            let method = if is_image(&f.rel) { zip::CompressionMethod::Stored } else { zip::CompressionMethod::Deflated };
+            let options = zip::write::SimpleFileOptions::default().compression_method(method);
+            zip.start_file(f.rel.as_str(), options).map_err(|e| format!("{}: {e}", f.rel))?;
+            let bytes = fs::read(&f.path).map_err(|e| format!("{}: {e}", f.rel))?;
+            zip.write_all(&bytes).map_err(|e| format!("{}: {e}", f.rel))?;
+        }
+        zip.finish().map_err(|e| format!("{}: {e}", temp.display()))?;
+        fs::rename(&temp, out).map_err(|e| format!("{}: {e}", out.display()))
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temp);
+    }
+    result
 }
 
 /// Extracts a `.sskin` (zip) into `dest`, which must be empty, enforcing the

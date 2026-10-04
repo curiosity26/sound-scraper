@@ -127,6 +127,7 @@
       ],
       "resizable": true,
       "title": {
+        "background": "#0000",
         "font": "label",
         "offset": [
           14,
@@ -216,6 +217,7 @@
         "text": "@cream"
       },
       "title": {
+        "background": "#0000",
         "font": "label",
         "offset": [
           14,
@@ -756,6 +758,7 @@
       ],
       "resizable": true,
       "title": {
+        "background": "#0000",
         "font": "label",
         "offset": [
           14,

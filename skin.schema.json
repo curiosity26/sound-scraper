@@ -578,6 +578,10 @@
             },
             "color": {
               "$ref": "#/$defs/color"
+            },
+            "background": {
+              "$ref": "#/$defs/color",
+              "description": "Behind the title text; the skin's panel color when omitted, \"#0000\" for none."
             }
           }
         },

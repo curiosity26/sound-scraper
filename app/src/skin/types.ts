@@ -99,6 +99,8 @@ export type FramePanel = {
     font: string | null;
     offset: [number, number];
     color: string | null;
+    /** Behind the text; the skin's panel color when null. */
+    background: string | null;
   } | null;
   /** Offset is [right, top] from the top right corner. */
   close: {
@@ -134,6 +136,22 @@ export type Skin = {
   };
   visualizer: { presets: Array<Record<string, unknown>> };
   warnings: string[];
+};
+
+/** A .sskin looked at before installing it (ss_skin_inspect). */
+export type SkinInspection = {
+  id: string;
+  name: string;
+  author: string | null;
+  version: string | null;
+  description: string | null;
+  /** The archive. */
+  path: string;
+  /** A PNG of the main panel, 2x. */
+  preview: string | null;
+  warnings: string[];
+  /** The installed skin it would replace. */
+  installed: SkinSummary | null;
 };
 
 export type SkinSummary = {

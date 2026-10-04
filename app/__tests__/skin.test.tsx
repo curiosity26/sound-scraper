@@ -9,6 +9,7 @@ import { buttonState } from '../src/skin/SkinButton';
 import { layoutCells, toGlyphs } from '../src/skin/SpriteText';
 import { NineSlice } from '../src/skin/NineSlice';
 import { imageSource } from '../src/skin/SkinImage';
+import { needleAngle } from '../src/skin/LevelMeter';
 import type { ImageRef, Skin, SkinElement } from '../src/skin/types';
 
 const mockSkins = {
@@ -19,6 +20,7 @@ const mockSkins = {
   windowAction: jest.fn(),
   isPanelVisible: () => false,
   showMenu: jest.fn(() => Promise.resolve(-1)),
+  inspectSkin: jest.fn(),
 };
 jest.mock('../src/native/NativeSkins', () => ({
   __esModule: true,
@@ -519,4 +521,64 @@ test('the details pane edits a tag in place and renames', async () => {
   });
   expect(mockCore.renameRecording).toHaveBeenCalledWith('Song.mp3', 'New name');
   expect(onRenamed).toHaveBeenCalledWith('Song.mp3', 'New name.mp3');
+});
+
+test('needles sweep the VU range from the reference level', () => {
+  const style = {
+    sweep: 64,
+    range: [-20, 3] as [number, number],
+    reference: -16,
+  };
+  expect(needleAngle(0, style)).toBe(-32);
+  // 0 VU is the reference level: -16 dBFS.
+  const zero = needleAngle(10 ** (-16 / 20), style);
+  expect(zero).toBeCloseTo(-32 + (64 * 20) / 23, 5);
+  // Pinned at the ends.
+  expect(needleAngle(1, style)).toBe(32);
+  expect(needleAngle(1e-6, style)).toBe(-32);
+});
+
+test('skin paths: folders and archives', () => {
+  const { isFolderSkin, isSkinArchive } = require('../src/skin/skins');
+  expect(isFolderSkin('/Users/me/Skins/Mine')).toBe(true);
+  expect(isFolderSkin('C:\\Skins\\Mine')).toBe(true);
+  expect(isFolderSkin('com.example.skin')).toBe(false);
+  expect(isFolderSkin(null)).toBe(false);
+  expect(isSkinArchive('/x/Hi-Fi 74.sskin')).toBe(true);
+  expect(isSkinArchive('C:\\x\\skin.ZIP')).toBe(true);
+  expect(isSkinArchive('/x/My Skin')).toBe(false);
+});
+
+test('an opened .sskin gets the install card in Settings › Skin', async () => {
+  const {
+    openSkinFiles,
+    pendingInstall,
+    settingsTab,
+  } = require('../src/skin/skins');
+  const inspection = {
+    id: 'com.example.retro',
+    name: 'Retro',
+    author: null,
+    version: '1.0',
+    description: null,
+    path: '/x/Retro.sskin',
+    preview: null,
+    warnings: [],
+    installed: null,
+  };
+  mockSkins.inspectSkin.mockResolvedValueOnce(JSON.stringify(inspection));
+  await openSkinFiles(['/x/Retro.sskin']);
+  expect(mockSkins.setPanelVisible).toHaveBeenCalledWith('settings', true);
+  expect(settingsTab.get()).toBe('skin');
+  expect(pendingInstall.get()).toEqual({ inspection });
+  // A broken one says why.
+  mockSkins.inspectSkin.mockRejectedValueOnce(
+    new Error('skin.json is missing'),
+  );
+  await openSkinFiles(['/x/Broken.sskin']);
+  expect(pendingInstall.get()).toEqual({
+    path: '/x/Broken.sskin',
+    error: 'skin.json is missing',
+  });
+  pendingInstall.set(null);
 });

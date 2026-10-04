@@ -157,6 +157,109 @@ RCT_EXPORT_MODULE(SoundScraperSkins)
   });
 }
 
+- (void)pickFolder:(NSString *)title
+            prompt:(NSString *)prompt
+           resolve:(RCTPromiseResolveBlock)resolve
+            reject:(RCTPromiseRejectBlock)reject
+{
+  NSString *titleCopy = [title copy];
+  NSString *promptCopy = [prompt copy];
+  dispatch_async(dispatch_get_main_queue(), ^{
+    NSOpenPanel *panel = [NSOpenPanel openPanel];
+    panel.title = titleCopy;
+    panel.prompt = promptCopy;
+    panel.canChooseFiles = NO;
+    panel.canChooseDirectories = YES;
+    panel.canCreateDirectories = YES;
+    panel.allowsMultipleSelection = NO;
+    if ([panel runModal] == NSModalResponseOK && panel.URL) {
+      resolve(panel.URL.path);
+    } else {
+      resolve([NSNull null]);
+    }
+  });
+}
+
+- (void)pickSkinSaveLocation:(NSString *)defaultName
+                     resolve:(RCTPromiseResolveBlock)resolve
+                      reject:(RCTPromiseRejectBlock)reject
+{
+  NSString *name = [defaultName copy];
+  dispatch_async(dispatch_get_main_queue(), ^{
+    NSSavePanel *panel = [NSSavePanel savePanel];
+    panel.title = @"Package skin";
+    panel.prompt = @"Package";
+    panel.nameFieldStringValue = name;
+    UTType *sskin = [UTType typeWithFilenameExtension:@"sskin"];
+    if (sskin) {
+      panel.allowedContentTypes = @[ sskin ];
+    }
+    if ([panel runModal] == NSModalResponseOK && panel.URL) {
+      resolve(panel.URL.path);
+    } else {
+      resolve([NSNull null]);
+    }
+  });
+}
+
+- (void)inspectSkin:(NSString *)archivePath resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject
+{
+  NSString *copy = [archivePath copy];
+  [self resolveString:^char * { return ss_skin_inspect(copy.UTF8String); } code:@"skin_inspect_failed" resolve:resolve reject:reject];
+}
+
+- (void)skinPreview:(NSString *)idOrPath resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject
+{
+  NSString *copy = [idOrPath copy];
+  [self resolveString:^char * { return ss_skin_preview(copy.UTF8String); } code:@"skin_preview_failed" resolve:resolve reject:reject];
+}
+
+- (void)packageSkin:(NSString *)dir
+            outPath:(NSString *)outPath
+            resolve:(RCTPromiseResolveBlock)resolve
+             reject:(RCTPromiseRejectBlock)reject
+{
+  NSString *dirCopy = [dir copy];
+  NSString *outCopy = [outPath copy];
+  [self resolveString:^char * { return ss_skin_package(dirCopy.UTF8String, outCopy.UTF8String); }
+                 code:@"skin_package_failed"
+              resolve:resolve
+               reject:reject];
+}
+
+- (void)createSkin:(NSString *)parent
+              name:(NSString *)name
+           resolve:(RCTPromiseResolveBlock)resolve
+            reject:(RCTPromiseRejectBlock)reject
+{
+  NSString *parentCopy = [parent copy];
+  NSString *nameCopy = [name copy];
+  [self resolveString:^char * { return ss_skin_create(parentCopy.UTF8String, nameCopy.UTF8String); }
+                 code:@"skin_create_failed"
+              resolve:resolve
+               reject:reject];
+}
+
+- (void)skinFolderStamp:(NSString *)dir resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject
+{
+  NSString *copy = [dir copy];
+  [self resolveString:^char * { return ss_skin_folder_stamp(copy.UTF8String); } code:@"skin_stamp_failed" resolve:resolve reject:reject];
+}
+
+- (NSArray<NSString *> *)takeOpenedSkinFiles
+{
+  __block NSArray<NSString *> *files = @[];
+  void (^take)(void) = ^{
+    files = [SSWindowController.shared takeOpenedSkinFiles];
+  };
+  if (NSThread.isMainThread) {
+    take();
+  } else {
+    dispatch_sync(dispatch_get_main_queue(), take);
+  }
+  return files;
+}
+
 - (void)setPanelLayout:(NSString *)panel
                  width:(double)width
                 height:(double)height

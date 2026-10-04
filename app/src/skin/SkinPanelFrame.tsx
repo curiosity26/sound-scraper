@@ -118,7 +118,7 @@ export function SkinPanelFrame(props: Props): React.JSX.Element {
             left: titleOffset[0] * s,
             top: titleOffset[1] * s,
             paddingHorizontal: 3 * s,
-            backgroundColor: skin.colors.panel,
+            backgroundColor: def.title?.background ?? skin.colors.panel,
           }}
         >
           {titleFont ? (

@@ -35,6 +35,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     NSApp.activate(ignoringOtherApps: true)
   }
 
+  /// .sskin files opened from Finder (or dropped on the Dock icon).
+  func application(_ application: NSApplication, open urls: [URL]) {
+    let skins = urls.filter(WindowController.isSkinFile).map(\.path)
+    if !skins.isEmpty {
+      WindowController.shared.openSkinFiles(skins)
+    }
+  }
+
   func applicationWillTerminate(_ notification: Notification) {
     WindowController.shared.saveLayout()
   }

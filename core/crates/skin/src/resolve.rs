@@ -150,6 +150,8 @@ pub struct ResolvedTitle {
     pub font: Option<String>,
     pub offset: [i64; 2],
     pub color: Option<String>,
+    /// Behind the title text; the skin's `panel` color when unset.
+    pub background: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -610,7 +612,11 @@ impl Resolver<'_> {
                     Some(c) => Some(check_color(c, &self.colors, &format!("{at}.title.color"))?),
                     None => None,
                 };
-                Some(ResolvedTitle { font: t.font.clone(), offset: t.offset, color })
+                let background = match &t.background {
+                    Some(c) => Some(check_color(c, &self.colors, &format!("{at}.title.background"))?),
+                    None => None,
+                };
+                Some(ResolvedTitle { font: t.font.clone(), offset: t.offset, color, background })
             }
             None => None,
         };

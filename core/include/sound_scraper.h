@@ -776,6 +776,58 @@ char *ss_skins_list(void);
  */
 enum SsStatus ss_skin_remove(const char *id);
 
+/*
+ Validates a `.sskin` archive without installing it, for the install
+ card: `{"id", "name", "author", "version", "description", "path",
+ "preview" (a PNG of the main panel, or null), "warnings", "installed"
+ (the installed skin it would replace, or null)}`. NULL on failure. Free
+ with `ss_string_free`.
+
+ # Safety
+ `archive_path` must be NUL-terminated UTF-8.
+ */
+char *ss_skin_inspect(const char *archive_path);
+
+/*
+ A picture of a skin's main panel with sample content: the path of a
+ cached PNG, as a JSON string. `id_or_path` as for `ss_skin_load`. Free
+ with `ss_string_free`.
+
+ # Safety
+ `id_or_path` must be NULL or NUL-terminated UTF-8.
+ */
+char *ss_skin_preview(const char *id_or_path);
+
+/*
+ Checks an unpacked skin folder and writes it as a `.sskin` to
+ `out_path`. Returns the skin's summary (see `ss_skin_install`; `dir` is
+ the archive), or NULL with the problem. Free with `ss_string_free`.
+
+ # Safety
+ Both arguments must be NUL-terminated UTF-8.
+ */
+char *ss_skin_package(const char *dir, const char *out_path);
+
+/*
+ Creates a new skin folder `parent/name` from the Default skin (with its
+ own id and a README guide) for a skin author. Returns its path as a
+ JSON string, or NULL. Free with `ss_string_free`.
+
+ # Safety
+ Both arguments must be NUL-terminated UTF-8.
+ */
+char *ss_skin_create(const char *parent, const char *name);
+
+/*
+ A token (JSON string) that changes whenever a skin folder's files do,
+ for reloading a skin while it's being made. NULL if the folder can't be
+ read. Free with `ss_string_free`.
+
+ # Safety
+ `dir` must be NUL-terminated UTF-8.
+ */
+char *ss_skin_folder_stamp(const char *dir);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif  // __cplusplus

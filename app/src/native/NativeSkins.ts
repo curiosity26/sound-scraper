@@ -1,5 +1,5 @@
-// Turbo Module spec for skins and the skinned windows. macOS only for now:
-// on platforms without it, TurboModuleRegistry.get returns null and the app
+// Turbo Module spec for skins and the skinned windows (macOS and Windows).
+// On platforms without it, TurboModuleRegistry.get returns null and the app
 // keeps its plain UI (see index.js).
 import type { CodegenTypes, TurboModule } from 'react-native';
 import { TurboModuleRegistry } from 'react-native';
@@ -7,7 +7,11 @@ import { TurboModuleRegistry } from 'react-native';
 export type WindowEvent = {
   /** 'main' | 'library' | 'settings' | 'details' */
   window: string;
-  /** 'shown' | 'hidden' | 'toggleShade' (double click on a drag region) | 'toggleDoubleSize' (menu) */
+  /**
+   * 'shown' | 'hidden' | 'toggleShade' (double click on a drag region) |
+   * 'toggleDoubleSize' (menu, Ctrl+D) | 'skinFilesOpened' (skins opened
+   * from the file manager or dropped on a panel: see takeOpenedSkinFiles)
+   */
   event: string;
 };
 
@@ -27,6 +31,25 @@ export interface Spec extends TurboModule {
   pickSkinArchive(): Promise<string | null>;
   /** Native folder chooser for an unpacked skin; null if cancelled. */
   pickSkinFolder(): Promise<string | null>;
+  /** Native folder chooser titled `title`; null if cancelled. */
+  pickFolder(title: string, prompt: string): Promise<string | null>;
+  /** Native save dialog for a .sskin named `defaultName`; null if cancelled. */
+  pickSkinSaveLocation(defaultName: string): Promise<string | null>;
+  /** Checks a .sskin without installing it: SkinInspection JSON (ss_skin_inspect). */
+  inspectSkin(archivePath: string): Promise<string>;
+  /** A PNG of a skin's main panel (ss_skin_preview): its path as a JSON string. */
+  skinPreview(idOrPath: string): Promise<string>;
+  /** Writes a skin folder as a .sskin at `outPath`: summary JSON (ss_skin_package). */
+  packageSkin(dir: string, outPath: string): Promise<string>;
+  /** A new skin folder `parent/name` from the Default skin: its path as JSON (ss_skin_create). */
+  createSkin(parent: string, name: string): Promise<string>;
+  /** A JSON string that changes whenever a skin folder's files do (ss_skin_folder_stamp). */
+  skinFolderStamp(dir: string): Promise<string>;
+  /**
+   * Skins (.sskin paths or skin folders) opened from the file manager or
+   * dropped on a panel since the last call.
+   */
+  takeOpenedSkinFiles(): Array<string>;
 
   /**
    * A panel window's skin chrome ('main' | 'library' | 'settings'): where it

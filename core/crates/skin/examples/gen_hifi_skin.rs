@@ -714,7 +714,9 @@ fn vu_face(c: &mut Canvas, x: f32, y: f32, w: f32, h: f32, channel: &str) {
             let (lx, ly) = polar(a, r_arc + len + 5.0);
             let size = 0.6;
             let lw = text_width(label, size);
-            blocks(c, lx - lw / 2.0, ly - 2.1, label, size, col);
+            // Keep the end labels inside the face.
+            let lx = (lx - lw / 2.0).clamp(x + 3.0, x + w - 3.0 - lw);
+            blocks(c, lx, ly - 2.1, label, size, col);
         }
     }
     // Minus and plus signs at the ends.
@@ -932,7 +934,7 @@ fn main() {
             "minSize": min,
             "resizable": true,
             "frame": { "image": "frame.png", "slice": [24, 8, 8, 8] },
-            "title": { "font": "label", "offset": [14, 9] },
+            "title": { "font": "label", "offset": [14, 9], "background": "#0000" },
             "close": { "offset": [12, 7], "size": [14, 10], "sprite": sprite(&close) },
             "grip": [14, 14],
             "controls": controls.clone()

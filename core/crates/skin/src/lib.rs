@@ -7,6 +7,7 @@
 
 pub mod files;
 pub mod manifest;
+pub mod preview;
 pub mod resolve;
 
 use std::{
@@ -37,6 +38,24 @@ pub struct SkinSummary {
     pub builtin: bool,
     /// Set when the installed copy no longer loads.
     pub error: Option<String>,
+}
+
+/// A `.sskin` looked at before installing it (the install card).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkinInspection {
+    pub id: String,
+    pub name: String,
+    pub author: Option<String>,
+    pub version: Option<String>,
+    pub description: Option<String>,
+    /// The archive.
+    pub path: PathBuf,
+    /// The main panel with sample content (PNG, 2x).
+    pub preview: Option<PathBuf>,
+    pub warnings: Vec<String>,
+    /// The installed skin with the same id, which installing replaces.
+    pub installed: Option<SkinSummary>,
 }
 
 /// Installed skins live in `skins_dir/<id>/`; the Default skin is extracted
@@ -136,6 +155,128 @@ impl SkinStore {
         result
     }
 
+    /// Validates a `.sskin` archive without installing it: what it is, a
+    /// preview, and the installed skin it would replace.
+    pub fn inspect(&self, archive: &Path) -> Result<SkinInspection, String> {
+        fs::create_dir_all(&self.skins_dir).map_err(|e| format!("{}: {e}", self.skins_dir.display()))?;
+        let staging = self.skins_dir.join(format!(".inspecting-{}-{}", std::process::id(), unique()));
+        let _ = fs::remove_dir_all(&staging);
+        fs::create_dir_all(&staging).map_err(|e| format!("{}: {e}", staging.display()))?;
+        let result = (|| {
+            let root = files::extract_archive(archive, &staging)?;
+            let skin = self.load_dir(&root)?;
+            if skin.id == DEFAULT_ID {
+                return Err("the Default skin is built in and can't be replaced".to_string());
+            }
+            // One archive preview at a time.
+            for entry in fs::read_dir(self.previews_dir()).into_iter().flatten().flatten() {
+                if entry.file_name().to_string_lossy().starts_with("archive-") {
+                    let _ = fs::remove_file(entry.path());
+                }
+            }
+            let preview = self.previews_dir().join(format!("archive-{}-{}.png", std::process::id(), unique()));
+            let preview = preview::write_main_png(&skin, &preview).ok().map(|()| preview);
+            let installed = self.list().into_iter().find(|s| s.id == skin.id && !s.builtin);
+            Ok(SkinInspection {
+                id: skin.id,
+                name: skin.name,
+                author: skin.author,
+                version: skin.version,
+                description: skin.description,
+                path: archive.to_path_buf(),
+                preview,
+                warnings: skin.warnings,
+                installed,
+            })
+        })();
+        let _ = fs::remove_dir_all(&staging);
+        result
+    }
+
+    fn previews_dir(&self) -> PathBuf {
+        self.skins_dir.join(".previews")
+    }
+
+    /// A picture of a loaded skin's main panel (PNG, 2x), drawn once per
+    /// version of its files and cached.
+    pub fn preview(&self, skin: &ResolvedSkin) -> Result<PathBuf, String> {
+        let stamp = folder_stamp(&skin.dir)?;
+        let key = format!("{:016x}", fnv(&format!("{}|{}|{stamp}", skin.id, skin.dir.display())));
+        let prefix = format!("{}-", skin.id);
+        let path = self.previews_dir().join(format!("{prefix}{key}.png"));
+        if path.is_file() {
+            return Ok(path);
+        }
+        // Drop this skin's older pictures.
+        for entry in fs::read_dir(self.previews_dir()).into_iter().flatten().flatten() {
+            if entry.file_name().to_string_lossy().starts_with(&prefix) {
+                let _ = fs::remove_file(entry.path());
+            }
+        }
+        preview::write_main_png(skin, &path)?;
+        Ok(path)
+    }
+
+    /// Checks an unpacked skin folder and zips it into a `.sskin` at `out`,
+    /// then checks the archive installs. Returns the skin's summary (with
+    /// `dir` the archive).
+    pub fn package(&self, dir: &Path, out: &Path) -> Result<SkinSummary, String> {
+        let skin = self.load_dir(dir)?;
+        if skin.id == DEFAULT_ID {
+            return Err("give the skin its own id in skin.json first (it's the Default skin's)".into());
+        }
+        files::write_archive(&skin.dir, out)?;
+        if let Err(e) = self.inspect(out) {
+            let _ = fs::remove_file(out);
+            return Err(format!("the packaged skin doesn't load: {e}"));
+        }
+        Ok(summary(&skin, out.to_path_buf(), None))
+    }
+
+    /// Starts a new skin for an author: a copy of the Default skin in
+    /// `parent/<name>` with its own id and name, and a README guide.
+    pub fn create_from_template(&self, parent: &Path, name: &str) -> Result<PathBuf, String> {
+        let name = name.trim();
+        if name.is_empty() || name.contains(['/', '\\', ':']) || name.starts_with('.') {
+            return Err(format!("\"{name}\" can't be a folder name"));
+        }
+        let dest = parent.join(name);
+        if dest.exists() {
+            return Err(format!("{} already exists", dest.display()));
+        }
+        let source = self.builtin_dir()?;
+        fs::create_dir_all(&dest).map_err(|e| format!("{}: {e}", dest.display()))?;
+        for entry in fs::read_dir(&source).map_err(|e| format!("{}: {e}", source.display()))?.flatten() {
+            let file = entry.file_name();
+            if file == "skin.json" || !entry.path().is_file() {
+                continue;
+            }
+            fs::copy(entry.path(), dest.join(&file)).map_err(|e| format!("{}: {e}", file.to_string_lossy()))?;
+        }
+        let text = fs::read_to_string(source.join("skin.json")).map_err(|e| e.to_string())?;
+        let mut manifest: serde_json::Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+        let slug: String = name
+            .to_lowercase()
+            .chars()
+            .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
+            .collect::<String>()
+            .split('-')
+            .filter(|p| !p.is_empty())
+            .collect::<Vec<_>>()
+            .join("-");
+        let slug = if slug.is_empty() { "my-skin".to_string() } else { slug };
+        manifest["$schema"] = "https://raw.githubusercontent.com/curiosity26/sound-scraper/main/skin.schema.json".into();
+        manifest["id"] = format!("com.example.{slug}").into();
+        manifest["name"] = name.into();
+        manifest["author"] = "".into();
+        manifest["version"] = "1.0".into();
+        manifest["description"] = "Started from the Default skin.".into();
+        let json = serde_json::to_string_pretty(&manifest).map_err(|e| e.to_string())? + "\n";
+        fs::write(dest.join("skin.json"), json).map_err(|e| format!("skin.json: {e}"))?;
+        fs::write(dest.join("README.md"), GUIDE).map_err(|e| format!("README.md: {e}"))?;
+        Ok(dest)
+    }
+
     /// The Default skin, then installed skins by name. Skins that no longer
     /// load are listed with an `error`.
     pub fn list(&self) -> Vec<SkinSummary> {
@@ -194,6 +335,40 @@ impl SkinStore {
         }
         fs::remove_dir_all(&dir).map_err(|e| format!("removing {}: {e}", dir.display()))
     }
+}
+
+/// The skin authoring guide, copied into new skins as README.md.
+pub const GUIDE: &str = include_str!("../../../../docs/skins.md");
+
+/// Changes whenever a skin folder's files do (added, removed, edited): for
+/// reloading a skin while its author works on it.
+pub fn folder_stamp(dir: &Path) -> Result<String, String> {
+    let files = files::skin_files(dir)?;
+    let mut h = 0xcbf2_9ce4_8422_2325u64;
+    for f in &files {
+        let nanos = f.modified.and_then(|m| m.duration_since(std::time::UNIX_EPOCH).ok()).map_or(0, |d| d.as_nanos());
+        h = fnv_more(h, &format!("{}|{}|{nanos};", f.rel, f.len));
+    }
+    Ok(format!("{}:{h:016x}", files.len()))
+}
+
+fn fnv(s: &str) -> u64 {
+    fnv_more(0xcbf2_9ce4_8422_2325, s)
+}
+
+fn fnv_more(mut h: u64, s: &str) -> u64 {
+    for b in s.bytes() {
+        h ^= b as u64;
+        h = h.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    h
+}
+
+/// A process-wide counter for temporary names.
+fn unique() -> u64 {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    NEXT.fetch_add(1, Ordering::Relaxed)
 }
 
 fn summary(skin: &ResolvedSkin, dir: PathBuf, error: Option<String>) -> SkinSummary {

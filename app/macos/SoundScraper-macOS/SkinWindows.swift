@@ -28,6 +28,30 @@ final class SkinPanelWindow: NSWindow {
     collectionBehavior = [.fullScreenNone]
     // Only the main panel shows in the Dock and Window menu.
     isExcludedFromWindowsMenu = panelID != WindowController.main
+    // Skins (.sskin files and skin folders) can be dropped on any panel.
+    registerForDraggedTypes([.fileURL])
+  }
+
+  // MARK: Dropping skins
+
+  private func skinPaths(_ sender: NSDraggingInfo) -> [String] {
+    let urls = sender.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+    return urls.filter(WindowController.isSkinFile).map(\.path)
+  }
+
+  @objc func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+    skinPaths(sender).isEmpty ? [] : .copy
+  }
+
+  @objc func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+    skinPaths(sender).isEmpty ? [] : .copy
+  }
+
+  @objc func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+    let paths = skinPaths(sender)
+    guard !paths.isEmpty else { return false }
+    manager?.openSkinFiles(paths)
+    return true
   }
 
   override var canBecomeKey: Bool { true }
@@ -91,12 +115,41 @@ final class WindowController: NSObject, NSWindowDelegate {
   /// Panels hidden because the main panel was minimized.
   private var hiddenForMinimize: [SkinPanelWindow] = []
   private var saved: [String: [String: Any]] = [:]
+  /// Skins opened from Finder or dropped on a panel, until JS takes them
+  /// (they can arrive before JS is running).
+  private var openedSkinFiles: [String] = []
 
   private static let panelSpecs: [String: (module: String, title: String, size: NSSize)] = [
     "library": ("SoundScraperLibrary", "Library", NSSize(width: 840, height: 420)),
     "settings": ("SoundScraperSettings", "Settings", NSSize(width: 460, height: 560)),
     "details": ("SoundScraperDetails", "Details", NSSize(width: 300, height: 480)),
   ]
+
+  // MARK: Skin files
+
+  /// A `.sskin` (or zipped skin), or a folder holding skin.json.
+  static func isSkinFile(_ url: URL) -> Bool {
+    let ext = url.pathExtension.lowercased()
+    if ext == "sskin" || ext == "zip" { return true }
+    var isDir: ObjCBool = false
+    return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) && isDir.boolValue
+      && FileManager.default.fileExists(atPath: url.appendingPathComponent("skin.json").path)
+  }
+
+  /// Queues skins to install (or folders to use) and tells JS.
+  func openSkinFiles(_ paths: [String]) {
+    openedSkinFiles.append(contentsOf: paths)
+    if let main {
+      if main.isMiniaturized { main.deminiaturize(nil) }
+      main.makeKeyAndOrderFront(nil)
+    }
+    onEvent?(Self.main, "skinFilesOpened")
+  }
+
+  @objc func takeOpenedSkinFiles() -> [String] {
+    defer { openedSkinFiles = [] }
+    return openedSkinFiles
+  }
 
   // MARK: Windows
 

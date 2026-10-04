@@ -1223,6 +1223,74 @@ pub unsafe extern "C" fn ss_skin_remove(id: *const c_char) -> SsStatus {
     result.map_or_else(fail, |()| SsStatus::Ok)
 }
 
+/// Validates a `.sskin` archive without installing it, for the install
+/// card: `{"id", "name", "author", "version", "description", "path",
+/// "preview" (a PNG of the main panel, or null), "warnings", "installed"
+/// (the installed skin it would replace, or null)}`. NULL on failure. Free
+/// with `ss_string_free`.
+///
+/// # Safety
+/// `archive_path` must be NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_skin_inspect(archive_path: *const c_char) -> *mut c_char {
+    let path = unsafe { arg_str(archive_path, "archive_path") };
+    json_or_null(catch("reading the skin", || skins::store().inspect(std::path::Path::new(path?))))
+}
+
+/// A picture of a skin's main panel with sample content: the path of a
+/// cached PNG, as a JSON string. `id_or_path` as for `ss_skin_load`. Free
+/// with `ss_string_free`.
+///
+/// # Safety
+/// `id_or_path` must be NULL or NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_skin_preview(id_or_path: *const c_char) -> *mut c_char {
+    let arg = if id_or_path.is_null() { Ok(None) } else { unsafe { arg_str(id_or_path, "id_or_path") }.map(Some) };
+    json_or_null(catch("drawing the skin", || {
+        let store = skins::store();
+        let skin = skins::load(&store, arg?)?;
+        store.preview(&skin)
+    }))
+}
+
+/// Checks an unpacked skin folder and writes it as a `.sskin` to
+/// `out_path`. Returns the skin's summary (see `ss_skin_install`; `dir` is
+/// the archive), or NULL with the problem. Free with `ss_string_free`.
+///
+/// # Safety
+/// Both arguments must be NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_skin_package(dir: *const c_char, out_path: *const c_char) -> *mut c_char {
+    let (dir, out) = unsafe { (arg_str(dir, "dir"), arg_str(out_path, "out_path")) };
+    json_or_null(catch("packaging the skin", || {
+        skins::store().package(std::path::Path::new(dir?), std::path::Path::new(out?))
+    }))
+}
+
+/// Creates a new skin folder `parent/name` from the Default skin (with its
+/// own id and a README guide) for a skin author. Returns its path as a
+/// JSON string, or NULL. Free with `ss_string_free`.
+///
+/// # Safety
+/// Both arguments must be NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_skin_create(parent: *const c_char, name: *const c_char) -> *mut c_char {
+    let (parent, name) = unsafe { (arg_str(parent, "parent"), arg_str(name, "name")) };
+    json_or_null(catch("creating the skin", || skins::store().create_from_template(std::path::Path::new(parent?), name?)))
+}
+
+/// A token (JSON string) that changes whenever a skin folder's files do,
+/// for reloading a skin while it's being made. NULL if the folder can't be
+/// read. Free with `ss_string_free`.
+///
+/// # Safety
+/// `dir` must be NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_skin_folder_stamp(dir: *const c_char) -> *mut c_char {
+    let dir = unsafe { arg_str(dir, "dir") };
+    json_or_null(catch("reading the skin folder", || skins::folder_stamp(std::path::Path::new(dir?))))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -3,7 +3,7 @@
 
 use std::path::Path;
 
-pub use sound_scraper_skin::{DEFAULT_ID, ResolvedSkin, SkinStore, SkinSummary};
+pub use sound_scraper_skin::{DEFAULT_ID, ResolvedSkin, SkinStore, SkinSummary, folder_stamp};
 
 use crate::{paths, settings};
 
