@@ -610,6 +610,15 @@ bool ss_vis_render(struct SsVis *vis,
                    size_t len);
 
 /*
+ Whether a recording is live (active or paused), so frames change. Cheap;
+ lets a view skip redrawing the idle look.
+
+ # Safety
+ `vis` must be NULL or a live handle.
+ */
+bool ss_vis_is_live(const struct SsVis *vis);
+
+/*
  Destroys a visualizer. NULL is a no-op.
 
  # Safety

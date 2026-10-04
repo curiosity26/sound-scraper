@@ -81,6 +81,10 @@ static void SSOnRecorderEvent(const SsRecorderEvent *event, void *userData)
     @"elapsedMs" : @(event->elapsed_ms),
     @"peak" : @(event->peak),
     @"rms" : @(event->rms),
+    @"peakLeft" : @(event->peak_left),
+    @"peakRight" : @(event->peak_right),
+    @"rmsLeft" : @(event->rms_left),
+    @"rmsRight" : @(event->rms_right),
     @"path" : SSString(event->path) ?: (id)[NSNull null],
     @"message" : SSString(event->message) ?: (id)[NSNull null],
   };
@@ -88,6 +92,14 @@ static void SSOnRecorderEvent(const SsRecorderEvent *event, void *userData)
   dispatch_async(dispatch_get_main_queue(), ^{
     [module emitRecorderEvent:body];
   });
+}
+
+/// The recorder the JS-wired module created, for visualizer views.
+static SsRecorder *gSSCurrentRecorder = NULL;
+
+SsRecorder *SSCurrentRecorder(void)
+{
+  return gSSCurrentRecorder;
 }
 
 @implementation RCTSoundScraper
@@ -115,6 +127,9 @@ RCT_EXPORT_MODULE(SoundScraper)
 
 - (void)dealloc
 {
+  if (gSSCurrentRecorder == _recorder) {
+    gSSCurrentRecorder = NULL;
+  }
   // Finalizes an in-progress recording; late events see a nil module.
   ss_recorder_destroy(_recorder);
   ss_library_destroy(_library);
@@ -127,6 +142,7 @@ RCT_EXPORT_MODULE(SoundScraper)
     if (!_recorder) {
       _recorder = ss_recorder_create();
       ss_recorder_set_callback(_recorder, SSOnRecorderEvent, _eventTarget);
+      gSSCurrentRecorder = _recorder;
     }
     return _recorder;
   }
@@ -135,6 +151,9 @@ RCT_EXPORT_MODULE(SoundScraper)
 - (void)finishRecordingForQuit
 {
   @synchronized(self) {
+    if (gSSCurrentRecorder == _recorder) {
+      gSSCurrentRecorder = NULL;
+    }
     ss_recorder_destroy(_recorder);
     _recorder = NULL;
   }
@@ -254,7 +273,9 @@ RCT_EXPORT_MODULE(SoundScraper)
 
 - (NSString *)recorderState
 {
-  return SSStateName(ss_recorder_state(_recorder)); // NULL reads as idle
+  // Creates the recorder on JS's first look (cheap; nothing is captured), so
+  // the visualizer view can show its idle look before the first recording.
+  return SSStateName(ss_recorder_state([self recorder]));
 }
 
 - (NSNumber *)recoverPartialRecordings

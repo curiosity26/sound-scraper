@@ -6,7 +6,9 @@ import { Pressable, View } from 'react-native';
 import { formatElapsed } from '../RecordBar';
 import type { RecorderState } from '../native/SoundScraper';
 import { type Message, useRecorder } from '../useRecorder';
-import { LevelMeter, VisualizerPlaceholder } from './LevelMeter';
+import { LevelMeter } from './LevelMeter';
+import { SkinAnimation } from './SkinAnimation';
+import { Visualizer } from './Visualizer';
 import { SkinButton } from './SkinButton';
 import { scaleRect, SkinImage, SpriteCell, useSkinScale } from './SkinImage';
 import { useSkin } from './SkinProvider';
@@ -227,12 +229,26 @@ export function MainPanel(): React.JSX.Element {
           style={{ position: 'absolute', left: 0, top: 0 }}
         />
       )}
-      {els.visualizer && <VisualizerPlaceholder element={els.visualizer} />}
+      {layout.animations.map((a, i) => (
+        <SkinAnimation
+          key={a.name ?? i}
+          animation={a}
+          state={r.state}
+          level={r.levels.peak}
+        />
+      ))}
+      {els.visualizer && (
+        <Visualizer
+          element={els.visualizer}
+          presets={skin.visualizer.presets}
+        />
+      )}
       {els.levels && (
         <LevelMeter
           element={els.levels}
           peak={r.levels.peak}
-          rms={r.levels.rms}
+          left={r.levels.left}
+          right={r.levels.right}
         />
       )}
       {els.elapsed && (

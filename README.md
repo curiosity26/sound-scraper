@@ -33,7 +33,10 @@ The main window is a skinned, frameless panel (WinAMP style). A skin is a folder
 - **Installing:** Settings › Skin › *Install skin…* validates the archive (≤25 MB, ≤500 files, ≤100 MB unpacked; no absolute, `..` or symlink paths; images, JSON and text only; images decoded, ≤4096 px a side) and installs it to `~/Library/Application Support/Sound Scraper/Skins/<id>/`. *Use skin folder…* loads an unpacked folder in place, for skin authors.
 - **Tools:** `cargo run -p sound_scraper_skin --example preview_skin -- <folder> out.png` renders a skin's panels without the app. `--example gen_default_skin` redraws the Default skin.
 
-C API: `ss_skin_load`, `ss_skin_load_current`, `ss_skin_install`, `ss_skins_list`, `ss_skin_remove` (JSON in and out). Windows keeps the plain UI until skins are ported.
+- **Visualizer (phase 2):** while recording or paused, the encoder thread feeds a lock-free ring that an analyzer thread (`core/crates/vis`, ~60 Hz) turns into spectrum bands with falling peaks, a waveform, L/R levels and a beat value. The native `SSVisualizerView` has the core draw each frame with tiny-skia on every display refresh (no JS per frame) in the skin preset's style: bars, scope, mirror, radial or fire. Click the visualizer to cycle the skin's presets. Idle, it shows the preset's grid and flat line. The level meters read the same analysis (left/right).
+- **Animations:** `animations` in a layout are sprite-frame loops (`frames`, `fps`, `play`: recording/active/always, `speed`: constant/level). The Default skin's tape reels spin while recording and stop when paused or idle.
+
+C API: `ss_skin_load`, `ss_skin_load_current`, `ss_skin_install`, `ss_skins_list`, `ss_skin_remove` (JSON in and out); `ss_vis_create`, `ss_vis_set_preset`, `ss_vis_render`, `ss_vis_is_live`, `ss_vis_destroy`. Windows keeps the plain UI until skins are ported.
 
 ## Recording (milestone 2)
 

@@ -96,7 +96,19 @@ function testSkin(): Skin {
           elapsed: el([4, 4, 60, 8], { font: 'lcd', align: 'right' }),
           source: el([4, 46, 100, 8], { font: 'lcd', style: { pad: true } }),
           levels: el([120, 4, 60, 8], { style: { segments: 10 } }),
+          visualizer: el([120, 14, 60, 12], { style: { grid: '#111111' } }),
         },
+        animations: [
+          {
+            name: 'reel',
+            rect: [150, 30, 20, 10],
+            sprite,
+            frames: ['normal', 'pressed'],
+            fps: 10,
+            play: 'recording',
+            speed: 'constant',
+          },
+        ],
         shade: null,
       },
       library: {
@@ -116,7 +128,12 @@ function testSkin(): Skin {
         controls: {},
       },
     },
-    visualizer: { presets: [] },
+    visualizer: {
+      presets: [
+        { name: 'Bars', style: 'bars' },
+        { name: 'Scope', style: 'scope' },
+      ],
+    },
     warnings: [],
   };
 }
@@ -258,4 +275,45 @@ test('double size scales the window and its drag regions', async () => {
     [0, 0, 400, 120],
     expect.arrayContaining([8, 60, 40, 20]),
   );
+});
+
+test('animations play by recorder state and speed', () => {
+  const {
+    animationPlays,
+    animationRate,
+  } = require('../src/skin/SkinAnimation');
+  expect(animationPlays('recording', 'recording')).toBe(true);
+  expect(animationPlays('recording', 'paused')).toBe(false);
+  expect(animationPlays('active', 'paused')).toBe(true);
+  expect(animationPlays('active', 'idle')).toBe(false);
+  expect(animationPlays('always', 'idle')).toBe(true);
+  expect(animationRate(12, 'constant', 0)).toBe(12);
+  expect(animationRate(12, 'level', 1)).toBeCloseTo(24);
+  expect(animationRate(12, 'level', 0)).toBeCloseTo(3.6);
+});
+
+test('the visualizer cycles presets on click', async () => {
+  const { nextPreset } = require('../src/skin/Visualizer');
+  expect(nextPreset(0, 3)).toBe(1);
+  expect(nextPreset(2, 3)).toBe(0);
+  expect(nextPreset(0, 0)).toBe(0);
+  const { skinStore } = require('../src/skin/skins');
+  const { MainPanel } = require('../src/skin/MainPanel');
+  const { SkinProvider } = require('../src/skin/SkinProvider');
+  skinStore.set(testSkin());
+  let tree: ReactTestRenderer.ReactTestRenderer | undefined;
+  await ReactTestRenderer.act(() => {
+    tree = ReactTestRenderer.create(
+      <SkinProvider>
+        <MainPanel />
+      </SkinProvider>,
+    );
+  });
+  const presetOf = () =>
+    JSON.parse(tree!.root.findByProps({ pixelated: true }).props.preset);
+  expect(presetOf()).toMatchObject({ name: 'Bars', grid: '#111111' });
+  await ReactTestRenderer.act(() => {
+    tree!.root.findByProps({ testID: 'visualizer' }).props.onPress();
+  });
+  expect(presetOf().name).toBe('Scope');
 });

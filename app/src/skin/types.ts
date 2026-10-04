@@ -64,11 +64,23 @@ export type ElementName =
   | 'shade'
   | 'close';
 
+export type SkinAnimationDef = {
+  name: string | null;
+  rect: Rect;
+  sprite: Sprite;
+  /** Sprite states in playing order. */
+  frames: string[];
+  fps: number;
+  play: 'recording' | 'active' | 'always';
+  speed: 'constant' | 'level';
+};
+
 export type SkinLayout = {
   size: [number, number];
   background: ImageRef | null;
   dragRegions: Rect[];
   elements: Partial<Record<ElementName, SkinElement>>;
+  animations: SkinAnimationDef[];
 };
 
 export type FramePanel = {

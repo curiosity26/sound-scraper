@@ -968,6 +968,16 @@ pub unsafe extern "C" fn ss_vis_render(
     .unwrap_or(false)
 }
 
+/// Whether a recording is live (active or paused), so frames change. Cheap;
+/// lets a view skip redrawing the idle look.
+///
+/// # Safety
+/// `vis` must be NULL or a live handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_vis_is_live(vis: *const SsVis) -> bool {
+    unsafe { vis.as_ref() }.is_some_and(|v| v.hub.is_active())
+}
+
 /// Destroys a visualizer. NULL is a no-op.
 ///
 /// # Safety

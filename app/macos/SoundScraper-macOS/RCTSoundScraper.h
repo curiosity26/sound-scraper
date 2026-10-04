@@ -9,4 +9,12 @@ NS_ASSUME_NONNULL_BEGIN
 @interface RCTSoundScraper : NativeSoundScraperSpecBase <NativeSoundScraperSpec>
 @end
 
+/// The recorder in use (NULL until JS first touches it); visualizer views
+/// read its analysis. Main thread.
+struct SsRecorder;
+#ifdef __cplusplus
+extern "C"
+#endif
+    struct SsRecorder *_Nullable SSCurrentRecorder(void);
+
 NS_ASSUME_NONNULL_END

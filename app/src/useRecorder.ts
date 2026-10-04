@@ -8,9 +8,17 @@ import {
   safeRecover,
   safeState,
 } from './appHelpers';
-import { type AudioApp, recorder, type RecorderState } from './native/SoundScraper';
+import {
+  type AudioApp,
+  recorder,
+  type RecorderState,
+} from './native/SoundScraper';
 
 export type Message = { text: string; isError: boolean };
+
+/** Linear 0..1: overall peak/RMS and each channel's peak. */
+export type Levels = { peak: number; rms: number; left: number; right: number };
+const SILENT: Levels = { peak: 0, rms: 0, left: 0, right: 0 };
 
 /**
  * Recorder state and actions for the skinned main panel: the capture
@@ -23,7 +31,7 @@ export function useRecorder() {
   const [state, setState] = useState<RecorderState>(() => safeState());
   const [starting, setStarting] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);
-  const [levels, setLevels] = useState({ peak: 0, rms: 0 });
+  const [levels, setLevels] = useState(SILENT);
   const [message, setMessage] = useState<Message>();
 
   useEffect(() => {
@@ -41,15 +49,23 @@ export function useRecorder() {
         case 'state':
           setState(e.state as RecorderState);
           if (e.state === 'idle') {
-            setLevels({ peak: 0, rms: 0 });
+            setLevels(SILENT);
           }
           break;
         case 'progress':
           setElapsedMs(e.elapsedMs);
-          setLevels({ peak: e.peak, rms: e.rms });
+          setLevels({
+            peak: e.peak,
+            rms: e.rms,
+            left: e.peakLeft ?? e.peak,
+            right: e.peakRight ?? e.peak,
+          });
           break;
         case 'finished':
-          setMessage({ text: `Saved ${baseName(e.path ?? '')}`, isError: false });
+          setMessage({
+            text: `Saved ${baseName(e.path ?? '')}`,
+            isError: false,
+          });
           break;
         case 'error':
           setMessage({ text: `Recording failed: ${e.message}`, isError: true });

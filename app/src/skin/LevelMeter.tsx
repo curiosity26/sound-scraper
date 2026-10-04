@@ -16,9 +16,10 @@ export function meterScale(level: number): number {
 
 type Props = {
   element: SkinElement;
-  /** Linear 0..1. */
+  /** Linear 0..1: the louder channel's peak, and each channel's. */
   peak: number;
-  rms: number;
+  left: number;
+  right: number;
 };
 
 const num = (v: unknown, fallback: number) =>
@@ -29,7 +30,7 @@ const color = (v: unknown, fallback: string) =>
 /**
  * The level meter. With a sprite, its "on" cell is revealed over the "off"
  * cell up to the level. Otherwise it draws segments from the style: rows
- * (1 = peak; 2 = peak and average), segments, gap, vertical, and the on, hot
+ * (1 = peak; 2 = left and right), segments, gap, vertical, and the on, hot
  * (top 30%), clip (top 10%) and off colors.
  */
 export function LevelMeter(props: Props): React.JSX.Element {
@@ -84,7 +85,8 @@ export function LevelMeter(props: Props): React.JSX.Element {
   const hot = color(st.hot, on);
   const clip = color(st.clip, hot);
   const off = color(st.off, '#00000033');
-  const levels = rows === 2 ? [peak, meterScale(props.rms)] : [peak];
+  const levels =
+    rows === 2 ? [meterScale(props.left), meterScale(props.right)] : [peak];
   const across = vertical ? w : h;
   const along = vertical ? h : w;
   const rowSize = (across - gap * (rows - 1)) / rows;

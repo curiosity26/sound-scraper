@@ -28,9 +28,14 @@ export type RecorderEvent = {
   state: string;
   /** Recorded time, excluding pauses. */
   elapsedMs: number;
-  /** Linear levels (0..1) over the last ~100 ms; 0 while paused. */
+  /** Linear levels (0..1) over the last ~100 ms (louder channel / mean). */
   peak: number;
   rms: number;
+  /** Per channel (macOS; Windows sends only peak/rms for now). */
+  peakLeft?: number;
+  peakRight?: number;
+  rmsLeft?: number;
+  rmsRight?: number;
   path: string | null;
   message: string | null;
 };

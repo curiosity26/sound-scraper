@@ -10,6 +10,7 @@
 		23A745E82D93E140EF816F07 /* RCTSoundScraper.mm in Sources */ = {isa = PBXBuildFile; fileRef = AF2788C4B7C1A4DEEEE2FC8D /* RCTSoundScraper.mm */; };
 		5142014D2437B4B30078DB4F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5142014C2437B4B30078DB4F /* AppDelegate.swift */; };
 		514201522437B4B40078DB4F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 514201512437B4B40078DB4F /* Assets.xcassets */; };
+		75E71F02484E2771737FCBC9 /* SSVisualizerView.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1D96829639D2D0C6BDE6B2E9 /* SSVisualizerView.mm */; };
 		7DA2F8BAA33E2107FB6F3B2F /* libmp3lame.0.dylib in Embed LAME (LGPL) */ = {isa = PBXBuildFile; fileRef = 7CE960E07A17729A1088F365 /* libmp3lame.0.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		947FFCBE3A77FD0F31586C1A /* RCTSoundScraperSkins.mm in Sources */ = {isa = PBXBuildFile; fileRef = 56FA495BE7C653BE46B56DAF /* RCTSoundScraperSkins.mm */; };
 		D57C0543DCA2748EE47094F0 /* SkinWindows.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD7DFE5FE4ACD6635EC0DC59 /* SkinWindows.swift */; };
@@ -36,6 +37,7 @@
 		0611457090C7612CA6A5F3B2 /* libPods-SoundScraper-macOS.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-SoundScraper-macOS.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07F961A680F5B00A75B9A /* SoundScraper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SoundScraper.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1940998ABA612338539CA664 /* Pods-SoundScraper-macOS.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SoundScraper-macOS.release.xcconfig"; path = "Target Support Files/Pods-SoundScraper-macOS/Pods-SoundScraper-macOS.release.xcconfig"; sourceTree = "<group>"; };
+		1D96829639D2D0C6BDE6B2E9 /* SSVisualizerView.mm */ = {isa = PBXFileReference; includeInIndex = 1; path = SSVisualizerView.mm; sourceTree = "<group>"; };
 		514201492437B4B30078DB4F /* SoundScraper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SoundScraper.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5142014C2437B4B30078DB4F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		514201512437B4B40078DB4F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -102,6 +104,7 @@
 				CD7DFE5FE4ACD6635EC0DC59 /* SkinWindows.swift */,
 				63681DA7C2EB0E182AE69100 /* RCTSoundScraperSkins.h */,
 				56FA495BE7C653BE46B56DAF /* RCTSoundScraperSkins.mm */,
+				1D96829639D2D0C6BDE6B2E9 /* SSVisualizerView.mm */,
 			);
 			path = "SoundScraper-macOS";
 			sourceTree = "<group>";
@@ -373,6 +376,7 @@
 				23A745E82D93E140EF816F07 /* RCTSoundScraper.mm in Sources */,
 				D57C0543DCA2748EE47094F0 /* SkinWindows.swift in Sources */,
 				947FFCBE3A77FD0F31586C1A /* RCTSoundScraperSkins.mm in Sources */,
+				75E71F02484E2771737FCBC9 /* SSVisualizerView.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
