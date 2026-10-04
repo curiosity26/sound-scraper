@@ -207,6 +207,10 @@ pub struct FramePanel {
     /// The close button, placed from the top right corner.
     #[serde(default)]
     pub close: Option<CloseDef>,
+    /// A menu button in the title bar (e.g. the details panel's actions),
+    /// placed like `close`.
+    #[serde(default)]
+    pub menu: Option<CloseDef>,
     /// Size of the resize hot corner at the bottom right (resizable panels).
     #[serde(default)]
     pub grip: Option<[i64; 2]>,

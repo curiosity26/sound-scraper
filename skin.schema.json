@@ -551,6 +551,26 @@
           "minItems": 2,
           "maxItems": 2,
           "description": "Resize hot corner at the bottom right (resizable panels), default [14, 14]."
+        },
+        "menu": {
+          "type": "object",
+          "required": [
+            "offset",
+            "size",
+            "sprite"
+          ],
+          "description": "A menu button in the title bar (the details panel's actions); offset is [right, top] from the top right corner.",
+          "properties": {
+            "offset": {
+              "$ref": "#/$defs/point"
+            },
+            "size": {
+              "$ref": "#/$defs/size"
+            },
+            "sprite": {
+              "$ref": "#/$defs/sprite"
+            }
+          }
         }
       }
     },

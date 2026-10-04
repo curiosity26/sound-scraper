@@ -1,6 +1,6 @@
 // Roots of the skinned UI's windows (registered in index.js). They share one
 // JS runtime, so the skin and library refreshes are shared between them.
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AboutPanel } from './AboutPanel';
@@ -158,7 +158,9 @@ function SettingsContent() {
   );
 }
 
-function DetailsContent() {
+function DetailsContent(props: {
+  menuRef: { current?: (x: number, y: number) => void };
+}) {
   const { fg, isDark } = usePanelText('details');
   const [fileNames, setFileNames] = useState(selection.get());
   useEffect(() => selection.subscribe(setFileNames), []);
@@ -180,6 +182,7 @@ function DetailsContent() {
         onChanged={refreshLibraryViews}
         onClose={close}
         showMenu={(items, x, y) => windows.showMenu(items, -1, x, y, 'details')}
+        menuRef={props.menuRef}
         textStyle={fg}
         isDark={isDark}
       />
@@ -190,6 +193,7 @@ function DetailsContent() {
 /** The details window: the selected recording(s). Closing it deselects. */
 export function DetailsApp(): React.JSX.Element {
   const [count, setCount] = useState(selection.get().length);
+  const menuRef = useRef<(x: number, y: number) => void>(undefined);
   useEffect(() => {
     const unsubscribe = selection.subscribe(names => setCount(names.length));
     const subscription = windows.onEvent(e => {
@@ -207,8 +211,9 @@ export function DetailsApp(): React.JSX.Element {
       <SkinPanelFrame
         panel="details"
         title={count > 1 ? `Details (${count})` : 'Details'}
+        onMenu={count > 0 ? (x, y) => menuRef.current?.(x, y) : undefined}
       >
-        <DetailsContent />
+        <DetailsContent menuRef={menuRef} />
       </SkinPanelFrame>
     </Skinned>
   );

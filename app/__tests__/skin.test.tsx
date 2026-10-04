@@ -120,6 +120,7 @@ function testSkin(): Skin {
         controls: {},
         title: null,
         close: null,
+        menu: null,
         grip: [14, 14],
       },
       settings: {
@@ -131,6 +132,7 @@ function testSkin(): Skin {
         controls: {},
         title: null,
         close: null,
+        menu: null,
         grip: [14, 14],
       },
       details: {
@@ -142,6 +144,7 @@ function testSkin(): Skin {
         controls: {},
         title: null,
         close: null,
+        menu: null,
         grip: [14, 14],
       },
     },

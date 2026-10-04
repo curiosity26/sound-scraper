@@ -10,12 +10,15 @@ import { SpriteCell, useSkinScale } from './SkinImage';
 import { useSkin } from './SkinProvider';
 import { type PanelName, windows } from './skins';
 import { SpriteText } from './SpriteText';
-import type { Rect } from './types';
+import type { FramePanel, Rect } from './types';
 
 type Props = {
   panel: PanelName;
   title: string;
   children: React.ReactNode;
+  /** The title bar's menu button (when the skin has one) was clicked; (x, y)
+   * is the point under it, in the window. */
+  onMenu?: (x: number, y: number) => void;
 };
 
 /**
@@ -40,6 +43,15 @@ export function SkinPanelFrame(props: Props): React.JSX.Element {
         close.size[1] * s,
       ]
     : null;
+  const menu = props.onMenu ? def.menu : null;
+  const menuRect: Rect | null = menu
+    ? [
+        w - (menu.offset[0] + menu.size[0]) * s,
+        menu.offset[1] * s,
+        menu.size[0] * s,
+        menu.size[1] * s,
+      ]
+    : null;
   const grip: Rect | null = def.resizable
     ? [
         w - def.grip[0] * s,
@@ -57,12 +69,12 @@ export function SkinPanelFrame(props: Props): React.JSX.Element {
     const min = def.minSize ?? [320, 200];
     windows.setPanelChrome(props.panel, {
       drag: [[0, 0, w, top]],
-      holes: closeRect ? [closeRect] : [],
+      holes: [closeRect, menuRect].filter((r): r is Rect => r !== null),
       grip,
       minSize: [min[0] * s, min[1] * s],
       scale: s,
     });
-    // closeRect/grip derive from these.
+    // closeRect/menuRect/grip derive from these.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.panel, w, h, top, s, def]);
 
@@ -124,35 +136,22 @@ export function SkinPanelFrame(props: Props): React.JSX.Element {
         </View>
       )}
       {close && closeRect && (
-        <Pressable
+        <TitleButton
           testID={`${props.panel}-close`}
-          accessibilityRole="button"
-          accessibilityLabel={`Close ${props.title}`}
+          label={`Close ${props.title}`}
+          button={close}
+          rect={closeRect}
           onPress={hide}
-          style={{
-            position: 'absolute',
-            left: closeRect[0],
-            top: closeRect[1],
-            width: closeRect[2],
-            height: closeRect[3],
-          }}
-        >
-          {({ pressed }) => (
-            <SpriteCell
-              image={close.sprite.image}
-              at={
-                close.sprite.states[
-                  buttonState(close.sprite.states, {
-                    pressed,
-                    active: false,
-                    disabled: false,
-                  })
-                ]
-              }
-              size={close.size}
-            />
-          )}
-        </Pressable>
+        />
+      )}
+      {menu && menuRect && props.onMenu && (
+        <TitleButton
+          testID={`${props.panel}-menu`}
+          label={`${props.title} actions`}
+          button={menu}
+          rect={menuRect}
+          onPress={() => props.onMenu?.(menuRect[0], menuRect[1] + menuRect[3])}
+        />
       )}
       <PanelThemeProvider value={theme}>
         <View
@@ -205,5 +204,47 @@ function Grip(props: { rect: Rect; color: string; scale: number }) {
     >
       {dots}
     </View>
+  );
+}
+
+/** A sprite button in the title bar (close, menu). */
+function TitleButton(props: {
+  testID: string;
+  label: string;
+  button: NonNullable<FramePanel['close']>;
+  rect: Rect;
+  onPress: () => void;
+}) {
+  const { button, rect } = props;
+  return (
+    <Pressable
+      testID={props.testID}
+      accessibilityRole="button"
+      accessibilityLabel={props.label}
+      onPress={props.onPress}
+      style={{
+        position: 'absolute',
+        left: rect[0],
+        top: rect[1],
+        width: rect[2],
+        height: rect[3],
+      }}
+    >
+      {({ pressed }) => (
+        <SpriteCell
+          image={button.sprite.image}
+          at={
+            button.sprite.states[
+              buttonState(button.sprite.states, {
+                pressed,
+                active: false,
+                disabled: false,
+              })
+            ]
+          }
+          size={button.size}
+        />
+      )}
+    </Pressable>
   );
 }

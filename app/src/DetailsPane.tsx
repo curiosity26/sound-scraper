@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  type GestureResponderEvent,
   Image,
   type LayoutChangeEvent,
   Platform,
@@ -57,8 +56,11 @@ type Props = {
   /** Something changed on disk (tags, name, trash). */
   onChanged: () => void;
   onClose: () => void;
-  /** The gear menu; without it (no native menus) the actions show as links. */
+  /** The actions menu; without it (no native menus) they show as links. */
   showMenu?: ShowMenu;
+  /** Set to a function that opens the actions menu at (x, y) in the window
+   * (the panel's title-bar menu button calls it). */
+  menuRef?: { current?: (x: number, y: number) => void };
   textStyle: object;
   isDark: boolean;
 };
@@ -216,22 +218,25 @@ export function DetailsPane(props: Props): React.JSX.Element {
     { label: `${TRASH_LABEL}…`, run: trash },
   ];
 
-  const openMenu = async (e: GestureResponderEvent) => {
+  const openMenu = async (x: number, y: number) => {
     if (!props.showMenu) {
       return;
     }
-    const { pageX, pageY } = e.nativeEvent;
     // A separator before the last (destructive) action.
     const labels = actions.map(a => a.label);
     const last = labels.length - 1;
     const items = [...labels.slice(0, last), '-', labels[last]];
-    const chosen = await props.showMenu(items, pageX, pageY + 8);
+    const chosen = await props.showMenu(items, x, y);
     if (chosen >= 0 && chosen < last) {
       actions[chosen].run();
     } else if (chosen === items.length - 1) {
       actions[last].run();
     }
   };
+
+  if (props.menuRef) {
+    props.menuRef.current = openMenu;
+  }
 
   const recording = single ? recordings[0] : undefined;
   // The cover leaves room below it for the file name and title (about
@@ -279,16 +284,6 @@ export function DetailsPane(props: Props): React.JSX.Element {
             </Text>
           )}
         </Pressable>
-        {props.showMenu && (
-          <Pressable
-            testID="details-menu"
-            accessibilityLabel="More actions"
-            onPress={openMenu}
-            style={[styles.gear, t.panel]}
-          >
-            <Text style={[styles.gearText, textStyle]}>⚙︎</Text>
-          </Pressable>
-        )}
       </View>
 
       {busy && <ActivityIndicator style={styles.busy} />}
@@ -489,18 +484,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
   },
-  gear: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#00000088',
-  },
-  gearText: { fontSize: 15 },
   busy: { marginTop: 6 },
   error: { color: colors.error, fontSize: 12, marginTop: 6 },
   fields: { marginTop: 10 },

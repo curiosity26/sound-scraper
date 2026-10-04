@@ -140,6 +140,7 @@ pub struct ResolvedFramePanel {
     pub controls: BTreeMap<String, String>,
     pub title: Option<ResolvedTitle>,
     pub close: Option<ResolvedClose>,
+    pub menu: Option<ResolvedClose>,
     pub grip: [i64; 2],
 }
 
@@ -613,23 +614,23 @@ impl Resolver<'_> {
             }
             None => None,
         };
-        let close = match &p.close {
-            Some(c) => {
-                let size = [c.size[0], c.size[1]];
-                check_size(size, &format!("{at}.close"))?;
-                let el = ElementDef {
-                    rect: [0, 0, size[0], size[1]],
-                    sprite: Some(c.sprite.clone()),
-                    font: None,
-                    text: None,
-                    align: None,
-                    style: None,
-                };
-                let sprite = self.element(&el, "close", size, &format!("{at}.close"))?.sprite.expect("sprite given");
-                Some(ResolvedClose { offset: c.offset, size, sprite })
-            }
-            None => None,
+        let mut title_button = |def: &Option<crate::manifest::CloseDef>, name: &str| -> Result<Option<ResolvedClose>, String> {
+            let Some(c) = def else { return Ok(None) };
+            let size = [c.size[0], c.size[1]];
+            check_size(size, &format!("{at}.{name}"))?;
+            let el = ElementDef {
+                rect: [0, 0, size[0], size[1]],
+                sprite: Some(c.sprite.clone()),
+                font: None,
+                text: None,
+                align: None,
+                style: None,
+            };
+            let sprite = self.element(&el, "close", size, &format!("{at}.{name}"))?.sprite.expect("sprite given");
+            Ok(Some(ResolvedClose { offset: c.offset, size, sprite }))
         };
+        let close = title_button(&p.close, "close")?;
+        let menu = title_button(&p.menu, "menu")?;
         let grip = p.grip.unwrap_or([14, 14]);
         if grip.iter().any(|v| *v < 0 || *v > 256) {
             return Err(format!("skin.json: {at}.grip must be between 0 and 256"));
@@ -643,6 +644,7 @@ impl Resolver<'_> {
             controls,
             title,
             close,
+            menu,
             grip,
         })
     }
@@ -795,6 +797,9 @@ fn merge_frame(mut p: ResolvedFramePanel, raw: Option<&FramePanel>, base: &Resol
     }
     if raw.close.is_none() {
         p.close = base.close.clone();
+    }
+    if raw.menu.is_none() {
+        p.menu = base.menu.clone();
     }
     if raw.grip.is_none() {
         p.grip = base.grip;

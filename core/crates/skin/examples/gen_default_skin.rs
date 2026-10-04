@@ -513,6 +513,14 @@ fn title_button(c: &mut Canvas, x: i32, y: i32, kind: char, pressed: bool) {
             c.rect(x + 3 + o, y + 3 + o, 6, 1, ink);
             c.rect(x + 3 + o, y + 6 + o, 6, 1, ink);
         }
+        '*' => {
+            // A little gear: a ring with four teeth.
+            let (cx, cy) = (x + 6 + o, y + 5 + o);
+            c.rect(cx - 1, cy - 3, 2, 6, ink);
+            c.rect(cx - 3, cy - 1, 6, 2, ink);
+            c.rect(cx - 2, cy - 2, 4, 4, ink);
+            c.rect(cx - 1, cy - 1, 2, 2, if pressed { CHAR_DARK } else { CHAR_MID });
+        }
         _ => {
             for i in 0..5 {
                 c.rect(x + 3 + i + o, y + 2 + i + o, 2, 1, ink);
@@ -839,6 +847,7 @@ fn main() {
     let minimize = sheet.add(12, 10, title('_'));
     let shade_btn = sheet.add(12, 10, title('='));
     let close = sheet.add(12, 10, title('x'));
+    let gear = sheet.add(12, 10, title('*'));
     let toggle = |w: i32, label: &'static str| -> States {
         [("normal", Key::Normal), ("pressed", Key::Pressed), ("active", Key::Active)]
             .iter()
@@ -968,6 +977,7 @@ fn main() {
                 "frame": { "image": "frame.png", "slice": [22, 6, 6, 6] },
                 "title": { "font": "tiny", "offset": [12, 8] },
                 "close": { "offset": [10, 7], "size": [12, 10], "sprite": sprite(&close) },
+                "menu": { "offset": [24, 7], "size": [12, 10], "sprite": sprite(&gear) },
                 "controls": {
                     "background": "@panel", "text": "@cream", "border": "#4a423c",
                     "accent": "@accent", "button": "@background", "buttonText": "@text"

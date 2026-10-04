@@ -85,6 +85,29 @@
           6
         ]
       },
+      "menu": {
+        "offset": [
+          24,
+          7
+        ],
+        "size": [
+          12,
+          10
+        ],
+        "sprite": {
+          "image": "buttons.png",
+          "states": {
+            "normal": [
+              294,
+              18
+            ],
+            "pressed": [
+              306,
+              18
+            ]
+          }
+        }
+      },
       "minSize": [
         240,
         320
@@ -547,15 +570,15 @@
             "image": "buttons.png",
             "states": {
               "active": [
-                426,
+                450,
                 18
               ],
               "normal": [
-                294,
+                318,
                 18
               ],
               "pressed": [
-                360,
+                384,
                 18
               ]
             }

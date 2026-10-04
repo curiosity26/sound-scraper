@@ -106,6 +106,12 @@ export type FramePanel = {
     size: [number, number];
     sprite: Sprite;
   } | null;
+  /** A title-bar menu button, placed like close. */
+  menu: {
+    offset: [number, number];
+    size: [number, number];
+    sprite: Sprite;
+  } | null;
   /** Resize corner size. */
   grip: [number, number];
 };
