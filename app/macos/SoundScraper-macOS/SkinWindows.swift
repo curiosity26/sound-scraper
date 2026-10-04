@@ -177,8 +177,13 @@ final class WindowController: NSObject, NSWindowDelegate {
       let first = panelScales[id] == nil
       panelScales[id] = scale
       if first {
-        // Its grip and minimums are known now: straighten the saved layout.
-        DispatchQueue.main.async { [weak self] in self?.tidy() }
+        // Its grip and minimums are known now: straighten the saved layout,
+        // and if it opened over another panel (it couldn't shrink before),
+        // place it again.
+        DispatchQueue.main.async { [weak self] in
+          self?.tidy()
+          self?.unoverlap(id)
+        }
       }
       // A panel's minimums for a new scale can arrive before the main
       // panel's change; the group's scaling then comes first.
@@ -219,6 +224,17 @@ final class WindowController: NSObject, NSWindowDelegate {
   @objc func setPanel(_ name: String, visible: Bool) {
     if visible {
       guard let window = panel(name) else { return }
+      if !window.isVisible {
+        // Open where it covers no other panel (its remembered spot if free).
+        let f = toTopLeft(window.frame)
+        // (A resizable panel may come back smaller to fit a crowded screen.)
+        if let spot = takeJSON(ss_layout_place(sceneJSON(), name, f.minX, f.minY, f.width, f.height)) as? [String: Any],
+          let x = spot["x"] as? Double, let y = spot["y"] as? Double,
+          let w = spot["w"] as? Double, let h = spot["h"] as? Double
+        {
+          window.setFrame(toAppKit(NSRect(x: x, y: y, width: w, height: h)), display: false)
+        }
+      }
       window.makeKeyAndOrderFront(nil)
       updateDocking()
       onEvent?(name, "shown")
@@ -302,6 +318,29 @@ final class WindowController: NSObject, NSWindowDelegate {
       updateDocking()
       saveLayout()
     }
+  }
+
+  /// Moves an open panel that covers another to a free spot (the app never
+  /// overlaps panels itself; the user may).
+  private func unoverlap(_ id: String) {
+    guard let window = window(id), window.isVisible else { return }
+    let f = toTopLeft(window.frame)
+    let covers = allWindows.contains { other in
+      guard other !== window, other.isVisible else { return false }
+      let o = toTopLeft(other.frame)
+      return min(f.maxX, o.maxX) - max(f.minX, o.minX) > 1 && min(f.maxY, o.maxY) - max(f.minY, o.minY) > 1
+    }
+    guard covers else { return }
+    window.orderOut(nil)
+    if let spot = takeJSON(ss_layout_place(sceneJSON(), id, f.minX, f.minY, f.width, f.height)) as? [String: Any],
+      let x = spot["x"] as? Double, let y = spot["y"] as? Double,
+      let w = spot["w"] as? Double, let h = spot["h"] as? Double
+    {
+      window.setFrame(toAppKit(NSRect(x: x, y: y, width: w, height: h)), display: false)
+    }
+    window.orderFront(nil)
+    updateDocking()
+    saveLayout()
   }
 
   /// Lines up docked panels (see Scene::tidy in core/crates/layout).

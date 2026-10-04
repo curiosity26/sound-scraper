@@ -216,6 +216,11 @@ fn clamp_shift(start: f64, len: f64, lo: f64, hi: f64) -> f64 {
     }
 }
 
+/// Whether two rects overlap by more than a shared edge.
+fn overlaps(a: &Rect, b: &Rect) -> bool {
+    a.h_overlap(b) > TOUCH && a.v_overlap(b) > TOUCH
+}
+
 /// The best adjustment within [`SNAP`]: smallest in size.
 fn best(candidates: impl Iterator<Item = f64>) -> f64 {
     candidates.filter(|d| d.abs() <= SNAP).min_by(|a, b| a.abs().total_cmp(&b.abs())).unwrap_or(0.0)
@@ -327,8 +332,15 @@ impl Drag {
             let bottom = column.iter().map(|&k| self.scene.panels[k].frame.bottom()).fold(f64::MIN, f64::max);
             let span = bottom - top;
             let aligned = (f.y - top).abs() <= TOUCH || (f.bottom() - bottom).abs() <= TOUCH;
-            if aligned && span >= p.min_h && span >= f.h * 0.5 && span <= f.h * 2.0 {
-                return Rect { y: top, h: span, ..f };
+            let spanned = Rect { y: top, h: span, ..f };
+            let clear = self
+                .scene
+                .panels
+                .iter()
+                .enumerate()
+                .all(|(k, o)| k == i || !o.visible || !overlaps(&spanned, &o.frame));
+            if aligned && clear && span >= p.min_h && span >= f.h * 0.5 && span <= f.h * 2.0 {
+                return spanned;
             }
         }
         f
@@ -336,6 +348,107 @@ impl Drag {
 }
 
 impl Scene {
+    /// Where to open panel `id` with frame `want` (its remembered or
+    /// default spot) without covering an open panel: `want` if that's free;
+    /// else docked at the next free edge of the main panel's group: right of
+    /// its rightmost panel (top-aligned with the group, then with that
+    /// panel), below the group, left of it, above it; then beside any open
+    /// panel. Always on a screen. Falls back to `want`.
+    pub fn place(&self, id: &str, want: Rect) -> Rect {
+        let others: Vec<(usize, Rect)> = self
+            .panels
+            .iter()
+            .enumerate()
+            .filter(|(_, p)| p.visible && p.id != id)
+            .map(|(i, p)| (i, p.frame))
+            .collect();
+        let on_screen = |r: &Rect| {
+            self.screens.is_empty()
+                || self.screens.iter().any(|s| {
+                    r.x >= s.x - TOUCH
+                        && r.y >= s.y - TOUCH
+                        && r.right() <= s.right() + TOUCH
+                        && r.bottom() <= s.bottom() + TOUCH
+                })
+        };
+        let free = |r: &Rect| on_screen(r) && others.iter().all(|(_, o)| !overlaps(r, o));
+        if free(&want) {
+            return want;
+        }
+        let mut candidates = Vec::new();
+        let group: Vec<Rect> = match self.index(MAIN) {
+            Some(m) => self
+                .docked_chain(m)
+                .into_iter()
+                .filter(|&i| self.panels[i].id != id && self.panels[i].visible)
+                .map(|i| self.panels[i].frame)
+                .collect(),
+            None => Vec::new(),
+        };
+        if !group.is_empty() {
+            let left = group.iter().map(|r| r.x).fold(f64::MAX, f64::min);
+            let top = group.iter().map(|r| r.y).fold(f64::MAX, f64::min);
+            let right = group.iter().map(|r| r.right()).fold(f64::MIN, f64::max);
+            let bottom = group.iter().map(|r| r.bottom()).fold(f64::MIN, f64::max);
+            candidates.push(Rect { x: right, y: top, ..want });
+            for r in group.iter().filter(|r| (r.right() - right).abs() <= TOUCH) {
+                candidates.push(Rect { x: right, y: r.y, ..want });
+            }
+            candidates.push(Rect { x: left, y: bottom, ..want });
+            candidates.push(Rect { x: left - want.w, y: top, ..want });
+            candidates.push(Rect { x: left, y: top - want.h, ..want });
+        }
+        for (_, o) in &others {
+            candidates.extend([
+                Rect { x: o.right(), y: o.y, ..want },
+                Rect { x: o.x, y: o.bottom(), ..want },
+                Rect { x: o.x - want.w, y: o.y, ..want },
+                Rect { x: o.x, y: o.y - want.h, ..want },
+            ]);
+        }
+        if let Some(c) = candidates.iter().find(|c| free(c)) {
+            return *c;
+        }
+        // No room at its size: a resizable panel tries its minimum size.
+        let me = self.index(id).map(|i| &self.panels[i]);
+        let mut small_candidates = Vec::new();
+        if let Some(p) = me
+            && p.resizable
+            && (p.min_w < want.w || p.min_h < want.h)
+        {
+            let (w, h) = (p.min_w.max(1.0).min(want.w), p.min_h.max(1.0).min(want.h));
+            // Re-anchor "left of" and "above" spots to the smaller size.
+            for c in &candidates {
+                small_candidates.push(Rect { w, h, ..*c });
+                small_candidates.push(Rect { x: c.right() - w, w, h, ..*c });
+                small_candidates.push(Rect { y: c.bottom() - h, w, h, ..*c });
+            }
+            if let Some(c) = small_candidates.iter().find(|c| free(c)) {
+                return *c;
+            }
+        }
+        // Still no room (a small screen): on a screen, covering as little as
+        // possible.
+        let covered = |r: &Rect| -> f64 {
+            others.iter().map(|(_, o)| r.h_overlap(o).max(0.0) * r.v_overlap(o).max(0.0)).sum()
+        };
+        std::iter::once(want)
+            .chain(candidates)
+            .chain(small_candidates)
+            .map(|c| self.onto_screen(c))
+            .min_by(|a, b| covered(a).total_cmp(&covered(b)))
+            .unwrap_or(want)
+    }
+
+    /// `r` moved (not resized) to lie on its nearest screen, as far as it fits.
+    fn onto_screen(&self, r: Rect) -> Rect {
+        if self.screens.is_empty() {
+            return r;
+        }
+        let s = nearest_screen(&self.screens, &r);
+        r.offset(clamp_shift(r.x, r.w, s.x, s.right()), clamp_shift(r.y, r.h, s.y, s.bottom()))
+    }
+
     /// The vertical column `i` belongs to: visible panels stacked edge to
     /// edge with the same left and right edges (`i` included).
     pub fn column(&self, i: usize) -> Vec<usize> {
@@ -413,6 +526,27 @@ impl Scene {
                 h = h.min(bh);
             }
             out.push(Placement { id: p.id.clone(), frame: Rect::new(x, y, w, h) });
+        }
+        // A panel outside the group that the change now covers moves to a
+        // free spot (the app never creates overlaps; the user may).
+        let mut scaled = self.clone();
+        for (p, o) in scaled.panels.iter_mut().zip(&out) {
+            p.frame = o.frame;
+        }
+        #[allow(clippy::needless_range_loop)]
+        for i in 0..scaled.panels.len() {
+            if group.contains(&i) || !scaled.panels[i].visible {
+                continue;
+            }
+            let f = scaled.panels[i].frame;
+            let was = |k: usize| overlaps(&self.panels[i].frame, &self.panels[k].frame);
+            let covered = (0..scaled.panels.len())
+                .any(|k| k != i && scaled.panels[k].visible && overlaps(&f, &scaled.panels[k].frame) && !was(k));
+            if covered {
+                let spot = scaled.place(&scaled.panels[i].id.clone(), f);
+                scaled.panels[i].frame = spot;
+                out[i].frame = spot;
+            }
         }
         out
     }

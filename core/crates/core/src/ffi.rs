@@ -1103,6 +1103,30 @@ pub unsafe extern "C" fn ss_layout_scale(scene_json: *const c_char, ratio: f64) 
     json_or_null(parse_scene(scene_json).map(|scene| scene.scale(ratio)))
 }
 
+/// Where to open panel `id`, given its remembered or default frame (x, y,
+/// w, h): that frame if it covers no open panel, else docked at the next
+/// free edge of the main panel's group, on a screen. JSON `{"x", "y", "w",
+/// "h"}`; free with `ss_string_free`; NULL on failure.
+///
+/// # Safety
+/// `scene_json` and `id` must be NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_layout_place(
+    scene_json: *const c_char,
+    id: *const c_char,
+    x: f64,
+    y: f64,
+    w: f64,
+    h: f64,
+) -> *mut c_char {
+    let result = (|| {
+        let scene = parse_scene(scene_json)?;
+        let id = unsafe { arg_str(id, "id")? };
+        Ok(scene.place(id, sound_scraper_layout::Rect::new(x, y, w, h)))
+    })();
+    json_or_null(result)
+}
+
 fn layout_path() -> std::path::PathBuf {
     crate::paths::app_data_dir().join("layout.json")
 }

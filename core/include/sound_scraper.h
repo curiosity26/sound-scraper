@@ -701,6 +701,22 @@ char *ss_layout_analyze(const char *scene_json);
 char *ss_layout_scale(const char *scene_json, double ratio);
 
 /*
+ Where to open panel `id`, given its remembered or default frame (x, y,
+ w, h): that frame if it covers no open panel, else docked at the next
+ free edge of the main panel's group, on a screen. JSON `{"x", "y", "w",
+ "h"}`; free with `ss_string_free`; NULL on failure.
+
+ # Safety
+ `scene_json` and `id` must be NUL-terminated UTF-8.
+ */
+char *ss_layout_place(const char *scene_json,
+                      const char *id,
+                      double x,
+                      double y,
+                      double w,
+                      double h);
+
+/*
  The saved layout, `{"version", "panels": [{"id", "x", "y", "w", "h",
  "visible"}]}`, or "null" when none was saved. Free with `ss_string_free`.
  */

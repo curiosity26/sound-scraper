@@ -161,18 +161,22 @@ fn resize_snaps_edges() {
 fn double_size_scales_the_docked_group() {
     let mut s = scene();
     s.panels.push(panel("loose", 1500.0, 700.0, 200.0, 100.0));
+    s.screens = vec![Rect::new(0.0, 25.0, 3000.0, 2000.0)];
     let out = s.scale(2.0);
     assert_eq!(frame(&out, "main"), Rect::new(100.0, 100.0, 840.0, 300.0));
     assert_eq!(frame(&out, "library"), Rect::new(100.0, 400.0, 840.0, 600.0));
     assert_eq!(frame(&out, "settings"), Rect::new(940.0, 100.0, 600.0, 800.0));
-    assert_eq!(frame(&out, "loose"), Rect::new(1500.0, 700.0, 400.0, 200.0), "grows in place");
+    // It grows in place, but settings now covers that spot, so it moves.
+    let loose = frame(&out, "loose");
+    assert_eq!((loose.w, loose.h), (400.0, 200.0));
+    assert!(!overlaps(&loose, &frame(&out, "settings")));
     // And back.
     let back = Scene {
         panels: out.iter().map(|p| panel(&p.id, p.frame.x, p.frame.y, p.frame.w, p.frame.h)).collect(),
         screens: s.screens.clone(),
     };
     let again = back.scale(0.5);
-    for p in &s.panels {
+    for p in s.panels.iter().filter(|p| p.id != "loose") {
         assert_eq!(frame(&again, &p.id), p.frame, "{}", p.id);
     }
     // Capped to the screen.
@@ -332,4 +336,124 @@ fn resizing_snaps_the_bottom_to_a_neighbor_stack() {
     s.panels[2].frame = Rect::new(520.0, 100.0, 300.0, 400.0); // settings beside main+library (bottom 550)
     let out = Resize::begin(s, "settings", 100.0, 100.0).unwrap().update(0.0, 56.0, true); // bottom to 556, 6 below the stack
     assert_eq!(frame(&out, "settings").bottom(), 550.0);
+}
+
+#[test]
+fn opening_a_panel_avoids_the_others() {
+    // Main over the library, details docked right of the library. Settings'
+    // default spot (right of main, 400 tall) would cover details.
+    let s = Scene {
+        panels: vec![
+            panel("main", 100.0, 100.0, 420.0, 150.0),
+            panel("library", 100.0, 250.0, 420.0, 240.0),
+            panel("details", 520.0, 250.0, 300.0, 320.0),
+            Panel { visible: false, ..panel("settings", 0.0, 0.0, 1.0, 1.0) },
+        ],
+        screens: vec![Rect::new(0.0, 25.0, 1920.0, 1000.0)],
+    };
+    let want = Rect::new(520.0, 100.0, 360.0, 400.0);
+    let got = s.place("settings", want);
+    assert_eq!(got, Rect::new(820.0, 100.0, 360.0, 400.0), "right of the group, top-aligned");
+    // A free spot is kept.
+    assert_eq!(s.place("settings", Rect::new(1200.0, 100.0, 360.0, 400.0)), Rect::new(1200.0, 100.0, 360.0, 400.0));
+    // Touching edges isn't overlapping.
+    assert_eq!(s.place("settings", Rect::new(520.0, 100.0, 360.0, 150.0)), Rect::new(520.0, 100.0, 360.0, 150.0));
+    // No room on the screen to the right: goes elsewhere on screen.
+    let mut narrow = s.clone();
+    narrow.screens = vec![Rect::new(0.0, 25.0, 1000.0, 1000.0)];
+    let got = narrow.place("settings", want);
+    assert!(got.right() <= 1000.0 && got.y >= 25.0, "{got:?}");
+    for p in &narrow.panels[..3] {
+        assert!(!got.intersects(&p.frame), "{got:?} overlaps {}", p.id);
+    }
+}
+
+/// Applies placements and checks no two visible panels overlap.
+fn assert_overlap_free(s: &Scene, out: &[Placement]) {
+    let mut scene = s.clone();
+    for p in out {
+        let i = scene.index(&p.id).unwrap();
+        scene.panels[i].frame = p.frame;
+    }
+    let v: Vec<&Panel> = scene.panels.iter().filter(|p| p.visible).collect();
+    for (i, a) in v.iter().enumerate() {
+        for b in &v[i + 1..] {
+            assert!(!overlaps(&a.frame, &b.frame), "{} overlaps {}: {:?} {:?}", a.id, b.id, a.frame, b.frame);
+        }
+    }
+}
+
+#[test]
+fn the_app_never_creates_overlaps() {
+    let mut set = panel("settings", 520.0, 100.0, 300.0, 400.0);
+    set.resizable = true;
+    let mut det = panel("details", 820.0, 100.0, 300.0, 320.0);
+    det.resizable = true;
+    let base = Scene {
+        panels: vec![panel("main", 100.0, 100.0, 420.0, 150.0), panel("library", 100.0, 250.0, 420.0, 240.0), set, det],
+        screens: vec![Rect::new(0.0, 25.0, 1920.0, 1000.0)],
+    };
+    // Double size and back.
+    assert_overlap_free(&base, &base.scale(2.0));
+    // A loose panel the group grows into moves to a free spot.
+    let mut loose = base.clone();
+    loose.panels.push(panel("loose", 600.0, 700.0, 200.0, 100.0));
+    loose.screens = vec![Rect::new(0.0, 25.0, 3000.0, 2000.0)];
+    let out = loose.scale(2.0);
+    assert_overlap_free(&loose, &out);
+    assert_ne!(frame(&out, "loose"), Rect::new(600.0, 700.0, 400.0, 200.0));
+    // Tidy: settings spans the stack only if nothing is in the way.
+    assert_overlap_free(&base, &base.tidy());
+    let mut blocked = base.clone();
+    blocked.panels[2].frame = Rect::new(520.0, 100.0, 300.0, 200.0);
+    blocked.panels[2].resizable = true;
+    blocked.panels.push(panel("below", 520.0, 300.0, 300.0, 100.0));
+    assert!(blocked.tidy().iter().all(|p| p.id != "settings"), "can't span over 'below'");
+    // Opening details, then settings, in either order.
+    for (first, second) in [("details", "settings"), ("settings", "details")] {
+        let mut s = base.clone();
+        s.panels[2].visible = false;
+        s.panels[3].visible = false;
+        let a = s.index(first).unwrap();
+        s.panels[a].frame = s.place(first, Rect::new(520.0, 100.0, 300.0, 400.0));
+        s.panels[a].visible = true;
+        let spot = s.place(second, Rect::new(520.0, 100.0, 300.0, 400.0));
+        assert_overlap_free(&s, &[Placement { id: second.into(), frame: spot }]);
+    }
+    // The user may overlap panels: a resize into a neighbor stays as asked.
+    let mut apart = base.clone();
+    apart.panels[3].frame.x = 900.0; // details not docked to settings
+    let out = Resize::begin(apart, "settings", 100.0, 100.0).unwrap().update(200.0, 0.0, false);
+    assert_eq!(frame(&out, "settings").w, 500.0);
+    assert!(out.iter().all(|p| p.id != "details"), "details isn't pushed");
+}
+
+#[test]
+fn placing_on_a_crowded_screen_shrinks_or_overlaps_least() {
+    // Double size on a laptop: main+library 840 wide, details 480 to the
+    // left; settings (920×780) can't fit anywhere at its size.
+    let mut settings = panel("settings", -163.0, 326.0, 920.0, 780.0);
+    settings.visible = false;
+    settings.resizable = true;
+    settings.min_w = 280.0;
+    settings.min_h = 280.0;
+    let s = Scene {
+        panels: vec![
+            panel("main", 757.0, 326.0, 840.0, 300.0),
+            panel("library", 757.0, 626.0, 840.0, 480.0),
+            panel("details", 277.0, 326.0, 480.0, 640.0),
+            settings,
+        ],
+        screens: vec![Rect::new(0.0, 33.0, 1728.0, 1084.0)],
+    };
+    let got = s.place("settings", Rect::new(-163.0, 326.0, 920.0, 780.0));
+    assert!(got.x >= 0.0 && got.right() <= 1728.0 && got.y >= 33.0, "on screen: {got:?}");
+    for p in &s.panels[..3] {
+        assert!(!overlaps(&got, &p.frame), "{got:?} covers {}", p.id);
+    }
+    // Not resizable: on screen, as little overlap as possible.
+    let mut fixed = s.clone();
+    fixed.panels[3].resizable = false;
+    let got = fixed.place("settings", Rect::new(-163.0, 326.0, 920.0, 780.0));
+    assert!(got.x >= 0.0 && got.right() <= 1728.0, "on screen: {got:?}");
 }
