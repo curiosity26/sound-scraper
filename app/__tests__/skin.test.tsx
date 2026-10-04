@@ -401,3 +401,17 @@ test('panel frames report their chrome and theme their content', async () => {
   });
   expect(mockSkins.setPanelVisible).toHaveBeenCalledWith('library', false);
 });
+
+test('narrow libraries hide the less important columns', () => {
+  const { visibleColumns } = require('../src/LibraryTable');
+  expect(visibleColumns(0)).toEqual([
+    'name',
+    'duration',
+    'date',
+    'size',
+    'artist',
+  ]);
+  expect(visibleColumns(700)).toHaveLength(5);
+  expect(visibleColumns(500)).toEqual(['name', 'duration', 'date', 'size']);
+  expect(visibleColumns(400)).toEqual(['name', 'duration', 'date']);
+});

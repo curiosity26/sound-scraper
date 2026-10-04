@@ -774,10 +774,10 @@
         ]
       },
       "minSize": [
-        420,
-        480
+        360,
+        340
       ],
-      "resizable": false,
+      "resizable": true,
       "title": {
         "font": "tiny",
         "offset": [

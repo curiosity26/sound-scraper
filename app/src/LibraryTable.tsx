@@ -39,7 +39,18 @@ type Props = {
   onCheckedChange: (checked: Set<string>) => void;
   textStyle: object;
   isDark: boolean;
+  /** In a skinned panel: no heading or top margin (the title shows the count). */
+  compact?: boolean;
 };
+
+/** Columns that fit a table `width` points wide (0 = not measured yet). */
+export function visibleColumns(width: number): SortKey[] {
+  return COLUMNS.map(c => c.key).filter(
+    key =>
+      width === 0 ||
+      (key === 'artist' ? width >= 620 : key === 'size' ? width >= 470 : true),
+  );
+}
 
 const isWindows = Platform.OS === 'windows';
 const REVEAL_LABEL = isWindows ? 'Show in Explorer' : 'Show in Finder';
@@ -61,6 +72,8 @@ export function LibraryTable(props: Props): React.JSX.Element {
   const scrollbar = usePanelTheme()?.scrollbar;
   const list = useRef<FlatList<Recording>>(null);
   const [scroll, setScroll] = useState({ viewport: 0, content: 0, offset: 0 });
+  const [width, setWidth] = useState(0);
+  const shown = visibleColumns(width);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<Sort>(DEFAULT_SORT);
   const [selected, setSelected] = useState<string>();
@@ -114,16 +127,21 @@ export function LibraryTable(props: Props): React.JSX.Element {
     );
 
   return (
-    <View style={styles.root}>
+    <View
+      style={[styles.root, props.compact && styles.rootCompact]}
+      onLayout={e => setWidth(e.nativeEvent.layout.width)}
+    >
       <View style={styles.toolbar}>
-        <Text style={[styles.section, textStyle, t.text]}>
-          Library{' '}
-          <Text style={styles.count}>
-            {rows.length === recordings.length
-              ? recordings.length
-              : `${rows.length} of ${recordings.length}`}
+        {!props.compact && (
+          <Text style={[styles.section, textStyle, t.text]}>
+            Library{' '}
+            <Text style={styles.count}>
+              {rows.length === recordings.length
+                ? recordings.length
+                : `${rows.length} of ${recordings.length}`}
+            </Text>
           </Text>
-        </Text>
+        )}
         {checked.size > 0 && (
           <Pressable
             testID="edit-checked-tags"
@@ -154,7 +172,7 @@ export function LibraryTable(props: Props): React.JSX.Element {
             {allChecked ? '☑' : '☐'}
           </Text>
         </Pressable>
-        {COLUMNS.map(c => (
+        {COLUMNS.filter(c => shown.includes(c.key)).map(c => (
           <Pressable
             key={c.key}
             style={{ flex: c.flex }}
@@ -260,30 +278,37 @@ export function LibraryTable(props: Props): React.JSX.Element {
                   </View>
                   <Text
                     style={[styles.cell, cellText, { flex: COLUMNS[1].flex }]}
+                    numberOfLines={1}
                   >
                     {formatDuration(r.durationMs)}
                   </Text>
                   <Text
                     style={[styles.cell, cellText, { flex: COLUMNS[2].flex }]}
+                    numberOfLines={1}
                   >
                     {formatDate(r.recordedAtMs)}
                   </Text>
-                  <Text
-                    style={[styles.cell, cellText, { flex: COLUMNS[3].flex }]}
-                  >
-                    {formatSize(r.sizeBytes)}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.cell,
-                      styles.dim,
-                      cellText,
-                      { flex: COLUMNS[4].flex },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {[r.artist, r.album].filter(Boolean).join(' / ') || '—'}
-                  </Text>
+                  {shown.includes('size') && (
+                    <Text
+                      style={[styles.cell, cellText, { flex: COLUMNS[3].flex }]}
+                      numberOfLines={1}
+                    >
+                      {formatSize(r.sizeBytes)}
+                    </Text>
+                  )}
+                  {shown.includes('artist') && (
+                    <Text
+                      style={[
+                        styles.cell,
+                        styles.dim,
+                        cellText,
+                        { flex: COLUMNS[4].flex },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {[r.artist, r.album].filter(Boolean).join(' / ') || '—'}
+                    </Text>
+                  )}
                 </Pressable>
                 {isSelected && (
                   <View style={[styles.actions, t.rowSelected]}>
@@ -433,4 +458,5 @@ const styles = StyleSheet.create({
   checkText: { fontSize: 14 },
   empty: { padding: 16, opacity: 0.6, fontSize: 13 },
   listBox: { flex: 1 },
+  rootCompact: { marginTop: 0 },
 });

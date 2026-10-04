@@ -22,6 +22,9 @@ use serde::{Deserialize, Serialize};
 pub const SNAP: f64 = 10.0;
 /// Edges this close count as touching.
 const TOUCH: f64 = 1.0;
+/// Panels whose left and right edges are this close stack into a column
+/// (and get lined up exactly when it's resized).
+const COLUMN_ALIGN: f64 = 4.0;
 /// How much of a panel's top strip must stay on a screen.
 const KEEP_VISIBLE: f64 = 40.0;
 
@@ -71,6 +74,21 @@ pub struct Panel {
     pub frame: Rect,
     #[serde(default = "yes")]
     pub visible: bool,
+    /// Whether the user can resize it, and its minimum size.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub resizable: bool,
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub min_w: f64,
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub min_h: f64,
+}
+
+fn is_false(v: &bool) -> bool {
+    !*v
+}
+
+fn is_zero(v: &f64) -> bool {
+    *v == 0.0
 }
 
 fn yes() -> bool {
@@ -268,59 +286,201 @@ impl Drag {
         } else {
             (0.0, 0.0)
         };
-        self.moving
+        let mut out: Vec<Placement> = self
+            .moving
             .iter()
             .zip(moved)
             .map(|(&i, f)| Placement { id: self.scene.panels[i].id.clone(), frame: f.offset(sx, sy) })
-            .collect()
+            .collect();
+        if snap && let [single] = self.moving.as_slice() {
+            out[0].frame = self.span_stack(*single, out[0].frame);
+        }
+        out
+    }
+
+    /// A resizable panel docked beside a vertical stack with its top or
+    /// bottom lined up takes the stack's height, when that's within reason
+    /// (at least its minimum, and between half and twice its height).
+    fn span_stack(&self, i: usize, f: Rect) -> Rect {
+        let p = &self.scene.panels[i];
+        // Only side panels: one stacked above or below something keeps the
+        // column's rules instead.
+        let stacked = self.scene.panels.iter().enumerate().any(|(j, q)| {
+            j != i
+                && q.visible
+                && ((q.frame.bottom() - f.y).abs() <= TOUCH || (f.bottom() - q.frame.y).abs() <= TOUCH)
+                && q.frame.h_overlap(&f) > 0.0
+        });
+        if !p.resizable || stacked {
+            return f;
+        }
+        for (j, q) in self.scene.panels.iter().enumerate() {
+            let beside = (q.frame.right() - f.x).abs() <= TOUCH || (f.right() - q.frame.x).abs() <= TOUCH;
+            if j == i || !q.visible || !beside || q.frame.v_overlap(&f) <= 0.0 {
+                continue;
+            }
+            let column = self.scene.column(j);
+            if column.len() < 2 {
+                continue;
+            }
+            let top = column.iter().map(|&k| self.scene.panels[k].frame.y).fold(f64::MAX, f64::min);
+            let bottom = column.iter().map(|&k| self.scene.panels[k].frame.bottom()).fold(f64::MIN, f64::max);
+            let span = bottom - top;
+            let aligned = (f.y - top).abs() <= TOUCH || (f.bottom() - bottom).abs() <= TOUCH;
+            if aligned && span >= p.min_h && span >= f.h * 0.5 && span <= f.h * 2.0 {
+                return Rect { y: top, h: span, ..f };
+            }
+        }
+        f
+    }
+}
+
+impl Scene {
+    /// The vertical column `i` belongs to: visible panels stacked edge to
+    /// edge with the same left and right edges (`i` included).
+    pub fn column(&self, i: usize) -> Vec<usize> {
+        let same = |a: f64, b: f64| (a - b).abs() <= COLUMN_ALIGN;
+        let mut col = vec![i];
+        let mut k = 0;
+        while k < col.len() {
+            let a = self.panels[col[k]].frame;
+            for (j, p) in self.panels.iter().enumerate() {
+                let b = p.frame;
+                let stacked = (b.y - a.bottom()).abs() <= TOUCH || (a.y - b.bottom()).abs() <= TOUCH;
+                if p.visible && !col.contains(&j) && stacked && same(a.x, b.x) && same(a.right(), b.right()) {
+                    col.push(j);
+                }
+            }
+            k += 1;
+        }
+        col
+    }
+
+    /// Straightens a saved layout: panels in the main panel's column line
+    /// up with it exactly, and resizable panels docked beside a stack with
+    /// their top or bottom lined up span it (see [`Drag`]).
+    pub fn tidy(&self) -> Vec<Placement> {
+        let mut scene = self.clone();
+        let mut out: Vec<Placement> = Vec::new();
+        let place = |scene: &mut Scene, i: usize, f: Rect, out: &mut Vec<Placement>| {
+            if scene.panels[i].frame != f {
+                scene.panels[i].frame = f;
+                out.retain(|p| p.id != scene.panels[i].id);
+                out.push(Placement { id: scene.panels[i].id.clone(), frame: f });
+            }
+        };
+        if let Some(m) = scene.index(MAIN) {
+            let main = scene.panels[m].frame;
+            for j in scene.column(m) {
+                let f = Rect { x: main.x, w: main.w, ..scene.panels[j].frame };
+                place(&mut scene, j, f, &mut out);
+            }
+        }
+        for i in 0..scene.panels.len() {
+            if scene.panels[i].visible {
+                let drag = Drag { scene: scene.clone(), moving: vec![i] };
+                let f = drag.span_stack(i, scene.panels[i].frame);
+                place(&mut scene, i, f, &mut out);
+            }
+        }
+        out
+    }
+
+    /// Scales the layout by `ratio` for a double-size change: the main
+    /// panel's docked group keeps its shape around the main panel's top-left
+    /// corner; other panels grow or shrink in place. Side panel sizes are
+    /// capped to the largest screen.
+    pub fn scale(&self, ratio: f64) -> Vec<Placement> {
+        let main = self.index(MAIN);
+        let group = main.map(|m| self.docked_chain(m)).unwrap_or_default();
+        let origin = main.map(|m| self.panels[m].frame);
+        let biggest = self.screens.iter().fold(None, |acc: Option<(f64, f64)>, s| match acc {
+            None => Some((s.w, s.h)),
+            Some((w, h)) => Some((w.max(s.w), h.max(s.h))),
+        });
+        let mut out = Vec::new();
+        for (i, p) in self.panels.iter().enumerate() {
+            let f = p.frame;
+            let (x, y) = match origin {
+                Some(o) if group.contains(&i) => (o.x + (f.x - o.x) * ratio, o.y + (f.y - o.y) * ratio),
+                _ => (f.x, f.y),
+            };
+            let (mut w, mut h) = (f.w * ratio, f.h * ratio);
+            if let Some((bw, bh)) = biggest
+                && p.id != MAIN
+            {
+                w = w.min(bw);
+                h = h.min(bh);
+            }
+            out.push(Placement { id: p.id.clone(), frame: Rect::new(x, y, w, h) });
+        }
+        out
     }
 }
 
 /// A resize (of the right and bottom edges) in progress.
+///
+/// - Panels stacked flush with the resized one form a column sharing one
+///   width: a column with the main panel in it is locked to the main
+///   panel's width (other members resize only in height); without it,
+///   resizing one member's width resizes them all.
+/// - Panels docked beyond the moving right edge follow it, and those below
+///   the moving bottom edge follow that (through the dock graph). Side
+///   panels keep their height, so shade mode doesn't squash them.
 pub struct Resize {
     scene: Scene,
     index: usize,
     min: (f64, f64),
-    /// For each panel: follows the right edge (x), the bottom edge (y), or
-    /// stays.
+    /// The width can't change (a column with the main panel in it).
+    lock_width: bool,
+    /// Column members (besides the resized panel), which take its width.
+    column: Vec<usize>,
+    /// For each panel: follows the right edge (x), the bottom edge (y).
     follows: Vec<(bool, bool)>,
-    /// Panels stacked flush below the resized one (e.g. a library as wide
-    /// as the main panel above it) keep its width. Side panels keep their
-    /// height, so shade mode doesn't squash them.
-    stretch: Vec<bool>,
 }
 
 impl Resize {
-    /// Panels touching the right or bottom edge follow that edge, and the
-    /// panels docked to them follow along. Each panel follows the edge it's
-    /// nearest to in the dock graph (ties: both), so two docked side panels
-    /// don't pick up each other's movement.
     pub fn begin(scene: Scene, id: &str, min_w: f64, min_h: f64) -> Result<Self, String> {
         let index = scene.index(id).ok_or_else(|| format!("no panel \"{id}\""))?;
         let f = scene.panels[index].frame;
         let n = scene.panels.len();
+        let column: Vec<usize> = scene.column(index).into_iter().filter(|&j| j != index).collect();
+        let lock_width = id != MAIN && column.iter().any(|&j| scene.panels[j].id == MAIN);
+
+        // Column members move down or stretch as part of the resized panel
+        // (depth 0); panels on the moving edges of the resized panel and of
+        // its column are the first followers.
         let mut follows = vec![(false, false); n];
-        let mut stretch = vec![false; n];
-        let same = |a: f64, b: f64| (a - b).abs() <= TOUCH;
         let mut depth = vec![usize::MAX; n];
         depth[index] = 0;
         let mut queue = VecDeque::new();
+        for &j in &column {
+            depth[j] = 0;
+            if scene.panels[j].frame.y >= f.bottom() - TOUCH {
+                follows[j].1 = true;
+            }
+            queue.push_back(j);
+        }
+        let mut edges = vec![index];
+        edges.extend(&column);
         for (j, p) in scene.panels.iter().enumerate() {
-            if j == index || !p.visible {
+            if depth[j] == 0 || !p.visible {
                 continue;
             }
-            let right = (p.frame.x - f.right()).abs() <= TOUCH && p.frame.v_overlap(&f) > 0.0;
+            let right = edges.iter().any(|&e| {
+                let g = scene.panels[e].frame;
+                (p.frame.x - g.right()).abs() <= TOUCH && p.frame.v_overlap(&g) > 0.0
+            });
             let bottom = (p.frame.y - f.bottom()).abs() <= TOUCH && p.frame.h_overlap(&f) > 0.0;
             if right || bottom {
                 follows[j] = (right, bottom);
-                stretch[j] = bottom && same(p.frame.x, f.x) && same(p.frame.right(), f.right());
                 depth[j] = 1;
                 queue.push_back(j);
             }
         }
         while let Some(i) = queue.pop_front() {
             for (j, p) in scene.panels.iter().enumerate() {
-                if !p.visible || depth[j] <= depth[i] || !touching(&scene.panels[i].frame, &p.frame) {
+                if !p.visible || depth[j] == 0 || depth[j] <= depth[i] || !touching(&scene.panels[i].frame, &p.frame) {
                     continue;
                 }
                 if depth[j] == usize::MAX {
@@ -333,20 +493,32 @@ impl Resize {
                 }
             }
         }
-        Ok(Self { scene, index, min: (min_w, min_h), follows, stretch })
+        // Only panels beyond a moving edge follow it, so nothing on the fixed
+        // side (like the main panel beside a resized library) moves.
+        for (j, p) in scene.panels.iter().enumerate() {
+            follows[j].0 &= p.frame.x >= f.right() - TOUCH;
+            follows[j].1 &= p.frame.y >= f.bottom() - TOUCH;
+        }
+        Ok(Self { scene, index, min: (min_w, min_h), lock_width, column, follows })
     }
 
     /// New frames for a size change of (dw, dh) since the resize began.
     pub fn update(&self, dw: f64, dh: f64, snap: bool) -> Vec<Placement> {
         let p = &self.scene.panels[self.index];
+        let dw = if self.lock_width { 0.0 } else { dw };
         let mut f = Rect { w: (p.frame.w + dw).max(self.min.0), h: (p.frame.h + dh).max(self.min.1), ..p.frame };
+        if self.lock_width {
+            f.w = p.frame.w;
+        }
         if snap {
             let others: Vec<Rect> = self
                 .scene
                 .panels
                 .iter()
                 .enumerate()
-                .filter(|(j, q)| q.visible && *j != self.index && self.follows[*j] == (false, false))
+                .filter(|(j, q)| {
+                    q.visible && *j != self.index && !self.column.contains(j) && self.follows[*j] == (false, false)
+                })
                 .map(|(_, q)| q.frame)
                 .collect();
             let xs = others
@@ -359,36 +531,22 @@ impl Resize {
                 .filter(|s| f.h_overlap(s) >= -SNAP)
                 .flat_map(|s| [s.y - f.bottom(), s.bottom() - f.bottom()])
                 .chain(self.scene.screens.iter().map(|w| w.bottom() - f.bottom()));
-            let (sx, sy) = (best(xs), best(ys));
-            f.w = (f.w + sx).max(self.min.0);
+            let (sx, sy) = (if self.lock_width { 0.0 } else { best(xs) }, best(ys));
+            f.w = (f.w + sx).max(if self.lock_width { p.frame.w } else { self.min.0 });
             f.h = (f.h + sy).max(self.min.1);
         }
         let (dx, dy) = (f.w - p.frame.w, f.h - p.frame.h);
         let mut out = vec![Placement { id: p.id.clone(), frame: f }];
-        // A panel docked to a stretched one, along its stretching edge,
-        // moves with that edge too.
-        let mut follows = self.follows.clone();
-        for (j, &sw) in self.stretch.iter().enumerate() {
-            let g = self.scene.panels[j].frame;
-            for (k, q) in self.scene.panels.iter().enumerate() {
-                if sw
-                    && k != self.index
-                    && k != j
-                    && q.visible
-                    && (q.frame.x - g.right()).abs() <= TOUCH
-                    && q.frame.v_overlap(&g) > 0.0
-                {
-                    follows[k].0 = true;
-                }
-            }
-        }
-        for (j, &(fx, fy)) in follows.iter().enumerate() {
+        for (j, &(fx, fy)) in self.follows.iter().enumerate() {
+            let in_column = self.column.contains(&j);
             let (sx, sy) = (if fx { dx } else { 0.0 }, if fy { dy } else { 0.0 });
-            let gw = if self.stretch[j] { dx } else { 0.0 };
-            if sx != 0.0 || sy != 0.0 || gw != 0.0 {
+            if sx != 0.0 || sy != 0.0 || (in_column && dx != 0.0) {
                 let q = &self.scene.panels[j];
                 let mut moved = q.frame.offset(sx, sy);
-                moved.w = (moved.w + gw).max(1.0);
+                if in_column {
+                    moved.x = f.x;
+                    moved.w = f.w;
+                }
                 out.push(Placement { id: q.id.clone(), frame: moved });
             }
         }
@@ -403,6 +561,9 @@ pub struct SavedLayout {
     pub version: u32,
     #[serde(default)]
     pub panels: Vec<Panel>,
+    /// The skin scale (1, or 2 in double size) the layout was saved at.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scale: Option<f64>,
 }
 
 pub fn load_from(path: &Path) -> Option<SavedLayout> {

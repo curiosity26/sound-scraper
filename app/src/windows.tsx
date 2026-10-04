@@ -81,12 +81,18 @@ export function isDarkColor(hex: string): boolean {
   return 0.299 * v(0) + 0.587 * v(1) + 0.114 * v(2) < 128;
 }
 
-function LibraryContent() {
+function LibraryContent(props: { onCount: (n: number) => void }) {
   const { fg, isDark } = usePanelText('library');
   const [message, setMessage] = useState<Message>();
   return (
     <View style={styles.content}>
-      <LibraryScreen onMessage={setMessage} textStyle={fg} isDark={isDark} />
+      <LibraryScreen
+        onMessage={setMessage}
+        textStyle={fg}
+        isDark={isDark}
+        compact
+        onCount={props.onCount}
+      />
       {message && (
         <Text
           selectable
@@ -101,10 +107,14 @@ function LibraryContent() {
 
 /** The library window. */
 export function LibraryApp(): React.JSX.Element {
+  const [count, setCount] = useState<number>();
   return (
     <Skinned>
-      <SkinPanelFrame panel="library" title="Library">
-        <LibraryContent />
+      <SkinPanelFrame
+        panel="library"
+        title={count === undefined ? 'Library' : `Library (${count})`}
+      >
+        <LibraryContent onCount={setCount} />
       </SkinPanelFrame>
     </Skinned>
   );

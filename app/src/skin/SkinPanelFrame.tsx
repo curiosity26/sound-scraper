@@ -53,15 +53,13 @@ export function SkinPanelFrame(props: Props): React.JSX.Element {
     if (w === 0) {
       return;
     }
-    // Double size enlarges the chrome, not the content, so only the
-    // frame's insets grow the minimum.
+    // Panels scale with double size, minimums included.
     const min = def.minSize ?? [320, 200];
-    const chrome = [(left + right) * (1 - 1 / s), (top + bottom) * (1 - 1 / s)];
     windows.setPanelChrome(props.panel, {
       drag: [[0, 0, w, top]],
       holes: closeRect ? [closeRect] : [],
       grip,
-      minSize: [min[0] + chrome[0], min[1] + chrome[1]],
+      minSize: [min[0] * s, min[1] * s],
       scale: s,
     });
     // closeRect/grip derive from these.

@@ -85,11 +85,12 @@ final class WindowController: NSObject, NSWindowDelegate {
   /// (window, event), e.g. ("library", "hidden"); set by the native module.
   @objc var onEvent: ((String, String) -> Void)?
   private var minSizes: [String: NSSize] = [:]
+  /// The skin scale the main panel, and each panel, was last laid out at.
+  private var mainScale: CGFloat?
+  private var panelScales: [String: CGFloat] = [:]
   /// Panels hidden because the main panel was minimized.
   private var hiddenForMinimize: [SkinPanelWindow] = []
   private var saved: [String: [String: Any]] = [:]
-
-  private static let resizable: Set<String> = ["library"]
 
   private static let panelSpecs: [String: (module: String, title: String, size: NSSize)] = [
     "library": ("SoundScraperLibrary", "Library", NSSize(width: 840, height: 420)),
@@ -136,7 +137,8 @@ final class WindowController: NSObject, NSWindowDelegate {
   /// Sets a panel's skin chrome: drag regions, holes and grip in points from
   /// its top left, its minimum size, and (the main panel's) size. A size
   /// change keeps docked panels on the moving edges attached. `scale` (the
-  /// skin scale) is informational: other panels keep the user's size.
+  /// skin scale): when it changes, the main panel's docked group scales
+  /// with it.
   @objc func setPanelLayout(
     _ id: String, width: CGFloat, height: CGFloat, dragRegions: [NSValue], holes: [NSValue], grip: [NSValue],
     minWidth: CGFloat, minHeight: CGFloat, scale: CGFloat
@@ -146,6 +148,44 @@ final class WindowController: NSObject, NSWindowDelegate {
     window.holes = holes.map { $0.rectValue }
     window.grip = grip.first?.rectValue
     minSizes[id] = NSSize(width: minWidth, height: minHeight)
+    // A double-size change scales the whole docked group with the main
+    // panel; anything else (shade mode, a new skin) resizes it in place.
+    if id == Self.main, let old = mainScale, old > 0, old != scale {
+      mainScale = scale
+      apply(takeJSON(ss_layout_scale(sceneJSON(), Double(scale / old))) as? [[String: Any]] ?? [])
+      // Panels that already reported their minimums at this scale.
+      for (name, _) in panels where panelScales[name] == scale {
+        enforceMinimum(name)
+      }
+      constrainToScreens()
+      updateDocking()
+      saveLayout()
+    }
+    if id == Self.main {
+      // Panels that reported earlier get their minimums now.
+      let first = mainScale == nil
+      mainScale = scale
+      if first {
+        DispatchQueue.main.async { [weak self] in self?.saveLayout() }
+      }
+      for (name, _) in panels where panelScales[name] == scale {
+        enforceMinimum(name)
+      }
+    } else {
+      let first = panelScales[id] == nil
+      panelScales[id] = scale
+      if first {
+        // Its grip and minimums are known now: straighten the saved layout.
+        DispatchQueue.main.async { [weak self] in self?.tidy() }
+      }
+      // A panel's minimums for a new scale can arrive before the main
+      // panel's change; the group's scaling then comes first.
+      if mainScale == scale {
+        enforceMinimum(id)
+      }
+      window.invalidateShadow()
+      return
+    }
     var size = window.frame.size
     if width > 0 && height > 0 {
       size = NSSize(width: width, height: height)
@@ -156,6 +196,14 @@ final class WindowController: NSObject, NSWindowDelegate {
       resize(id, to: size)
     }
     window.invalidateShadow()
+  }
+
+  private func enforceMinimum(_ id: String) {
+    guard let window = window(id), let min = minSizes[id] else { return }
+    let size = window.frame.size
+    if size.width < min.width || size.height < min.height {
+      resize(id, to: NSSize(width: max(size.width, min.width), height: max(size.height, min.height)))
+    }
   }
 
   @objc func perform(_ action: String) {
@@ -200,10 +248,7 @@ final class WindowController: NSObject, NSWindowDelegate {
     if let s = saved[name], let x = s["x"] as? Double, let y = s["y"] as? Double,
       let w = s["w"] as? Double, let h = s["h"] as? Double
     {
-      // Settings can't be resized, so it always takes its current default
-      // size; only its position is restored.
-      let size = Self.resizable.contains(name) ? NSSize(width: w, height: h) : spec.size
-      window.setFrame(toAppKit(NSRect(origin: NSPoint(x: x, y: y), size: size)), display: false)
+      window.setFrame(toAppKit(NSRect(x: x, y: y, width: w, height: h)), display: false)
     } else {
       // First time: docked below (library) or beside (settings) the main panel.
       let m = toTopLeft(main.frame)
@@ -242,6 +287,15 @@ final class WindowController: NSObject, NSWindowDelegate {
 
   private func constrainToScreens() {
     if let moves = analyze()?["constrain"] as? [[String: Any]], !moves.isEmpty {
+      apply(moves)
+      updateDocking()
+      saveLayout()
+    }
+  }
+
+  /// Lines up docked panels (see Scene::tidy in core/crates/layout).
+  private func tidy() {
+    if let moves = analyze()?["tidy"] as? [[String: Any]], !moves.isEmpty {
       apply(moves)
       updateDocking()
       saveLayout()
@@ -315,7 +369,11 @@ final class WindowController: NSObject, NSWindowDelegate {
   private func sceneJSON() -> String {
     let panels = allWindows.map { w -> [String: Any] in
       let f = toTopLeft(w.frame)
-      return ["id": w.panelID, "x": f.minX, "y": f.minY, "w": f.width, "h": f.height, "visible": w.isVisible]
+      let min = minSizes[w.panelID] ?? .zero
+      return [
+        "id": w.panelID, "x": f.minX, "y": f.minY, "w": f.width, "h": f.height, "visible": w.isVisible,
+        "resizable": w.grip != nil, "min_w": min.width, "min_h": min.height,
+      ]
     }
     let screens = NSScreen.screens.map { s -> [String: Any] in
       let f = toTopLeft(s.visibleFrame)
@@ -331,6 +389,10 @@ final class WindowController: NSObject, NSWindowDelegate {
 
   private func loadLayout() -> [String: [String: Any]] {
     let layout = takeJSON(ss_layout_load()) as? [String: Any]
+    // Launching at another scale than the layout was saved at scales it.
+    if let scale = layout?["scale"] as? Double {
+      mainScale = CGFloat(scale)
+    }
     var byID: [String: [String: Any]] = [:]
     for p in layout?["panels"] as? [[String: Any]] ?? [] {
       if let id = p["id"] as? String { byID[id] = p }
@@ -347,7 +409,11 @@ final class WindowController: NSObject, NSWindowDelegate {
     for p in panels {
       if let id = p["id"] as? String { saved[id] = p }
     }
-    guard let data = try? JSONSerialization.data(withJSONObject: ["version": 1, "panels": panels]),
+    var layout: [String: Any] = ["version": 1, "panels": panels]
+    if let mainScale {
+      layout["scale"] = Double(mainScale)
+    }
+    guard let data = try? JSONSerialization.data(withJSONObject: layout),
       let json = String(data: data, encoding: .utf8)
     else { return }
     if ss_layout_save(json) != SS_STATUS_OK {

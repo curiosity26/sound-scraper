@@ -10,6 +10,10 @@ type Props = {
   onMessage: (message: { text: string; isError: boolean }) => void;
   textStyle: object;
   isDark: boolean;
+  /** Skinned panel: no heading (see LibraryTable). */
+  compact?: boolean;
+  /** Reports how many recordings there are (for a title). */
+  onCount?: (count: number) => void;
 };
 
 // Every mounted library view, so a change elsewhere (e.g. the recordings
@@ -23,7 +27,7 @@ export function refreshLibraryViews() {
 
 /** The recordings table with rename/trash/reveal and the tag editor. */
 export function LibraryScreen(props: Props): React.JSX.Element {
-  const { onMessage, textStyle, isDark } = props;
+  const { onMessage, textStyle, isDark, onCount } = props;
   const [recordings, setRecordings] = useState<Recording[]>([]);
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [tagTargets, setTagTargets] = useState<string[]>();
@@ -48,6 +52,10 @@ export function LibraryScreen(props: Props): React.JSX.Element {
       subscription.remove();
     };
   }, [refreshLibrary]);
+
+  useEffect(() => {
+    onCount?.(recordings.length);
+  }, [recordings.length, onCount]);
 
   useEffect(() => {
     const names = new Set(recordings.map(r => r.fileName));
@@ -101,6 +109,7 @@ export function LibraryScreen(props: Props): React.JSX.Element {
         onCheckedChange={setChecked}
         textStyle={textStyle}
         isDark={isDark}
+        compact={props.compact}
       />
       {tagTargets && tagTargets.length > 0 && (
         <TagEditor

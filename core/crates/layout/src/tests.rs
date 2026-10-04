@@ -1,7 +1,7 @@
 use super::*;
 
 fn panel(id: &str, x: f64, y: f64, w: f64, h: f64) -> Panel {
-    Panel { id: id.into(), frame: Rect::new(x, y, w, h), visible: true }
+    Panel { id: id.into(), frame: Rect::new(x, y, w, h), visible: true, resizable: false, min_w: 0.0, min_h: 0.0 }
 }
 
 /// Main at (100,100) 420×150; library docked below it; settings docked to
@@ -98,33 +98,87 @@ fn panels_snap_to_screen_edges() {
 }
 
 #[test]
-fn resizing_keeps_panels_on_moving_edges_attached() {
-    // Library below main, settings docked to the library's right edge, and
-    // a panel under the library.
+fn a_column_with_main_is_locked_to_its_width() {
+    // Library flush under main: only its height can change; what's below it
+    // follows, and settings beside main doesn't move.
     let mut s = scene();
-    s.panels[2].frame = Rect::new(520.0, 250.0, 300.0, 200.0);
-    s.panels.push(panel("extra", 100.0, 550.0, 200.0, 50.0));
+    s.panels.push(panel("extra", 100.0, 550.0, 420.0, 50.0));
     let resize = Resize::begin(s, "library", 300.0, 200.0).unwrap();
     let out = resize.update(50.0, 30.0, false);
-    assert_eq!(frame(&out, "library"), Rect::new(100.0, 250.0, 470.0, 330.0));
-    assert_eq!(frame(&out, "settings"), Rect::new(570.0, 250.0, 300.0, 200.0));
-    assert_eq!(frame(&out, "extra"), Rect::new(100.0, 580.0, 200.0, 50.0));
-    // Main (on the fixed top edge) stays put.
+    assert_eq!(frame(&out, "library"), Rect::new(100.0, 250.0, 420.0, 330.0));
+    assert_eq!(frame(&out, "extra"), Rect::new(100.0, 580.0, 420.0, 50.0));
+    assert!(out.iter().all(|p| p.id != "main" && p.id != "settings"), "{out:?}");
+    let out = resize.update(0.0, -1000.0, false);
+    assert_eq!(frame(&out, "library").h, 200.0, "minimum height");
+}
+
+#[test]
+fn a_free_column_shares_its_width() {
+    // Library and settings stacked flush, away from main; a panel docked to
+    // the settings' right edge.
+    let s = Scene {
+        panels: vec![
+            panel("main", 0.0, 0.0, 420.0, 150.0),
+            panel("library", 600.0, 100.0, 400.0, 300.0),
+            panel("settings", 600.0, 400.0, 400.0, 200.0),
+            panel("side", 1000.0, 450.0, 100.0, 100.0),
+        ],
+        screens: vec![],
+    };
+    let out = Resize::begin(s, "library", 100.0, 100.0).unwrap().update(60.0, 20.0, false);
+    assert_eq!(frame(&out, "library"), Rect::new(600.0, 100.0, 460.0, 320.0));
+    assert_eq!(frame(&out, "settings"), Rect::new(600.0, 420.0, 460.0, 200.0));
+    assert_eq!(frame(&out, "side"), Rect::new(1060.0, 470.0, 100.0, 100.0));
     assert!(out.iter().all(|p| p.id != "main"));
-    // Minimum size.
-    let out = resize.update(-1000.0, -1000.0, false);
-    assert_eq!((frame(&out, "library").w, frame(&out, "library").h), (300.0, 200.0));
+}
+
+#[test]
+fn nearly_aligned_panels_join_the_column_and_line_up() {
+    // A library 2 points off main's left edge (and 2 narrower) is still in
+    // main's column: when main changes width it lines up exactly.
+    let s = Scene {
+        panels: vec![panel("main", 310.0, 115.0, 840.0, 300.0), panel("library", 312.0, 415.0, 838.0, 480.0)],
+        screens: vec![],
+    };
+    assert_eq!(s.column(0), [0, 1]);
+    let out = Resize::begin(s, "main", 1.0, 1.0).unwrap().update(-420.0, -150.0, false);
+    assert_eq!(frame(&out, "library"), Rect::new(310.0, 265.0, 420.0, 480.0));
 }
 
 #[test]
 fn resize_snaps_edges() {
     let mut s = scene();
+    s.panels[1].frame.x = 600.0; // library away from main's column
     s.panels[2].visible = false;
-    s.panels.push(panel("other", 700.0, 300.0, 100.0, 100.0));
+    s.panels.push(panel("other", 1200.0, 300.0, 100.0, 100.0));
     let resize = Resize::begin(s, "library", 100.0, 100.0).unwrap();
-    // Right edge to 694: snaps to "other"'s left edge (700).
-    let out = resize.update(694.0 - 520.0, 0.0, true);
-    assert_eq!(frame(&out, "library").right(), 700.0);
+    // Right edge to 1194: snaps to "other"'s left edge (1200).
+    let out = resize.update(1194.0 - 1020.0, 0.0, true);
+    assert_eq!(frame(&out, "library").right(), 1200.0);
+}
+
+#[test]
+fn double_size_scales_the_docked_group() {
+    let mut s = scene();
+    s.panels.push(panel("loose", 1500.0, 700.0, 200.0, 100.0));
+    let out = s.scale(2.0);
+    assert_eq!(frame(&out, "main"), Rect::new(100.0, 100.0, 840.0, 300.0));
+    assert_eq!(frame(&out, "library"), Rect::new(100.0, 400.0, 840.0, 600.0));
+    assert_eq!(frame(&out, "settings"), Rect::new(940.0, 100.0, 600.0, 800.0));
+    assert_eq!(frame(&out, "loose"), Rect::new(1500.0, 700.0, 400.0, 200.0), "grows in place");
+    // And back.
+    let back = Scene {
+        panels: out.iter().map(|p| panel(&p.id, p.frame.x, p.frame.y, p.frame.w, p.frame.h)).collect(),
+        screens: s.screens.clone(),
+    };
+    let again = back.scale(0.5);
+    for p in &s.panels {
+        assert_eq!(frame(&again, &p.id), p.frame, "{}", p.id);
+    }
+    // Capped to the screen.
+    let mut tall = scene();
+    tall.panels[2].frame.h = 700.0;
+    assert_eq!(frame(&tall.scale(2.0), "settings").h, 1000.0);
 }
 
 #[test]
@@ -165,8 +219,8 @@ fn docked_groups_keep_their_shape_when_main_changes_size() {
     let shrunk = Scene {
         panels: vec![
             panel("main", 200.0, 120.0, 420.0, 150.0),
-            Panel { id: "library".into(), frame: lib, visible: true },
-            Panel { id: "settings".into(), frame: set, visible: true },
+            panel("library", lib.x, lib.y, lib.w, lib.h),
+            panel("settings", set.x, set.y, set.w, set.h),
         ],
         screens: vec![],
     };
@@ -202,7 +256,7 @@ fn saves_and_loads() {
     let dir = std::env::temp_dir().join(format!("ss-layout-test-{}", std::process::id()));
     let path = dir.join("layout.json");
     assert!(load_from(&path).is_none());
-    let layout = SavedLayout { version: 1, panels: scene().panels };
+    let layout = SavedLayout { version: 1, panels: scene().panels, scale: Some(2.0) };
     save_to(&path, &layout).unwrap();
     assert_eq!(load_from(&path).unwrap(), layout);
     let json = std::fs::read_to_string(&path).unwrap();
@@ -216,4 +270,66 @@ fn saves_and_loads() {
 fn unknown_panels_are_errors() {
     assert!(Drag::begin(scene(), "nope").is_err());
     assert!(Resize::begin(scene(), "nope", 1.0, 1.0).is_err());
+}
+
+#[test]
+fn a_panel_docked_beside_a_stack_spans_it() {
+    // Main (300 tall) over the library (480): settings dropped beside them,
+    // tops aligned, stretches to the stack's 780.
+    let mut settings = panel("settings", 1500.0, 500.0, 520.0, 640.0);
+    settings.resizable = true;
+    settings.min_h = 400.0;
+    let s = Scene {
+        panels: vec![panel("main", 200.0, 120.0, 840.0, 300.0), panel("library", 200.0, 420.0, 840.0, 480.0), settings],
+        screens: vec![],
+    };
+    let drag = Drag::begin(s.clone(), "settings").unwrap();
+    let out = drag.update(1043.0 - 1500.0, 123.0 - 500.0, true);
+    assert_eq!(frame(&out, "settings"), Rect::new(1040.0, 120.0, 520.0, 780.0));
+    // Option held: no snapping, no stretching.
+    assert_eq!(frame(&drag.update(1043.0 - 1500.0, 123.0 - 500.0, false), "settings").h, 640.0);
+    // Not resizable: keeps its height.
+    let mut fixed = s.clone();
+    fixed.panels[2].resizable = false;
+    let out = Drag::begin(fixed, "settings").unwrap().update(1043.0 - 1500.0, 123.0 - 500.0, true);
+    assert_eq!(frame(&out, "settings").h, 640.0);
+    // Way off (a stack more than twice its height): keeps its height.
+    let mut small = s;
+    small.panels[2].frame.h = 300.0;
+    let out = Drag::begin(small, "settings").unwrap().update(1043.0 - 1500.0, 123.0 - 500.0, true);
+    assert_eq!(frame(&out, "settings").h, 300.0);
+}
+
+#[test]
+fn tidy_straightens_a_saved_layout() {
+    // Alex's layout: the library 2 points off main's column, settings beside
+    // them but 180 points taller than the stack.
+    let mut settings = panel("settings", 1150.0, 115.0, 840.0, 960.0);
+    settings.resizable = true;
+    let s = Scene {
+        panels: vec![panel("main", 310.0, 115.0, 840.0, 300.0), panel("library", 312.0, 415.0, 838.0, 480.0), settings],
+        screens: vec![],
+    };
+    let out = s.tidy();
+    assert_eq!(frame(&out, "library"), Rect::new(310.0, 415.0, 840.0, 480.0));
+    assert_eq!(frame(&out, "settings"), Rect::new(1150.0, 115.0, 840.0, 780.0));
+    assert!(scene().tidy().is_empty(), "a tidy layout stays put");
+    // A library under main isn't stretched to the settings beside it, even
+    // with their bottoms lined up; settings (a side panel) spans the stack.
+    let mut lib = panel("library", 310.0, 265.0, 420.0, 240.0);
+    lib.resizable = true;
+    let mut set = panel("settings", 730.0, 115.0, 360.0, 300.0);
+    set.resizable = true;
+    let s = Scene { panels: vec![panel("main", 310.0, 115.0, 420.0, 150.0), lib, set], screens: vec![] };
+    let out = s.tidy();
+    assert!(out.iter().all(|p| p.id != "library"), "{out:?}");
+    assert_eq!(frame(&out, "settings"), Rect::new(730.0, 115.0, 360.0, 390.0));
+}
+
+#[test]
+fn resizing_snaps_the_bottom_to_a_neighbor_stack() {
+    let mut s = scene();
+    s.panels[2].frame = Rect::new(520.0, 100.0, 300.0, 400.0); // settings beside main+library (bottom 550)
+    let out = Resize::begin(s, "settings", 100.0, 100.0).unwrap().update(0.0, 56.0, true); // bottom to 556, 6 below the stack
+    assert_eq!(frame(&out, "settings").bottom(), 550.0);
 }

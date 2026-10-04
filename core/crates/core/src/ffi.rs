@@ -1078,7 +1078,8 @@ pub unsafe extern "C" fn ss_layout_gesture_end(gesture: *mut SsLayoutGesture) {
 }
 
 /// For a scene (as in `ss_layout_drag_begin`): `{"docked": [ids docked to
-/// main], "constrain": [placements pulling off-screen panels back]}`. Free
+/// main], "constrain": [placements pulling off-screen panels back], "tidy":
+/// [placements straightening docked panels]}`. Free
 /// with `ss_string_free`; NULL on failure.
 ///
 /// # Safety
@@ -1086,8 +1087,20 @@ pub unsafe extern "C" fn ss_layout_gesture_end(gesture: *mut SsLayoutGesture) {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ss_layout_analyze(scene_json: *const c_char) -> *mut c_char {
     json_or_null(parse_scene(scene_json).map(|scene| {
-        serde_json::json!({ "docked": scene.docked_to_main(), "constrain": scene.constrain() })
+        serde_json::json!({ "docked": scene.docked_to_main(), "constrain": scene.constrain(), "tidy": scene.tidy() })
     }))
+}
+
+/// New frames for a double-size change by `ratio` (2 or 0.5): the main
+/// panel's docked group keeps its shape around the main panel's top-left
+/// corner; other panels grow or shrink in place. JSON array of placements;
+/// free with `ss_string_free`; NULL on failure.
+///
+/// # Safety
+/// `scene_json` must be NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_layout_scale(scene_json: *const c_char, ratio: f64) -> *mut c_char {
+    json_or_null(parse_scene(scene_json).map(|scene| scene.scale(ratio)))
 }
 
 fn layout_path() -> std::path::PathBuf {

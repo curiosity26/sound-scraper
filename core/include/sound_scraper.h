@@ -680,13 +680,25 @@ void ss_layout_gesture_end(struct SsLayoutGesture *gesture);
 
 /*
  For a scene (as in `ss_layout_drag_begin`): `{"docked": [ids docked to
- main], "constrain": [placements pulling off-screen panels back]}`. Free
+ main], "constrain": [placements pulling off-screen panels back], "tidy":
+ [placements straightening docked panels]}`. Free
  with `ss_string_free`; NULL on failure.
 
  # Safety
  `scene_json` must be NUL-terminated UTF-8.
  */
 char *ss_layout_analyze(const char *scene_json);
+
+/*
+ New frames for a double-size change by `ratio` (2 or 0.5): the main
+ panel's docked group keeps its shape around the main panel's top-left
+ corner; other panels grow or shrink in place. JSON array of placements;
+ free with `ss_string_free`; NULL on failure.
+
+ # Safety
+ `scene_json` must be NUL-terminated UTF-8.
+ */
+char *ss_layout_scale(const char *scene_json, double ratio);
 
 /*
  The saved layout, `{"version", "panels": [{"id", "x", "y", "w", "h",

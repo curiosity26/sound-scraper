@@ -963,8 +963,8 @@ fn main() {
                 }
             },
             "settings": {
-                "minSize": [420, 480],
-                "resizable": false,
+                "minSize": [360, 340],
+                "resizable": true,
                 "frame": { "image": "frame.png", "slice": [22, 6, 6, 6] },
                 "title": { "font": "tiny", "offset": [12, 8] },
                 "close": { "offset": [10, 7], "size": [12, 10], "sprite": sprite(&close) },
