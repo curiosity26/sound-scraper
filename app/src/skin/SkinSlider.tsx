@@ -4,7 +4,7 @@ import React, { useRef } from 'react';
 import { type GestureResponderEvent, View } from 'react-native';
 
 import { NineSlice } from './NineSlice';
-import { SpriteCell } from './SkinImage';
+import { SpriteCell, useSkinScale } from './SkinImage';
 import type { ImageRef, Rect } from './types';
 
 type Props = {
@@ -32,8 +32,9 @@ type Props = {
  */
 export function SkinSlider(props: Props): React.JSX.Element {
   const { image, track, thumb, width, height, disabled } = props;
+  const s = useSkinScale();
   const vertical = height > width;
-  const thumbLength = vertical ? thumb[3] : thumb[2];
+  const thumbLength = (vertical ? thumb[3] : thumb[2]) * s;
   const travel = Math.max(0, (vertical ? height : width) - thumbLength);
   const value = Math.min(1, Math.max(0, props.value));
   const last = useRef(value);
@@ -89,8 +90,8 @@ export function SkinSlider(props: Props): React.JSX.Element {
         size={[thumb[2], thumb[3]]}
         style={{
           position: 'absolute',
-          left: vertical ? (width - thumb[2]) / 2 : thumbPos,
-          top: vertical ? thumbPos : (height - thumb[3]) / 2,
+          left: vertical ? (width - thumb[2] * s) / 2 : thumbPos,
+          top: vertical ? thumbPos : (height - thumb[3] * s) / 2,
         }}
       />
     </View>

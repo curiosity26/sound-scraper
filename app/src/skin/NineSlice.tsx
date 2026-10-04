@@ -3,7 +3,7 @@
 import React from 'react';
 import { type StyleProp, View, type ViewStyle } from 'react-native';
 
-import { SpriteCell } from './SkinImage';
+import { SpriteCell, useSkinScale } from './SkinImage';
 import type { ImageRef, Rect } from './types';
 
 type Props = {
@@ -25,18 +25,21 @@ type Props = {
  */
 export function NineSlice(props: Props): React.JSX.Element {
   const { image, width, height } = props;
+  const s = useSkinScale();
   const [t, r, b, l] = props.slice;
+  // Corners keep their (scaled) size.
+  const [dt, dr, db, dl] = [t * s, r * s, b * s, l * s];
   const [ox, oy, iw, ih] = props.source ?? [0, 0, image.width, image.height];
   const cols: Array<[number, number, number, number]> = [
     // [source x, source width, dest x, dest width]
-    [0, l, 0, l],
-    [l, iw - l - r, l, width - l - r],
-    [iw - r, r, width - r, r],
+    [0, l, 0, dl],
+    [l, iw - l - r, dl, width - dl - dr],
+    [iw - r, r, width - dr, dr],
   ];
   const rows: Array<[number, number, number, number]> = [
-    [0, t, 0, t],
-    [t, ih - t - b, t, height - t - b],
-    [ih - b, b, height - b, b],
+    [0, t, 0, dt],
+    [t, ih - t - b, dt, height - dt - db],
+    [ih - b, b, height - db, db],
   ];
   const pieces = [];
   for (const [sy, sh, dy, dh] of rows) {
@@ -61,10 +64,10 @@ export function NineSlice(props: Props): React.JSX.Element {
       <View
         style={{
           position: 'absolute',
-          left: l,
-          top: t,
-          right: r,
-          bottom: b,
+          left: dl,
+          top: dt,
+          right: dr,
+          bottom: db,
         }}
       >
         {props.children}

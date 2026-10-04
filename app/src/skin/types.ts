@@ -9,6 +9,8 @@ export type ImageRef = {
   path: string;
   /** Exactly twice the pixels, for Retina displays. */
   path2x: string | null;
+  /** Four times the pixels (double size on Retina). */
+  path4x: string | null;
   /** Size in points (= 1x pixels). */
   width: number;
   height: number;

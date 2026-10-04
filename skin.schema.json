@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/curiosity26/sound-scraper/skin.schema.json",
   "title": "Sound Scraper skin (skin.json)",
-  "description": "Manifest of a Sound Scraper skin: a folder, or a .sskin zip of one, holding skin.json and its images (PNG, JPEG or WebP; an optional name@2x.ext sibling at exactly twice the size is used on Retina displays). Coordinates are in points. Anything a skin leaves out comes from the built-in Default skin, element by element.",
+  "description": "Manifest of a Sound Scraper skin: a folder, or a .sskin zip of one, holding skin.json and its images (PNG, JPEG or WebP; optional name@2x.ext and name@4x.ext siblings at exactly two and four times the size are used on Retina displays and in double-size mode). Coordinates are in points. Anything a skin leaves out comes from the built-in Default skin, element by element.",
   "type": "object",
   "required": ["format", "id", "name"],
   "properties": {
@@ -107,7 +107,7 @@
     "sprite": {
       "type": "object",
       "required": ["image", "states"],
-      "description": "Cells of a sprite sheet, each the size of the element's rect. Buttons need \"normal\" and may have \"pressed\", \"active\" (latched/on), \"activePressed\" and \"disabled\". The status element uses idle/recording/paused/finalizing; levels use off/on.",
+      "description": "Cells of a sprite sheet, each the size of the element's rect. Buttons need \"normal\" and may have \"pressed\", \"active\" (latched/on), \"activePressed\" and \"disabled\". Without a pause element, record is also pause and uses \"recording\"/\"recordingPressed\" (shown as pause) and \"paused\"/\"pausedPressed\" (resume), falling back to active/pressed. The status element uses idle/recording/paused/finalizing; levels use off/on.",
       "properties": {
         "image": { "$ref": "#/$defs/image" },
         "states": {

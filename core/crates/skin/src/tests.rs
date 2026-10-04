@@ -86,12 +86,14 @@ fn default_skin_is_complete_and_clean() {
     assert!(skin.builtin);
     assert!(skin.warnings.is_empty(), "{:?}", skin.warnings);
     let main = &skin.panels.main;
-    for name in manifest::MAIN_ELEMENTS {
+    // Record doubles as pause in the Default skin.
+    for name in manifest::MAIN_ELEMENTS.iter().filter(|n| **n != "pause") {
         let el = main.layout.elements.get(*name).unwrap_or_else(|| panic!("Default skin lacks {name}"));
         assert!(!el.fallback);
     }
     assert!(main.shade.is_some());
-    assert!(main.layout.background.as_ref().unwrap().path2x.is_some(), "Default art has @2x");
+    let bg = main.layout.background.as_ref().unwrap();
+    assert!(bg.path2x.is_some() && bg.path4x.is_some(), "Default art has @2x and @4x");
     assert!(skin.panels.library.frame.is_some() && skin.panels.library.scrollbar.is_some());
     // Colors are resolved: no @tokens left in style parameters.
     let levels = main.layout.elements["levels"].style.as_ref().unwrap();
@@ -222,7 +224,16 @@ fn checks_images() {
     let e = store().load_dir(&dir).unwrap_err();
     assert!(e.contains("bg@2x.png") && e.contains("twice the size"), "{e}");
 
+    fs::write(dir.join("bg@2x.png"), png(400, 120)).unwrap();
+    fs::write(dir.join("bg@4x.png"), png(800, 200)).unwrap();
+    let e = store().load_dir(&dir).unwrap_err();
+    assert!(e.contains("bg@4x.png") && e.contains("four times"), "{e}");
+    fs::write(dir.join("bg@4x.png"), png(800, 240)).unwrap();
+    let skin = store().load_dir(&dir).unwrap();
+    assert!(skin.panels.main.layout.background.unwrap().path4x.unwrap().ends_with("bg@4x.png"));
+
     fs::remove_file(dir.join("bg@2x.png")).unwrap();
+    fs::remove_file(dir.join("bg@4x.png")).unwrap();
     fs::write(dir.join("bg.png"), b"not a png").unwrap();
     assert!(store().load_dir(&dir).unwrap_err().contains("bg.png: not a valid image"));
 

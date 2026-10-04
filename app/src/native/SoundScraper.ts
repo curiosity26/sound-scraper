@@ -97,6 +97,8 @@ export type Settings = {
   lastSource: SourceRef | null;
   /** Skin id or unpacked skin folder; null = the Default skin. */
   skin?: string | null;
+  /** Draw the skinned main panel at twice its size. */
+  doubleSize?: boolean;
 };
 
 export const settings = {
@@ -112,6 +114,7 @@ export const settings = {
         id3Version: value.id3Version,
         lastSource: value.lastSource,
         skin: value.skin ?? null,
+        doubleSize: value.doubleSize ?? false,
       }),
     ),
   pickFolder: (): Promise<string | null> => NativeSoundScraper.pickFolder(),

@@ -45,6 +45,7 @@ jest.mock('../src/native/NativeSoundScraper', () => ({
 const image: ImageRef = {
   path: '/skins/x/sheet.png',
   path2x: '/skins/x/sheet@2x.png',
+  path4x: '/skins/x/sheet@4x.png',
   width: 100,
   height: 40,
 };
@@ -60,7 +61,11 @@ const el = (rect: SkinElement['rect'], extra: Partial<SkinElement> = {}) => ({
 });
 
 function testSkin(): Skin {
-  const sprite = { image, states: { normal: [0, 0], pressed: [20, 0] } } as const;
+  const sprite: { image: ImageRef; states: Record<string, [number, number]> } =
+    {
+      image,
+      states: { normal: [0, 0], pressed: [20, 0], recording: [40, 0] },
+    };
   return {
     id: 'com.example.test',
     name: 'Test',
@@ -71,7 +76,12 @@ function testSkin(): Skin {
     builtin: false,
     colors: { background: '#123456' },
     fonts: {
-      lcd: { image, glyphs: ' ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:.?', cell: [5, 8], columns: 20 },
+      lcd: {
+        image,
+        glyphs: ' ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:.?',
+        cell: [5, 8],
+        columns: 20,
+      },
     },
     panels: {
       main: {
@@ -79,7 +89,9 @@ function testSkin(): Skin {
         background: null,
         dragRegions: [[0, 0, 200, 60]],
         elements: {
-          record: el([4, 30, 20, 10], { sprite: { ...sprite, states: { ...sprite.states } } }),
+          record: el([4, 30, 20, 10], {
+            sprite: { ...sprite, states: { ...sprite.states } },
+          }),
           stop: el([30, 30, 20, 10]),
           elapsed: el([4, 4, 60, 8], { font: 'lcd', align: 'right' }),
           source: el([4, 46, 100, 8], { font: 'lcd', style: { pad: true } }),
@@ -87,8 +99,22 @@ function testSkin(): Skin {
         },
         shade: null,
       },
-      library: { minSize: null, resizable: true, frame: null, table: {}, scrollbar: null, controls: {} },
-      settings: { minSize: null, resizable: true, frame: null, table: {}, scrollbar: null, controls: {} },
+      library: {
+        minSize: null,
+        resizable: true,
+        frame: null,
+        table: {},
+        scrollbar: null,
+        controls: {},
+      },
+      settings: {
+        minSize: null,
+        resizable: true,
+        frame: null,
+        table: {},
+        scrollbar: null,
+        controls: {},
+      },
     },
     visualizer: { presets: [] },
     warnings: [],
@@ -96,35 +122,90 @@ function testSkin(): Skin {
 }
 
 test('button states fall back toward normal', () => {
-  const all = { normal: 1, pressed: 1, active: 1, activePressed: 1, disabled: 1 };
+  const all = {
+    normal: 1,
+    pressed: 1,
+    active: 1,
+    activePressed: 1,
+    disabled: 1,
+  };
   const flags = { pressed: false, active: false, disabled: false };
   expect(buttonState(all, flags)).toBe('normal');
-  expect(buttonState(all, { ...flags, pressed: true, active: true })).toBe('activePressed');
-  expect(buttonState({ normal: 1, pressed: 1 }, { ...flags, pressed: true, active: true })).toBe('pressed');
+  expect(buttonState(all, { ...flags, pressed: true, active: true })).toBe(
+    'activePressed',
+  );
+  expect(
+    buttonState(
+      { normal: 1, pressed: 1 },
+      { ...flags, pressed: true, active: true },
+    ),
+  ).toBe('pressed');
   expect(buttonState({ normal: 1 }, { ...flags, active: true })).toBe('normal');
-  expect(buttonState({ normal: 1 }, { ...flags, disabled: true })).toBe('normal');
+  expect(buttonState({ normal: 1 }, { ...flags, disabled: true })).toBe(
+    'normal',
+  );
+  // Modes (record while recording) fall back to active, then normal.
+  const rec = { normal: 1, pressed: 1, recording: 1 };
+  expect(buttonState(rec, { ...flags, mode: 'recording' })).toBe('recording');
+  expect(buttonState(rec, { ...flags, mode: 'recording', pressed: true })).toBe(
+    'pressed',
+  );
+  expect(buttonState(rec, { ...flags, mode: 'paused' })).toBe('normal');
 });
 
 test('sprite text maps, aligns, pads and scrolls', () => {
-  expect(toGlyphs('Café ♪', ' ABCDEFGHIJKLMNOPQRSTUVWXYZ?')).toEqual(['C', 'A', 'F', 'E', ' ', '?']);
-  expect(layoutCells(['A', 'B'], 4, 'right', false, 0)).toEqual([' ', ' ', 'A', 'B']);
-  expect(layoutCells(['A', 'B'], 4, 'left', true, 0)).toEqual(['A', 'B', ' ', ' ']);
+  expect(toGlyphs('Café ♪', ' ABCDEFGHIJKLMNOPQRSTUVWXYZ?')).toEqual([
+    'C',
+    'A',
+    'F',
+    'E',
+    ' ',
+    '?',
+  ]);
+  expect(layoutCells(['A', 'B'], 4, 'right', false, 0)).toEqual([
+    ' ',
+    ' ',
+    'A',
+    'B',
+  ]);
+  expect(layoutCells(['A', 'B'], 4, 'left', true, 0)).toEqual([
+    'A',
+    'B',
+    ' ',
+    ' ',
+  ]);
   expect(layoutCells(['A', 'B'], 4, 'left', false, 0)).toEqual(['A', 'B']);
   expect(layoutCells(['A', 'B', 'C'], 2, 'left', false, 1)).toEqual(['B', 'C']);
 });
 
 test('images use the @2x file on Retina', () => {
-  expect(imageSource(image, 2)).toMatchObject({ uri: 'file:///skins/x/sheet@2x.png', scale: 2, width: 100 });
+  expect(imageSource(image, 2)).toMatchObject({
+    uri: 'file:///skins/x/sheet@2x.png',
+    scale: 2,
+    width: 100,
+  });
   expect(imageSource(image, 1).uri).toBe('file:///skins/x/sheet.png');
-  expect(imageSource({ ...image, path: '/a b/#1.png', path2x: null }, 2).uri).toBe('file:///a%20b/%231.png');
+  // Double size on Retina.
+  expect(imageSource(image, 4)).toMatchObject({
+    uri: 'file:///skins/x/sheet@4x.png',
+    scale: 4,
+  });
+  expect(imageSource({ ...image, path4x: null }, 4).scale).toBe(2);
+  expect(
+    imageSource({ ...image, path: '/a b/#1.png', path2x: null }, 2).uri,
+  ).toBe('file:///a%20b/%231.png');
 });
 
 test('nine-slice draws nine pieces', async () => {
   let tree: ReactTestRenderer.ReactTestRenderer | undefined;
   await ReactTestRenderer.act(() => {
-    tree = ReactTestRenderer.create(<NineSlice image={image} slice={[4, 4, 4, 4]} width={300} height={200} />);
+    tree = ReactTestRenderer.create(
+      <NineSlice image={image} slice={[4, 4, 4, 4]} width={300} height={200} />,
+    );
   });
-  expect(tree!.root.findAllByType(require('react-native').Image)).toHaveLength(9);
+  expect(tree!.root.findAllByType(require('react-native').Image)).toHaveLength(
+    9,
+  );
 });
 
 test('the main panel renders the skin and drives the recorder', async () => {
@@ -140,7 +221,12 @@ test('the main panel renders the skin and drives the recorder', async () => {
       </SkinProvider>,
     );
   });
-  expect(mockSkins.setMainLayout).toHaveBeenCalledWith(200, 60, [0, 0, 200, 60], expect.arrayContaining([4, 30, 20, 10]));
+  expect(mockSkins.setMainLayout).toHaveBeenCalledWith(
+    200,
+    60,
+    [0, 0, 200, 60],
+    expect.arrayContaining([4, 30, 20, 10]),
+  );
   expect(tree!.root.findByProps({ testID: 'elapsed' })).toBeTruthy();
   // Elements the skin lacks aren't drawn.
   expect(tree!.root.findAllByProps({ testID: 'pause' })).toHaveLength(0);
@@ -148,4 +234,28 @@ test('the main panel renders the skin and drives the recorder', async () => {
     tree!.root.findByProps({ testID: 'record' }).props.onPress();
   });
   expect(mockCore.recorderStart).toHaveBeenCalledWith(0);
+});
+
+test('double size scales the window and its drag regions', async () => {
+  const { skinStore } = require('../src/skin/skins');
+  const { MainPanel } = require('../src/skin/MainPanel');
+  const { SkinProvider } = require('../src/skin/SkinProvider');
+  const { SkinScale } = require('../src/skin/SkinImage');
+  skinStore.set(testSkin());
+  mockSkins.setMainLayout.mockClear();
+  await ReactTestRenderer.act(() => {
+    ReactTestRenderer.create(
+      <SkinScale.Provider value={2}>
+        <SkinProvider>
+          <MainPanel />
+        </SkinProvider>
+      </SkinScale.Provider>,
+    );
+  });
+  expect(mockSkins.setMainLayout).toHaveBeenCalledWith(
+    400,
+    120,
+    [0, 0, 400, 120],
+    expect.arrayContaining([8, 60, 40, 20]),
+  );
 });

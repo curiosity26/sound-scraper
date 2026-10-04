@@ -3,14 +3,20 @@
 import React from 'react';
 import { Pressable } from 'react-native';
 
-import { SpriteCell } from './SkinImage';
+import { scaleRect, SpriteCell, useSkinScale } from './SkinImage';
 import type { SkinElement } from './types';
 
 type Props = {
   element: SkinElement;
   onPress: () => void;
-  /** Latched on (recording, paused, a panel open…). */
+  /** Latched on (a panel open…). */
   active?: boolean;
+  /**
+   * A mode with its own look, e.g. "recording" for the record button: the
+   * sprite's "recording"/"recordingPressed" states, falling back to
+   * active/pressed.
+   */
+  mode?: string;
   disabled?: boolean;
   testID?: string;
   accessibilityLabel: string;
@@ -19,10 +25,20 @@ type Props = {
 /** Picks the best sprite state for a button, falling back toward "normal". */
 export function buttonState(
   states: Record<string, unknown>,
-  flags: { pressed: boolean; active: boolean; disabled: boolean },
+  flags: {
+    pressed: boolean;
+    active: boolean;
+    disabled: boolean;
+    mode?: string;
+  },
 ): string {
+  const { mode } = flags;
   const candidates = flags.disabled
     ? ['disabled']
+    : mode && flags.pressed
+    ? [`${mode}Pressed`, 'activePressed', 'pressed']
+    : mode
+    ? [mode, 'active']
     : flags.pressed && flags.active
     ? ['activePressed', 'pressed', 'active']
     : flags.pressed
@@ -40,7 +56,8 @@ export function buttonState(
  */
 export function SkinButton(props: Props): React.JSX.Element {
   const { element, active = false, disabled = false } = props;
-  const [x, y, w, h] = element.rect;
+  const [, , w, h] = element.rect;
+  const s = useSkinScale();
   const sprite = element.sprite;
   return (
     <Pressable
@@ -50,13 +67,18 @@ export function SkinButton(props: Props): React.JSX.Element {
       accessibilityState={{ disabled, selected: active }}
       onPress={props.onPress}
       disabled={disabled}
-      style={{ position: 'absolute', left: x, top: y, width: w, height: h }}
+      style={scaleRect(element.rect, s)}
     >
       {({ pressed }) => {
         if (!sprite) {
           return null;
         }
-        const state = buttonState(sprite.states, { pressed, active, disabled });
+        const state = buttonState(sprite.states, {
+          pressed,
+          active,
+          disabled,
+          mode: props.mode,
+        });
         const dim = disabled && !('disabled' in sprite.states);
         return (
           <SpriteCell

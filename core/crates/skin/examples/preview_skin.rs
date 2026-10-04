@@ -55,7 +55,7 @@ fn sprite_text(dst: &mut RgbaImage, skin: &ResolvedSkin, el: &ResolvedElement, t
     let [cw, ch] = font.cell;
     let capacity = (el.rect[2] / cw) as usize;
     let pad = el.style.as_ref().and_then(|s| s.get("pad")).and_then(|v| v.as_bool()).unwrap_or(false);
-    let mut chars: Vec<char> = text.to_uppercase().chars().take(capacity).collect();
+    let mut chars: Vec<char> = text.chars().map(|c| if font.glyphs.contains(c) { c } else { c.to_ascii_uppercase() }).take(capacity).collect();
     let right = el.align.as_deref() == Some("right");
     if pad || right {
         while chars.len() < capacity {
@@ -89,7 +89,8 @@ fn render(skin: &ResolvedSkin, layout: &ResolvedLayout) -> RgbaImage {
         if let Some(sprite) = &el.sprite {
             let sheet = load(&sprite.image);
             let state = match name.as_str() {
-                "record" | "toggleLibrary" => "active",
+                "record" => "recording",
+                "toggleLibrary" => "active",
                 "status" => "recording",
                 _ => "normal",
             };
@@ -100,7 +101,7 @@ fn render(skin: &ResolvedSkin, layout: &ResolvedLayout) -> RgbaImage {
             let sample = match name.as_str() {
                 "elapsed" => "12:34.5",
                 "status" => "● REC",
-                "source" => "All system audio",
+                "source" => "Spotify: Lo-fi beats",
                 _ => "",
             };
             sprite_text(&mut out, skin, el, sample);

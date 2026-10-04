@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 
-import { SpriteCell } from './SkinImage';
+import { scaleRect, SpriteCell, useSkinScale } from './SkinImage';
 import type { SkinElement, SpriteFont } from './types';
 
 /**
@@ -13,15 +13,13 @@ import type { SkinElement, SpriteFont } from './types';
 export function toGlyphs(text: string, glyphs: string): string[] {
   const available = new Set(Array.from(glyphs));
   const unknown = available.has('?') ? '?' : ' ';
-  return Array.from(text.normalize('NFD').replace(/[̀-ͯ]/g, '')).map(
-    c => {
-      if (available.has(c)) {
-        return c;
-      }
-      const upper = c.toUpperCase();
-      return available.has(upper) ? upper : unknown;
-    },
-  );
+  return Array.from(text.normalize('NFD').replace(/[̀-ͯ]/g, '')).map(c => {
+    if (available.has(c)) {
+      return c;
+    }
+    const upper = c.toUpperCase();
+    return available.has(upper) ? upper : unknown;
+  });
 }
 
 /**
@@ -67,8 +65,9 @@ type Props = {
 /** Text drawn with a sprite (bitmap) font. */
 export function SpriteText(props: Props): React.JSX.Element {
   const { font, text, width, align = 'left', pad = false } = props;
+  const s = useSkinScale();
   const [cw, ch] = font.cell;
-  const capacity = Math.max(0, Math.floor(width / cw));
+  const capacity = Math.max(0, Math.floor(width / (cw * s)));
   const chars = toGlyphs(text, font.glyphs);
   const scrolls = props.marquee !== false && chars.length > capacity;
   const [offset, setOffset] = useState(0);
@@ -87,18 +86,26 @@ export function SpriteText(props: Props): React.JSX.Element {
       accessible
       accessibilityLabel={text}
       pointerEvents="none"
-      style={{ flexDirection: 'row', width, height: ch, overflow: 'hidden' }}
+      style={{
+        flexDirection: 'row',
+        width,
+        height: ch * s,
+        overflow: 'hidden',
+      }}
     >
       {cells.map((c, i) => {
         const index = glyphs.indexOf(c);
         if (index < 0) {
-          return <View key={i} style={{ width: cw, height: ch }} />;
+          return <View key={i} style={{ width: cw * s, height: ch * s }} />;
         }
         return (
           <SpriteCell
             key={i}
             image={font.image}
-            at={[(index % font.columns) * cw, Math.floor(index / font.columns) * ch]}
+            at={[
+              (index % font.columns) * cw,
+              Math.floor(index / font.columns) * ch,
+            ]}
             size={[cw, ch]}
           />
         );
@@ -118,7 +125,8 @@ export function ElementText(props: {
   testID?: string;
 }): React.JSX.Element {
   const { element, fonts } = props;
-  const [x, y, w, h] = element.rect;
+  const s = useSkinScale();
+  const [, , w, h] = element.rect;
   const font = element.font ? fonts[element.font] : undefined;
   const pad = element.style?.pad === true;
   const align = element.align ?? 'left';
@@ -127,20 +135,13 @@ export function ElementText(props: {
     <View
       testID={props.testID}
       pointerEvents="none"
-      style={{
-        position: 'absolute',
-        left: x,
-        top: y,
-        width: w,
-        height: h,
-        justifyContent: 'center',
-      }}
+      style={[scaleRect(element.rect, s), { justifyContent: 'center' }]}
     >
       {font ? (
         <SpriteText
           font={font}
           text={props.text}
-          width={w}
+          width={w * s}
           align={align}
           pad={pad}
         />
@@ -149,7 +150,7 @@ export function ElementText(props: {
           numberOfLines={1}
           style={{
             color: t?.color ?? '#ffffff',
-            fontSize: t?.size ?? Math.max(8, h * 0.7),
+            fontSize: (t?.size ?? Math.max(8, h * 0.7)) * s,
             fontFamily: t?.family ?? undefined,
             fontWeight: t?.weight === 'bold' ? '700' : '400',
             textAlign: align,

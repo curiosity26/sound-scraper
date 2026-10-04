@@ -50,6 +50,7 @@ const TAPE: Color = rgb(0x4a2c1a);
 const MAIN_W: i32 = 420;
 const MAIN_H: i32 = 150;
 const SHADE_H: i32 = 18;
+const KEY_W: i32 = 74;
 
 // ---------------------------------------------------------------- canvas
 
@@ -134,14 +135,14 @@ impl Canvas {
     }
 
     fn save(&self, dir: &std::path::Path, name: &str) {
-        let file = if self.s == 1 { format!("{name}.png") } else { format!("{name}@2x.png") };
+        let file = if self.s == 1 { format!("{name}.png") } else { format!("{name}@{}x.png", self.s) };
         self.img.save(dir.join(file)).unwrap();
     }
 }
 
 /// Draws the same picture at 1x and @2x and saves both.
 fn draw_both(dir: &std::path::Path, name: &str, w: i32, h: i32, draw: impl Fn(&mut Canvas)) {
-    for s in [1, 2] {
+    for s in [1, 2, 4] {
         let mut c = Canvas::new(w, h, s);
         draw(&mut c);
         c.save(dir, name);
@@ -180,6 +181,32 @@ const GLYPHS: &[(char, [u8; 7])] = &[
     ('X', [0b10001, 0b10001, 0b01010, 0b00100, 0b01010, 0b10001, 0b10001]),
     ('Y', [0b10001, 0b10001, 0b10001, 0b01010, 0b00100, 0b00100, 0b00100]),
     ('Z', [0b11111, 0b00001, 0b00010, 0b00100, 0b01000, 0b10000, 0b11111]),
+    ('a', [0,0,0b01110,0b00001,0b01111,0b10001,0b01111]),
+    ('b', [0b10000,0b10000,0b10110,0b11001,0b10001,0b10001,0b11110]),
+    ('c', [0,0,0b01110,0b10000,0b10000,0b10001,0b01110]),
+    ('d', [0b00001,0b00001,0b01101,0b10011,0b10001,0b10001,0b01111]),
+    ('e', [0,0,0b01110,0b10001,0b11111,0b10000,0b01110]),
+    ('f', [0b00110,0b01001,0b01000,0b11100,0b01000,0b01000,0b01000]),
+    ('g', [0,0b01111,0b10001,0b10001,0b01111,0b00001,0b01110]),
+    ('h', [0b10000,0b10000,0b10110,0b11001,0b10001,0b10001,0b10001]),
+    ('i', [0b00100,0,0b01100,0b00100,0b00100,0b00100,0b01110]),
+    ('j', [0b00010,0,0b00110,0b00010,0b00010,0b10010,0b01100]),
+    ('k', [0b10000,0b10000,0b10010,0b10100,0b11000,0b10100,0b10010]),
+    ('l', [0b01100,0b00100,0b00100,0b00100,0b00100,0b00100,0b01110]),
+    ('m', [0,0,0b11010,0b10101,0b10101,0b10001,0b10001]),
+    ('n', [0,0,0b10110,0b11001,0b10001,0b10001,0b10001]),
+    ('o', [0,0,0b01110,0b10001,0b10001,0b10001,0b01110]),
+    ('p', [0,0,0b11110,0b10001,0b11110,0b10000,0b10000]),
+    ('q', [0,0,0b01101,0b10011,0b01111,0b00001,0b00001]),
+    ('r', [0,0,0b10110,0b11001,0b10000,0b10000,0b10000]),
+    ('s', [0,0,0b01110,0b10000,0b01110,0b00001,0b11110]),
+    ('t', [0b01000,0b01000,0b11100,0b01000,0b01000,0b01001,0b00110]),
+    ('u', [0,0,0b10001,0b10001,0b10001,0b10011,0b01101]),
+    ('v', [0,0,0b10001,0b10001,0b10001,0b01010,0b00100]),
+    ('w', [0,0,0b10001,0b10001,0b10101,0b10101,0b01010]),
+    ('x', [0,0,0b10001,0b01010,0b00100,0b01010,0b10001]),
+    ('y', [0,0,0b10001,0b10001,0b01111,0b00001,0b01110]),
+    ('z', [0,0,0b11111,0b00010,0b00100,0b01000,0b11111]),
     ('0', [0b01110, 0b10001, 0b10011, 0b10101, 0b11001, 0b10001, 0b01110]),
     ('1', [0b00100, 0b01100, 0b00100, 0b00100, 0b00100, 0b00100, 0b01110]),
     ('2', [0b01110, 0b10001, 0b00001, 0b00010, 0b00100, 0b01000, 0b11111]),
@@ -229,13 +256,13 @@ fn glyph(c: char) -> [u8; 7] {
     GLYPHS.iter().find(|(g, _)| *g == c).map(|(_, rows)| *rows).unwrap_or([0; 7])
 }
 
-/// Draws one 5×7 glyph with `dot`-point dots at (x, y). Dots of 4+ device
-/// pixels get a 1-pixel gap, like a real dot-matrix LCD. `ghost` paints the
-/// unlit dots.
+/// Draws one 5×7 glyph with `dot`-point dots at (x, y). With `ghost` (the
+/// unlit dots) it's an LCD: dots of 4+ device pixels get a 1-pixel gap,
+/// like a real dot-matrix display. Without, the glyph is solid lettering.
 fn dots(c: &mut Canvas, x: i32, y: i32, rows: [u8; 7], dot: i32, lit: Color, ghost: Option<Color>) {
     let s = c.s as i64;
     let size = dot as i64 * s;
-    let fill = if size >= 4 { size - 1 } else { size };
+    let fill = if size >= 4 && ghost.is_some() { size - 1 } else { size };
     for (row, bits) in rows.iter().enumerate() {
         for col in 0..5 {
             let on = bits & (0b10000 >> col) != 0;
@@ -435,9 +462,9 @@ fn draw_symbol(c: &mut Canvas, sym: Symbol, cx: i32, cy: i32, color: Color) {
     }
 }
 
-/// A red piano key like the deck in the app icon (48×18).
+/// A red piano key like the deck in the app icon (KEY_W×18).
 fn piano_key(c: &mut Canvas, x: i32, y: i32, sym: Symbol, label: &str, state: Key) {
-    let (w, h) = (48, 18);
+    let (w, h) = (KEY_W, 18);
     let down = matches!(state, Key::Pressed | Key::Active);
     let depth = if down { 2 } else { 4 };
     let (face, light, dark) = match state {
@@ -459,11 +486,13 @@ fn piano_key(c: &mut Canvas, x: i32, y: i32, sym: Symbol, label: &str, state: Ke
         _ => CREAM,
     };
     let cy = top + 1 + (h - depth - 3) / 2;
-    draw_symbol(c, sym, x + 9, cy, ink);
-    text(c, x + 16, cy - 3, label, 1, ink);
+    // Symbol and label, centered.
+    let sx = x + (w - (9 + label.len() as i32 * 6)) / 2 + 3;
+    draw_symbol(c, sym, sx, cy, ink);
+    text(c, sx + 7, cy - 3, label, 1, ink);
     if state == Key::Active {
         // Lit symbol glow.
-        c.circle((x + 9) as f32, cy as f32, 5.5, rgba(0xfff0a0, 50));
+        c.circle(sx as f32, cy as f32, 5.5, rgba(0xfff0a0, 50));
     }
 }
 
@@ -521,7 +550,7 @@ fn tiny_button(c: &mut Canvas, x: i32, y: i32, sym: Symbol, state: Key) {
     let (face, ink) = match (sym, state) {
         (_, Key::Disabled) => (rgb(0x6a5450), rgb(0xa89890)),
         (Symbol::Record, Key::Active) => (rgb(0xe8403a), rgb(0xfff0a0)),
-        (Symbol::Record, _) => (RED, CREAM),
+        (Symbol::Record | Symbol::Pause, _) => (RED, CREAM),
         (_, _) => (CHAR_MID, CREAM),
     };
     c.round_rect(x, y, 12, 12, 2.5, INK);
@@ -532,7 +561,11 @@ fn tiny_button(c: &mut Canvas, x: i32, y: i32, sym: Symbol, state: Key) {
     }
     match sym {
         Symbol::Record => c.circle(x as f32 + 6.0, y as f32 + 6.0 + o as f32, 2.6, ink),
-        _ => c.rect(x + 4, y + 4 + o, 4, 4, ink),
+        Symbol::Pause => {
+            c.rect(x + 3, y + 3 + o, 2, 6, ink);
+            c.rect(x + 7, y + 3 + o, 2, 6, ink);
+        }
+        Symbol::Stop => c.rect(x + 4, y + 4 + o, 4, 4, ink),
     }
 }
 
@@ -748,17 +781,34 @@ fn main() {
     digits_sheet(&dir, digit_chars, (14, 26));
 
     // Buttons.
-    let mut sheet = Sheet::new(198);
-    let states = [("normal", Key::Normal), ("pressed", Key::Pressed), ("active", Key::Active), ("disabled", Key::Disabled)];
-    let key_states = |sym: Symbol, label: &'static str| -> States {
+    let mut sheet = Sheet::new(KEY_W * 7);
+    // Record is also pause: while recording it shows PAUSE, while paused a
+    // lit RESUME (the "recording…"/"paused…" states the UI asks for).
+    let record_states: [(&'static str, Symbol, &'static str, Key); 7] = [
+        ("normal", Symbol::Record, "REC", Key::Normal),
+        ("pressed", Symbol::Record, "REC", Key::Pressed),
+        ("disabled", Symbol::Record, "REC", Key::Disabled),
+        ("recording", Symbol::Pause, "PAUSE", Key::Normal),
+        ("recordingPressed", Symbol::Pause, "PAUSE", Key::Pressed),
+        ("paused", Symbol::Record, "RESUME", Key::Active),
+        ("pausedPressed", Symbol::Record, "RESUME", Key::Pressed),
+    ];
+    let keys = |states: &[(&'static str, Symbol, &'static str, Key)]| -> States {
         states
             .iter()
-            .map(|&(name, k)| (name, Box::new(move |c: &mut Canvas, x, y| piano_key(c, x, y, sym, label, k)) as Draw))
+            .map(|&(name, sym, label, k)| (name, Box::new(move |c: &mut Canvas, x, y| piano_key(c, x, y, sym, label, k)) as Draw))
             .collect()
     };
-    let record = sheet.add(48, 18, key_states(Symbol::Record, "REC"));
-    let pause = sheet.add(48, 18, key_states(Symbol::Pause, "PAUSE"));
-    let stop = sheet.add(48, 18, key_states(Symbol::Stop, "STOP"));
+    let record = sheet.add(KEY_W, 18, keys(&record_states));
+    let stop = sheet.add(
+        KEY_W,
+        18,
+        keys(&[
+            ("normal", Symbol::Stop, "STOP", Key::Normal),
+            ("pressed", Symbol::Stop, "STOP", Key::Pressed),
+            ("disabled", Symbol::Stop, "STOP", Key::Disabled),
+        ]),
+    );
     let title = |kind: char| -> States {
         vec![
             ("normal", Box::new(move |c: &mut Canvas, x, y| title_button(c, x, y, kind, false))),
@@ -776,14 +826,22 @@ fn main() {
     };
     let library = sheet.add(66, 16, toggle(66, "LIBRARY"));
     let settings = sheet.add(66, 16, toggle(66, "SETTINGS"));
-    let tiny = |sym: Symbol| -> States {
+    let tiny = |states: &[(&'static str, Symbol, &'static str, Key)]| -> States {
         states
             .iter()
-            .map(|&(name, k)| (name, Box::new(move |c: &mut Canvas, x, y| tiny_button(c, x, y, sym, k)) as Draw))
+            .map(|&(name, sym, _, k)| (name, Box::new(move |c: &mut Canvas, x, y| tiny_button(c, x, y, sym, k)) as Draw))
             .collect()
     };
-    let tiny_record = sheet.add(12, 12, tiny(Symbol::Record));
-    let tiny_stop = sheet.add(12, 12, tiny(Symbol::Stop));
+    let tiny_record = sheet.add(12, 12, tiny(&record_states));
+    let tiny_stop = sheet.add(
+        12,
+        12,
+        tiny(&[
+            ("normal", Symbol::Stop, "", Key::Normal),
+            ("pressed", Symbol::Stop, "", Key::Pressed),
+            ("disabled", Symbol::Stop, "", Key::Disabled),
+        ]),
+    );
     sheet.save(&dir, "buttons");
 
     let sprite = |states: &BTreeMap<String, [i32; 2]>| json!({ "image": "buttons.png", "states": states });
@@ -830,9 +888,8 @@ fn main() {
                     "levels": { "rect": rect([146, 32, 112, 20]), "style": levels_style },
                     "visualizer": { "rect": rect([146, 58, 112, 34]), "style": { "grid": "@lcdGhost", "line": "@lcdLit" } },
                     "source": { "rect": rect([14, 107, 384, 16]), "font": "lcd", "style": { "pad": true } },
-                    "record": { "rect": rect([12, 128, 48, 18]), "sprite": sprite(&record) },
-                    "pause": { "rect": rect([64, 128, 48, 18]), "sprite": sprite(&pause) },
-                    "stop": { "rect": rect([116, 128, 48, 18]), "sprite": sprite(&stop) },
+                    "record": { "rect": rect([12, 128, KEY_W, 18]), "sprite": sprite(&record) },
+                    "stop": { "rect": rect([16 + KEY_W, 128, KEY_W, 18]), "sprite": sprite(&stop) },
                     "toggleLibrary": { "rect": rect([278, 129, 66, 16]), "sprite": sprite(&library) },
                     "toggleSettings": { "rect": rect([346, 129, 66, 16]), "sprite": sprite(&settings) }
                 },

@@ -1,6 +1,6 @@
 // Layout here comes from skin data (rects, sizes), so styles are inline.
 /* eslint-disable react-native/no-inline-styles */
-import React from 'react';
+import React, { createContext, useContext } from 'react';
 import {
   Image,
   type ImageStyle,
@@ -10,16 +10,38 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import type { ImageRef } from './types';
+import type { ImageRef, Rect } from './types';
 
-/** The skin image for this display: the @2x file on Retina when there is one. */
-export function imageSource(image: ImageRef, pixelRatio = PixelRatio.get()) {
-  const retina = pixelRatio >= 1.5 && image.path2x != null;
+/** How many points one skin point takes: 1, or 2 in double-size mode. */
+export const SkinScale = createContext(1);
+export const useSkinScale = () => useContext(SkinScale);
+
+export function scaleRect(rect: Rect, s: number) {
   return {
-    uri: fileUri(retina ? image.path2x! : image.path),
+    position: 'absolute' as const,
+    left: rect[0] * s,
+    top: rect[1] * s,
+    width: rect[2] * s,
+    height: rect[3] * s,
+  };
+}
+
+/**
+ * The skin image file for `density` device pixels per skin point (screen
+ * scale × skin scale): @4x, @2x or 1x, the smallest that's sharp enough.
+ */
+export function imageSource(image: ImageRef, density = PixelRatio.get()) {
+  const [path, scale] =
+    density > 2 && image.path4x != null
+      ? [image.path4x, 4]
+      : density >= 1.5 && image.path2x != null
+      ? [image.path2x, 2]
+      : [image.path, 1];
+  return {
+    uri: fileUri(path),
     width: image.width,
     height: image.height,
-    scale: retina ? 2 : 1,
+    scale,
   };
 }
 
@@ -35,18 +57,19 @@ type Props = {
   style?: StyleProp<ImageStyle>;
 };
 
-/** A skin image at its point size (or stretched to width × height). */
+/** A skin image at its (scaled) point size, or stretched to width × height. */
 export function SkinImage(props: Props): React.JSX.Element {
   const { image } = props;
+  const s = useSkinScale();
   return (
     <Image
-      source={imageSource(image)}
+      source={imageSource(image, PixelRatio.get() * s)}
       resizeMode="stretch"
       fadeDuration={0}
       style={[
         {
-          width: props.width ?? image.width,
-          height: props.height ?? image.height,
+          width: props.width ?? image.width * s,
+          height: props.height ?? image.height * s,
         },
         props.style,
       ]}
@@ -60,7 +83,7 @@ type CellProps = {
   at: [number, number];
   /** Cell size in the image. */
   size: [number, number];
-  /** Drawn size; defaults to the cell size (larger stretches it). */
+  /** Drawn size; defaults to the cell size × the skin scale. */
   drawSize?: [number, number];
   style?: StyleProp<ViewStyle>;
 };
@@ -68,7 +91,8 @@ type CellProps = {
 /** One cell of a sprite sheet. */
 export function SpriteCell(props: CellProps): React.JSX.Element {
   const { image, at, size } = props;
-  const [w, h] = props.drawSize ?? size;
+  const s = useSkinScale();
+  const [w, h] = props.drawSize ?? [size[0] * s, size[1] * s];
   const kx = w / size[0];
   const ky = h / size[1];
   return (

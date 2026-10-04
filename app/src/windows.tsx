@@ -1,6 +1,6 @@
 // Roots of the skinned UI's windows (registered in index.js). They share one
 // JS runtime, so the skin and library refreshes are shared between them.
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -16,28 +16,45 @@ import { SettingsPanel } from './SettingsPanel';
 import { MainPanel } from './skin/MainPanel';
 import { SkinChooser } from './skin/SkinChooser';
 import { SkinProvider } from './skin/SkinProvider';
-import { windows } from './skin/skins';
+import { SkinScale } from './skin/SkinImage';
+import { doubleSizeStore, windows } from './skin/skins';
 import { colors, text } from './theme';
 import type { Message } from './useRecorder';
 
 /** The main window: the skinned panel. */
 export function MainApp(): React.JSX.Element {
   const [error, setError] = useState<string>();
-  return (
-    <SkinProvider
-      onError={setError}
-      fallback={
-        error ? (
-          <View style={styles.skinError}>
-            <Text selectable style={styles.skinErrorText}>
-              Couldn't load the skin: {error}
-            </Text>
-          </View>
-        ) : null
+  const [double, setDouble] = useState(doubleSizeStore.get);
+  useEffect(() => {
+    const unsubscribe = doubleSizeStore.subscribe(setDouble);
+    // Window › Double Size (⌘D).
+    const subscription = windows.onEvent(e => {
+      if (e.window === 'main' && e.event === 'toggleDoubleSize') {
+        doubleSizeStore.set(!doubleSizeStore.get());
       }
-    >
-      <MainPanel />
-    </SkinProvider>
+    });
+    return () => {
+      unsubscribe();
+      subscription.remove();
+    };
+  }, []);
+  return (
+    <SkinScale.Provider value={double ? 2 : 1}>
+      <SkinProvider
+        onError={setError}
+        fallback={
+          error ? (
+            <View style={styles.skinError}>
+              <Text selectable style={styles.skinErrorText}>
+                Couldn't load the skin: {error}
+              </Text>
+            </View>
+          ) : null
+        }
+      >
+        <MainPanel />
+      </SkinProvider>
+    </SkinScale.Provider>
   );
 }
 

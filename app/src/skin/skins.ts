@@ -1,6 +1,7 @@
 import type { EventSubscription } from 'react-native';
 
 import NativeSkins, { type WindowEvent } from '../native/NativeSkins';
+import { settings } from '../native/SoundScraper';
 import type { Rect, Skin, SkinSummary } from './types';
 
 /** False where the native side has no skin support yet (Windows). */
@@ -67,5 +68,33 @@ export const skinStore = {
     const skin = await skins.loadCurrent();
     skinStore.set(skin);
     return skin;
+  },
+};
+
+// Double-size mode, shared by the windows and saved in the settings.
+let doubleSize: boolean | undefined;
+const sizeListeners = new Set<(on: boolean) => void>();
+
+export const doubleSizeStore = {
+  get: (): boolean => {
+    if (doubleSize === undefined) {
+      try {
+        doubleSize = settings.get().doubleSize === true;
+      } catch {
+        doubleSize = false;
+      }
+    }
+    return doubleSize;
+  },
+  set: (on: boolean) => {
+    doubleSize = on;
+    sizeListeners.forEach(l => l(on));
+    try {
+      settings.set({ ...settings.get(), doubleSize: on }).catch(() => {});
+    } catch {}
+  },
+  subscribe: (listener: (on: boolean) => void): (() => void) => {
+    sizeListeners.add(listener);
+    return () => sizeListeners.delete(listener);
   },
 };

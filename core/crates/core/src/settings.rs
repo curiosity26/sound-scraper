@@ -49,6 +49,8 @@ pub struct Settings {
     /// Skin id, or an absolute path to an unpacked skin folder (for skin
     /// authors). `None` = the Default skin.
     pub skin: Option<String>,
+    /// Draw the skinned main panel at twice its size.
+    pub double_size: bool,
 }
 
 impl Default for Settings {
@@ -60,6 +62,7 @@ impl Default for Settings {
             id3_version: default_id3_version().into(),
             last_source: None,
             skin: None,
+            double_size: false,
         }
     }
 }
@@ -159,6 +162,7 @@ mod tests {
             id3_version: "2.3".into(),
             last_source: Some(SourceRef::App { id: Some("com.spotify.client".into()), name: "Spotify".into() }),
             skin: Some("com.example.green".into()),
+            double_size: true,
         };
         save_to(&path, &s).unwrap();
         assert_eq!(load_from(&path), s);

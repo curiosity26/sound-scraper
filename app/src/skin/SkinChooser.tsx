@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { errorText, safeSettings } from '../appHelpers';
 import { settings } from '../native/SoundScraper';
 import { colors } from '../theme';
-import { skins, skinStore } from './skins';
+import { doubleSizeStore, skins, skinStore } from './skins';
 import type { SkinSummary } from './types';
 
 /**
@@ -19,6 +19,8 @@ export function SkinChooser(props: { textStyle: object }): React.JSX.Element {
     () => safeSettings()?.skin ?? null,
   );
   const [error, setError] = useState<string>();
+  const [double, setDouble] = useState(doubleSizeStore.get);
+  useEffect(() => doubleSizeStore.subscribe(setDouble), []);
   const [warnings, setWarnings] = useState<string[]>(
     () => skinStore.get()?.warnings ?? [],
   );
@@ -95,7 +97,9 @@ export function SkinChooser(props: { textStyle: object }): React.JSX.Element {
             onPress={() => choose(s.builtin ? null : s.id)}
             style={styles.choice}
           >
-            <Text style={[styles.label, textStyle, s.error != null && styles.muted]}>
+            <Text
+              style={[styles.label, textStyle, s.error != null && styles.muted]}
+            >
               {isChosen(s) ? '◉' : '○'} {s.name}
               {s.version ? ` ${s.version}` : ''}
               {s.author ? ` · ${s.author}` : ''}
@@ -112,6 +116,15 @@ export function SkinChooser(props: { textStyle: object }): React.JSX.Element {
       {folderInUse && (
         <Text style={[styles.label, textStyle]}>◉ Folder: {folderInUse}</Text>
       )}
+      <Pressable
+        testID="double-size"
+        onPress={() => doubleSizeStore.set(!double)}
+        style={styles.choice}
+      >
+        <Text style={[styles.label, textStyle]}>
+          {double ? '☑' : '☐'} Double size (⌘D)
+        </Text>
+      </Pressable>
       <View style={styles.actions}>
         <Pressable onPress={install} testID="install-skin">
           <Text style={styles.link}>Install skin…</Text>

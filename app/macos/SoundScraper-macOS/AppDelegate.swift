@@ -51,6 +51,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     WindowController.shared.togglePanel("library")
   }
 
+  @objc func toggleDoubleSize(_ sender: Any?) {
+    WindowController.shared.onEvent?("main", "toggleDoubleSize")
+  }
+
   /// Minimizes the key window (the borderless main panel has no title-bar
   /// button for performMiniaturize to press).
   @objc func minimizeWindow(_ sender: Any?) {
@@ -86,6 +90,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     let windowMenu = NSMenu(title: "Window")
     windowMenu.addItem(withTitle: "Minimize", action: #selector(minimizeWindow(_:)), keyEquivalent: "m")
     windowMenu.addItem(withTitle: "Library", action: #selector(toggleLibrary(_:)), keyEquivalent: "l")
+    windowMenu.addItem(withTitle: "Double Size", action: #selector(toggleDoubleSize(_:)), keyEquivalent: "d")
     windowMenu.addItem(.separator())
     windowMenu.addItem(withTitle: "Bring All to Front", action: #selector(NSApplication.arrangeInFront(_:)), keyEquivalent: "")
 

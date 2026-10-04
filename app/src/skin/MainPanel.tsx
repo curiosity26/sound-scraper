@@ -8,11 +8,11 @@ import type { RecorderState } from '../native/SoundScraper';
 import { type Message, useRecorder } from '../useRecorder';
 import { LevelMeter, VisualizerPlaceholder } from './LevelMeter';
 import { SkinButton } from './SkinButton';
-import { SkinImage, SpriteCell } from './SkinImage';
+import { scaleRect, SkinImage, SpriteCell, useSkinScale } from './SkinImage';
 import { useSkin } from './SkinProvider';
 import { windows } from './skins';
 import { ElementText } from './SpriteText';
-import type { ElementName, SkinElement } from './types';
+import type { ElementName, Rect, SkinElement } from './types';
 
 /** Elements that take clicks, so the window doesn't drag from them. */
 const INTERACTIVE: ElementName[] = [
@@ -29,23 +29,24 @@ const INTERACTIVE: ElementName[] = [
 
 export function statusText(state: RecorderState, starting: boolean): string {
   if (starting) {
-    return 'Starting';
+    return 'STARTING';
   }
   switch (state) {
     case 'recording':
-      return '● Rec';
+      return '● REC';
     case 'paused':
-      return '⏸ Paused';
+      return '⏸ PAUSED';
     case 'finalizing':
-      return 'Saving';
+      return 'SAVING';
     default:
-      return 'Ready';
+      return 'READY';
   }
 }
 
 /** The skinned main window: transport, time, status, levels and source. */
 export function MainPanel(): React.JSX.Element {
   const skin = useSkin();
+  const s = useSkinScale();
   const r = useRecorder();
   const [shaded, setShaded] = useState(false);
   const [panels, setPanels] = useState(() => ({
@@ -61,7 +62,7 @@ export function MainPanel(): React.JSX.Element {
   useEffect(() => {
     const subscription = windows.onEvent(e => {
       if (e.window === 'main' && e.event === 'toggleShade') {
-        setShaded(s => !s);
+        setShaded(on => !on);
       } else if (e.window === 'library' || e.window === 'settings') {
         setPanels(p => ({ ...p, [e.window]: e.event === 'shown' }));
       }
@@ -70,12 +71,22 @@ export function MainPanel(): React.JSX.Element {
   }, []);
 
   useEffect(() => {
+    const scaled = (rect: Rect): Rect => [
+      rect[0] * s,
+      rect[1] * s,
+      rect[2] * s,
+      rect[3] * s,
+    ];
     const holes = INTERACTIVE.flatMap(name => {
       const el = layout.elements[name];
-      return el ? [el.rect] : [];
+      return el ? [scaled(el.rect)] : [];
     });
-    windows.setMainLayout(layout.size, layout.dragRegions, holes);
-  }, [layout]);
+    windows.setMainLayout(
+      [layout.size[0] * s, layout.size[1] * s],
+      layout.dragRegions.map(scaled),
+      holes,
+    );
+  }, [layout, s]);
 
   // Messages show in the source display for a while.
   useEffect(() => {
@@ -101,7 +112,10 @@ export function MainPanel(): React.JSX.Element {
       return;
     }
     if (active || busy) {
-      setMessage({ text: 'Stop recording to change the source', isError: false });
+      setMessage({
+        text: 'Stop recording to change the source',
+        isError: false,
+      });
       return;
     }
     const apps = refreshApps();
@@ -113,13 +127,27 @@ export function MainPanel(): React.JSX.Element {
     const index = apps.findIndex(a => a.pid === selectedPid);
     const checked = selectedPid === 0 || index < 0 ? 0 : index + 2;
     const [x, y, , h] = el.rect;
-    const chosen = await windows.showMenu(items, checked, x, y + h + 2);
+    const chosen = await windows.showMenu(
+      items,
+      checked,
+      x * s,
+      (y + h + 2) * s,
+    );
     if (chosen === 0) {
       setSelectedPid(0);
     } else if (chosen >= 2) {
       setSelectedPid(apps[chosen - 2].pid);
     }
-  }, [layout, active, busy, refreshApps, setSelectedPid, selectedPid, setMessage]);
+  }, [
+    layout,
+    s,
+    active,
+    busy,
+    refreshApps,
+    setSelectedPid,
+    selectedPid,
+    setMessage,
+  ]);
 
   const close = useCallback(async () => {
     if (active) {
@@ -128,14 +156,30 @@ export function MainPanel(): React.JSX.Element {
     windows.quit();
   }, [active, r]);
 
-  // Record starts, resumes when paused, and stays latched while recording.
+  // With no separate pause element, record is also pause: it starts,
+  // pauses while recording and resumes while paused.
+  const pauseSeparate = els.pause != null;
   const onRecord = () => {
     if (r.state === 'idle') {
       r.record();
     } else if (r.state === 'paused') {
       r.resume();
+    } else if (r.state === 'recording' && !pauseSeparate) {
+      r.pause();
     }
   };
+  const recordMode =
+    r.state === 'paused'
+      ? 'paused'
+      : r.state === 'recording'
+      ? 'recording'
+      : undefined;
+  const recordLabel =
+    r.state === 'paused'
+      ? 'Resume'
+      : r.state === 'recording' && !pauseSeparate
+      ? 'Pause'
+      : 'Record';
 
   const togglePanel = (panel: 'library' | 'settings') => {
     windows.setPanelVisible(panel, !panels[panel]);
@@ -145,7 +189,7 @@ export function MainPanel(): React.JSX.Element {
     name: ElementName,
     label: string,
     onPress: () => void,
-    flags: { active?: boolean; disabled?: boolean } = {},
+    flags: { active?: boolean; disabled?: boolean; mode?: string } = {},
   ) => {
     const el = els[name];
     return el ? (
@@ -157,6 +201,7 @@ export function MainPanel(): React.JSX.Element {
         onPress={onPress}
         active={flags.active}
         disabled={flags.disabled}
+        mode={flags.mode}
       />
     ) : null;
   };
@@ -169,8 +214,8 @@ export function MainPanel(): React.JSX.Element {
     <View
       testID={shaded ? 'shade-panel' : 'main-panel'}
       style={{
-        width,
-        height,
+        width: width * s,
+        height: height * s,
         backgroundColor: layout.background
           ? undefined
           : skin.colors.background ?? '#333333',
@@ -184,7 +229,11 @@ export function MainPanel(): React.JSX.Element {
       )}
       {els.visualizer && <VisualizerPlaceholder element={els.visualizer} />}
       {els.levels && (
-        <LevelMeter element={els.levels} peak={r.levels.peak} rms={r.levels.rms} />
+        <LevelMeter
+          element={els.levels}
+          peak={r.levels.peak}
+          rms={r.levels.rms}
+        />
       )}
       {els.elapsed && (
         <ElementText
@@ -208,7 +257,7 @@ export function MainPanel(): React.JSX.Element {
           accessibilityRole="button"
           accessibilityLabel={`Source: ${r.sourceName}`}
           onPress={chooseSource}
-          style={rectStyle(els.source)}
+          style={scaleRect(els.source.rect, s)}
         >
           {els.source.sprite && (
             <SpriteCell
@@ -223,14 +272,25 @@ export function MainPanel(): React.JSX.Element {
         </Pressable>
       )}
       {els.source && (
-        <ElementText element={els.source} fonts={skin.fonts} text={sourceText} />
+        <ElementText
+          element={els.source}
+          fonts={skin.fonts}
+          text={sourceText}
+        />
       )}
-      {button('record', 'Record', onRecord, { active, disabled: busy })}
-      {button('pause', r.state === 'paused' ? 'Resume' : 'Pause',
-        r.state === 'paused' ? r.resume : r.pause, {
+      {button('record', recordLabel, onRecord, {
+        mode: recordMode,
+        disabled: busy,
+      })}
+      {button(
+        'pause',
+        r.state === 'paused' ? 'Resume' : 'Pause',
+        r.state === 'paused' ? r.resume : r.pause,
+        {
           active: r.state === 'paused',
           disabled: !active,
-        })}
+        },
+      )}
       {button('stop', 'Stop', r.stop, { disabled: !active })}
       {button('toggleLibrary', 'Library', () => togglePanel('library'), {
         active: panels.library,
@@ -239,17 +299,17 @@ export function MainPanel(): React.JSX.Element {
         active: panels.settings,
       })}
       {button('minimize', 'Minimize', windows.minimize)}
-      {button('shade', shaded ? 'Expand' : 'Collapse', () => setShaded(s => !s), {
-        active: shaded,
-      })}
+      {button(
+        'shade',
+        shaded ? 'Expand' : 'Collapse',
+        () => setShaded(on => !on),
+        {
+          active: shaded,
+        },
+      )}
       {button('close', 'Quit', close)}
     </View>
   );
-}
-
-function rectStyle(el: SkinElement) {
-  const [x, y, w, h] = el.rect;
-  return { position: 'absolute' as const, left: x, top: y, width: w, height: h };
 }
 
 /** The status sprite for the state when the skin has one, else its text. */
@@ -260,16 +320,31 @@ function StatusElement(props: {
   text: string;
 }) {
   const { element } = props;
+  const s = useSkinScale();
   const sprite = element.sprite;
   if (sprite) {
     const at = sprite.states[props.state] ?? sprite.states.idle;
     return (
-      <View testID="status" accessible accessibilityLabel={props.text} style={rectStyle(element)}>
-        <SpriteCell image={sprite.image} at={at} size={[element.rect[2], element.rect[3]]} />
+      <View
+        testID="status"
+        accessible
+        accessibilityLabel={props.text}
+        style={scaleRect(element.rect, s)}
+      >
+        <SpriteCell
+          image={sprite.image}
+          at={at}
+          size={[element.rect[2], element.rect[3]]}
+        />
       </View>
     );
   }
   return (
-    <ElementText testID="status" element={element} fonts={props.fonts} text={props.text} />
+    <ElementText
+      testID="status"
+      element={element}
+      fonts={props.fonts}
+      text={props.text}
+    />
   );
 }

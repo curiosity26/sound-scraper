@@ -7,7 +7,7 @@ import { TurboModuleRegistry } from 'react-native';
 export type WindowEvent = {
   /** 'main' | 'library' | 'settings' */
   window: string;
-  /** 'shown' | 'hidden' | 'toggleShade' (double click on a drag region) */
+  /** 'shown' | 'hidden' | 'toggleShade' (double click on a drag region) | 'toggleDoubleSize' (menu) */
   event: string;
 };
 

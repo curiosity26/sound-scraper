@@ -17,13 +17,15 @@ use crate::{
     manifest::{self, ElementDef, FramePanel, Layout, Manifest, Rect, TextStyle},
 };
 
-/// An image, ready to draw: `width` × `height` points; `path2x` (when
-/// present) has exactly twice the pixels for Retina displays.
+/// An image, ready to draw: `width` × `height` points. `path2x` and
+/// `path4x` (when present) have exactly two and four times the pixels, for
+/// Retina displays and double-size mode.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ImageRef {
     pub path: PathBuf,
     pub path2x: Option<PathBuf>,
+    pub path4x: Option<PathBuf>,
     pub width: u32,
     pub height: u32,
 }
@@ -219,23 +221,25 @@ impl<'a> Images<'a> {
         let (width, height) = decode_check(&path, rel)?;
         let stem = clean.file_stem().unwrap().to_string_lossy();
         let ext = clean.extension().unwrap().to_string_lossy();
-        let rel2x = clean.with_file_name(format!("{stem}@2x.{ext}"));
-        let path2x = self.dir.join(&rel2x);
-        let path2x = if path2x.is_file() {
-            let (w2, h2) = decode_check(&path2x, &rel2x.to_string_lossy())?;
-            if (w2, h2) != (width * 2, height * 2) {
+        let sibling = |factor: u32| -> Result<Option<PathBuf>, String> {
+            let rel_n = clean.with_file_name(format!("{stem}@{factor}x.{ext}"));
+            let path_n = self.dir.join(&rel_n);
+            if !path_n.is_file() {
+                return Ok(None);
+            }
+            let (w, h) = decode_check(&path_n, &rel_n.to_string_lossy())?;
+            if (w, h) != (width * factor, height * factor) {
                 return Err(format!(
-                    "{}: must be exactly twice the size of {rel} ({}×{} pixels), but is {w2}×{h2}",
-                    rel2x.display(),
-                    width * 2,
-                    height * 2
+                    "{}: must be exactly {} the size of {rel} ({}×{} pixels), but is {w}×{h}",
+                    rel_n.display(),
+                    if factor == 2 { "twice" } else { "four times" },
+                    width * factor,
+                    height * factor
                 ));
             }
-            Some(path2x)
-        } else {
-            None
+            Ok(Some(path_n))
         };
-        let image = ImageRef { path, path2x, width, height };
+        let image = ImageRef { path2x: sibling(2)?, path4x: sibling(4)?, path, width, height };
         self.cache.insert(rel.to_string(), image.clone());
         Ok(image)
     }

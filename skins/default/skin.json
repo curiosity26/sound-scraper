@@ -28,7 +28,7 @@
         12,
         16
       ],
-      "glyphs": " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,:;!?'\"-+/()[]&#%@*_<>=$~|●▶■⏸♪▼",
+      "glyphs": " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,:;!?'\"-+/()[]&#%@*_<>=$~|●▶■⏸♪▼",
       "sprite": "font-lcd.png"
     },
     "tiny": {
@@ -36,7 +36,7 @@
         6,
         8
       ],
-      "glyphs": " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,:;!?'\"-+/()[]&#%@*_<>=$~|●▶■⏸♪▼",
+      "glyphs": " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,:;!?'\"-+/()[]&#%@*_<>=$~|●▶■⏸♪▼",
       "sprite": "font-tiny.png"
     }
   },
@@ -121,12 +121,12 @@
             "image": "buttons.png",
             "states": {
               "normal": [
-                48,
-                54
+                270,
+                18
               ],
               "pressed": [
-                60,
-                54
+                282,
+                18
               ]
             }
           }
@@ -169,40 +169,11 @@
             "image": "buttons.png",
             "states": {
               "normal": [
-                0,
-                54
-              ],
-              "pressed": [
-                12,
-                54
-              ]
-            }
-          }
-        },
-        "pause": {
-          "rect": [
-            64,
-            128,
-            48,
-            18
-          ],
-          "sprite": {
-            "image": "buttons.png",
-            "states": {
-              "active": [
-                96,
-                18
-              ],
-              "disabled": [
-                144,
-                18
-              ],
-              "normal": [
-                0,
+                222,
                 18
               ],
               "pressed": [
-                48,
+                234,
                 18
               ]
             }
@@ -212,26 +183,38 @@
           "rect": [
             12,
             128,
-            48,
+            74,
             18
           ],
           "sprite": {
             "image": "buttons.png",
             "states": {
-              "active": [
-                96,
-                0
-              ],
               "disabled": [
-                144,
+                148,
                 0
               ],
               "normal": [
                 0,
                 0
               ],
+              "paused": [
+                370,
+                0
+              ],
+              "pausedPressed": [
+                444,
+                0
+              ],
               "pressed": [
-                48,
+                74,
+                0
+              ],
+              "recording": [
+                222,
+                0
+              ],
+              "recordingPressed": [
+                296,
                 0
               ]
             }
@@ -248,12 +231,12 @@
             "image": "buttons.png",
             "states": {
               "normal": [
-                24,
-                54
+                246,
+                18
               ],
               "pressed": [
-                36,
-                54
+                258,
+                18
               ]
             }
           }
@@ -284,29 +267,25 @@
         },
         "stop": {
           "rect": [
-            116,
+            90,
             128,
-            48,
+            74,
             18
           ],
           "sprite": {
             "image": "buttons.png",
             "states": {
-              "active": [
-                96,
-                36
-              ],
               "disabled": [
-                144,
-                36
+                148,
+                18
               ],
               "normal": [
                 0,
-                36
+                18
               ],
               "pressed": [
-                48,
-                36
+                74,
+                18
               ]
             }
           }
@@ -322,16 +301,16 @@
             "image": "buttons.png",
             "states": {
               "active": [
-                132,
-                64
+                426,
+                18
               ],
               "normal": [
-                0,
-                64
+                294,
+                18
               ],
               "pressed": [
-                66,
-                64
+                360,
+                18
               ]
             }
           }
@@ -348,15 +327,15 @@
             "states": {
               "active": [
                 132,
-                80
+                36
               ],
               "normal": [
                 0,
-                80
+                36
               ],
               "pressed": [
                 66,
-                80
+                36
               ]
             }
           }
@@ -396,12 +375,12 @@
               "image": "buttons.png",
               "states": {
                 "normal": [
-                  48,
-                  54
+                  270,
+                  18
                 ],
                 "pressed": [
-                  60,
-                  54
+                  282,
+                  18
                 ]
               }
             }
@@ -444,12 +423,12 @@
               "image": "buttons.png",
               "states": {
                 "normal": [
-                  0,
-                  54
+                  222,
+                  18
                 ],
                 "pressed": [
-                  12,
-                  54
+                  234,
+                  18
                 ]
               }
             }
@@ -464,21 +443,33 @@
             "sprite": {
               "image": "buttons.png",
               "states": {
-                "active": [
-                  24,
-                  96
-                ],
                 "disabled": [
-                  36,
-                  96
+                  222,
+                  36
                 ],
                 "normal": [
-                  0,
-                  96
+                  198,
+                  36
+                ],
+                "paused": [
+                  258,
+                  36
+                ],
+                "pausedPressed": [
+                  270,
+                  36
                 ],
                 "pressed": [
-                  12,
-                  96
+                  210,
+                  36
+                ],
+                "recording": [
+                  234,
+                  36
+                ],
+                "recordingPressed": [
+                  246,
+                  36
                 ]
               }
             }
@@ -494,12 +485,12 @@
               "image": "buttons.png",
               "states": {
                 "normal": [
-                  24,
-                  54
+                  246,
+                  18
                 ],
                 "pressed": [
-                  36,
-                  54
+                  258,
+                  18
                 ]
               }
             }
@@ -523,21 +514,17 @@
             "sprite": {
               "image": "buttons.png",
               "states": {
-                "active": [
-                  72,
-                  96
-                ],
                 "disabled": [
-                  84,
-                  96
+                  306,
+                  36
                 ],
                 "normal": [
-                  48,
-                  96
+                  282,
+                  36
                 ],
                 "pressed": [
-                  60,
-                  96
+                  294,
+                  36
                 ]
               }
             }
