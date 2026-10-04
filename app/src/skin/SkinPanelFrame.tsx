@@ -73,7 +73,7 @@ export function SkinPanelFrame(props: Props): React.JSX.Element {
   const hide = () => windows.setPanelVisible(props.panel, false);
   const titleFont = def.title?.font ? skin.fonts[def.title.font] : undefined;
   const titleOffset = def.title?.offset ?? [12, 6];
-  const theme = themeFromPanel(def);
+  const theme = { ...themeFromPanel(def), compact: s === 1 };
 
   return (
     <View

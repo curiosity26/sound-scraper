@@ -147,7 +147,7 @@ export function LibraryTable(props: Props): React.JSX.Element {
             testID="edit-checked-tags"
             onPress={() => props.onEditTags([...checked])}
           >
-            <Text style={[styles.toolbarLink, t.link]}>
+            <Text style={[styles.toolbarLink, t.link, t.cell]}>
               Edit tags of {checked.size} selected
             </Text>
           </Pressable>
@@ -166,7 +166,7 @@ export function LibraryTable(props: Props): React.JSX.Element {
         />
       </View>
 
-      <View style={[styles.row, styles.header, t.header]}>
+      <View style={[styles.row, t.row, styles.header, t.header]}>
         <Pressable onPress={toggleAll} style={styles.check}>
           <Text style={[styles.checkText, textStyle, t.headerText]}>
             {allChecked ? '☑' : '☐'}
@@ -220,6 +220,7 @@ export function LibraryTable(props: Props): React.JSX.Element {
           renderItem={({ item: r, index }) => {
             const isSelected = r.fileName === selected;
             const cellText = [
+              t.cell,
               textStyle,
               t.tableText,
               isSelected && t.selectedText,
@@ -232,6 +233,7 @@ export function LibraryTable(props: Props): React.JSX.Element {
                   onPress={() => setSelected(r.fileName)}
                   style={[
                     styles.row,
+                    t.row,
                     t.grid,
                     index % 2 === 1 && t.rowAlternate,
                     isSelected && styles.rowSelected,

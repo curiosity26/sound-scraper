@@ -15,6 +15,8 @@ export type PanelTheme = {
   buttonText?: string;
   table: Record<string, string | undefined>;
   scrollbar: FramePanel['scrollbar'];
+  /** Smaller text and tighter rows, for the small (1x) panels. */
+  compact?: boolean;
 };
 
 const PanelThemeContext = createContext<PanelTheme | undefined>(undefined);
@@ -36,6 +38,10 @@ export function themeFromPanel(panel: FramePanel): PanelTheme {
 }
 
 type Styles = {
+  /** Table rows (and header) padding. */
+  row: ViewStyle;
+  /** Table cells and check boxes. */
+  cell: TextStyle;
   text: TextStyle;
   link: TextStyle;
   input: TextStyle;
@@ -54,6 +60,8 @@ type Styles = {
 };
 
 const NONE: Styles = {
+  row: {},
+  cell: {},
   text: {},
   link: {},
   input: {},
@@ -79,13 +87,17 @@ export function usePanelStyles(): Styles {
       return NONE;
     }
     const tb = t.table;
+    const small = t.compact === true;
     return {
+      row: small ? { paddingVertical: 3, paddingHorizontal: 6 } : {},
+      cell: small ? { fontSize: 11 } : {},
       text: { color: t.text },
       link: { color: t.accent },
       input: {
         color: t.text,
         backgroundColor: t.background,
         borderColor: t.border,
+        ...(small ? { fontSize: 11, paddingVertical: 2 } : {}),
       },
       button: { backgroundColor: t.button },
       buttonText: { color: t.buttonText },
@@ -96,7 +108,11 @@ export function usePanelStyles(): Styles {
         backgroundColor: tb.header,
         borderBottomColor: tb.grid,
       },
-      headerText: { color: tb.headerText, opacity: 1 },
+      headerText: {
+        color: tb.headerText,
+        opacity: 1,
+        ...(small ? { fontSize: 10 } : {}),
+      },
       rowAlternate: { backgroundColor: tb.alternate },
       rowSelected: { backgroundColor: tb.selection },
       selectedText: { color: tb.selectionText },
