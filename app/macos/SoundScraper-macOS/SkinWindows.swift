@@ -89,6 +89,8 @@ final class WindowController: NSObject, NSWindowDelegate {
   private var hiddenForMinimize: [SkinPanelWindow] = []
   private var saved: [String: [String: Any]] = [:]
 
+  private static let resizable: Set<String> = ["library"]
+
   private static let panelSpecs: [String: (module: String, title: String, size: NSSize)] = [
     "library": ("SoundScraperLibrary", "Library", NSSize(width: 840, height: 420)),
     "settings": ("SoundScraperSettings", "Settings", NSSize(width: 460, height: 560)),
@@ -198,7 +200,10 @@ final class WindowController: NSObject, NSWindowDelegate {
     if let s = saved[name], let x = s["x"] as? Double, let y = s["y"] as? Double,
       let w = s["w"] as? Double, let h = s["h"] as? Double
     {
-      window.setFrame(toAppKit(NSRect(x: x, y: y, width: w, height: h)), display: false)
+      // Settings can't be resized, so it always takes its current default
+      // size; only its position is restored.
+      let size = Self.resizable.contains(name) ? NSSize(width: w, height: h) : spec.size
+      window.setFrame(toAppKit(NSRect(origin: NSPoint(x: x, y: y), size: size)), display: false)
     } else {
       // First time: docked below (library) or beside (settings) the main panel.
       let m = toTopLeft(main.frame)
