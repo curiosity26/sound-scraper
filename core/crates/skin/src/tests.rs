@@ -217,6 +217,49 @@ fn validation_errors_name_the_problem() {
 }
 
 #[test]
+fn animations_and_presets() {
+    let dir = tempdir().join("anim");
+    let mut m = minimal_manifest();
+    m["panels"]["main"]["animations"] = json!([{
+        "name": "spin",
+        "rect": [100, 20, 20, 10],
+        "sprite": { "image": "btn.png", "states": { "a": [0, 0], "b": [20, 0] } },
+        "frames": ["a", "b", "a"],
+        "fps": 8,
+        "speed": "level"
+    }]);
+    m["visualizer"] = json!({ "presets": [
+        { "name": "Hot", "style": "fire", "bands": 12, "color": "@accent", "gradient": ["@accent", "#00ff00"] }
+    ]});
+    write_skin(&dir, &m);
+    let skin = store().load_dir(&dir).unwrap();
+    let a = &skin.panels.main.layout.animations[0];
+    assert_eq!((a.frames.len(), a.fps, a.play.as_str(), a.speed.as_str()), (3, 8.0, "recording", "level"));
+    let p = &skin.visualizer.presets[0];
+    assert_eq!(p["color"], "#ff0000");
+    assert_eq!(p["gradient"], json!(["#ff0000", "#00ff00"]));
+    // Default skin: reels spin while recording; five looks.
+    let default = store().load_default().unwrap();
+    assert_eq!(default.panels.main.layout.animations.len(), 2);
+    assert!(default.visualizer.presets.len() >= 5);
+
+    let bad = |patch: &dyn Fn(&mut serde_json::Value), expect: &str| {
+        let mut m2 = m.clone();
+        patch(&mut m2);
+        let e = load_err(m2);
+        assert!(e.contains(expect), "{e}");
+    };
+    bad(&|m| m["panels"]["main"]["animations"][0]["frames"] = json!(["a", "zz"]), "\"zz\" is not a state");
+    bad(&|m| m["panels"]["main"]["animations"][0]["frames"] = json!([]), "at least one");
+    bad(&|m| m["panels"]["main"]["animations"][0]["fps"] = json!(0), "fps");
+    bad(&|m| m["panels"]["main"]["animations"][0]["play"] = json!("sometimes"), "play must be");
+    bad(&|m| m["panels"]["main"]["animations"][0]["rect"] = json!([190, 20, 20, 10]), "animations[0].rect");
+    bad(&|m| m["visualizer"]["presets"][0]["style"] = json!("lasers"), "style must be");
+    bad(&|m| m["visualizer"]["presets"][0]["bands"] = json!(65), "bands must be");
+    bad(&|m| m["visualizer"]["presets"][0]["color"] = json!("@nope"), "unknown color token @nope");
+}
+
+#[test]
 fn checks_images() {
     let dir = tempdir().join("img");
     write_skin(&dir, &minimal_manifest());

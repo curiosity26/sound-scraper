@@ -15,4 +15,5 @@ serde_json = "1"
 zip = { version = "8", default-features = false, features = ["deflate-flate2"] }
 
 [dev-dependencies]
+sound_scraper_vis = { path = "../vis" }
 jsonschema = { version = "0.33", default-features = false }

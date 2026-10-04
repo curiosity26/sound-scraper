@@ -7,7 +7,9 @@
 //!
 //! Audio flows capture → bounded queue → encoder thread → `<name>.mp3.part`.
 //! Pausing keeps the capture, encoder and file open and drops incoming audio,
-//! so the gap is simply absent from the file. Stopping flushes the encoder,
+//! so the gap is simply absent from the file. Meanwhile the visualizer's
+//! analyzer keeps receiving the audio (paused included) through a
+//! non-blocking tap. Stopping flushes the encoder,
 //! writes the Xing/LAME tag and ID3 tags, and renames `.part` to `.mp3`.
 
 use std::{
@@ -24,6 +26,8 @@ use std::{
 };
 
 use sound_scraper_capture::{AudioChunk, CaptureBackend, CaptureSource, Session, default_backend};
+
+use sound_scraper_vis::{Analyzer, Tap, VisHub};
 
 use crate::{
     mp3, paths,
@@ -66,9 +70,10 @@ impl RecorderState {
 #[derive(Debug, Clone, PartialEq)]
 pub enum RecorderEvent {
     StateChanged(RecorderState),
-    /// About 10 Hz while recording or paused. Levels are linear (0..=1) over
-    /// the last interval and 0 while paused.
-    Progress { elapsed: Duration, peak: f32, rms: f32 },
+    /// About 10 Hz while recording or paused. Levels are linear (0..=1),
+    /// [left, right], from the visualizer's analyzer (so they keep moving
+    /// while paused).
+    Progress { elapsed: Duration, peak: [f32; 2], rms: [f32; 2] },
     Finished { path: PathBuf },
     Error { message: String },
 }
@@ -97,9 +102,15 @@ pub struct Status {
     state: AtomicU8,
     frames: AtomicU64,
     sample_rate: AtomicU32,
+    vis: Arc<VisHub>,
 }
 
 impl Status {
+    /// The visualizer's analysis of the recording's audio.
+    pub fn vis(&self) -> Arc<VisHub> {
+        self.vis.clone()
+    }
+
     pub fn state(&self) -> RecorderState {
         RecorderState::from_u8(self.state.load(Ordering::Acquire))
     }
@@ -300,7 +311,9 @@ impl EncodeJob {
     fn encode_until_disconnected(&mut self) -> Result<Option<mp3::Mp3Encoder>, String> {
         let mut encoder: Option<mp3::Mp3Encoder> = None;
         let mut stereo = Vec::new();
-        let mut meter = Meter::default();
+        // Started with the first audio (it needs the sample rate); stops,
+        // clearing the visualizer, when this job ends.
+        let mut analysis: Option<(Analyzer, Tap)> = None;
         let started = Instant::now();
         let mut last_progress = started;
         let (mut any_audio, mut warned) = (false, false);
@@ -313,14 +326,17 @@ impl EncodeJob {
                     sink(&RecorderEvent::Error { message: NO_AUDIO_MESSAGE.into() });
                 }
             }
+            if let Ok(chunk) = &received {
+                to_stereo(chunk, &mut stereo);
+                let (_, tap) = analysis.get_or_insert_with(|| Analyzer::start(self.status.vis.clone(), chunk.sample_rate));
+                tap.push_stereo(&stereo);
+            }
             match received {
                 Ok(chunk) if !self.paused.load(Ordering::Acquire) => {
                     if encoder.is_none() {
                         encoder = Some(mp3::Mp3Encoder::new(chunk.sample_rate, self.quality)?);
                         self.status.sample_rate.store(chunk.sample_rate, Ordering::Release);
                     }
-                    to_stereo(&chunk, &mut stereo);
-                    meter.add(&stereo);
                     let bytes = encoder.as_mut().unwrap().encode(&stereo)?;
                     self.file.write_all(bytes).map_err(|e| format!("writing {}: {e}", self.part.display()))?;
                     self.status.frames.fetch_add((stereo.len() / 2) as u64, Ordering::AcqRel);
@@ -331,7 +347,7 @@ impl EncodeJob {
             }
             if last_progress.elapsed() >= PROGRESS_INTERVAL {
                 last_progress = Instant::now();
-                let (peak, rms) = meter.take();
+                let (peak, rms) = self.status.vis.levels();
                 if let Some(sink) = &self.events {
                     sink(&RecorderEvent::Progress { elapsed: self.status.elapsed(), peak, rms });
                 }
@@ -464,29 +480,6 @@ fn to_stereo(chunk: &AudioChunk, out: &mut Vec<f32>) {
     }
 }
 
-#[derive(Default)]
-struct Meter {
-    peak: f32,
-    sum_sq: f64,
-    count: u64,
-}
-
-impl Meter {
-    fn add(&mut self, samples: &[f32]) {
-        for &s in samples {
-            self.peak = self.peak.max(s.abs());
-            self.sum_sq += f64::from(s) * f64::from(s);
-        }
-        self.count += samples.len() as u64;
-    }
-
-    fn take(&mut self) -> (f32, f32) {
-        let rms = if self.count == 0 { 0.0 } else { (self.sum_sq / self.count as f64).sqrt() as f32 };
-        let peak = std::mem::take(self).peak;
-        (peak, rms)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::sync::{Mutex, mpsc::SyncSender};
@@ -586,13 +579,17 @@ mod tests {
         let (mut r, events) = recorder(&dir);
         r.start(system()).unwrap();
         std::thread::sleep(Duration::from_millis(600));
+        let vis = r.status().vis();
+        assert!(vis.is_active(), "the analyzer runs while recording");
         r.pause().unwrap();
         let elapsed_at_pause = r.status().elapsed();
         std::thread::sleep(Duration::from_millis(700));
         assert!(r.status().elapsed() - elapsed_at_pause < Duration::from_millis(30), "time advanced while paused");
+        assert!(vis.is_active() && vis.levels().0[0] > 0.1, "the analyzer keeps going while paused");
         r.resume().unwrap();
         std::thread::sleep(Duration::from_millis(600));
         let path = r.stop().unwrap();
+        assert!(!vis.is_active(), "the analyzer stops with the recording");
 
         assert_eq!(path.extension().unwrap(), "mp3");
         assert!(path.file_name().unwrap().to_string_lossy().starts_with("System audio "));
@@ -618,7 +615,7 @@ mod tests {
             .collect();
         use RecorderState::*;
         assert_eq!(states, [Recording, Paused, Recording, Finalizing, Idle]);
-        assert!(events.iter().any(|e| matches!(e, RecorderEvent::Progress { peak, .. } if *peak > 0.4)));
+        assert!(events.iter().any(|e| matches!(e, RecorderEvent::Progress { peak, .. } if peak[0] > 0.4)));
         assert!(events.iter().any(|e| matches!(e, RecorderEvent::Finished { .. })));
     }
 

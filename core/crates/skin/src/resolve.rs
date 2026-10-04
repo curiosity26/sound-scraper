@@ -14,7 +14,7 @@ use serde_json::Value;
 
 use crate::{
     files,
-    manifest::{self, ElementDef, FramePanel, Layout, Manifest, Rect, TextStyle},
+    manifest::{self, AnimationDef, ElementDef, FramePanel, Layout, Manifest, Rect, TextStyle},
 };
 
 /// An image, ready to draw: `width` × `height` points. `path2x` and
@@ -83,6 +83,19 @@ pub struct ResolvedLayout {
     pub background: Option<ImageRef>,
     pub drag_regions: Vec<Rect>,
     pub elements: BTreeMap<String, ResolvedElement>,
+    pub animations: Vec<ResolvedAnimation>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResolvedAnimation {
+    pub name: Option<String>,
+    pub rect: Rect,
+    pub sprite: ResolvedSprite,
+    pub frames: Vec<String>,
+    pub fps: f64,
+    pub play: String,
+    pub speed: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -426,7 +439,79 @@ impl Resolver<'_> {
             }
             elements.insert(name.clone(), self.element(el, name, layout.size, &format!("{at}.elements.{name}"))?);
         }
-        Ok(ResolvedLayout { size: layout.size, background, drag_regions: layout.drag_region.clone(), elements })
+        let mut animations = Vec::new();
+        for (i, a) in layout.animations.iter().enumerate() {
+            animations.push(self.animation(a, layout.size, &format!("{at}.animations[{i}]"))?);
+        }
+        Ok(ResolvedLayout { size: layout.size, background, drag_regions: layout.drag_region.clone(), elements, animations })
+    }
+
+    fn animation(&mut self, a: &AnimationDef, size: [i64; 2], at: &str) -> Result<ResolvedAnimation, String> {
+        if !rect_fits(&a.rect, size) {
+            return Err(format!(
+                "skin.json: {at}.rect {} must have a positive size and lie inside the {}×{} panel",
+                fmt_rect(&a.rect),
+                size[0],
+                size[1]
+            ));
+        }
+        if a.frames.is_empty() {
+            return Err(format!("skin.json: {at}.frames must list at least one sprite state"));
+        }
+        // Reuse the element checks for the sprite cells.
+        let el = ElementDef { rect: a.rect, sprite: Some(a.sprite.clone()), font: None, text: None, align: None, style: None };
+        let sprite = self.element(&el, "visualizer", size, at)?.sprite.expect("sprite given");
+        if let Some(frame) = a.frames.iter().find(|f| !sprite.states.contains_key(*f)) {
+            return Err(format!("skin.json: {at}.frames: \"{frame}\" is not a state of the sprite"));
+        }
+        let fps = a.fps.unwrap_or(12.0);
+        if !(fps > 0.0 && fps <= 60.0) {
+            return Err(format!("skin.json: {at}.fps must be more than 0 and at most 60"));
+        }
+        let play = a.play.clone().unwrap_or_else(|| "recording".into());
+        if !manifest::ANIMATION_PLAY.contains(&play.as_str()) {
+            return Err(format!("skin.json: {at}.play must be one of {}", manifest::ANIMATION_PLAY.join(", ")));
+        }
+        let speed = a.speed.clone().unwrap_or_else(|| "constant".into());
+        if !manifest::ANIMATION_SPEED.contains(&speed.as_str()) {
+            return Err(format!("skin.json: {at}.speed must be one of {}", manifest::ANIMATION_SPEED.join(", ")));
+        }
+        Ok(ResolvedAnimation { name: a.name.clone(), rect: a.rect, sprite, frames: a.frames.clone(), fps, play, speed })
+    }
+
+    /// Checks a visualizer preset and resolves its colors.
+    fn preset(&self, preset: &Value, at: &str) -> Result<Value, String> {
+        let Value::Object(map) = preset else { return Err(format!("skin.json: {at} must be an object")) };
+        if !map.get("name").is_some_and(Value::is_string) {
+            return Err(format!("skin.json: {at} needs a \"name\""));
+        }
+        if let Some(style) = map.get("style")
+            && !style.as_str().is_some_and(|s| manifest::VISUALIZER_STYLES.contains(&s))
+        {
+            return Err(format!("skin.json: {at}.style must be one of {}", manifest::VISUALIZER_STYLES.join(", ")));
+        }
+        if let Some(bands) = map.get("bands")
+            && !bands.as_u64().is_some_and(|b| (1..=64).contains(&b))
+        {
+            return Err(format!("skin.json: {at}.bands must be 1 to 64"));
+        }
+        let color = |v: &Value, key: &str| -> Result<Value, String> {
+            match v {
+                Value::String(s) if s.starts_with('@') || s.starts_with('#') => {
+                    Ok(Value::String(check_color(s, &self.colors, &format!("{at}.{key}"))?))
+                }
+                other => Ok(other.clone()),
+            }
+        };
+        let mut out = serde_json::Map::new();
+        for (key, value) in map {
+            let value = match value {
+                Value::Array(items) => Value::Array(items.iter().map(|v| color(v, key)).collect::<Result<_, _>>()?),
+                v => color(v, key)?,
+            };
+            out.insert(key.clone(), value);
+        }
+        Ok(Value::Object(out))
     }
 
     fn colors_map(
@@ -573,10 +658,7 @@ pub fn load_dir(dir: &Path, base: Option<&ResolvedSkin>) -> Result<ResolvedSkin,
 
     let mut presets = Vec::new();
     for (i, preset) in m.visualizer.as_ref().map(|v| v.presets.as_slice()).unwrap_or_default().iter().enumerate() {
-        if !preset.get("name").is_some_and(Value::is_string) {
-            return Err(format!("skin.json: visualizer.presets[{i}] needs a \"name\""));
-        }
-        presets.push(preset.clone());
+        presets.push(r.preset(preset, &format!("visualizer.presets[{i}]"))?);
     }
     if presets.is_empty()
         && let Some(base) = base

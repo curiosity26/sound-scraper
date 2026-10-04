@@ -651,15 +651,9 @@ fn cassette(c: &mut Canvas, x: i32, y: i32) {
     c.round_rect(x + 24, y + 18, 74, 18, 3.0, INK);
     c.round_rect(x + 25, y + 19, 72, 16, 2.0, rgb(0x16110e));
     c.rect(x + 40, y + 21, 42, 12, rgba(0x6a4a30, 120));
+    // The reels at rest; the "reels" animation spins them while recording.
     for cx in [x + 38, x + 84] {
-        let (fx, fy) = (cx as f32, (y + 27) as f32);
-        c.circle(fx, fy, 6.5, TAPE);
-        c.circle(fx, fy, 4.2, CREAM);
-        c.circle(fx, fy, 2.2, INK);
-        for k in 0..6 {
-            let a = k as f32 * std::f32::consts::PI / 3.0;
-            c.circle(fx + 3.2 * a.cos(), fy + 3.2 * a.sin(), 0.8, INK);
-        }
+        reel(c, cx as f32, (y + 27) as f32, 0.0);
     }
     // Head opening.
     c.shape(x + 22, y + 44, 78, 20, |fx, fy| {
@@ -679,6 +673,33 @@ fn cassette(c: &mut Canvas, x: i32, y: i32) {
     c.round_rect(x + 101, y, 18, 3, 1.5, SLIME);
     drip(c, x + 104, y + 2, 6);
     drip(c, x + 113, y + 2, 12);
+}
+
+/// A tape reel turned by `angle` radians: tape pack, hub and six teeth.
+fn reel(c: &mut Canvas, fx: f32, fy: f32, angle: f32) {
+    c.circle(fx, fy, 6.5, TAPE);
+    // A darker band on the tape pack makes the turning visible.
+    let (bx, by) = (fx + 5.3 * (angle + 0.5).cos(), fy + 5.3 * (angle + 0.5).sin());
+    c.circle(bx, by, 1.1, rgb(0x2e1a0f));
+    c.circle(fx, fy, 4.2, CREAM);
+    c.circle(fx, fy, 2.2, INK);
+    for k in 0..6 {
+        let a = angle + k as f32 * std::f32::consts::PI / 3.0;
+        c.circle(fx + 3.2 * a.cos(), fy + 3.2 * a.sin(), 0.8, INK);
+    }
+}
+
+/// REEL_FRAMES cells of a 16×16 reel turning clockwise through a full turn.
+const REEL_FRAMES: i32 = 12;
+
+fn reels_sheet(dir: &std::path::Path) -> BTreeMap<String, [i32; 2]> {
+    draw_both(dir, "reels", 16 * REEL_FRAMES, 16, |c| {
+        for k in 0..REEL_FRAMES {
+            let angle = k as f32 / REEL_FRAMES as f32 * std::f32::consts::TAU;
+            reel(c, (k * 16) as f32 + 8.0, 8.0, angle);
+        }
+    });
+    (0..REEL_FRAMES).map(|k| (format!("f{k}"), [k * 16, 0])).collect()
 }
 
 fn grille(c: &mut Canvas, x: i32, y: i32, w: i32, h: i32) {
@@ -843,6 +864,19 @@ fn main() {
         ]),
     );
     sheet.save(&dir, "buttons");
+    let reel_states = reels_sheet(&dir);
+    let reel_frames: Vec<String> = (0..REEL_FRAMES).map(|k| format!("f{k}")).collect();
+    // Cassette at (282, 30); reel centers at +38/+84, +27.
+    let reel_animation = |name: &str, cx: i32| {
+        json!({
+            "name": name,
+            "rect": [cx - 8, 57 - 8, 16, 16],
+            "sprite": { "image": "reels.png", "states": reel_states },
+            "frames": reel_frames,
+            "fps": 18,
+            "play": "recording"
+        })
+    };
 
     let sprite = |states: &BTreeMap<String, [i32; 2]>| json!({ "image": "buttons.png", "states": states });
     let levels_style = json!({
@@ -893,6 +927,7 @@ fn main() {
                     "toggleLibrary": { "rect": rect([278, 129, 66, 16]), "sprite": sprite(&library) },
                     "toggleSettings": { "rect": rect([346, 129, 66, 16]), "sprite": sprite(&settings) }
                 },
+                "animations": [reel_animation("reelLeft", 282 + 38), reel_animation("reelRight", 282 + 84)],
                 "shade": {
                     "size": [MAIN_W, SHADE_H],
                     "background": "shade.png",
@@ -936,8 +971,15 @@ fn main() {
         },
         "visualizer": {
             "presets": [
-                { "name": "Bars", "kind": "spectrum", "bands": 28, "color": "@lcdLit", "peak": "@lcdHot" },
-                { "name": "Scope", "kind": "oscilloscope", "color": "@lcdLit" }
+                { "name": "Bars", "style": "bars", "bands": 28, "color": "@lcdLit", "peak": "@lcdHot", "gap": 1, "beat": 0.5,
+                  "grid": "@lcdGhost", "line": "@lcdLit" },
+                { "name": "Scope", "style": "scope", "color": "@lcdLit", "lineWidth": 1, "grid": "@lcdGhost", "line": "@lcdLit" },
+                { "name": "Mirror", "style": "mirror", "bands": 28, "gradient": ["@lcdLit", "@lcdHot"], "gap": 1,
+                  "grid": "@lcdGhost", "line": "@lcdLit" },
+                { "name": "Radial", "style": "radial", "bands": 36, "color": "@lcdLit", "lineWidth": 1,
+                  "grid": "@lcdGhost", "line": "@lcdLit" },
+                { "name": "Fire", "style": "fire", "bands": 28, "gradient": ["@record", "@lcdHot", "#fff0a0"], "gap": 1,
+                  "decay": 0.86, "grid": "@lcdGhost", "line": "@lcdHot" }
             ]
         }
     });

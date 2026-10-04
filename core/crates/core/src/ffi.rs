@@ -69,9 +69,15 @@ pub struct SsRecorderEvent {
     pub state: SsRecorderState,
     /// Recorded time, excluding pauses.
     pub elapsed_ms: u64,
-    /// Linear levels (0..1) over the last interval; 0 while paused.
+    /// Linear levels (0..1) over the last interval, the louder channel's
+    /// peak and the channels' mean RMS (`peak_left` etc. give each channel).
+    /// They keep moving while paused.
     pub peak: f32,
     pub rms: f32,
+    pub peak_left: f32,
+    pub peak_right: f32,
+    pub rms_left: f32,
+    pub rms_right: f32,
     /// UTF-8; non-NULL for `SS_RECORDER_EVENT_KIND_FINISHED` only.
     pub path: *const c_char,
     /// UTF-8; non-NULL for `SS_RECORDER_EVENT_KIND_ERROR` only.
@@ -172,6 +178,10 @@ fn deliver(target: &CallbackTarget, status: &Status, event: &RecorderEvent) {
         elapsed_ms: status.elapsed().as_millis() as u64,
         peak: 0.0,
         rms: 0.0,
+        peak_left: 0.0,
+        peak_right: 0.0,
+        rms_left: 0.0,
+        rms_right: 0.0,
         path: ptr::null(),
         message: ptr::null(),
     };
@@ -181,7 +191,9 @@ fn deliver(target: &CallbackTarget, status: &Status, event: &RecorderEvent) {
         RecorderEvent::Progress { elapsed, peak, rms } => {
             c.kind = SsRecorderEventKind::Progress;
             c.elapsed_ms = elapsed.as_millis() as u64;
-            (c.peak, c.rms) = (*peak, *rms);
+            (c.peak, c.rms) = (peak[0].max(peak[1]), (rms[0] + rms[1]) / 2.0);
+            [c.peak_left, c.peak_right] = *peak;
+            [c.rms_left, c.rms_right] = *rms;
         }
         RecorderEvent::Finished { path } => {
             c.kind = SsRecorderEventKind::Finished;
@@ -882,6 +894,91 @@ pub unsafe extern "C" fn ss_library_apply_settings(library: *mut SsLibrary) -> S
     with_library(library, |l| l.set_dir(settings::load().recordings_dir())).map_or_else(|status| status, |()| SsStatus::Ok)
 }
 
+/// Opaque visualizer handle: draws the recorder's live analysis. Create
+/// with `ss_vis_create`, free with `ss_vis_destroy`. One per view; use it
+/// from one thread at a time.
+pub struct SsVis {
+    hub: Arc<sound_scraper_vis::VisHub>,
+    renderer: sound_scraper_vis::render::Renderer,
+}
+
+/// Creates a visualizer for `recorder`'s audio, drawing the default preset.
+/// It stays valid after the recorder is destroyed (it then shows the idle
+/// look). NULL if `recorder` is NULL.
+///
+/// # Safety
+/// `recorder` must be NULL or a live handle from `ss_recorder_create`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_vis_create(recorder: *const SsRecorder) -> *mut SsVis {
+    let Some(r) = (unsafe { recorder.as_ref() }) else { return ptr::null_mut() };
+    Box::into_raw(Box::new(SsVis { hub: r.status.vis(), renderer: Default::default() }))
+}
+
+/// Sets the preset: one entry of a resolved skin's `visualizer.presets`, as
+/// JSON (`{"style": "bars"|"scope"|"mirror"|"radial"|"fire", "bands",
+/// "color", "gradient", "peak", "gap", "lineWidth", "background", "grid",
+/// "line", "decay", "beat"}`; colors as #hex).
+///
+/// # Safety
+/// `vis` must be a live handle; `json` NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_vis_set_preset(vis: *mut SsVis, json: *const c_char) -> SsStatus {
+    let Some(v) = (unsafe { vis.as_mut() }) else { return fail("vis is NULL") };
+    let result = unsafe { arg_str(json, "json") }.and_then(sound_scraper_vis::render::Preset::from_json);
+    match result {
+        Ok(preset) => {
+            v.renderer.set_preset(preset);
+            SsStatus::Ok
+        }
+        Err(e) => fail(e),
+    }
+}
+
+/// Draws the latest frame, or the idle look when nothing is recording, into
+/// `rgba`: premultiplied RGBA, `width` × `height` pixels, `len` bytes (at
+/// least width × height × 4), with `unit` pixels per skin point. Returns
+/// true while a recording is live (keep redrawing), false when idle (the
+/// idle look needs drawing only once) or on bad arguments.
+///
+/// # Safety
+/// `vis` must be a live handle; `rgba` must point to `len` writable bytes.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_vis_render(
+    vis: *mut SsVis,
+    width: u32,
+    height: u32,
+    unit: f32,
+    rgba: *mut u8,
+    len: usize,
+) -> bool {
+    let Some(v) = (unsafe { vis.as_mut() }) else { return false };
+    let needed = width as usize * height as usize * 4;
+    if rgba.is_null() || width == 0 || height == 0 || len < needed {
+        return false;
+    }
+    let buf = unsafe { std::slice::from_raw_parts_mut(rgba, needed) };
+    let SsVis { hub, renderer } = v;
+    catch_unwind(AssertUnwindSafe(|| {
+        let live = hub.with_latest(|frame| renderer.render(Some(frame), width, height, unit, buf));
+        if live.is_none() {
+            renderer.render(None, width, height, unit, buf);
+        }
+        live.is_some()
+    }))
+    .unwrap_or(false)
+}
+
+/// Destroys a visualizer. NULL is a no-op.
+///
+/// # Safety
+/// `vis` must be NULL or a handle from `ss_vis_create` not yet destroyed.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_vis_destroy(vis: *mut SsVis) {
+    if !vis.is_null() {
+        drop(unsafe { Box::from_raw(vis) });
+    }
+}
+
 /// Serializes a skin result as JSON for the UI, or records the error and
 /// returns NULL.
 fn json_or_null<T: serde::Serialize>(result: Result<T, String>) -> *mut c_char {
@@ -978,6 +1075,25 @@ mod tests {
         assert_eq!(status, SsStatus::Error);
         let message = unsafe { CStr::from_ptr(ss_last_error_message()) };
         assert_eq!(message.to_str().unwrap(), "out_report is NULL");
+    }
+
+    #[test]
+    fn vis_draws_the_idle_look_without_a_recording() {
+        let r = ss_recorder_create();
+        let vis = unsafe { ss_vis_create(r) };
+        assert!(!vis.is_null());
+        let preset = c"{\"style\":\"bars\",\"line\":\"#00ff00\"}";
+        assert_eq!(unsafe { ss_vis_set_preset(vis, preset.as_ptr()) }, SsStatus::Ok);
+        assert_eq!(unsafe { ss_vis_set_preset(vis, c"{\"style\":\"lasers\"}".as_ptr()) }, SsStatus::Error);
+        let mut buf = vec![0u8; 16 * 8 * 4];
+        assert!(!unsafe { ss_vis_render(vis, 16, 8, 1.0, buf.as_mut_ptr(), buf.len()) });
+        assert!(buf.chunks_exact(4).any(|p| p == [0, 255, 0, 255]), "idle line drawn");
+        assert!(!unsafe { ss_vis_render(vis, 16, 8, 1.0, buf.as_mut_ptr(), 10) });
+        unsafe { ss_recorder_destroy(r) };
+        // Still usable after the recorder is gone.
+        assert!(!unsafe { ss_vis_render(vis, 16, 8, 1.0, buf.as_mut_ptr(), buf.len()) });
+        unsafe { ss_vis_destroy(vis) };
+        assert!(unsafe { ss_vis_create(ptr::null()) }.is_null());
     }
 
     #[test]

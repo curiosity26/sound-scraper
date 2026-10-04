@@ -4,36 +4,64 @@
   "title": "Sound Scraper skin (skin.json)",
   "description": "Manifest of a Sound Scraper skin: a folder, or a .sskin zip of one, holding skin.json and its images (PNG, JPEG or WebP; optional name@2x.ext and name@4x.ext siblings at exactly two and four times the size are used on Retina displays and in double-size mode). Coordinates are in points. Anything a skin leaves out comes from the built-in Default skin, element by element.",
   "type": "object",
-  "required": ["format", "id", "name"],
+  "required": [
+    "format",
+    "id",
+    "name"
+  ],
   "properties": {
-    "$schema": { "type": "string" },
-    "format": { "const": 1, "description": "Manifest format version." },
+    "$schema": {
+      "type": "string"
+    },
+    "format": {
+      "const": 1,
+      "description": "Manifest format version."
+    },
     "id": {
       "type": "string",
       "maxLength": 128,
       "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$",
       "description": "Reverse-DNS identifier, e.g. com.example.my-skin. Installing a skin with the same id replaces it."
     },
-    "name": { "type": "string", "minLength": 1 },
-    "author": { "type": "string" },
-    "version": { "type": "string" },
-    "description": { "type": "string" },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "author": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
     "colors": {
       "type": "object",
       "description": "Color tokens, referenced elsewhere as \"@name\". Common tokens: background, text, panel, accent, record, lcdBackground, lcdLit, lcdGhost.",
-      "additionalProperties": { "$ref": "#/$defs/hexColor" }
+      "additionalProperties": {
+        "$ref": "#/$defs/hexColor"
+      }
     },
     "fonts": {
       "type": "object",
       "description": "Sprite (bitmap) fonts by name.",
-      "additionalProperties": { "$ref": "#/$defs/font" }
+      "additionalProperties": {
+        "$ref": "#/$defs/font"
+      }
     },
     "panels": {
       "type": "object",
       "properties": {
-        "main": { "$ref": "#/$defs/mainPanel" },
-        "library": { "$ref": "#/$defs/framePanel" },
-        "settings": { "$ref": "#/$defs/framePanel" }
+        "main": {
+          "$ref": "#/$defs/mainPanel"
+        },
+        "library": {
+          "$ref": "#/$defs/framePanel"
+        },
+        "settings": {
+          "$ref": "#/$defs/framePanel"
+        }
       }
     },
     "visualizer": {
@@ -41,10 +69,80 @@
       "properties": {
         "presets": {
           "type": "array",
+          "description": "Visualizer looks; clicking the visualizer cycles through them. The first is the default.",
           "items": {
             "type": "object",
-            "required": ["name"],
-            "properties": { "name": { "type": "string" } }
+            "required": [
+              "name"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "style": {
+                "enum": [
+                  "bars",
+                  "scope",
+                  "mirror",
+                  "radial",
+                  "fire"
+                ],
+                "default": "bars"
+              },
+              "bands": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 64,
+                "default": 28
+              },
+              "color": {
+                "$ref": "#/$defs/color"
+              },
+              "gradient": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/color"
+                },
+                "description": "Bar colors from quiet (bottom) to loud (top); overrides color."
+              },
+              "peak": {
+                "$ref": "#/$defs/color",
+                "description": "Falling peak markers (bars)."
+              },
+              "gap": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Points between bars."
+              },
+              "lineWidth": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Points, for scope and radial."
+              },
+              "background": {
+                "$ref": "#/$defs/color"
+              },
+              "grid": {
+                "$ref": "#/$defs/color",
+                "description": "Idle look: vertical grid lines."
+              },
+              "line": {
+                "$ref": "#/$defs/color",
+                "description": "Idle look: the flat line."
+              },
+              "decay": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Fire: how much of the trail survives each frame."
+              },
+              "beat": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "How much the bars jump on beats."
+              }
+            }
           }
         }
       }
@@ -68,92 +166,180 @@
     "rect": {
       "description": "[x, y, width, height] in points; must lie inside the panel.",
       "type": "array",
-      "items": { "type": "integer" },
+      "items": {
+        "type": "integer"
+      },
       "minItems": 4,
       "maxItems": 4
     },
     "point": {
       "type": "array",
-      "items": { "type": "integer", "minimum": 0 },
+      "items": {
+        "type": "integer",
+        "minimum": 0
+      },
       "minItems": 2,
       "maxItems": 2
     },
     "size": {
       "type": "array",
-      "items": { "type": "integer", "minimum": 1, "maximum": 4096 },
+      "items": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 4096
+      },
       "minItems": 2,
       "maxItems": 2
     },
     "insets": {
       "description": "[top, right, bottom, left]",
       "type": "array",
-      "items": { "type": "integer", "minimum": 0 },
+      "items": {
+        "type": "integer",
+        "minimum": 0
+      },
       "minItems": 4,
       "maxItems": 4
     },
     "font": {
       "type": "object",
-      "required": ["sprite", "glyphs", "cell"],
+      "required": [
+        "sprite",
+        "glyphs",
+        "cell"
+      ],
       "properties": {
-        "sprite": { "$ref": "#/$defs/image" },
+        "sprite": {
+          "$ref": "#/$defs/image"
+        },
         "glyphs": {
           "type": "string",
           "minLength": 1,
           "description": "The characters in the sprite's cells, left to right, top to bottom. Text uses uppercase when a lowercase letter is missing."
         },
-        "cell": { "$ref": "#/$defs/size" }
+        "cell": {
+          "$ref": "#/$defs/size"
+        }
       }
     },
     "sprite": {
       "type": "object",
-      "required": ["image", "states"],
+      "required": [
+        "image",
+        "states"
+      ],
       "description": "Cells of a sprite sheet, each the size of the element's rect. Buttons need \"normal\" and may have \"pressed\", \"active\" (latched/on), \"activePressed\" and \"disabled\". Without a pause element, record is also pause and uses \"recording\"/\"recordingPressed\" (shown as pause) and \"paused\"/\"pausedPressed\" (resume), falling back to active/pressed. The status element uses idle/recording/paused/finalizing; levels use off/on.",
       "properties": {
-        "image": { "$ref": "#/$defs/image" },
+        "image": {
+          "$ref": "#/$defs/image"
+        },
         "states": {
           "type": "object",
           "minProperties": 1,
-          "additionalProperties": { "$ref": "#/$defs/point" }
+          "additionalProperties": {
+            "$ref": "#/$defs/point"
+          }
         }
       }
     },
     "element": {
       "type": "object",
-      "required": ["rect"],
+      "required": [
+        "rect"
+      ],
       "description": "An element. With only a rect it's an invisible hot spot over artwork in the background.",
       "properties": {
-        "rect": { "$ref": "#/$defs/rect" },
-        "sprite": { "$ref": "#/$defs/sprite" },
-        "font": { "type": "string", "description": "Name of a sprite font from fonts." },
+        "rect": {
+          "$ref": "#/$defs/rect"
+        },
+        "sprite": {
+          "$ref": "#/$defs/sprite"
+        },
+        "font": {
+          "type": "string",
+          "description": "Name of a sprite font from fonts."
+        },
         "text": {
           "type": "object",
           "description": "System-font text, for skins without a sprite font.",
           "properties": {
-            "color": { "$ref": "#/$defs/color" },
-            "size": { "type": "number", "minimum": 4, "maximum": 96 },
-            "family": { "type": "string" },
-            "weight": { "enum": ["normal", "bold"] },
-            "uppercase": { "type": "boolean" }
+            "color": {
+              "$ref": "#/$defs/color"
+            },
+            "size": {
+              "type": "number",
+              "minimum": 4,
+              "maximum": 96
+            },
+            "family": {
+              "type": "string"
+            },
+            "weight": {
+              "enum": [
+                "normal",
+                "bold"
+              ]
+            },
+            "uppercase": {
+              "type": "boolean"
+            }
           }
         },
-        "align": { "enum": ["left", "center", "right"] },
+        "align": {
+          "enum": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
         "style": {
           "type": "object",
-          "description": "Element parameters. Text: pad (fill the rect with spaces, showing a sprite font's unlit cells). levels: rows (1 = peak, 2 = peak and average), segments, gap, on, hot, clip, off colors. visualizer: grid, line colors.",
+          "description": "Element parameters. Text: pad (fill the rect with spaces, showing a sprite font's unlit cells). levels: rows (1 = peak, 2 = left and right), segments, gap, on, hot, clip, off colors. visualizer: grid, line colors.",
           "properties": {
-            "pad": { "type": "boolean" },
-            "rows": { "type": "integer", "minimum": 1, "maximum": 2 },
-            "segments": { "type": "integer", "minimum": 1, "maximum": 256 },
-            "gap": { "type": "integer", "minimum": 0 },
-            "vertical": { "type": "boolean" },
-            "on": { "$ref": "#/$defs/color" },
-            "hot": { "$ref": "#/$defs/color" },
-            "clip": { "$ref": "#/$defs/color" },
-            "off": { "$ref": "#/$defs/color" },
-            "grid": { "$ref": "#/$defs/color" },
-            "line": { "$ref": "#/$defs/color" },
-            "color": { "$ref": "#/$defs/color" },
-            "background": { "$ref": "#/$defs/color" }
+            "pad": {
+              "type": "boolean"
+            },
+            "rows": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2
+            },
+            "segments": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 256
+            },
+            "gap": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "vertical": {
+              "type": "boolean"
+            },
+            "on": {
+              "$ref": "#/$defs/color"
+            },
+            "hot": {
+              "$ref": "#/$defs/color"
+            },
+            "clip": {
+              "$ref": "#/$defs/color"
+            },
+            "off": {
+              "$ref": "#/$defs/color"
+            },
+            "grid": {
+              "$ref": "#/$defs/color"
+            },
+            "line": {
+              "$ref": "#/$defs/color"
+            },
+            "color": {
+              "$ref": "#/$defs/color"
+            },
+            "background": {
+              "$ref": "#/$defs/color"
+            }
           }
         }
       }
@@ -162,73 +348,205 @@
       "type": "object",
       "propertyNames": {
         "enum": [
-          "record", "pause", "stop", "elapsed", "status", "source", "levels", "visualizer",
-          "toggleLibrary", "toggleSettings", "minimize", "shade", "close"
+          "record",
+          "pause",
+          "stop",
+          "elapsed",
+          "status",
+          "source",
+          "levels",
+          "visualizer",
+          "toggleLibrary",
+          "toggleSettings",
+          "minimize",
+          "shade",
+          "close"
         ]
       },
-      "additionalProperties": { "$ref": "#/$defs/element" }
+      "additionalProperties": {
+        "$ref": "#/$defs/element"
+      }
     },
     "layout": {
       "type": "object",
-      "required": ["size"],
+      "required": [
+        "size"
+      ],
       "properties": {
-        "size": { "$ref": "#/$defs/size" },
-        "background": { "$ref": "#/$defs/image" },
+        "size": {
+          "$ref": "#/$defs/size"
+        },
+        "background": {
+          "$ref": "#/$defs/image"
+        },
         "dragRegion": {
           "type": "array",
           "description": "Areas that move the window when dragged (interactive elements inside them still work).",
-          "items": { "$ref": "#/$defs/rect" }
+          "items": {
+            "$ref": "#/$defs/rect"
+          }
         },
-        "elements": { "$ref": "#/$defs/elements" }
+        "elements": {
+          "$ref": "#/$defs/elements"
+        },
+        "animations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/animation"
+          }
+        }
       }
     },
     "mainPanel": {
       "description": "The fixed-size main window. Its shade layout is the collapsed strip.",
-      "allOf": [{ "$ref": "#/$defs/layout" }],
+      "allOf": [
+        {
+          "$ref": "#/$defs/layout"
+        }
+      ],
       "properties": {
         "size": true,
         "background": true,
         "dragRegion": true,
         "elements": true,
-        "shade": { "$ref": "#/$defs/layout" }
+        "shade": {
+          "$ref": "#/$defs/layout"
+        },
+        "animations": true
       }
     },
     "framePanel": {
       "type": "object",
       "description": "The library and settings windows.",
       "properties": {
-        "minSize": { "$ref": "#/$defs/size" },
-        "resizable": { "type": "boolean" },
+        "minSize": {
+          "$ref": "#/$defs/size"
+        },
+        "resizable": {
+          "type": "boolean"
+        },
         "frame": {
           "type": "object",
-          "required": ["image", "slice"],
+          "required": [
+            "image",
+            "slice"
+          ],
           "description": "Nine-slice window frame: slice insets stay fixed, edges and center stretch.",
           "properties": {
-            "image": { "$ref": "#/$defs/image" },
-            "slice": { "$ref": "#/$defs/insets" }
+            "image": {
+              "$ref": "#/$defs/image"
+            },
+            "slice": {
+              "$ref": "#/$defs/insets"
+            }
           }
         },
         "table": {
           "type": "object",
           "propertyNames": {
-            "enum": ["background", "alternate", "text", "selection", "selectionText", "header", "headerText", "grid"]
+            "enum": [
+              "background",
+              "alternate",
+              "text",
+              "selection",
+              "selectionText",
+              "header",
+              "headerText",
+              "grid"
+            ]
           },
-          "additionalProperties": { "$ref": "#/$defs/color" }
+          "additionalProperties": {
+            "$ref": "#/$defs/color"
+          }
         },
         "scrollbar": {
           "type": "object",
-          "required": ["image", "track", "thumb"],
+          "required": [
+            "image",
+            "track",
+            "thumb"
+          ],
           "properties": {
-            "image": { "$ref": "#/$defs/image" },
-            "track": { "$ref": "#/$defs/rect" },
-            "thumb": { "$ref": "#/$defs/rect" },
-            "thumbSlice": { "$ref": "#/$defs/insets" }
+            "image": {
+              "$ref": "#/$defs/image"
+            },
+            "track": {
+              "$ref": "#/$defs/rect"
+            },
+            "thumb": {
+              "$ref": "#/$defs/rect"
+            },
+            "thumbSlice": {
+              "$ref": "#/$defs/insets"
+            }
           }
         },
         "controls": {
           "type": "object",
-          "propertyNames": { "enum": ["background", "text", "border", "accent", "button", "buttonText"] },
-          "additionalProperties": { "$ref": "#/$defs/color" }
+          "propertyNames": {
+            "enum": [
+              "background",
+              "text",
+              "border",
+              "accent",
+              "button",
+              "buttonText"
+            ]
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/color"
+          }
+        }
+      }
+    },
+    "animation": {
+      "type": "object",
+      "required": [
+        "rect",
+        "sprite",
+        "frames"
+      ],
+      "description": "A decorative sprite animation (tape reels, LEDs…) drawn over the background, cycling through frames while the recorder is in the play state.",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "rect": {
+          "$ref": "#/$defs/rect"
+        },
+        "sprite": {
+          "$ref": "#/$defs/sprite"
+        },
+        "frames": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          },
+          "description": "Sprite states in playing order."
+        },
+        "fps": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 60,
+          "default": 12
+        },
+        "play": {
+          "enum": [
+            "recording",
+            "active",
+            "always"
+          ],
+          "default": "recording",
+          "description": "recording: only while recording (stops when paused); active: recording or paused; always."
+        },
+        "speed": {
+          "enum": [
+            "constant",
+            "level"
+          ],
+          "default": "constant",
+          "description": "level: faster when the audio is louder."
         }
       }
     }

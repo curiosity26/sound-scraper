@@ -78,6 +78,43 @@ fn sprite_text(dst: &mut RgbaImage, skin: &ResolvedSkin, el: &ResolvedElement, t
     }
 }
 
+/// A made-up frame: a falling spectrum and a wobbly waveform.
+fn sample_frame() -> sound_scraper_vis::Frame {
+    let mut f = sound_scraper_vis::Frame::default();
+    let n = f.bands.len();
+    for (i, b) in f.bands.iter_mut().enumerate() {
+        let t = i as f32 / n as f32;
+        *b = (0.95 - 0.7 * t + 0.15 * (t * 23.0).sin()).clamp(0.05, 1.0);
+    }
+    f.band_peaks = f.bands.iter().map(|b| (b + 0.08).min(1.0)).collect();
+    let m = f.waveform.len();
+    for (i, w) in f.waveform.iter_mut().enumerate() {
+        let t = i as f32 / m as f32;
+        *w = 0.6 * (t * 37.0).sin() * (t * 5.0).cos();
+    }
+    f
+}
+
+fn visualize(preset: &serde_json::Value, w: u32, h: u32) -> RgbaImage {
+    let preset = sound_scraper_vis::render::Preset::from_json(&preset.to_string()).unwrap_or_default();
+    let mut renderer = sound_scraper_vis::render::Renderer::new(preset);
+    let mut buf = vec![0u8; (w * h * 4) as usize];
+    let frame = sample_frame();
+    // Twice, so the fire trail has history.
+    renderer.render(Some(&frame), w, h, SCALE as f32, &mut buf);
+    renderer.render(Some(&frame), w, h, SCALE as f32, &mut buf);
+    // Premultiplied → straight alpha for the PNG.
+    for px in buf.chunks_exact_mut(4) {
+        let a = px[3] as u32;
+        if a > 0 && a < 255 {
+            for c in &mut px[..3] {
+                *c = ((*c as u32 * 255) / a).min(255) as u8;
+            }
+        }
+    }
+    RgbaImage::from_raw(w, h, buf).unwrap()
+}
+
 fn render(skin: &ResolvedSkin, layout: &ResolvedLayout) -> RgbaImage {
     let s = SCALE as i64;
     let mut out = RgbaImage::new(layout.size[0] as u32 * SCALE, layout.size[1] as u32 * SCALE);
@@ -132,15 +169,10 @@ fn render(skin: &ResolvedSkin, layout: &ResolvedLayout) -> RgbaImage {
                 }
             }
         }
-        if name == "visualizer"
-            && let Some(style) = &el.style
-        {
-            let line = hex(style.get("line").and_then(|v| v.as_str()).unwrap_or("#ffffff"));
-            let grid = hex(style.get("grid").and_then(|v| v.as_str()).unwrap_or("#ffffff22"));
-            for gx in (0..w).step_by(8) {
-                fill(&mut out, (x + gx) * s, y * s, 1, h * s, grid);
-            }
-            fill(&mut out, x * s, (y + h / 2) * s, w * s, s, line);
+        if name == "visualizer" {
+            let preset = skin.visualizer.presets.first().cloned().unwrap_or_default();
+            let vis = visualize(&preset, (w * s) as u32, (h * s) as u32);
+            imageops::overlay(&mut out, &vis, x * s, y * s);
         }
     }
     out
@@ -165,12 +197,30 @@ fn main() {
     let main = render(&skin, &skin.panels.main.layout);
     let shade = skin.panels.main.shade.as_ref().map(|l| render(&skin, l));
     let gap = 12 * SCALE;
-    let height = main.height() + shade.as_ref().map_or(0, |s| s.height() + gap) + 2 * gap;
-    let width = main.width().max(shade.as_ref().map_or(0, |s| s.width())) + 2 * gap;
+    // Every visualizer preset, on the skin's LCD color.
+    let (vw, vh) = (112 * SCALE, 34 * SCALE);
+    let lcd = hex(skin.colors.get("lcdBackground").map_or("#000000", |s| s.as_str()));
+    let looks: Vec<RgbaImage> = skin
+        .visualizer
+        .presets
+        .iter()
+        .map(|p| {
+            let mut tile = RgbaImage::from_pixel(vw, vh, image::Rgba(lcd));
+            imageops::overlay(&mut tile, &visualize(p, vw, vh), 0, 0);
+            tile
+        })
+        .collect();
+    let looks_h = if looks.is_empty() { 0 } else { vh + gap };
+    let height = main.height() + shade.as_ref().map_or(0, |s| s.height() + gap) + 2 * gap + looks_h;
+    let width = main.width().max(shade.as_ref().map_or(0, |s| s.width())).max(looks.len() as u32 * (vw + gap / 2)) + 2 * gap;
     let mut sheet = RgbaImage::from_pixel(width, height, image::Rgba([47, 107, 110, 255]));
     imageops::overlay(&mut sheet, &main, gap as i64, gap as i64);
     if let Some(shade) = shade {
         imageops::overlay(&mut sheet, &shade, gap as i64, (main.height() + 2 * gap) as i64);
+    }
+    for (i, tile) in looks.iter().enumerate() {
+        let x = gap as i64 + i as i64 * (vw + gap / 2) as i64;
+        imageops::overlay(&mut sheet, tile, x, (height - looks_h - gap / 2) as i64 + gap as i64 / 2);
     }
     sheet.save(&out).unwrap();
     println!("wrote {out}");

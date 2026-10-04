@@ -73,6 +73,8 @@ pub struct MainPanel {
     /// The collapsed one-line layout ("window shade").
     #[serde(default)]
     pub shade: Option<Layout>,
+    #[serde(default)]
+    pub animations: Vec<AnimationDef>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -85,6 +87,8 @@ pub struct Layout {
     pub drag_region: Vec<Rect>,
     #[serde(default)]
     pub elements: BTreeMap<String, ElementDef>,
+    #[serde(default)]
+    pub animations: Vec<AnimationDef>,
 }
 
 impl MainPanel {
@@ -94,9 +98,37 @@ impl MainPanel {
             background: self.background.clone(),
             drag_region: self.drag_region.clone(),
             elements: self.elements.clone(),
+            animations: self.animations.clone(),
         }
     }
 }
+
+/// A decorative sprite animation (spinning tape reels, blinking LEDs…):
+/// cycles through sprite `frames` at `fps` while the recorder is in the
+/// `play` state.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AnimationDef {
+    #[serde(default)]
+    pub name: Option<String>,
+    pub rect: Rect,
+    pub sprite: SpriteDef,
+    /// Sprite states in playing order.
+    pub frames: Vec<String>,
+    #[serde(default)]
+    pub fps: Option<f64>,
+    /// "recording" (default; stops when paused), "active" (recording or
+    /// paused) or "always".
+    #[serde(default)]
+    pub play: Option<String>,
+    /// "constant" (default) or "level": faster when louder.
+    #[serde(default)]
+    pub speed: Option<String>,
+}
+
+pub const ANIMATION_PLAY: &[&str] = &["recording", "active", "always"];
+pub const ANIMATION_SPEED: &[&str] = &["constant", "level"];
+pub const VISUALIZER_STYLES: &[&str] = &["bars", "scope", "mirror", "radial", "fire"];
 
 /// One element of a layout. With only a `rect` it's an invisible hot spot
 /// over artwork painted into the background.

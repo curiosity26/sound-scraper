@@ -100,6 +100,13 @@ typedef struct SsRecorder SsRecorder;
 typedef struct SsRecordingList SsRecordingList;
 
 /*
+ Opaque visualizer handle: draws the recorder's live analysis. Create
+ with `ss_vis_create`, free with `ss_vis_destroy`. One per view; use it
+ from one thread at a time.
+ */
+typedef struct SsVis SsVis;
+
+/*
  A recorder event. Pointers are valid only during the callback.
  */
 typedef struct SsRecorderEvent {
@@ -110,10 +117,16 @@ typedef struct SsRecorderEvent {
    */
   uint64_t elapsed_ms;
   /*
-   Linear levels (0..1) over the last interval; 0 while paused.
+   Linear levels (0..1) over the last interval, the louder channel's
+   peak and the channels' mean RMS (`peak_left` etc. give each channel).
+   They keep moving while paused.
    */
   float peak;
   float rms;
+  float peak_left;
+  float peak_right;
+  float rms_left;
+  float rms_right;
   /*
    UTF-8; non-NULL for `SS_RECORDER_EVENT_KIND_FINISHED` only.
    */
@@ -557,6 +570,52 @@ enum SsStatus ss_settings_set(const char *json);
  `library` must be a live handle from `ss_library_open`.
  */
 enum SsStatus ss_library_apply_settings(struct SsLibrary *library);
+
+/*
+ Creates a visualizer for `recorder`'s audio, drawing the default preset.
+ It stays valid after the recorder is destroyed (it then shows the idle
+ look). NULL if `recorder` is NULL.
+
+ # Safety
+ `recorder` must be NULL or a live handle from `ss_recorder_create`.
+ */
+struct SsVis *ss_vis_create(const struct SsRecorder *recorder);
+
+/*
+ Sets the preset: one entry of a resolved skin's `visualizer.presets`, as
+ JSON (`{"style": "bars"|"scope"|"mirror"|"radial"|"fire", "bands",
+ "color", "gradient", "peak", "gap", "lineWidth", "background", "grid",
+ "line", "decay", "beat"}`; colors as #hex).
+
+ # Safety
+ `vis` must be a live handle; `json` NUL-terminated UTF-8.
+ */
+enum SsStatus ss_vis_set_preset(struct SsVis *vis, const char *json);
+
+/*
+ Draws the latest frame, or the idle look when nothing is recording, into
+ `rgba`: premultiplied RGBA, `width` × `height` pixels, `len` bytes (at
+ least width × height × 4), with `unit` pixels per skin point. Returns
+ true while a recording is live (keep redrawing), false when idle (the
+ idle look needs drawing only once) or on bad arguments.
+
+ # Safety
+ `vis` must be a live handle; `rgba` must point to `len` writable bytes.
+ */
+bool ss_vis_render(struct SsVis *vis,
+                   uint32_t width,
+                   uint32_t height,
+                   float unit,
+                   uint8_t *rgba,
+                   size_t len);
+
+/*
+ Destroys a visualizer. NULL is a no-op.
+
+ # Safety
+ `vis` must be NULL or a handle from `ss_vis_create` not yet destroyed.
+ */
+void ss_vis_destroy(struct SsVis *vis);
 
 /*
  Resolves a skin for the UI as JSON (see core/crates/skin/src/resolve.rs,

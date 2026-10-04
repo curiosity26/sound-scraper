@@ -100,6 +100,164 @@
       }
     },
     "main": {
+      "animations": [
+        {
+          "fps": 18,
+          "frames": [
+            "f0",
+            "f1",
+            "f2",
+            "f3",
+            "f4",
+            "f5",
+            "f6",
+            "f7",
+            "f8",
+            "f9",
+            "f10",
+            "f11"
+          ],
+          "name": "reelLeft",
+          "play": "recording",
+          "rect": [
+            312,
+            49,
+            16,
+            16
+          ],
+          "sprite": {
+            "image": "reels.png",
+            "states": {
+              "f0": [
+                0,
+                0
+              ],
+              "f1": [
+                16,
+                0
+              ],
+              "f10": [
+                160,
+                0
+              ],
+              "f11": [
+                176,
+                0
+              ],
+              "f2": [
+                32,
+                0
+              ],
+              "f3": [
+                48,
+                0
+              ],
+              "f4": [
+                64,
+                0
+              ],
+              "f5": [
+                80,
+                0
+              ],
+              "f6": [
+                96,
+                0
+              ],
+              "f7": [
+                112,
+                0
+              ],
+              "f8": [
+                128,
+                0
+              ],
+              "f9": [
+                144,
+                0
+              ]
+            }
+          }
+        },
+        {
+          "fps": 18,
+          "frames": [
+            "f0",
+            "f1",
+            "f2",
+            "f3",
+            "f4",
+            "f5",
+            "f6",
+            "f7",
+            "f8",
+            "f9",
+            "f10",
+            "f11"
+          ],
+          "name": "reelRight",
+          "play": "recording",
+          "rect": [
+            358,
+            49,
+            16,
+            16
+          ],
+          "sprite": {
+            "image": "reels.png",
+            "states": {
+              "f0": [
+                0,
+                0
+              ],
+              "f1": [
+                16,
+                0
+              ],
+              "f10": [
+                160,
+                0
+              ],
+              "f11": [
+                176,
+                0
+              ],
+              "f2": [
+                32,
+                0
+              ],
+              "f3": [
+                48,
+                0
+              ],
+              "f4": [
+                64,
+                0
+              ],
+              "f5": [
+                80,
+                0
+              ],
+              "f6": [
+                96,
+                0
+              ],
+              "f7": [
+                112,
+                0
+              ],
+              "f8": [
+                128,
+                0
+              ],
+              "f9": [
+                144,
+                0
+              ]
+            }
+          }
+        }
+      ],
       "background": "main.png",
       "dragRegion": [
         [
@@ -570,15 +728,57 @@
     "presets": [
       {
         "bands": 28,
+        "beat": 0.5,
         "color": "@lcdLit",
-        "kind": "spectrum",
+        "gap": 1,
+        "grid": "@lcdGhost",
+        "line": "@lcdLit",
         "name": "Bars",
-        "peak": "@lcdHot"
+        "peak": "@lcdHot",
+        "style": "bars"
       },
       {
         "color": "@lcdLit",
-        "kind": "oscilloscope",
-        "name": "Scope"
+        "grid": "@lcdGhost",
+        "line": "@lcdLit",
+        "lineWidth": 1,
+        "name": "Scope",
+        "style": "scope"
+      },
+      {
+        "bands": 28,
+        "gap": 1,
+        "gradient": [
+          "@lcdLit",
+          "@lcdHot"
+        ],
+        "grid": "@lcdGhost",
+        "line": "@lcdLit",
+        "name": "Mirror",
+        "style": "mirror"
+      },
+      {
+        "bands": 36,
+        "color": "@lcdLit",
+        "grid": "@lcdGhost",
+        "line": "@lcdLit",
+        "lineWidth": 1,
+        "name": "Radial",
+        "style": "radial"
+      },
+      {
+        "bands": 28,
+        "decay": 0.86,
+        "gap": 1,
+        "gradient": [
+          "@record",
+          "@lcdHot",
+          "#fff0a0"
+        ],
+        "grid": "@lcdGhost",
+        "line": "@lcdHot",
+        "name": "Fire",
+        "style": "fire"
       }
     ]
   }
