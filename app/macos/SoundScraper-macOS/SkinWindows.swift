@@ -33,6 +33,18 @@ final class SkinPanelWindow: NSWindow {
   override var canBecomeKey: Bool { true }
   override var canBecomeMain: Bool { true }
 
+  /// Installs a React Native root view with nothing painted behind the
+  /// skin, so the art's transparent corners stay see-through.
+  func setRootView(_ view: NSView) {
+    view.wantsLayer = true
+    view.layer?.backgroundColor = NSColor.clear.cgColor
+    if view.responds(to: NSSelectorFromString("setBackgroundColor:")) {
+      view.setValue(NSColor.clear, forKey: "backgroundColor")
+    }
+    contentView = view
+    invalidateShadow()
+  }
+
   override func sendEvent(_ event: NSEvent) {
     if event.type == .leftMouseDown, let content = contentView, let manager {
       manager.raiseGroup(activating: self)
@@ -79,7 +91,7 @@ final class WindowController: NSObject, NSWindowDelegate {
 
   private static let panelSpecs: [String: (module: String, title: String, size: NSSize)] = [
     "library": ("SoundScraperLibrary", "Library", NSSize(width: 840, height: 420)),
-    "settings": ("SoundScraperSettings", "Settings", NSSize(width: 460, height: 600)),
+    "settings": ("SoundScraperSettings", "Settings", NSSize(width: 460, height: 560)),
   ]
 
   // MARK: Windows
@@ -90,10 +102,14 @@ final class WindowController: NSObject, NSWindowDelegate {
     let window = SkinPanelWindow(panelID: Self.main, size: NSSize(width: 420, height: 150))
     window.title = "Sound Scraper"
     window.manager = self
-    window.contentView = factory.rootViewFactory.view(withModuleName: "SoundScraper")
+    window.setRootView(factory.rootViewFactory.view(withModuleName: "SoundScraper"))
     window.delegate = self
     if let s = saved[Self.main], let x = s["x"] as? Double, let y = s["y"] as? Double {
-      window.setFrame(toAppKit(NSRect(x: x, y: y, width: 420, height: 150)), display: false)
+      // The saved size too (the skin sets the real one), so docked panels
+      // touch it and follow when the size changes.
+      let w = s["w"] as? Double ?? 420
+      let h = s["h"] as? Double ?? 150
+      window.setFrame(toAppKit(NSRect(x: x, y: y, width: w, height: h)), display: false)
     } else {
       window.center()
     }
@@ -177,7 +193,7 @@ final class WindowController: NSObject, NSWindowDelegate {
     let window = SkinPanelWindow(panelID: name, size: spec.size)
     window.title = spec.title
     window.manager = self
-    window.contentView = factory.rootViewFactory.view(withModuleName: spec.module)
+    window.setRootView(factory.rootViewFactory.view(withModuleName: spec.module))
     window.delegate = self
     if let s = saved[name], let x = s["x"] as? Double, let y = s["y"] as? Double,
       let w = s["w"] as? Double, let h = s["h"] as? Double

@@ -141,6 +141,41 @@ fn shrinking_main_pulls_docked_panels_up() {
 }
 
 #[test]
+fn docked_groups_keep_their_shape_when_main_changes_size() {
+    // Double size off: main shrinks 840×300 → 420×150. The library (below
+    // main) and settings (right of main, and of the library) each follow
+    // only the main edge they touch.
+    let s = Scene {
+        panels: vec![
+            panel("main", 200.0, 120.0, 840.0, 300.0),
+            panel("library", 200.0, 420.0, 840.0, 480.0),
+            panel("settings", 1040.0, 120.0, 520.0, 640.0),
+        ],
+        screens: vec![],
+    };
+    let resize = Resize::begin(s, "main", 1.0, 1.0).unwrap();
+    let out = resize.update(-420.0, -150.0, false);
+    // The library was as wide as main, so it stays as wide; settings stays
+    // docked to the right of both, with no overlap.
+    assert_eq!(frame(&out, "library"), Rect::new(200.0, 270.0, 420.0, 480.0));
+    assert_eq!(frame(&out, "settings"), Rect::new(620.0, 120.0, 520.0, 640.0));
+    let (lib, set) = (frame(&out, "library"), frame(&out, "settings"));
+    assert!(touching(&lib, &set) && !lib.intersects(&set));
+    // And back to double size from there.
+    let shrunk = Scene {
+        panels: vec![
+            panel("main", 200.0, 120.0, 420.0, 150.0),
+            Panel { id: "library".into(), frame: lib, visible: true },
+            Panel { id: "settings".into(), frame: set, visible: true },
+        ],
+        screens: vec![],
+    };
+    let out = Resize::begin(shrunk, "main", 1.0, 1.0).unwrap().update(420.0, 150.0, false);
+    assert_eq!(frame(&out, "library"), Rect::new(200.0, 420.0, 840.0, 480.0));
+    assert_eq!(frame(&out, "settings"), Rect::new(1040.0, 120.0, 520.0, 640.0));
+}
+
+#[test]
 fn constrain_pulls_offscreen_panels_back() {
     let mut s = scene();
     // Main and its chain way off to the right (a disconnected display).

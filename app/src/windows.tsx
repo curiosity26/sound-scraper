@@ -115,7 +115,6 @@ function SettingsContent() {
   const skin = useSkin();
   const accent = skin.panels.settings.controls.accent ?? colors.accent;
   const [tab, setTab] = useState<'settings' | 'skin' | 'about'>('settings');
-  const hide = () => windows.setPanelVisible('settings', false);
   return (
     <View style={styles.content}>
       <View style={styles.tabs}>
@@ -134,20 +133,14 @@ function SettingsContent() {
         ))}
       </View>
       {tab === 'settings' && (
-        <SettingsPanel
-          onClose={hide}
-          onFolderChanged={refreshLibraryViews}
-          textStyle={fg}
-        />
+        <SettingsPanel onFolderChanged={refreshLibraryViews} textStyle={fg} />
       )}
       {tab === 'skin' && (
         <ScrollView>
           <SkinChooser textStyle={fg} />
         </ScrollView>
       )}
-      {tab === 'about' && (
-        <AboutPanel onClose={() => setTab('settings')} textStyle={fg} />
-      )}
+      {tab === 'about' && <AboutPanel textStyle={fg} />}
     </View>
   );
 }

@@ -945,7 +945,7 @@ fn main() {
                 }
             },
             "library": {
-                "minSize": [480, 280],
+                "minSize": [400, 240],
                 "resizable": true,
                 "frame": { "image": "frame.png", "slice": [22, 6, 6, 6] },
                 "title": { "font": "tiny", "offset": [12, 8] },

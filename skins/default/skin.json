@@ -90,8 +90,8 @@
         14
       ],
       "minSize": [
-        480,
-        280
+        400,
+        240
       ],
       "resizable": true,
       "scrollbar": {

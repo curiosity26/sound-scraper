@@ -22,7 +22,9 @@ const QUALITIES: { value: Quality; label: string; detail: string }[] = [
 ];
 
 type Props = {
-  onClose: () => void;
+  /** Shows a heading with Done (the overlay in the plain UI); the skinned
+   * window has its own title and close button. */
+  onClose?: () => void;
   /** Called after a change that affects the library (folder). */
   onFolderChanged: () => void;
   textStyle: object;
@@ -59,12 +61,14 @@ export function SettingsPanel(props: Props): React.JSX.Element {
 
   return (
     <View style={styles.panel}>
-      <View style={styles.header}>
-        <Text style={[styles.heading, textStyle]}>Settings</Text>
-        <Pressable onPress={props.onClose} testID="close-settings">
-          <Text style={[styles.link, t.link]}>Done</Text>
-        </Pressable>
-      </View>
+      {props.onClose && (
+        <View style={styles.header}>
+          <Text style={[styles.heading, textStyle]}>Settings</Text>
+          <Pressable onPress={props.onClose} testID="close-settings">
+            <Text style={[styles.link, t.link]}>Done</Text>
+          </Pressable>
+        </View>
+      )}
       <ScrollView>
         <Text style={[styles.section, textStyle]}>Recordings folder</Text>
         <Text selectable style={[styles.path, textStyle]}>

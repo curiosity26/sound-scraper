@@ -281,31 +281,59 @@ pub struct Resize {
     scene: Scene,
     index: usize,
     min: (f64, f64),
-    /// Panels that follow the right edge, and the bottom edge.
-    right: Vec<usize>,
-    bottom: Vec<usize>,
+    /// For each panel: follows the right edge (x), the bottom edge (y), or
+    /// stays.
+    follows: Vec<(bool, bool)>,
+    /// Panels stacked flush below the resized one (e.g. a library as wide
+    /// as the main panel above it) keep its width. Side panels keep their
+    /// height, so shade mode doesn't squash them.
+    stretch: Vec<bool>,
 }
 
 impl Resize {
+    /// Panels touching the right or bottom edge follow that edge, and the
+    /// panels docked to them follow along. Each panel follows the edge it's
+    /// nearest to in the dock graph (ties: both), so two docked side panels
+    /// don't pick up each other's movement.
     pub fn begin(scene: Scene, id: &str, min_w: f64, min_h: f64) -> Result<Self, String> {
         let index = scene.index(id).ok_or_else(|| format!("no panel \"{id}\""))?;
         let f = scene.panels[index].frame;
-        let attached = |edge: &dyn Fn(&Rect) -> bool| -> Vec<usize> {
-            let mut out: Vec<usize> = Vec::new();
+        let n = scene.panels.len();
+        let mut follows = vec![(false, false); n];
+        let mut stretch = vec![false; n];
+        let same = |a: f64, b: f64| (a - b).abs() <= TOUCH;
+        let mut depth = vec![usize::MAX; n];
+        depth[index] = 0;
+        let mut queue = VecDeque::new();
+        for (j, p) in scene.panels.iter().enumerate() {
+            if j == index || !p.visible {
+                continue;
+            }
+            let right = (p.frame.x - f.right()).abs() <= TOUCH && p.frame.v_overlap(&f) > 0.0;
+            let bottom = (p.frame.y - f.bottom()).abs() <= TOUCH && p.frame.h_overlap(&f) > 0.0;
+            if right || bottom {
+                follows[j] = (right, bottom);
+                stretch[j] = bottom && same(p.frame.x, f.x) && same(p.frame.right(), f.right());
+                depth[j] = 1;
+                queue.push_back(j);
+            }
+        }
+        while let Some(i) = queue.pop_front() {
             for (j, p) in scene.panels.iter().enumerate() {
-                if j != index && p.visible && edge(&p.frame) && !out.contains(&j) {
-                    for k in scene.chain_excluding(j, Some(index)) {
-                        if !out.contains(&k) {
-                            out.push(k);
-                        }
-                    }
+                if !p.visible || depth[j] <= depth[i] || !touching(&scene.panels[i].frame, &p.frame) {
+                    continue;
+                }
+                if depth[j] == usize::MAX {
+                    depth[j] = depth[i] + 1;
+                    follows[j] = follows[i];
+                    queue.push_back(j);
+                } else if depth[j] == depth[i] + 1 {
+                    follows[j].0 |= follows[i].0;
+                    follows[j].1 |= follows[i].1;
                 }
             }
-            out
-        };
-        let right = attached(&|p: &Rect| (p.x - f.right()).abs() <= TOUCH && p.v_overlap(&f) > 0.0);
-        let bottom = attached(&|p: &Rect| (p.y - f.bottom()).abs() <= TOUCH && p.h_overlap(&f) > 0.0);
-        Ok(Self { scene, index, min: (min_w, min_h), right, bottom })
+        }
+        Ok(Self { scene, index, min: (min_w, min_h), follows, stretch })
     }
 
     /// New frames for a size change of (dw, dh) since the resize began.
@@ -318,7 +346,7 @@ impl Resize {
                 .panels
                 .iter()
                 .enumerate()
-                .filter(|(j, q)| q.visible && *j != self.index && !self.right.contains(j) && !self.bottom.contains(j))
+                .filter(|(j, q)| q.visible && *j != self.index && self.follows[*j] == (false, false))
                 .map(|(_, q)| q.frame)
                 .collect();
             let xs = others
@@ -337,17 +365,31 @@ impl Resize {
         }
         let (dx, dy) = (f.w - p.frame.w, f.h - p.frame.h);
         let mut out = vec![Placement { id: p.id.clone(), frame: f }];
-        let mut shift = vec![(0.0, 0.0); self.scene.panels.len()];
-        for &j in &self.right {
-            shift[j].0 = dx;
+        // A panel docked to a stretched one, along its stretching edge,
+        // moves with that edge too.
+        let mut follows = self.follows.clone();
+        for (j, &sw) in self.stretch.iter().enumerate() {
+            let g = self.scene.panels[j].frame;
+            for (k, q) in self.scene.panels.iter().enumerate() {
+                if sw
+                    && k != self.index
+                    && k != j
+                    && q.visible
+                    && (q.frame.x - g.right()).abs() <= TOUCH
+                    && q.frame.v_overlap(&g) > 0.0
+                {
+                    follows[k].0 = true;
+                }
+            }
         }
-        for &j in &self.bottom {
-            shift[j].1 = dy;
-        }
-        for (j, (sx, sy)) in shift.into_iter().enumerate() {
-            if sx != 0.0 || sy != 0.0 {
+        for (j, &(fx, fy)) in follows.iter().enumerate() {
+            let (sx, sy) = (if fx { dx } else { 0.0 }, if fy { dy } else { 0.0 });
+            let gw = if self.stretch[j] { dx } else { 0.0 };
+            if sx != 0.0 || sy != 0.0 || gw != 0.0 {
                 let q = &self.scene.panels[j];
-                out.push(Placement { id: q.id.clone(), frame: q.frame.offset(sx, sy) });
+                let mut moved = q.frame.offset(sx, sy);
+                moved.w = (moved.w + gw).max(1.0);
+                out.push(Placement { id: q.id.clone(), frame: moved });
             }
         }
         out
