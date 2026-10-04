@@ -16,9 +16,23 @@ import {
 
 export type Message = { text: string; isError: boolean };
 
-/** Linear 0..1: overall peak/RMS and each channel's peak. */
-export type Levels = { peak: number; rms: number; left: number; right: number };
-const SILENT: Levels = { peak: 0, rms: 0, left: 0, right: 0 };
+/** Linear 0..1: overall peak/RMS and each channel's peak and RMS. */
+export type Levels = {
+  peak: number;
+  rms: number;
+  left: number;
+  right: number;
+  rmsLeft: number;
+  rmsRight: number;
+};
+const SILENT: Levels = {
+  peak: 0,
+  rms: 0,
+  left: 0,
+  right: 0,
+  rmsLeft: 0,
+  rmsRight: 0,
+};
 
 /**
  * Recorder state and actions for the skinned main panel: the capture
@@ -59,6 +73,8 @@ export function useRecorder() {
             rms: e.rms,
             left: e.peakLeft ?? e.peak,
             right: e.peakRight ?? e.peak,
+            rmsLeft: e.rmsLeft ?? e.rms,
+            rmsRight: e.rmsRight ?? e.rms,
           });
           break;
         case 'finished':

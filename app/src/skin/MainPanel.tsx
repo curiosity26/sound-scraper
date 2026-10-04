@@ -261,6 +261,8 @@ export function MainPanel(): React.JSX.Element {
           peak={r.levels.peak}
           left={r.levels.left}
           right={r.levels.right}
+          rmsLeft={r.levels.rmsLeft}
+          rmsRight={r.levels.rmsRight}
         />
       )}
       {els.elapsed && (

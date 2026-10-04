@@ -1,0 +1,826 @@
+{
+  "$schema": "../../skin.schema.json",
+  "author": "Sound Scraper",
+  "colors": {
+    "accent": "#ffb24a",
+    "aluminum": "#c9c8c2",
+    "amber": "#ffb24a",
+    "amberGhost": "#ffb24a1f",
+    "amberHot": "#ffd98a",
+    "background": "#c9c8c2",
+    "cream": "#f1e3c2",
+    "panel": "#1b1511",
+    "record": "#e0402a",
+    "text": "#1e1a16",
+    "walnut": "#4a2b17"
+  },
+  "description": "A 1970s stereo receiver: walnut cheeks, brushed aluminum, a warm amber dial and needle VU meters.",
+  "fonts": {
+    "dial": {
+      "cell": [
+        12,
+        16
+      ],
+      "glyphs": " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,:;!?'\"-+/()[]&#%@*_<>=$~|●▶■⏸♪▼",
+      "sprite": "font-dial.png"
+    },
+    "digits": {
+      "cell": [
+        14,
+        26
+      ],
+      "glyphs": "0123456789:.- ",
+      "sprite": "digits.png"
+    },
+    "label": {
+      "cell": [
+        6,
+        8
+      ],
+      "glyphs": " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,:;!?'\"-+/()[]&#%@*_<>=$~|●▶■⏸♪▼",
+      "sprite": "font-label.png"
+    },
+    "tiny": {
+      "cell": [
+        6,
+        8
+      ],
+      "glyphs": " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,:;!?'\"-+/()[]&#%@*_<>=$~|●▶■⏸♪▼",
+      "sprite": "font-tiny.png"
+    }
+  },
+  "format": 1,
+  "id": "com.alexboyce.soundscraper.hifi74",
+  "name": "Hi-Fi '74",
+  "panels": {
+    "details": {
+      "close": {
+        "offset": [
+          12,
+          7
+        ],
+        "size": [
+          14,
+          10
+        ],
+        "sprite": {
+          "image": "buttons.png",
+          "states": {
+            "normal": [
+              272,
+              60
+            ],
+            "pressed": [
+              286,
+              60
+            ]
+          }
+        }
+      },
+      "controls": {
+        "accent": "@amber",
+        "background": "#241b15",
+        "border": "#4a3a2c",
+        "button": "@aluminum",
+        "buttonText": "@text",
+        "text": "@cream"
+      },
+      "frame": {
+        "image": "frame.png",
+        "slice": [
+          24,
+          8,
+          8,
+          8
+        ]
+      },
+      "grip": [
+        14,
+        14
+      ],
+      "menu": {
+        "offset": [
+          28,
+          7
+        ],
+        "size": [
+          14,
+          10
+        ],
+        "sprite": {
+          "image": "buttons.png",
+          "states": {
+            "normal": [
+              300,
+              60
+            ],
+            "pressed": [
+              314,
+              60
+            ]
+          }
+        }
+      },
+      "minSize": [
+        240,
+        320
+      ],
+      "resizable": true,
+      "title": {
+        "font": "label",
+        "offset": [
+          14,
+          9
+        ]
+      }
+    },
+    "library": {
+      "close": {
+        "offset": [
+          12,
+          7
+        ],
+        "size": [
+          14,
+          10
+        ],
+        "sprite": {
+          "image": "buttons.png",
+          "states": {
+            "normal": [
+              272,
+              60
+            ],
+            "pressed": [
+              286,
+              60
+            ]
+          }
+        }
+      },
+      "controls": {
+        "accent": "@amber",
+        "background": "#241b15",
+        "border": "#4a3a2c",
+        "button": "@aluminum",
+        "buttonText": "@text",
+        "text": "@cream"
+      },
+      "frame": {
+        "image": "frame.png",
+        "slice": [
+          24,
+          8,
+          8,
+          8
+        ]
+      },
+      "grip": [
+        14,
+        14
+      ],
+      "minSize": [
+        400,
+        240
+      ],
+      "resizable": true,
+      "scrollbar": {
+        "image": "scrollbar.png",
+        "thumb": [
+          12,
+          0,
+          10,
+          24
+        ],
+        "thumbSlice": [
+          4,
+          0,
+          4,
+          0
+        ],
+        "track": [
+          0,
+          0,
+          10,
+          32
+        ]
+      },
+      "table": {
+        "alternate": "#221a14",
+        "background": "#1b1511",
+        "grid": "#3a2d22",
+        "header": "@aluminum",
+        "headerText": "@text",
+        "selection": "@amber",
+        "selectionText": "#1b1108",
+        "text": "@cream"
+      },
+      "title": {
+        "font": "label",
+        "offset": [
+          14,
+          9
+        ]
+      }
+    },
+    "main": {
+      "animations": [
+        {
+          "fps": 2,
+          "frames": [
+            "on",
+            "off"
+          ],
+          "name": "recLamp",
+          "play": "recording",
+          "rect": [
+            328,
+            112,
+            12,
+            12
+          ],
+          "sprite": {
+            "image": "buttons.png",
+            "states": {
+              "off": [
+                448,
+                60
+              ],
+              "on": [
+                460,
+                60
+              ]
+            }
+          }
+        }
+      ],
+      "background": "main.png",
+      "dragRegion": [
+        [
+          0,
+          0,
+          460,
+          168
+        ]
+      ],
+      "elements": {
+        "close": {
+          "rect": [
+            430,
+            6,
+            14,
+            10
+          ],
+          "sprite": {
+            "image": "buttons.png",
+            "states": {
+              "normal": [
+                272,
+                60
+              ],
+              "pressed": [
+                286,
+                60
+              ]
+            }
+          }
+        },
+        "elapsed": {
+          "align": "right",
+          "font": "digits",
+          "rect": [
+            32,
+            34,
+            112,
+            26
+          ]
+        },
+        "levels": {
+          "rect": [
+            258,
+            28,
+            176,
+            72
+          ],
+          "style": {
+            "faces": 2,
+            "gap": 6.0,
+            "kind": "needle",
+            "length": 82.0,
+            "needle": "#1a120a",
+            "pivot": [
+              42.5,
+              98.0
+            ],
+            "range": [
+              -20.0,
+              3.0
+            ],
+            "reference": -16.0,
+            "sweep": 64.0,
+            "tip": "#b02a1c",
+            "width": 1.2
+          }
+        },
+        "minimize": {
+          "rect": [
+            398,
+            6,
+            14,
+            10
+          ],
+          "sprite": {
+            "image": "buttons.png",
+            "states": {
+              "normal": [
+                216,
+                60
+              ],
+              "pressed": [
+                230,
+                60
+              ]
+            }
+          }
+        },
+        "record": {
+          "rect": [
+            20,
+            132,
+            72,
+            30
+          ],
+          "sprite": {
+            "image": "buttons.png",
+            "states": {
+              "disabled": [
+                144,
+                0
+              ],
+              "normal": [
+                0,
+                0
+              ],
+              "paused": [
+                360,
+                0
+              ],
+              "pausedPressed": [
+                432,
+                0
+              ],
+              "pressed": [
+                72,
+                0
+              ],
+              "recording": [
+                216,
+                0
+              ],
+              "recordingPressed": [
+                288,
+                0
+              ]
+            }
+          }
+        },
+        "shade": {
+          "rect": [
+            414,
+            6,
+            14,
+            10
+          ],
+          "sprite": {
+            "image": "buttons.png",
+            "states": {
+              "normal": [
+                244,
+                60
+              ],
+              "pressed": [
+                258,
+                60
+              ]
+            }
+          }
+        },
+        "source": {
+          "font": "dial",
+          "rect": [
+            24,
+            110,
+            288,
+            16
+          ],
+          "style": {
+            "pad": true
+          }
+        },
+        "status": {
+          "font": "dial",
+          "rect": [
+            32,
+            72,
+            120,
+            16
+          ],
+          "style": {
+            "pad": true
+          }
+        },
+        "stop": {
+          "rect": [
+            96,
+            132,
+            72,
+            30
+          ],
+          "sprite": {
+            "image": "buttons.png",
+            "states": {
+              "disabled": [
+                144,
+                30
+              ],
+              "normal": [
+                0,
+                30
+              ],
+              "pressed": [
+                72,
+                30
+              ]
+            }
+          }
+        },
+        "toggleLibrary": {
+          "rect": [
+            290,
+            134,
+            72,
+            26
+          ],
+          "sprite": {
+            "image": "buttons.png",
+            "states": {
+              "active": [
+                360,
+                30
+              ],
+              "normal": [
+                216,
+                30
+              ],
+              "pressed": [
+                288,
+                30
+              ]
+            }
+          }
+        },
+        "toggleSettings": {
+          "rect": [
+            366,
+            134,
+            72,
+            26
+          ],
+          "sprite": {
+            "image": "buttons.png",
+            "states": {
+              "active": [
+                144,
+                60
+              ],
+              "normal": [
+                0,
+                60
+              ],
+              "pressed": [
+                72,
+                60
+              ]
+            }
+          }
+        },
+        "visualizer": {
+          "rect": [
+            152,
+            32,
+            96,
+            62
+          ],
+          "style": {
+            "grid": "@amberGhost",
+            "line": "@amber",
+            "pixelated": false
+          }
+        }
+      },
+      "shade": {
+        "background": "shade.png",
+        "dragRegion": [
+          [
+            0,
+            0,
+            460,
+            18
+          ]
+        ],
+        "elements": {
+          "close": {
+            "rect": [
+              430,
+              4,
+              14,
+              10
+            ],
+            "sprite": {
+              "image": "buttons.png",
+              "states": {
+                "normal": [
+                  272,
+                  60
+                ],
+                "pressed": [
+                  286,
+                  60
+                ]
+              }
+            }
+          },
+          "elapsed": {
+            "align": "right",
+            "font": "tiny",
+            "rect": [
+              158,
+              5,
+              48,
+              8
+            ]
+          },
+          "levels": {
+            "rect": [
+              212,
+              5,
+              90,
+              8
+            ],
+            "style": {
+              "clip": "@record",
+              "gap": 1,
+              "hot": "@amberHot",
+              "off": "@amberGhost",
+              "on": "@amber",
+              "rows": 1,
+              "segments": 24
+            }
+          },
+          "minimize": {
+            "rect": [
+              398,
+              4,
+              14,
+              10
+            ],
+            "sprite": {
+              "image": "buttons.png",
+              "states": {
+                "normal": [
+                  216,
+                  60
+                ],
+                "pressed": [
+                  230,
+                  60
+                ]
+              }
+            }
+          },
+          "record": {
+            "rect": [
+              316,
+              3,
+              12,
+              12
+            ],
+            "sprite": {
+              "image": "buttons.png",
+              "states": {
+                "disabled": [
+                  352,
+                  60
+                ],
+                "normal": [
+                  328,
+                  60
+                ],
+                "paused": [
+                  388,
+                  60
+                ],
+                "pausedPressed": [
+                  400,
+                  60
+                ],
+                "pressed": [
+                  340,
+                  60
+                ],
+                "recording": [
+                  364,
+                  60
+                ],
+                "recordingPressed": [
+                  376,
+                  60
+                ]
+              }
+            }
+          },
+          "shade": {
+            "rect": [
+              414,
+              4,
+              14,
+              10
+            ],
+            "sprite": {
+              "image": "buttons.png",
+              "states": {
+                "normal": [
+                  244,
+                  60
+                ],
+                "pressed": [
+                  258,
+                  60
+                ]
+              }
+            }
+          },
+          "status": {
+            "font": "tiny",
+            "rect": [
+              96,
+              5,
+              60,
+              8
+            ]
+          },
+          "stop": {
+            "rect": [
+              330,
+              3,
+              12,
+              12
+            ],
+            "sprite": {
+              "image": "buttons.png",
+              "states": {
+                "disabled": [
+                  436,
+                  60
+                ],
+                "normal": [
+                  412,
+                  60
+                ],
+                "pressed": [
+                  424,
+                  60
+                ]
+              }
+            }
+          }
+        },
+        "size": [
+          460,
+          18
+        ]
+      },
+      "size": [
+        460,
+        168
+      ]
+    },
+    "settings": {
+      "close": {
+        "offset": [
+          12,
+          7
+        ],
+        "size": [
+          14,
+          10
+        ],
+        "sprite": {
+          "image": "buttons.png",
+          "states": {
+            "normal": [
+              272,
+              60
+            ],
+            "pressed": [
+              286,
+              60
+            ]
+          }
+        }
+      },
+      "controls": {
+        "accent": "@amber",
+        "background": "#241b15",
+        "border": "#4a3a2c",
+        "button": "@aluminum",
+        "buttonText": "@text",
+        "text": "@cream"
+      },
+      "frame": {
+        "image": "frame.png",
+        "slice": [
+          24,
+          8,
+          8,
+          8
+        ]
+      },
+      "grip": [
+        14,
+        14
+      ],
+      "minSize": [
+        360,
+        340
+      ],
+      "resizable": true,
+      "title": {
+        "font": "label",
+        "offset": [
+          14,
+          9
+        ]
+      }
+    }
+  },
+  "version": "1.0",
+  "visualizer": {
+    "presets": [
+      {
+        "bands": 20,
+        "beat": 0.4,
+        "color": "@amber",
+        "gap": 1,
+        "grid": "@amberGhost",
+        "line": "@amber",
+        "name": "Bars",
+        "peak": "@amberHot",
+        "style": "bars"
+      },
+      {
+        "color": "@amber",
+        "grid": "@amberGhost",
+        "line": "@amber",
+        "lineWidth": 1,
+        "name": "Scope",
+        "style": "scope"
+      },
+      {
+        "bands": 20,
+        "gap": 1,
+        "gradient": [
+          "@amber",
+          "@amberHot"
+        ],
+        "grid": "@amberGhost",
+        "line": "@amber",
+        "name": "Mirror",
+        "style": "mirror"
+      },
+      {
+        "bands": 30,
+        "color": "@amber",
+        "grid": "@amberGhost",
+        "line": "@amber",
+        "lineWidth": 1,
+        "name": "Radial",
+        "style": "radial"
+      },
+      {
+        "bands": 20,
+        "decay": 0.86,
+        "gap": 1,
+        "gradient": [
+          "@record",
+          "@amber",
+          "#fff0c0"
+        ],
+        "grid": "@amberGhost",
+        "line": "@amberHot",
+        "name": "Fire",
+        "style": "fire"
+      }
+    ]
+  }
+}

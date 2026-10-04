@@ -298,10 +298,17 @@
         },
         "style": {
           "type": "object",
-          "description": "Element parameters. Text: pad (fill the rect with spaces, showing a sprite font's unlit cells). levels: rows (1 = peak, 2 = left and right), segments, gap, on, hot, clip, off colors. visualizer: grid, line colors.",
+          "description": "Element parameters. Text: pad (fill the rect with spaces, showing a sprite font's unlit cells). levels: rows (1 = peak, 2 = left and right), segments, gap, vertical, on, hot, clip, off colors; or kind \"needle\" for analog meters: faces (1, or 2 for left and right side by side gap apart), pivot and length of the needle in points from a face's top left, sweep (degrees), range ([low, high] VU at the ends of the sweep), reference (the dBFS that reads 0 VU), needle and tip colors, width, source (\"rms\" or \"peak\"). The scale is the skin's artwork. visualizer: grid, line colors, pixelated.",
           "properties": {
             "pad": {
               "type": "boolean"
+            },
+            "kind": {
+              "enum": [
+                "segments",
+                "needle"
+              ],
+              "description": "levels: segment bars (default) or needle meters."
             },
             "rows": {
               "type": "integer",
@@ -343,6 +350,59 @@
             },
             "background": {
               "$ref": "#/$defs/color"
+            },
+            "faces": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2
+            },
+            "pivot": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "length": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "sweep": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 360
+            },
+            "range": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "reference": {
+              "type": "number"
+            },
+            "needle": {
+              "$ref": "#/$defs/color"
+            },
+            "tip": {
+              "$ref": "#/$defs/color"
+            },
+            "width": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "source": {
+              "enum": [
+                "rms",
+                "peak"
+              ]
+            },
+            "pixelated": {
+              "type": "boolean",
+              "description": "visualizer: hard pixel edges when scaled (default true)."
             }
           }
         }

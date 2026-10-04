@@ -49,6 +49,37 @@ fn fill(dst: &mut RgbaImage, x: i64, y: i64, w: i64, h: i64, c: [u8; 4]) {
     imageops::overlay(dst, &patch, x, y);
 }
 
+/// Needle meters (style kind "needle") at about -3 and -6 VU.
+fn needles(dst: &mut RgbaImage, style: &serde_json::Map<String, serde_json::Value>, rect: [i64; 4]) {
+    let n = |k: &str, d: f64| style.get(k).and_then(|v| v.as_f64()).unwrap_or(d);
+    let pair = |k: &str, d: [f64; 2]| {
+        style.get(k).and_then(|v| v.as_array()).filter(|a| a.len() == 2).map_or(d, |a| {
+            [a[0].as_f64().unwrap_or(d[0]), a[1].as_f64().unwrap_or(d[1])]
+        })
+    };
+    let faces = n("faces", 2.0).clamp(1.0, 2.0) as i64;
+    let gap = n("gap", 4.0);
+    let face_w = (rect[2] as f64 - gap * (faces - 1) as f64) / faces as f64;
+    let pivot = pair("pivot", [face_w / 2.0, rect[3] as f64 * 1.3]);
+    let length = n("length", pivot[1] * 0.9);
+    let (sweep, range) = (n("sweep", 90.0), pair("range", [-20.0, 3.0]));
+    let color = hex(style.get("needle").and_then(|v| v.as_str()).unwrap_or("#1a120a"));
+    let s = SCALE as f64;
+    for (face, vu) in [-3.0, -6.0].into_iter().take(faces as usize).enumerate() {
+        let t = ((vu - range[0]) / (range[1] - range[0])).clamp(0.0, 1.0);
+        let a = (-sweep / 2.0 + t * sweep).to_radians();
+        let (ox, oy) = (rect[0] as f64 + face as f64 * (face_w + gap), rect[1] as f64);
+        let (px, py) = (ox + pivot[0], oy + pivot[1]);
+        for i in 0..(length * s * 2.0) as i64 {
+            let d = i as f64 / (s * 2.0);
+            let (x, y) = (px + a.sin() * d, py - a.cos() * d);
+            if x >= ox && x < ox + face_w && y >= oy && y < oy + rect[3] as f64 {
+                fill(dst, (x * s) as i64, (y * s) as i64, SCALE as i64, SCALE as i64, color);
+            }
+        }
+    }
+}
+
 fn sprite_text(dst: &mut RgbaImage, skin: &ResolvedSkin, el: &ResolvedElement, text: &str) {
     let font = &skin.fonts[el.font.as_ref().unwrap()];
     let sheet = load(&font.image);
@@ -144,6 +175,11 @@ fn render(skin: &ResolvedSkin, layout: &ResolvedLayout) -> RgbaImage {
             sprite_text(&mut out, skin, el, sample);
         }
         if name == "levels"
+            && let Some(style) = &el.style
+            && style.get("kind").and_then(|v| v.as_str()) == Some("needle")
+        {
+            needles(&mut out, style, el.rect);
+        } else if name == "levels"
             && let Some(style) = &el.style
         {
             let rows = style.get("rows").and_then(|v| v.as_i64()).unwrap_or(1);

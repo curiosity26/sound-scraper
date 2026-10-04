@@ -115,6 +115,30 @@ fn default_skin_matches_the_schema() {
     assert!(!validator.is_valid(&bad));
 }
 
+/// Hi-Fi '74 (skins/hifi74), the installable test skin: loads without
+/// warnings or fallbacks, matches the schema, and has needle meters.
+#[test]
+fn hifi_skin_is_complete_and_clean() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
+    let dir = root.join("skins/hifi74");
+    let skin = store().load_dir(&dir).unwrap();
+    assert_eq!(skin.id, "com.alexboyce.soundscraper.hifi74");
+    assert!(!skin.builtin);
+    assert!(skin.warnings.is_empty(), "{:?}", skin.warnings);
+    let main = &skin.panels.main;
+    for name in manifest::MAIN_ELEMENTS.iter().filter(|n| **n != "pause") {
+        let el = main.layout.elements.get(*name).unwrap_or_else(|| panic!("Hi-Fi '74 lacks {name}"));
+        assert!(!el.fallback, "{name} falls back");
+    }
+    let levels = main.layout.elements["levels"].style.as_ref().unwrap();
+    assert_eq!(levels["kind"], "needle");
+    let schema: serde_json::Value = serde_json::from_str(&fs::read_to_string(root.join("skin.schema.json")).unwrap()).unwrap();
+    let manifest: serde_json::Value = serde_json::from_str(&fs::read_to_string(dir.join("skin.json")).unwrap()).unwrap();
+    let validator = jsonschema::validator_for(&schema).unwrap();
+    let errors: Vec<String> = validator.iter_errors(&manifest).map(|e| format!("{} at {}", e, e.instance_path)).collect();
+    assert!(errors.is_empty(), "{errors:#?}");
+}
+
 #[test]
 fn missing_elements_fall_back_to_default() {
     let store = store();
