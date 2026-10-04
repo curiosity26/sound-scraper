@@ -77,7 +77,7 @@ export function DetailsPane(props: Props): React.JSX.Element {
   const [recordings, setRecordings] = useState<Recording[]>([]);
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
-  const [width, setWidth] = useState(0);
+  const [area, setArea] = useState({ width: 0, height: 0 });
   const single = fileNames.length === 1;
   const key = fileNames.join('\u0000');
 
@@ -234,7 +234,12 @@ export function DetailsPane(props: Props): React.JSX.Element {
   };
 
   const recording = single ? recordings[0] : undefined;
-  const size = Math.max(120, width);
+  // The cover leaves room below it for the file name and title (about
+  // 110 points), so they show without scrolling.
+  const size = Math.max(
+    96,
+    Math.min(area.width, area.height > 0 ? area.height - 110 : area.width),
+  );
   const dropProps = {
     draggedTypes: ['fileUrl'],
     onDrop,
@@ -243,9 +248,12 @@ export function DetailsPane(props: Props): React.JSX.Element {
   return (
     <ScrollView
       style={styles.root}
-      onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}
+      onLayout={(e: LayoutChangeEvent) => {
+        const { width, height } = e.nativeEvent.layout;
+        setArea({ width, height });
+      }}
     >
-      <View {...dropProps}>
+      <View {...dropProps} style={styles.coverBox}>
         <Pressable
           testID="details-cover"
           accessibilityLabel="Cover art. Click to choose an image, or drop one here."
@@ -465,6 +473,7 @@ function Info(props: { label: string; value: string; textStyle: object }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  coverBox: { alignItems: 'center' },
   cover: {
     alignItems: 'center',
     justifyContent: 'center',
