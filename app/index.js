@@ -9,13 +9,14 @@ import { skinsAvailable } from './src/skin/skins';
 import { DetailsApp, LibraryApp, MainApp, SettingsApp } from './src/windows';
 
 if (skinsAvailable) {
-  // macOS: the skinned main panel, with the library and settings in their
-  // own windows (created by SkinWindows.swift).
+  // The skinned main panel, with the library, settings and details in
+  // their own windows (SkinWindows.swift on macOS, WindowManager.cpp on
+  // Windows).
   AppRegistry.registerComponent(appName, () => MainApp);
   AppRegistry.registerComponent('SoundScraperLibrary', () => LibraryApp);
   AppRegistry.registerComponent('SoundScraperSettings', () => SettingsApp);
   AppRegistry.registerComponent('SoundScraperDetails', () => DetailsApp);
 } else {
-  // Windows, until skins are ported: the plain single-window UI.
+  // No native skin support: the plain single-window UI.
   AppRegistry.registerComponent(appName, () => App);
 }

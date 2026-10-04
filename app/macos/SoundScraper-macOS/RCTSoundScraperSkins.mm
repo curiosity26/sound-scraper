@@ -192,6 +192,11 @@ RCT_EXPORT_MODULE(SoundScraperSkins)
   });
 }
 
+// Drag regions and grips are handled by SkinPanelWindow on macOS.
+- (void)beginGesture:(NSString *)panel kind:(NSString *)kind
+{
+}
+
 - (void)setPanelVisible:(NSString *)panel visible:(BOOL)visible
 {
   NSString *copy = [panel copy];

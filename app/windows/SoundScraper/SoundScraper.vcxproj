@@ -103,6 +103,13 @@
   <ItemGroup>
     <ClInclude Include="SoundScraper.h" />
     <ClInclude Include="SoundScraperModule.h" />
+    <ClInclude Include="Shared.h" />
+    <ClInclude Include="FileImageProvider.h" />
+    <ClInclude Include="SkinsModule.h" />
+    <ClInclude Include="VisualizerView.h" />
+    <ClInclude Include="WindowManager.h" />
+    <ClInclude Include="codegen\NativeSkinsDataTypes.g.h" />
+    <ClInclude Include="codegen\NativeSkinsSpec.g.h" />
     <ClInclude Include="codegen\NativeSoundScraperDataTypes.g.h" />
     <ClInclude Include="codegen\NativeSoundScraperSpec.g.h" />
     <ClInclude Include="resource.h" />
@@ -113,6 +120,9 @@
   <ItemGroup>
     <ClCompile Include="SoundScraper.cpp" />
     <ClCompile Include="SoundScraperModule.cpp" />
+    <ClCompile Include="SkinsModule.cpp" />
+    <ClCompile Include="VisualizerView.cpp" />
+    <ClCompile Include="WindowManager.cpp" />
     <ClCompile Include="AutolinkedNativeModules.g.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

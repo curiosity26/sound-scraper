@@ -15,22 +15,10 @@
 
 #include "codegen/NativeSoundScraperDataTypes.g.h"
 #include "codegen/NativeSoundScraperSpec.g.h"
+#include "Shared.h"
 #include "sound_scraper.h"
 
 namespace SoundScraper {
-
-// Schedules work on the JS thread. Under the New Architecture the context's
-// JSDispatcher is empty (Post silently does nothing); the CallInvoker works.
-struct JsThread {
-  std::shared_ptr<facebook::react::CallInvoker> invoker;
-
-  template <class F>
-  void Post(F f) const noexcept {
-    if (invoker) {
-      invoker->invokeAsync(std::function<void()>(std::move(f)));
-    }
-  }
-};
 
 REACT_TURBO_MODULE(SoundScraperModule, L"SoundScraper")
 struct SoundScraperModule {
@@ -54,6 +42,7 @@ struct SoundScraperModule {
     m_js = JsThread{context.CallInvoker()};
     m_sink = std::make_shared<EventSink>(EventSink{m_js, this});
     m_recorder = ss_recorder_create();
+    CurrentRecorder() = m_recorder;
     // Rust owns this pointer's lifetime via the callback; freed in the destructor.
     m_sinkRef = new std::weak_ptr<EventSink>(m_sink);
     ss_recorder_set_callback(m_recorder, &SoundScraperModule::OnRecorderEvent, m_sinkRef);
@@ -64,6 +53,9 @@ struct SoundScraperModule {
   }
 
   ~SoundScraperModule() {
+    if (CurrentRecorder() == m_recorder) {
+      CurrentRecorder() = nullptr;
+    }
     m_sink.reset(); // late events become no-ops
     ss_recorder_destroy(m_recorder); // finalizes an in-progress recording
     ss_library_destroy(m_library);
@@ -408,6 +400,10 @@ struct SoundScraperModule {
     out.elapsedMs = static_cast<double>(event->elapsed_ms);
     out.peak = event->peak;
     out.rms = event->rms;
+    out.peakLeft = event->peak_left;
+    out.peakRight = event->peak_right;
+    out.rmsLeft = event->rms_left;
+    out.rmsRight = event->rms_right;
     if (event->path) {
       out.path = event->path;
     }

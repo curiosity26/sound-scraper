@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { type LayoutChangeEvent, Pressable, Text, View } from 'react-native';
 
 import { PanelThemeProvider, themeFromPanel } from '../panelTheme';
+import { DragSurface } from './DragSurface';
 import { NineSlice } from './NineSlice';
 import { buttonState } from './SkinButton';
 import { SpriteCell, useSkinScale } from './SkinImage';
@@ -108,6 +109,7 @@ export function SkinPanelFrame(props: Props): React.JSX.Element {
           style={{ position: 'absolute', left: 0, top: 0 }}
         />
       )}
+      {w > 0 && <DragSurface panel={props.panel} drag={[[0, 0, w, top]]} />}
       {w > 0 && (
         <View
           pointerEvents="none"
@@ -172,6 +174,7 @@ export function SkinPanelFrame(props: Props): React.JSX.Element {
         </View>
       </PanelThemeProvider>
       {grip && <Grip rect={grip} color={theme.accent ?? '#888888'} scale={s} />}
+      {grip && <DragSurface panel={props.panel} drag={[]} grip={grip} />}
     </View>
   );
 }

@@ -1,29 +1,17 @@
 // Layout here comes from skin data (rects, sizes), so styles are inline.
 /* eslint-disable react-native/no-inline-styles */
 import React, { useEffect, useState } from 'react';
-import {
-  Pressable,
-  requireNativeComponent,
-  type ViewProps,
-} from 'react-native';
+import { Pressable } from 'react-native';
 
 import { scaleRect, useSkinScale } from './SkinImage';
-import { skinsAvailable } from './skins';
 import { VisualizerPlaceholder } from './LevelMeter';
+import VisualizerNative from './VisualizerNative';
 import type { SkinElement } from './types';
 
-type NativeProps = ViewProps & {
-  /** One of the skin's visualizer presets, as JSON. */
-  preset: string;
-  pixelated: boolean;
-  skinScale: number;
-};
-
-// SSVisualizerView.mm: draws the Rust core's live analysis every display
-// refresh while recording, the preset's idle look otherwise.
-const SSVisualizerView = skinsAvailable
-  ? requireNativeComponent<NativeProps>('SSVisualizerView')
-  : null;
+// The native view: SSVisualizerView.mm on macOS, VisualizerView.h on
+// Windows. It draws the Rust core's live analysis every display refresh
+// while recording, the preset's idle look otherwise.
+const SSVisualizerView = VisualizerNative;
 
 // The chosen look, shared by the main and shade layouts.
 let chosenPreset = 0;

@@ -7,8 +7,14 @@ pub use sound_scraper_skin::{DEFAULT_ID, ResolvedSkin, SkinStore, SkinSummary};
 
 use crate::{paths, settings};
 
+/// The Skins folder: `SOUND_SCRAPER_SKINS_DIR` when the app sets it (the
+/// Windows MSIX app does, so skin images have a real path its image loader
+/// can open), else `Skins` in the app data folder.
 pub fn store() -> SkinStore {
-    SkinStore::new(paths::app_data_dir().join("Skins"))
+    match std::env::var_os("SOUND_SCRAPER_SKINS_DIR") {
+        Some(dir) if !dir.is_empty() => SkinStore::new(std::path::PathBuf::from(dir)),
+        _ => SkinStore::new(paths::app_data_dir().join("Skins")),
+    }
 }
 
 /// Loads a skin by id, or an unpacked skin folder by absolute path; the

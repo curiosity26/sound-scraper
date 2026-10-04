@@ -45,8 +45,11 @@ export function imageSource(image: ImageRef, density = PixelRatio.get()) {
   };
 }
 
+/** A file URL for a macOS (/…) or Windows (C:\…) path. */
 export function fileUri(path: string): string {
-  return `file://${encodeURI(path).replace(/[?#]/g, encodeURIComponent)}`;
+  const slashed = path.replace(/\\/g, '/');
+  const encoded = encodeURI(slashed).replace(/[?#]/g, encodeURIComponent);
+  return slashed.startsWith('/') ? `file://${encoded}` : `file:///${encoded}`;
 }
 
 type Props = {

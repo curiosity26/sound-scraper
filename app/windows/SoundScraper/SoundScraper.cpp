@@ -8,17 +8,47 @@
 
 #include "NativeModules.h"
 
+#include "FileImageProvider.h"
+#include "Shared.h"
+#include "VisualizerView.h"
+#include "WindowManager.h"
+
 // A PackageProvider containing any turbo modules you define within this app project
 struct CompReactPackageProvider
     : winrt::implements<CompReactPackageProvider, winrt::Microsoft::ReactNative::IReactPackageProvider> {
  public: // IReactPackageProvider
   void CreatePackage(winrt::Microsoft::ReactNative::IReactPackageBuilder const &packageBuilder) noexcept {
     AddAttributedModules(packageBuilder, true);
+    SoundScraper::RegisterVisualizerView(packageBuilder);
+    SoundScraper::RegisterFileImageProvider(packageBuilder);
   }
 };
 
 // The entry point of the Win32 application
 _Use_decl_annotations_ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, PSTR /* commandLine */, int showCmd) {
+  // Packaged (MSIX), %APPDATA% writes are redirected, and the image loader
+  // can't open the redirected paths the core would report for skin images:
+  // keep skins in the package's real LocalState folder instead.
+  try {
+    auto local = winrt::Windows::Storage::ApplicationData::Current().LocalFolder().Path();
+    SetEnvironmentVariableW(L"SOUND_SCRAPER_SKINS_DIR", (std::wstring(local) + L"\\Skins").c_str());
+  } catch (...) {
+    // Not packaged: the default location works.
+  }
+  std::set_terminate([]() {
+    try {
+      if (auto e = std::current_exception()) {
+        std::rethrow_exception(e);
+      }
+    } catch (winrt::hresult_error const &e) {
+      SoundScraper::LogError(("terminate: " + winrt::to_string(e.message())).c_str());
+    } catch (std::exception const &e) {
+      SoundScraper::LogError((std::string("terminate: ") + e.what()).c_str());
+    } catch (...) {
+      SoundScraper::LogError("terminate");
+    }
+    abort();
+  });
   // Initialize WinRT
   winrt::init_apartment(winrt::apartment_type::single_threaded);
 
@@ -68,10 +98,14 @@ _Use_decl_annotations_ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, PSTR 
   settings.UseDeveloperSupport(false);
 #endif
 
-  // Get the AppWindow so we can configure its initial title and size
-  auto appWindow{reactNativeWin32App.AppWindow()};
-  appWindow.Title(L"Sound Scraper");
-  appWindow.Resize({1000, 1000});
+  // The main window is the skinned panel: borderless, sized by the skin,
+  // with the library, details and settings panels owned by it.
+  try {
+    SoundScraper::WindowManager::Get().Init(reactNativeWin32App);
+  } catch (winrt::hresult_error const &e) {
+    // Keep running with the default window; note why.
+    SoundScraper::LogError(("window manager: " + winrt::to_string(e.message())).c_str());
+  }
 
   // Get the ReactViewOptions so we can set the initial RN component to load
   auto viewOptions{reactNativeWin32App.ReactViewOptions()};

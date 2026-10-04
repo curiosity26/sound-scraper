@@ -650,11 +650,26 @@ impl Resolver<'_> {
     }
 }
 
+/// `dir` made absolute, without Windows' `\\?\` prefix (which file URLs,
+/// and so the app's images, can't carry).
+fn canonical(dir: &Path) -> Result<PathBuf, String> {
+    let path = dir.canonicalize().map_err(|e| format!("{}: {e}", dir.display()))?;
+    let Some(s) = path.to_str() else { return Ok(path) };
+    if let Some(rest) = s.strip_prefix(r"\\?\UNC\") {
+        return Ok(PathBuf::from(format!(r"\\{rest}")));
+    }
+    match s.strip_prefix(r"\\?\") {
+        // Only drive paths short enough to be used without it.
+        Some(rest) if rest.as_bytes().get(1) == Some(&b':') && rest.len() < 260 => Ok(PathBuf::from(rest)),
+        _ => Ok(path),
+    }
+}
+
 /// Loads `dir` as a skin, resolving what it leaves out from `base` (the
 /// Default skin). With `base` = None the skin must be complete (it *is* the
 /// Default skin).
 pub fn load_dir(dir: &Path, base: Option<&ResolvedSkin>) -> Result<ResolvedSkin, String> {
-    let dir = dir.canonicalize().map_err(|e| format!("{}: {e}", dir.display()))?;
+    let dir = canonical(dir)?;
     files::check_folder(&dir)?;
     let mut warnings = Vec::new();
     let m = read_manifest(&dir, &mut warnings)?;

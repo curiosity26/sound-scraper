@@ -48,6 +48,12 @@ export interface Spec extends TurboModule {
   ): void;
   /** 'minimize' | 'quit' */
   windowAction(action: string): void;
+  /**
+   * Starts moving ('move') or resizing ('resize') a panel window with the
+   * mouse, until the button is released (Windows, where the React view gets
+   * the mouse down; macOS handles drag regions natively and ignores this).
+   */
+  beginGesture(panel: string, kind: string): void;
   /** Shows or hides the 'library' or 'settings' window. */
   setPanelVisible(panel: string, visible: boolean): void;
   isPanelVisible(panel: string): boolean;

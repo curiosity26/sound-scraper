@@ -6,6 +6,7 @@ import { Pressable, View } from 'react-native';
 import { formatElapsed } from '../RecordBar';
 import type { RecorderState } from '../native/SoundScraper';
 import { type Message, useRecorder } from '../useRecorder';
+import { DragSurface } from './DragSurface';
 import { LevelMeter } from './LevelMeter';
 import { SkinAnimation } from './SkinAnimation';
 import { Visualizer } from './Visualizer';
@@ -230,6 +231,16 @@ export function MainPanel(): React.JSX.Element {
           style={{ position: 'absolute', left: 0, top: 0 }}
         />
       )}
+      <DragSurface
+        panel="main"
+        drag={layout.dragRegions.map(d => [
+          d[0] * s,
+          d[1] * s,
+          d[2] * s,
+          d[3] * s,
+        ])}
+        onDoubleClick={() => setShaded(on => !on)}
+      />
       {layout.animations.map((a, i) => (
         <SkinAnimation
           key={a.name ?? i}

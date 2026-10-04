@@ -1,10 +1,10 @@
-import type { EventSubscription } from 'react-native';
+import { type EventSubscription, Platform } from 'react-native';
 
 import NativeSkins, { type WindowEvent } from '../native/NativeSkins';
 import { settings } from '../native/SoundScraper';
 import type { Rect, Skin, SkinSummary } from './types';
 
-/** False where the native side has no skin support yet (Windows). */
+/** False where the native side has no skin support. */
 export const skinsAvailable = NativeSkins != null;
 
 function native() {
@@ -76,6 +76,10 @@ export const windows = {
       chrome.scale,
     ),
   minimize: () => native().windowAction('minimize'),
+  /** Windows: the React views start window moves and resizes. */
+  jsGestures: Platform.OS === 'windows',
+  beginGesture: (panel: 'main' | PanelName, kind: 'move' | 'resize') =>
+    native().beginGesture(panel, kind),
   quit: () => native().windowAction('quit'),
   setPanelVisible: (panel: PanelName, visible: boolean) =>
     native().setPanelVisible(panel, visible),

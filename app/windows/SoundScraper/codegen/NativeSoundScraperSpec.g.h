@@ -43,6 +43,10 @@ inline winrt::Microsoft::ReactNative::FieldMap GetStructInfo(SoundScraperSpec_Re
         {L"elapsedMs", &SoundScraperSpec_RecorderEvent::elapsedMs},
         {L"peak", &SoundScraperSpec_RecorderEvent::peak},
         {L"rms", &SoundScraperSpec_RecorderEvent::rms},
+        {L"peakLeft", &SoundScraperSpec_RecorderEvent::peakLeft},
+        {L"peakRight", &SoundScraperSpec_RecorderEvent::peakRight},
+        {L"rmsLeft", &SoundScraperSpec_RecorderEvent::rmsLeft},
+        {L"rmsRight", &SoundScraperSpec_RecorderEvent::rmsRight},
         {L"path", &SoundScraperSpec_RecorderEvent::path},
         {L"message", &SoundScraperSpec_RecorderEvent::message},
     };

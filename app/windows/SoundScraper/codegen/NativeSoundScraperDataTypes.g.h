@@ -37,6 +37,10 @@ struct SoundScraperSpec_RecorderEvent {
     double elapsedMs;
     double peak;
     double rms;
+    std::optional<double> peakLeft;
+    std::optional<double> peakRight;
+    std::optional<double> rmsLeft;
+    std::optional<double> rmsRight;
     std::optional<std::string> path;
     std::optional<std::string> message;
 };

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { errorText, safeSettings } from '../appHelpers';
 import { settings } from '../native/SoundScraper';
@@ -124,7 +124,8 @@ export function SkinChooser(props: { textStyle: object }): React.JSX.Element {
         style={styles.choice}
       >
         <Text style={[styles.label, textStyle]}>
-          {double ? '☑' : '☐'} Double size (⌘D)
+          {double ? '☑' : '☐'} Double size (
+          {Platform.OS === 'windows' ? 'Ctrl+D' : '⌘D'})
         </Text>
       </Pressable>
       <View style={styles.actions}>
