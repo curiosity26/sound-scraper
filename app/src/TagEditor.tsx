@@ -26,6 +26,7 @@ import {
   TEXT_FIELDS,
   validate,
 } from './tagModel';
+import { usePanelStyles } from './panelTheme';
 import { colors } from './theme';
 
 type Props = {
@@ -42,6 +43,7 @@ type Props = {
 /** Side panel for ID3 tags, including cover art and bulk edits. */
 export function TagEditor(props: Props): React.JSX.Element {
   const { fileNames, textStyle, isDark } = props;
+  const t = usePanelStyles();
   const [loaded, setLoaded] = useState<Tags[]>();
   const [loadError, setLoadError] = useState<string>();
   const [edits, setEdits] = useState<Partial<Record<Field, string>>>({});
@@ -122,10 +124,10 @@ export function TagEditor(props: Props): React.JSX.Element {
     }
   };
 
-  const input = [styles.input, textStyle, isDark && styles.inputDark];
+  const input = [styles.input, textStyle, isDark && styles.inputDark, t.input];
 
   return (
-    <View style={[styles.panel, isDark && styles.panelDark]}>
+    <View style={[styles.panel, isDark && styles.panelDark, t.border]}>
       <View style={styles.header}>
         <Text style={[styles.heading, textStyle]} numberOfLines={1}>
           {fileNames.length === 1
@@ -133,7 +135,7 @@ export function TagEditor(props: Props): React.JSX.Element {
             : `Tags · ${fileNames.length} recordings`}
         </Text>
         <Pressable onPress={props.onClose}>
-          <Text style={styles.link}>Close</Text>
+          <Text style={[styles.link, t.link]}>Close</Text>
         </Pressable>
       </View>
 
@@ -163,11 +165,11 @@ export function TagEditor(props: Props): React.JSX.Element {
             </View>
             <View style={styles.coverButtons}>
               <Pressable onPress={chooseImage} testID="choose-cover">
-                <Text style={styles.link}>Choose image…</Text>
+                <Text style={[styles.link, t.link]}>Choose image…</Text>
               </Pressable>
               {(currentCover.kind !== 'none' || cover.kind === 'set') && (
                 <Pressable onPress={() => setCover({ kind: 'remove' })}>
-                  <Text style={[styles.link, styles.destructive]}>
+                  <Text style={[styles.link, t.link, styles.destructive]}>
                     Remove cover
                   </Text>
                 </Pressable>
@@ -200,10 +202,11 @@ export function TagEditor(props: Props): React.JSX.Element {
               disabled={saving || errors.length > 0}
               style={[
                 styles.button,
+                t.button,
                 (saving || errors.length > 0) && styles.disabled,
               ]}
             >
-              <Text style={styles.buttonText}>
+              <Text style={[styles.buttonText, t.buttonText]}>
                 {saving ? 'Saving…' : 'Save'}
               </Text>
             </Pressable>
@@ -214,7 +217,7 @@ export function TagEditor(props: Props): React.JSX.Element {
                   setCover({ kind: 'keep' });
                 }}
               >
-                <Text style={styles.link}>Revert</Text>
+                <Text style={[styles.link, t.link]}>Revert</Text>
               </Pressable>
             )}
           </View>

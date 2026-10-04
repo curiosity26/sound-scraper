@@ -35,6 +35,7 @@
 
 /* Begin PBXFileReference section */
 		0611457090C7612CA6A5F3B2 /* libPods-SoundScraper-macOS.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-SoundScraper-macOS.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		0E525FD5619867D2EEFF91BA /* SoundScraper-Bridging-Header.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "SoundScraper-Bridging-Header.h"; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* SoundScraper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SoundScraper.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1940998ABA612338539CA664 /* Pods-SoundScraper-macOS.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SoundScraper-macOS.release.xcconfig"; path = "Target Support Files/Pods-SoundScraper-macOS/Pods-SoundScraper-macOS.release.xcconfig"; sourceTree = "<group>"; };
 		1D96829639D2D0C6BDE6B2E9 /* SSVisualizerView.mm */ = {isa = PBXFileReference; includeInIndex = 1; path = SSVisualizerView.mm; sourceTree = "<group>"; };
@@ -105,6 +106,7 @@
 				63681DA7C2EB0E182AE69100 /* RCTSoundScraperSkins.h */,
 				56FA495BE7C653BE46B56DAF /* RCTSoundScraperSkins.mm */,
 				1D96829639D2D0C6BDE6B2E9 /* SSVisualizerView.mm */,
+				0E525FD5619867D2EEFF91BA /* SoundScraper-Bridging-Header.h */,
 			);
 			path = "SoundScraper-macOS";
 			sourceTree = "<group>";
@@ -464,6 +466,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.alexboyce.soundscraper;
 				PRODUCT_NAME = SoundScraper;
 				SDKROOT = macosx;
+				SWIFT_OBJC_BRIDGING_HEADER = "SoundScraper-macOS/SoundScraper-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 			};
@@ -510,6 +513,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.alexboyce.soundscraper;
 				PRODUCT_NAME = SoundScraper;
 				SDKROOT = macosx;
+				SWIFT_OBJC_BRIDGING_HEADER = "SoundScraper-macOS/SoundScraper-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;

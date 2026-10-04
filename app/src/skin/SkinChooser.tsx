@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { errorText, safeSettings } from '../appHelpers';
 import { settings } from '../native/SoundScraper';
+import { usePanelStyles } from '../panelTheme';
 import { colors } from '../theme';
 import { doubleSizeStore, skins, skinStore } from './skins';
 import type { SkinSummary } from './types';
@@ -14,6 +15,7 @@ import type { SkinSummary } from './types';
  */
 export function SkinChooser(props: { textStyle: object }): React.JSX.Element {
   const { textStyle } = props;
+  const t = usePanelStyles();
   const [list, setList] = useState<SkinSummary[]>([]);
   const [chosen, setChosen] = useState<string | null>(
     () => safeSettings()?.skin ?? null,
@@ -108,7 +110,7 @@ export function SkinChooser(props: { textStyle: object }): React.JSX.Element {
           </Pressable>
           {!s.builtin && (
             <Pressable onPress={() => remove(s)}>
-              <Text style={styles.link}>Remove</Text>
+              <Text style={[styles.link, t.link]}>Remove</Text>
             </Pressable>
           )}
         </View>
@@ -127,14 +129,14 @@ export function SkinChooser(props: { textStyle: object }): React.JSX.Element {
       </Pressable>
       <View style={styles.actions}>
         <Pressable onPress={install} testID="install-skin">
-          <Text style={styles.link}>Install skin…</Text>
+          <Text style={[styles.link, t.link]}>Install skin…</Text>
         </Pressable>
         <Pressable onPress={useFolder}>
-          <Text style={styles.link}>Use skin folder…</Text>
+          <Text style={[styles.link, t.link]}>Use skin folder…</Text>
         </Pressable>
         {folderInUse && (
           <Pressable onPress={() => choose(folderInUse)}>
-            <Text style={styles.link}>Reload folder</Text>
+            <Text style={[styles.link, t.link]}>Reload folder</Text>
           </Pressable>
         )}
       </View>

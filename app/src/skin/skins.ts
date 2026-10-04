@@ -33,8 +33,45 @@ export const skins = {
 const flat = (rects: Rect[]) => rects.flatMap(r => r);
 
 export const windows = {
-  setMainLayout: (size: [number, number], drag: Rect[], holes: Rect[]) =>
-    native().setMainLayout(size[0], size[1], flat(drag), flat(holes)),
+  setMainLayout: (
+    size: [number, number],
+    drag: Rect[],
+    holes: Rect[],
+    scale: number,
+  ) =>
+    native().setPanelLayout(
+      'main',
+      size[0],
+      size[1],
+      flat(drag),
+      flat(holes),
+      [],
+      size[0],
+      size[1],
+      scale,
+    ),
+  /** A library/settings window's chrome (its size is the user's). */
+  setPanelChrome: (
+    panel: 'library' | 'settings',
+    chrome: {
+      drag: Rect[];
+      holes: Rect[];
+      grip: Rect | null;
+      minSize: [number, number];
+      scale: number;
+    },
+  ) =>
+    native().setPanelLayout(
+      panel,
+      0,
+      0,
+      flat(chrome.drag),
+      flat(chrome.holes),
+      chrome.grip ? [...chrome.grip] : [],
+      chrome.minSize[0],
+      chrome.minSize[1],
+      chrome.scale,
+    ),
   minimize: () => native().windowAction('minimize'),
   quit: () => native().windowAction('quit'),
   setPanelVisible: (panel: 'library' | 'settings', visible: boolean) =>

@@ -1,43 +1,31 @@
 // Roots of the skinned UI's windows (registered in index.js). They share one
 // JS runtime, so the skin and library refreshes are shared between them.
 import React, { useEffect, useState } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AboutPanel } from './AboutPanel';
 import { LibraryScreen, refreshLibraryViews } from './LibraryScreen';
 import { SettingsPanel } from './SettingsPanel';
 import { MainPanel } from './skin/MainPanel';
 import { SkinChooser } from './skin/SkinChooser';
-import { SkinProvider } from './skin/SkinProvider';
+import { SkinPanelFrame } from './skin/SkinPanelFrame';
+import { SkinProvider, useSkin } from './skin/SkinProvider';
 import { SkinScale } from './skin/SkinImage';
 import { doubleSizeStore, windows } from './skin/skins';
-import { colors, text } from './theme';
+import { colors } from './theme';
 import type { Message } from './useRecorder';
 
-/** The main window: the skinned panel. */
-export function MainApp(): React.JSX.Element {
-  const [error, setError] = useState<string>();
+/** Double size (⌘D), shared by every window. */
+function useDoubleSize(): boolean {
   const [double, setDouble] = useState(doubleSizeStore.get);
-  useEffect(() => {
-    const unsubscribe = doubleSizeStore.subscribe(setDouble);
-    // Window › Double Size (⌘D).
-    const subscription = windows.onEvent(e => {
-      if (e.window === 'main' && e.event === 'toggleDoubleSize') {
-        doubleSizeStore.set(!doubleSizeStore.get());
-      }
-    });
-    return () => {
-      unsubscribe();
-      subscription.remove();
-    };
-  }, []);
+  useEffect(() => doubleSizeStore.subscribe(setDouble), []);
+  return double;
+}
+
+/** The skin, at the current scale, around a window's content. */
+function Skinned(props: { children: React.ReactNode }): React.JSX.Element {
+  const [error, setError] = useState<string>();
+  const double = useDoubleSize();
   return (
     <SkinScale.Provider value={double ? 2 : 1}>
       <SkinProvider
@@ -52,27 +40,52 @@ export function MainApp(): React.JSX.Element {
           ) : null
         }
       >
-        <MainPanel />
+        {props.children}
       </SkinProvider>
     </SkinScale.Provider>
   );
 }
 
-function usePlainTheme() {
-  const isDark = useColorScheme() === 'dark';
+/** The main window: the skinned panel. */
+export function MainApp(): React.JSX.Element {
+  useEffect(() => {
+    // Window › Double Size (⌘D).
+    const subscription = windows.onEvent(e => {
+      if (e.window === 'main' && e.event === 'toggleDoubleSize') {
+        doubleSizeStore.set(!doubleSizeStore.get());
+      }
+    });
+    return () => subscription.remove();
+  }, []);
+  return (
+    <Skinned>
+      <MainPanel />
+    </Skinned>
+  );
+}
+
+/** Text color and whether the panel is dark, from the skin's controls. */
+function usePanelText(panel: 'library' | 'settings') {
+  const skin = useSkin();
+  const c = skin.panels[panel].controls;
   return {
-    isDark,
-    fg: isDark ? text.dark : text.light,
-    bg: isDark ? styles.rootDark : styles.rootLight,
+    fg: { color: c.text ?? '#f2f2f2' },
+    isDark: isDarkColor(c.background ?? '#1e1e1e'),
   };
 }
 
-/** The library window. */
-export function LibraryApp(): React.JSX.Element {
-  const { isDark, fg, bg } = usePlainTheme();
+export function isDarkColor(hex: string): boolean {
+  const h = hex.replace('#', '');
+  const v = (i: number) =>
+    parseInt(h.length < 6 ? h[i] + h[i] : h.slice(i * 2, i * 2 + 2), 16);
+  return 0.299 * v(0) + 0.587 * v(1) + 0.114 * v(2) < 128;
+}
+
+function LibraryContent() {
+  const { fg, isDark } = usePanelText('library');
   const [message, setMessage] = useState<Message>();
   return (
-    <View style={[styles.root, bg]}>
+    <View style={styles.content}>
       <LibraryScreen onMessage={setMessage} textStyle={fg} isDark={isDark} />
       {message && (
         <Text
@@ -86,17 +99,35 @@ export function LibraryApp(): React.JSX.Element {
   );
 }
 
-/** The settings window: settings, skin and about. */
-export function SettingsApp(): React.JSX.Element {
-  const { fg, bg } = usePlainTheme();
+/** The library window. */
+export function LibraryApp(): React.JSX.Element {
+  return (
+    <Skinned>
+      <SkinPanelFrame panel="library" title="Library">
+        <LibraryContent />
+      </SkinPanelFrame>
+    </Skinned>
+  );
+}
+
+function SettingsContent() {
+  const { fg } = usePanelText('settings');
+  const skin = useSkin();
+  const accent = skin.panels.settings.controls.accent ?? colors.accent;
   const [tab, setTab] = useState<'settings' | 'skin' | 'about'>('settings');
   const hide = () => windows.setPanelVisible('settings', false);
   return (
-    <View style={[styles.root, bg]}>
+    <View style={styles.content}>
       <View style={styles.tabs}>
         {(['settings', 'skin', 'about'] as const).map(t => (
           <Pressable key={t} onPress={() => setTab(t)} testID={`tab-${t}`}>
-            <Text style={[styles.tab, fg, tab === t && styles.tabActive]}>
+            <Text
+              style={[
+                styles.tab,
+                fg,
+                tab === t && [styles.tabActive, { borderBottomColor: accent }],
+              ]}
+            >
               {t === 'settings' ? 'Settings' : t === 'skin' ? 'Skin' : 'About'}
             </Text>
           </Pressable>
@@ -121,11 +152,20 @@ export function SettingsApp(): React.JSX.Element {
   );
 }
 
+/** The settings window: settings, skin and about. */
+export function SettingsApp(): React.JSX.Element {
+  return (
+    <Skinned>
+      <SkinPanelFrame panel="settings" title="Settings">
+        <SettingsContent />
+      </SkinPanelFrame>
+    </Skinned>
+  );
+}
+
 const styles = StyleSheet.create({
-  root: { flex: 1, padding: 20 },
-  rootLight: { backgroundColor: '#ffffff' },
-  rootDark: { backgroundColor: '#1e1e1e' },
-  message: { marginTop: 12, fontSize: 13, lineHeight: 18 },
+  content: { flex: 1, padding: 12 },
+  message: { marginTop: 8, fontSize: 13, lineHeight: 18 },
   error: { color: colors.error },
   tabs: { flexDirection: 'row', gap: 20, marginBottom: 12 },
   tab: { fontSize: 14, opacity: 0.6, paddingBottom: 4 },
@@ -133,7 +173,6 @@ const styles = StyleSheet.create({
     opacity: 1,
     fontWeight: '600',
     borderBottomWidth: 2,
-    borderBottomColor: colors.accent,
   },
   skinError: {
     flex: 1,

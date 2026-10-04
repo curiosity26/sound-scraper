@@ -14,9 +14,9 @@ import type { ImageRef, Skin, SkinElement } from '../src/skin/types';
 const mockSkins = {
   onWindowEvent: () => ({ remove: jest.fn() }),
   loadCurrentSkin: jest.fn(),
-  setMainLayout: jest.fn(),
-  windowAction: jest.fn(),
+  setPanelLayout: jest.fn(),
   setPanelVisible: jest.fn(),
+  windowAction: jest.fn(),
   isPanelVisible: () => false,
   showMenu: jest.fn(() => Promise.resolve(-1)),
 };
@@ -118,6 +118,9 @@ function testSkin(): Skin {
         table: {},
         scrollbar: null,
         controls: {},
+        title: null,
+        close: null,
+        grip: [14, 14],
       },
       settings: {
         minSize: null,
@@ -126,6 +129,9 @@ function testSkin(): Skin {
         table: {},
         scrollbar: null,
         controls: {},
+        title: null,
+        close: null,
+        grip: [14, 14],
       },
     },
     visualizer: {
@@ -238,11 +244,16 @@ test('the main panel renders the skin and drives the recorder', async () => {
       </SkinProvider>,
     );
   });
-  expect(mockSkins.setMainLayout).toHaveBeenCalledWith(
+  expect(mockSkins.setPanelLayout).toHaveBeenCalledWith(
+    'main',
     200,
     60,
     [0, 0, 200, 60],
     expect.arrayContaining([4, 30, 20, 10]),
+    [],
+    200,
+    60,
+    1,
   );
   expect(tree!.root.findByProps({ testID: 'elapsed' })).toBeTruthy();
   // Elements the skin lacks aren't drawn.
@@ -259,7 +270,7 @@ test('double size scales the window and its drag regions', async () => {
   const { SkinProvider } = require('../src/skin/SkinProvider');
   const { SkinScale } = require('../src/skin/SkinImage');
   skinStore.set(testSkin());
-  mockSkins.setMainLayout.mockClear();
+  mockSkins.setPanelLayout.mockClear();
   await ReactTestRenderer.act(() => {
     ReactTestRenderer.create(
       <SkinScale.Provider value={2}>
@@ -269,11 +280,16 @@ test('double size scales the window and its drag regions', async () => {
       </SkinScale.Provider>,
     );
   });
-  expect(mockSkins.setMainLayout).toHaveBeenCalledWith(
+  expect(mockSkins.setPanelLayout).toHaveBeenCalledWith(
+    'main',
     400,
     120,
     [0, 0, 400, 120],
     expect.arrayContaining([8, 60, 40, 20]),
+    [],
+    400,
+    120,
+    2,
   );
 });
 
@@ -316,4 +332,72 @@ test('the visualizer cycles presets on click', async () => {
     tree!.root.findByProps({ testID: 'visualizer' }).props.onPress();
   });
   expect(presetOf().name).toBe('Scope');
+});
+
+test('scroll bar thumb geometry', () => {
+  const { thumbGeometry } = require('../src/skin/SkinScrollbar');
+  expect(thumbGeometry(100, 100, 50, 0, 10)).toEqual([0, 100]);
+  expect(thumbGeometry(100, 100, 400, 0, 10)).toEqual([0, 25]);
+  expect(thumbGeometry(100, 100, 400, 300, 10)).toEqual([75, 25]);
+  expect(thumbGeometry(100, 100, 100000, 0, 10)[1]).toBe(10);
+});
+
+test('panel frames report their chrome and theme their content', async () => {
+  const { isDarkColor } = require('../src/windows');
+  expect(isDarkColor('#221d1a')).toBe(true);
+  expect(isDarkColor('#f3ead0')).toBe(false);
+  const { skinStore } = require('../src/skin/skins');
+  const { SkinProvider } = require('../src/skin/SkinProvider');
+  const { SkinPanelFrame } = require('../src/skin/SkinPanelFrame');
+  const { usePanelStyles } = require('../src/panelTheme');
+  const skin = testSkin();
+  skin.panels.library = {
+    ...skin.panels.library,
+    minSize: [300, 200],
+    frame: { image, slice: [20, 4, 4, 4] },
+    close: {
+      offset: [6, 4],
+      size: [10, 8],
+      sprite: { image, states: { normal: [0, 0] } },
+    },
+    controls: { text: '#eeeeee', accent: '#00ff00', background: '#111111' },
+  };
+  skinStore.set(skin);
+  let seen: { link: { color?: string } } | undefined;
+  function Probe() {
+    seen = usePanelStyles();
+    return null;
+  }
+  mockSkins.setPanelLayout.mockClear();
+  let tree: ReactTestRenderer.ReactTestRenderer | undefined;
+  await ReactTestRenderer.act(() => {
+    tree = ReactTestRenderer.create(
+      <SkinProvider>
+        <SkinPanelFrame panel="library" title="Library">
+          <Probe />
+        </SkinPanelFrame>
+      </SkinProvider>,
+    );
+  });
+  expect(seen?.link.color).toBe('#00ff00');
+  await ReactTestRenderer.act(() => {
+    tree!.root
+      .findByProps({ testID: 'library-frame' })
+      .props.onLayout({ nativeEvent: { layout: { width: 400, height: 300 } } });
+  });
+  expect(mockSkins.setPanelLayout).toHaveBeenLastCalledWith(
+    'library',
+    0,
+    0,
+    [0, 0, 400, 20],
+    [384, 4, 10, 8],
+    [386, 286, 14, 14],
+    300,
+    200,
+    1,
+  );
+  await ReactTestRenderer.act(() => {
+    tree!.root.findByProps({ testID: 'library-close' }).props.onPress();
+  });
+  expect(mockSkins.setPanelVisible).toHaveBeenCalledWith('library', false);
 });

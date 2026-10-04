@@ -157,15 +157,30 @@ RCT_EXPORT_MODULE(SoundScraperSkins)
   });
 }
 
-- (void)setMainLayout:(double)width
-               height:(double)height
-          dragRegions:(NSArray *)dragRegions
-                holes:(NSArray *)holes
+- (void)setPanelLayout:(NSString *)panel
+                 width:(double)width
+                height:(double)height
+           dragRegions:(NSArray *)dragRegions
+                 holes:(NSArray *)holes
+                  grip:(NSArray *)grip
+              minWidth:(double)minWidth
+             minHeight:(double)minHeight
+                 scale:(double)scale
 {
+  NSString *name = [panel copy];
   NSArray<NSValue *> *drag = SSRects(dragRegions);
   NSArray<NSValue *> *holeRects = SSRects(holes);
+  NSArray<NSValue *> *gripRects = SSRects(grip);
   dispatch_async(dispatch_get_main_queue(), ^{
-    [SSWindowController.shared setMainLayoutWithWidth:width height:height dragRegions:drag holes:holeRects];
+    [SSWindowController.shared setPanelLayout:name
+                                        width:width
+                                       height:height
+                                  dragRegions:drag
+                                        holes:holeRects
+                                         grip:gripRects
+                                     minWidth:minWidth
+                                    minHeight:minHeight
+                                        scale:scale];
   });
 }
 

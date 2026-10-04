@@ -87,6 +87,7 @@ export function MainPanel(): React.JSX.Element {
       [layout.size[0] * s, layout.size[1] * s],
       layout.dragRegions.map(scaled),
       holes,
+      s,
     );
   }, [layout, s]);
 

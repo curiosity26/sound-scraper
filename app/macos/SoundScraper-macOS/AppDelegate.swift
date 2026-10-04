@@ -35,6 +35,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     NSApp.activate(ignoringOtherApps: true)
   }
 
+  func applicationWillTerminate(_ notification: Notification) {
+    WindowController.shared.saveLayout()
+  }
+
   func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
     if let main = WindowController.shared.main {
       if main.isMiniaturized { main.deminiaturize(nil) }

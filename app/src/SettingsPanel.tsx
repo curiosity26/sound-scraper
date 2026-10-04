@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 
 import { type Quality, settings, type Settings } from './native/SoundScraper';
+import { usePanelStyles } from './panelTheme';
 import { colors } from './theme';
 
 const QUALITIES: { value: Quality; label: string; detail: string }[] = [
@@ -30,6 +31,7 @@ type Props = {
 /** App settings; each change is saved right away by the Rust core. */
 export function SettingsPanel(props: Props): React.JSX.Element {
   const { textStyle } = props;
+  const t = usePanelStyles();
   const [current, setCurrent] = useState(() => settings.get());
   const [error, setError] = useState<string>();
 
@@ -60,7 +62,7 @@ export function SettingsPanel(props: Props): React.JSX.Element {
       <View style={styles.header}>
         <Text style={[styles.heading, textStyle]}>Settings</Text>
         <Pressable onPress={props.onClose} testID="close-settings">
-          <Text style={styles.link}>Done</Text>
+          <Text style={[styles.link, t.link]}>Done</Text>
         </Pressable>
       </View>
       <ScrollView>
@@ -70,11 +72,11 @@ export function SettingsPanel(props: Props): React.JSX.Element {
         </Text>
         <View style={styles.row}>
           <Pressable onPress={chooseFolder} testID="choose-folder">
-            <Text style={styles.link}>Choose…</Text>
+            <Text style={[styles.link, t.link]}>Choose…</Text>
           </Pressable>
           {current.recordingsDir !== null && (
             <Pressable onPress={() => save({ recordingsDir: null })}>
-              <Text style={styles.link}>Use default</Text>
+              <Text style={[styles.link, t.link]}>Use default</Text>
             </Pressable>
           )}
         </View>

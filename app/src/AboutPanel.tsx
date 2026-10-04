@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 
 import { getCoreVersion } from './native/SoundScraper';
+import { usePanelStyles } from './panelTheme';
 import { colors } from './theme';
 
 type Pkg = {
@@ -34,6 +35,7 @@ type Props = { onClose: () => void; textStyle: object };
 /** App info and third-party licenses (LAME's LGPL notice first). */
 export function AboutPanel(props: Props): React.JSX.Element {
   const { textStyle } = props;
+  const panel = usePanelStyles();
   const [open, setOpen] = useState<string>();
   const rows = useMemo(
     () => [
@@ -68,7 +70,7 @@ export function AboutPanel(props: Props): React.JSX.Element {
       <View style={styles.header}>
         <Text style={[styles.heading, textStyle]}>About Sound Scraper</Text>
         <Pressable onPress={props.onClose} testID="close-about">
-          <Text style={styles.link}>Done</Text>
+          <Text style={[styles.link, panel.link]}>Done</Text>
         </Pressable>
       </View>
       <Text style={[styles.meta, textStyle]}>Core v{safeVersion()}</Text>

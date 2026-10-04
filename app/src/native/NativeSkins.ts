@@ -29,15 +29,22 @@ export interface Spec extends TurboModule {
   pickSkinFolder(): Promise<string | null>;
 
   /**
-   * Sizes the main window (keeping its top-left corner) and sets where it can
-   * be dragged: `dragRegions` and `holes` are flat [x, y, w, h, …] lists in
-   * points from the top left; holes (interactive elements) don't drag.
+   * A panel window's skin chrome ('main' | 'library' | 'settings'): where it
+   * drags from (`dragRegions` minus `holes`) and resizes from (`grip`, empty
+   * if not resizable), as flat [x, y, w, h, …] lists in points from its top
+   * left; its minimum size; and its size (main panel; 0 keeps the size).
+   * `scale` is the skin scale. Size changes keep docked panels attached.
    */
-  setMainLayout(
+  setPanelLayout(
+    panel: string,
     width: number,
     height: number,
     dragRegions: Array<number>,
     holes: Array<number>,
+    grip: Array<number>,
+    minWidth: number,
+    minHeight: number,
+    scale: number,
   ): void;
   /** 'minimize' | 'quit' */
   windowAction(action: string): void;

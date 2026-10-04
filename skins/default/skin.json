@@ -774,8 +774,8 @@
         ]
       },
       "minSize": [
-        460,
-        560
+        420,
+        480
       ],
       "resizable": false,
       "title": {

@@ -963,7 +963,7 @@ fn main() {
                 }
             },
             "settings": {
-                "minSize": [460, 560],
+                "minSize": [420, 480],
                 "resizable": false,
                 "frame": { "image": "frame.png", "slice": [22, 6, 6, 6] },
                 "title": { "font": "tiny", "offset": [12, 8] },

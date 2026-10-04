@@ -95,6 +95,19 @@ export type FramePanel = {
     thumbSlice: [number, number, number, number] | null;
   } | null;
   controls: Record<string, string>;
+  title: {
+    font: string | null;
+    offset: [number, number];
+    color: string | null;
+  } | null;
+  /** Offset is [right, top] from the top right corner. */
+  close: {
+    offset: [number, number];
+    size: [number, number];
+    sprite: Sprite;
+  } | null;
+  /** Resize corner size. */
+  grip: [number, number];
 };
 
 export type Skin = {
