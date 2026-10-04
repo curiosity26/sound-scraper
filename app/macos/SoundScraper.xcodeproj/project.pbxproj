@@ -11,6 +11,8 @@
 		5142014D2437B4B30078DB4F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5142014C2437B4B30078DB4F /* AppDelegate.swift */; };
 		514201522437B4B40078DB4F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 514201512437B4B40078DB4F /* Assets.xcassets */; };
 		7DA2F8BAA33E2107FB6F3B2F /* libmp3lame.0.dylib in Embed LAME (LGPL) */ = {isa = PBXBuildFile; fileRef = 7CE960E07A17729A1088F365 /* libmp3lame.0.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		947FFCBE3A77FD0F31586C1A /* RCTSoundScraperSkins.mm in Sources */ = {isa = PBXBuildFile; fileRef = 56FA495BE7C653BE46B56DAF /* RCTSoundScraperSkins.mm */; };
+		D57C0543DCA2748EE47094F0 /* SkinWindows.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD7DFE5FE4ACD6635EC0DC59 /* SkinWindows.swift */; };
 		F6AC4F5485CDFD084586FDC1 /* libPods-SoundScraper-macOS.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 0611457090C7612CA6A5F3B2 /* libPods-SoundScraper-macOS.a */; };
 		FA7DD333D6844B22CA71C689 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 79E74B956427CCFF212B2D96 /* PrivacyInfo.xcprivacy */; };
 		FAD4F5693A8D32AB335EED29 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 79E74B956427CCFF212B2D96 /* PrivacyInfo.xcprivacy */; };
@@ -39,10 +41,13 @@
 		514201512437B4B40078DB4F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		514201562437B4B40078DB4F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		514201592437B4B40078DB4F /* SoundScraper.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SoundScraper.entitlements; sourceTree = "<group>"; };
+		56FA495BE7C653BE46B56DAF /* RCTSoundScraperSkins.mm */ = {isa = PBXFileReference; includeInIndex = 1; path = RCTSoundScraperSkins.mm; sourceTree = "<group>"; };
+		63681DA7C2EB0E182AE69100 /* RCTSoundScraperSkins.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = RCTSoundScraperSkins.h; sourceTree = "<group>"; };
 		79E74B956427CCFF212B2D96 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		7CE960E07A17729A1088F365 /* libmp3lame.0.dylib */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = "compiled.mach-o.dylib"; name = libmp3lame.0.dylib; path = ../../core/target/apple/libmp3lame.0.dylib; sourceTree = SOURCE_ROOT; };
 		9C815E70E28E16317FD7C541 /* Pods-SoundScraper-macOS.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SoundScraper-macOS.debug.xcconfig"; path = "Target Support Files/Pods-SoundScraper-macOS/Pods-SoundScraper-macOS.debug.xcconfig"; sourceTree = "<group>"; };
 		AF2788C4B7C1A4DEEEE2FC8D /* RCTSoundScraper.mm */ = {isa = PBXFileReference; includeInIndex = 1; path = RCTSoundScraper.mm; sourceTree = "<group>"; };
+		CD7DFE5FE4ACD6635EC0DC59 /* SkinWindows.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SkinWindows.swift; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		FBA1E720647BB226D7641C95 /* RCTSoundScraper.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = RCTSoundScraper.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -94,6 +99,9 @@
 				514201592437B4B40078DB4F /* SoundScraper.entitlements */,
 				FBA1E720647BB226D7641C95 /* RCTSoundScraper.h */,
 				AF2788C4B7C1A4DEEEE2FC8D /* RCTSoundScraper.mm */,
+				CD7DFE5FE4ACD6635EC0DC59 /* SkinWindows.swift */,
+				63681DA7C2EB0E182AE69100 /* RCTSoundScraperSkins.h */,
+				56FA495BE7C653BE46B56DAF /* RCTSoundScraperSkins.mm */,
 			);
 			path = "SoundScraper-macOS";
 			sourceTree = "<group>";
@@ -363,6 +371,8 @@
 			files = (
 				5142014D2437B4B30078DB4F /* AppDelegate.swift in Sources */,
 				23A745E82D93E140EF816F07 /* RCTSoundScraper.mm in Sources */,
+				D57C0543DCA2748EE47094F0 /* SkinWindows.swift in Sources */,
+				947FFCBE3A77FD0F31586C1A /* RCTSoundScraperSkins.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -57,7 +57,8 @@
     "jsSrcsDir": "src/native",
     "ios": {
       "modulesProvider": {
-        "SoundScraper": "RCTSoundScraper"
+        "SoundScraper": "RCTSoundScraper",
+        "SoundScraperSkins": "RCTSoundScraperSkins"
       }
     },
     "windows": {

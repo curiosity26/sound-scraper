@@ -54,6 +54,7 @@ struct SSEventTarget {
 - (SsLibrary *)library;
 - (void)emitRecorderEvent:(NSDictionary *)body;
 - (void)emitLibraryChanged;
+- (void)finishRecordingForQuit;
 @end
 
 static void SSOnLibraryChanged(void *userData)
@@ -99,6 +100,15 @@ RCT_EXPORT_MODULE(SoundScraper)
     _eventTarget = new SSEventTarget{self};
     // Library calls touch the disk; keep them off the JS thread, in order.
     _libraryQueue = dispatch_queue_create("SoundScraper.library", DISPATCH_QUEUE_SERIAL);
+    // Quitting (including the skin's close button) finalizes a recording in
+    // progress instead of leaving a .part file for crash recovery.
+    __weak RCTSoundScraper *weakSelf = self;
+    [[NSNotificationCenter defaultCenter] addObserverForName:NSApplicationWillTerminateNotification
+                                                      object:nil
+                                                       queue:nil
+                                                  usingBlock:^(NSNotification *note) {
+                                                    [weakSelf finishRecordingForQuit];
+                                                  }];
   }
   return self;
 }
@@ -119,6 +129,14 @@ RCT_EXPORT_MODULE(SoundScraper)
       ss_recorder_set_callback(_recorder, SSOnRecorderEvent, _eventTarget);
     }
     return _recorder;
+  }
+}
+
+- (void)finishRecordingForQuit
+{
+  @synchronized(self) {
+    ss_recorder_destroy(_recorder);
+    _recorder = NULL;
   }
 }
 

@@ -34,7 +34,8 @@ export function SettingsPanel(props: Props): React.JSX.Element {
   const [error, setError] = useState<string>();
 
   const save = async (patch: Partial<Settings>) => {
-    const next = { ...current, ...patch };
+    // Fresh from disk: another window may have changed other settings.
+    const next = { ...settings.get(), ...patch };
     setError(undefined);
     try {
       await settings.set(next);

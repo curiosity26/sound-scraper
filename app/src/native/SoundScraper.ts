@@ -95,6 +95,8 @@ export type Settings = {
   quality: Quality;
   id3Version: '2.4' | '2.3';
   lastSource: SourceRef | null;
+  /** Skin id or unpacked skin folder; null = the Default skin. */
+  skin?: string | null;
 };
 
 export const settings = {
@@ -109,6 +111,7 @@ export const settings = {
         quality: value.quality,
         id3Version: value.id3Version,
         lastSource: value.lastSource,
+        skin: value.skin ?? null,
       }),
     ),
   pickFolder: (): Promise<string | null> => NativeSoundScraper.pickFolder(),
