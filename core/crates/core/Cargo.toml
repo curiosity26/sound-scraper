@@ -16,6 +16,7 @@ crate-type = ["staticlib", "rlib"]
 sound_scraper_capture = { path = "../capture" }
 sound_scraper_skin = { path = "../skin" }
 sound_scraper_vis = { path = "../vis" }
+sound_scraper_layout = { path = "../layout" }
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 hound = "3.5"
 id3 = "1.17"

@@ -83,6 +83,12 @@ typedef enum SsTagVersion {
 typedef struct SsAudioAppList SsAudioAppList;
 
 /*
+ Opaque window drag or resize in progress (see core/crates/layout). Free
+ with `ss_layout_gesture_end`.
+ */
+typedef struct SsLayoutGesture SsLayoutGesture;
+
+/*
  Opaque handle to the recordings library (`~/Music/Sound Scraper`).
  Its functions may be called from any thread.
  */
@@ -625,6 +631,76 @@ bool ss_vis_is_live(const struct SsVis *vis);
  `vis` must be NULL or a handle from `ss_vis_create` not yet destroyed.
  */
 void ss_vis_destroy(struct SsVis *vis);
+
+/*
+ Starts dragging panel `id`. `scene_json` is `{"panels": [{"id", "x",
+ "y", "w", "h", "visible"}], "screens": [{"x", "y", "w", "h"}]}` in
+ global points, origin top left, y down; screens are work areas. Dragging
+ "main" moves its docked chain; other panels move alone. NULL on failure.
+
+ # Safety
+ `scene_json` and `id` must be NUL-terminated UTF-8.
+ */
+struct SsLayoutGesture *ss_layout_drag_begin(const char *scene_json, const char *id);
+
+/*
+ Starts resizing panel `id` by its right and bottom edges, no smaller than
+ `min_w` × `min_h`. Panels docked on those edges stay attached. NULL on
+ failure.
+
+ # Safety
+ As for `ss_layout_drag_begin`.
+ */
+struct SsLayoutGesture *ss_layout_resize_begin(const char *scene_json,
+                                               const char *id,
+                                               double min_w,
+                                               double min_h);
+
+/*
+ New frames for the pointer moved by (dx, dy) points since the gesture
+ began (for a resize: the size change), as a JSON array of `{"id", "x",
+ "y", "w", "h"}`. `snap` false (Option held) skips snapping. Free with
+ `ss_string_free`; NULL if `gesture` is NULL.
+
+ # Safety
+ `gesture` must be NULL or live.
+ */
+char *ss_layout_gesture_update(const struct SsLayoutGesture *gesture,
+                               double dx,
+                               double dy,
+                               bool snap);
+
+/*
+ Ends a gesture. NULL is a no-op.
+
+ # Safety
+ `gesture` must be NULL or a live handle not yet ended.
+ */
+void ss_layout_gesture_end(struct SsLayoutGesture *gesture);
+
+/*
+ For a scene (as in `ss_layout_drag_begin`): `{"docked": [ids docked to
+ main], "constrain": [placements pulling off-screen panels back]}`. Free
+ with `ss_string_free`; NULL on failure.
+
+ # Safety
+ `scene_json` must be NUL-terminated UTF-8.
+ */
+char *ss_layout_analyze(const char *scene_json);
+
+/*
+ The saved layout, `{"version", "panels": [{"id", "x", "y", "w", "h",
+ "visible"}]}`, or "null" when none was saved. Free with `ss_string_free`.
+ */
+char *ss_layout_load(void);
+
+/*
+ Saves the layout (same JSON as `ss_layout_load` returns).
+
+ # Safety
+ `json` must be NUL-terminated UTF-8.
+ */
+enum SsStatus ss_layout_save(const char *json);
 
 /*
  Resolves a skin for the UI as JSON (see core/crates/skin/src/resolve.rs,

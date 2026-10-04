@@ -989,6 +989,133 @@ pub unsafe extern "C" fn ss_vis_destroy(vis: *mut SsVis) {
     }
 }
 
+/// Opaque window drag or resize in progress (see core/crates/layout). Free
+/// with `ss_layout_gesture_end`.
+pub enum SsLayoutGesture {
+    Drag(sound_scraper_layout::Drag),
+    Resize(sound_scraper_layout::Resize),
+}
+
+fn parse_scene(json: *const c_char) -> Result<sound_scraper_layout::Scene, String> {
+    let text = unsafe { arg_str(json, "scene_json")? };
+    serde_json::from_str(text).map_err(|e| format!("invalid layout scene: {e}"))
+}
+
+/// Starts dragging panel `id`. `scene_json` is `{"panels": [{"id", "x",
+/// "y", "w", "h", "visible"}], "screens": [{"x", "y", "w", "h"}]}` in
+/// global points, origin top left, y down; screens are work areas. Dragging
+/// "main" moves its docked chain; other panels move alone. NULL on failure.
+///
+/// # Safety
+/// `scene_json` and `id` must be NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_layout_drag_begin(scene_json: *const c_char, id: *const c_char) -> *mut SsLayoutGesture {
+    let result = (|| {
+        let scene = parse_scene(scene_json)?;
+        sound_scraper_layout::Drag::begin(scene, unsafe { arg_str(id, "id")? })
+    })();
+    match result {
+        Ok(drag) => Box::into_raw(Box::new(SsLayoutGesture::Drag(drag))),
+        Err(e) => {
+            fail(e);
+            ptr::null_mut()
+        }
+    }
+}
+
+/// Starts resizing panel `id` by its right and bottom edges, no smaller than
+/// `min_w` × `min_h`. Panels docked on those edges stay attached. NULL on
+/// failure.
+///
+/// # Safety
+/// As for `ss_layout_drag_begin`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_layout_resize_begin(
+    scene_json: *const c_char,
+    id: *const c_char,
+    min_w: f64,
+    min_h: f64,
+) -> *mut SsLayoutGesture {
+    let result = (|| {
+        let scene = parse_scene(scene_json)?;
+        sound_scraper_layout::Resize::begin(scene, unsafe { arg_str(id, "id")? }, min_w, min_h)
+    })();
+    match result {
+        Ok(resize) => Box::into_raw(Box::new(SsLayoutGesture::Resize(resize))),
+        Err(e) => {
+            fail(e);
+            ptr::null_mut()
+        }
+    }
+}
+
+/// New frames for the pointer moved by (dx, dy) points since the gesture
+/// began (for a resize: the size change), as a JSON array of `{"id", "x",
+/// "y", "w", "h"}`. `snap` false (Option held) skips snapping. Free with
+/// `ss_string_free`; NULL if `gesture` is NULL.
+///
+/// # Safety
+/// `gesture` must be NULL or live.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_layout_gesture_update(gesture: *const SsLayoutGesture, dx: f64, dy: f64, snap: bool) -> *mut c_char {
+    let Some(g) = (unsafe { gesture.as_ref() }) else { return ptr::null_mut() };
+    let placements = match g {
+        SsLayoutGesture::Drag(d) => d.update(dx, dy, snap),
+        SsLayoutGesture::Resize(r) => r.update(dx, dy, snap),
+    };
+    json_or_null(Ok(placements))
+}
+
+/// Ends a gesture. NULL is a no-op.
+///
+/// # Safety
+/// `gesture` must be NULL or a live handle not yet ended.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_layout_gesture_end(gesture: *mut SsLayoutGesture) {
+    if !gesture.is_null() {
+        drop(unsafe { Box::from_raw(gesture) });
+    }
+}
+
+/// For a scene (as in `ss_layout_drag_begin`): `{"docked": [ids docked to
+/// main], "constrain": [placements pulling off-screen panels back]}`. Free
+/// with `ss_string_free`; NULL on failure.
+///
+/// # Safety
+/// `scene_json` must be NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_layout_analyze(scene_json: *const c_char) -> *mut c_char {
+    json_or_null(parse_scene(scene_json).map(|scene| {
+        serde_json::json!({ "docked": scene.docked_to_main(), "constrain": scene.constrain() })
+    }))
+}
+
+fn layout_path() -> std::path::PathBuf {
+    crate::paths::app_data_dir().join("layout.json")
+}
+
+/// The saved layout, `{"version", "panels": [{"id", "x", "y", "w", "h",
+/// "visible"}]}`, or "null" when none was saved. Free with `ss_string_free`.
+#[unsafe(no_mangle)]
+pub extern "C" fn ss_layout_load() -> *mut c_char {
+    json_or_null(Ok(sound_scraper_layout::load_from(&layout_path())))
+}
+
+/// Saves the layout (same JSON as `ss_layout_load` returns).
+///
+/// # Safety
+/// `json` must be NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_layout_save(json: *const c_char) -> SsStatus {
+    let result = (|| {
+        let text = unsafe { arg_str(json, "json")? };
+        let layout: sound_scraper_layout::SavedLayout =
+            serde_json::from_str(text).map_err(|e| format!("invalid layout: {e}"))?;
+        sound_scraper_layout::save_to(&layout_path(), &layout)
+    })();
+    result.map_or_else(fail, |()| SsStatus::Ok)
+}
+
 /// Serializes a skin result as JSON for the UI, or records the error and
 /// returns NULL.
 fn json_or_null<T: serde::Serialize>(result: Result<T, String>) -> *mut c_char {
@@ -1104,6 +1231,26 @@ mod tests {
         assert!(!unsafe { ss_vis_render(vis, 16, 8, 1.0, buf.as_mut_ptr(), buf.len()) });
         unsafe { ss_vis_destroy(vis) };
         assert!(unsafe { ss_vis_create(ptr::null()) }.is_null());
+    }
+
+    #[test]
+    fn layout_gestures() {
+        let scene = c"{\"panels\":[{\"id\":\"main\",\"x\":0,\"y\":0,\"w\":100,\"h\":50},{\"id\":\"library\",\"x\":0,\"y\":50,\"w\":100,\"h\":80}],\"screens\":[]}";
+        let drag = unsafe { ss_layout_drag_begin(scene.as_ptr(), c"main".as_ptr()) };
+        assert!(!drag.is_null());
+        let out = unsafe { ss_layout_gesture_update(drag, 10.0, 5.0, true) };
+        let text = unsafe { CStr::from_ptr(out) }.to_str().unwrap().to_owned();
+        unsafe { ss_string_free(out) };
+        unsafe { ss_layout_gesture_end(drag) };
+        let v: serde_json::Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(v[1]["id"], "library");
+        assert_eq!(v[1]["y"], 55.0);
+        let analysis = unsafe { ss_layout_analyze(scene.as_ptr()) };
+        let text = unsafe { CStr::from_ptr(analysis) }.to_str().unwrap().to_owned();
+        unsafe { ss_string_free(analysis) };
+        assert!(text.contains("\"docked\":[\"library\"]"), "{text}");
+        assert!(unsafe { ss_layout_drag_begin(c"{".as_ptr(), c"main".as_ptr()) }.is_null());
+        assert!(unsafe { ss_layout_resize_begin(scene.as_ptr(), c"nope".as_ptr(), 1.0, 1.0) }.is_null());
     }
 
     #[test]
