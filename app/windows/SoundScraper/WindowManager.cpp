@@ -3,6 +3,7 @@
 #include "WindowManager.h"
 
 #include <commctrl.h>
+#include <shellapi.h>
 #include <dwmapi.h>
 #include <winrt/Windows.Data.Json.h>
 
@@ -116,7 +117,8 @@ void WindowManager::Init(winrt::Microsoft::ReactNative::ReactNativeWin32App cons
   // the layout first.
   m.window.Closing([this](auto const &, auto const &) { SaveLayout(); });
 
-  HookKeys(m.rnWindow);
+  m_ui = winrt::Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
+  HookKeys(m.rnWindow, m.hwnd);
 
   // Details shows the selection, which isn't kept between launches.
   auto dispatcher = winrt::Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
@@ -145,6 +147,34 @@ namespace {
 
 /// Lets a panel be as small as its skin says (the shade strip is shorter
 /// than Windows' minimum window height).
+/// Skins dropped from Explorer onto a panel (its window, or the React
+/// Native island's child window that covers it).
+LRESULT CALLBACK SkinDropProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR, DWORD_PTR) {
+  if (msg == WM_DROPFILES) {
+    auto drop = reinterpret_cast<HDROP>(wParam);
+    std::vector<std::string> paths;
+    UINT count = DragQueryFileW(drop, 0xFFFFFFFF, nullptr, 0);
+    for (UINT i = 0; i < count; i++) {
+      std::wstring path(DragQueryFileW(drop, i, nullptr, 0) + 1, L'\0');
+      path.resize(DragQueryFileW(drop, i, path.data(), static_cast<UINT>(path.size())));
+      if (WindowManager::IsSkinFile(path)) {
+        paths.push_back(winrt::to_string(path));
+      }
+    }
+    DragFinish(drop);
+    if (!paths.empty()) {
+      Guarded("drop skins", [&] { WindowManager::Get().OpenSkinFiles(paths); });
+    }
+    return 0;
+  }
+  return DefSubclassProc(hwnd, msg, wParam, lParam);
+}
+
+void AcceptSkinDrops(HWND hwnd) {
+  DragAcceptFiles(hwnd, TRUE);
+  SetWindowSubclass(hwnd, SkinDropProc, 2, 0);
+}
+
 LRESULT CALLBACK SkinSizeProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, UINT_PTR, DWORD_PTR) {
   if (msg == WM_GETMINMAXINFO) {
     LRESULT result = DefSubclassProc(hwnd, msg, wParam, lParam);
@@ -222,7 +252,7 @@ WindowManager::Panel *WindowManager::EnsurePanel(std::string const &name) {
     }
     panel.window.MoveAndResize(r);
   }
-  HookKeys(panel.rnWindow);
+  HookKeys(panel.rnWindow, panel.hwnd);
   m_panels.push_back(std::move(panel));
   return &m_panels.back();
 }
@@ -595,20 +625,30 @@ void WindowManager::SaveLayout() {
 
 /// Ctrl+D (double size) in any panel; macOS has it in the Window menu. The
 /// island exists once React has attached, so this retries until then.
-void WindowManager::HookKeys(winrt::Microsoft::ReactNative::ReactNativeWindow const &rnWindow, int attempts) {
+void WindowManager::HookKeys(winrt::Microsoft::ReactNative::ReactNativeWindow const &rnWindow, HWND hwnd, int attempts) {
   auto island = rnWindow.ReactNativeIsland().Island();
   if (!island) {
     if (attempts > 0) {
       auto timer = winrt::Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread().CreateTimer();
       timer.Interval(std::chrono::milliseconds(100));
       timer.IsRepeating(false);
-      timer.Tick([this, rnWindow, attempts, timer](auto const &, auto const &) {
-        Guarded("hook keys", [&] { HookKeys(rnWindow, attempts - 1); });
+      timer.Tick([this, rnWindow, hwnd, attempts, timer](auto const &, auto const &) {
+        Guarded("hook keys", [&] { HookKeys(rnWindow, hwnd, attempts - 1); });
       });
       timer.Start();
     }
     return;
   }
+  // Dropped skins: the island's child window covers the panel, so it (and
+  // the panel itself) take files.
+  AcceptSkinDrops(hwnd);
+  EnumChildWindows(
+      hwnd,
+      [](HWND child, LPARAM) -> BOOL {
+        AcceptSkinDrops(child);
+        return TRUE;
+      },
+      0);
   using namespace winrt::Microsoft::UI::Input;
   InputKeyboardSource::GetForIsland(island).KeyDown([this](InputKeyboardSource const &, winrt::Microsoft::UI::Input::KeyEventArgs const &args) {
     auto ctrl = InputKeyboardSource::GetKeyStateForCurrentThread(winrt::Windows::System::VirtualKey::Control);
@@ -618,6 +658,55 @@ void WindowManager::HookKeys(winrt::Microsoft::ReactNative::ReactNativeWindow co
       Emit(kMain, "toggleDoubleSize");
     }
   });
+}
+
+bool WindowManager::IsSkinFile(std::wstring const &path) {
+  auto dot = path.find_last_of(L'.');
+  if (dot != std::wstring::npos) {
+    std::wstring ext = path.substr(dot);
+    for (auto &c : ext) {
+      c = static_cast<wchar_t>(towlower(c));
+    }
+    if (ext == L".sskin" || ext == L".zip") {
+      return true;
+    }
+  }
+  auto attributes = GetFileAttributesW(path.c_str());
+  if (attributes == INVALID_FILE_ATTRIBUTES || !(attributes & FILE_ATTRIBUTE_DIRECTORY)) {
+    return false;
+  }
+  auto manifest = GetFileAttributesW((path + L"\\skin.json").c_str());
+  return manifest != INVALID_FILE_ATTRIBUTES && !(manifest & FILE_ATTRIBUTE_DIRECTORY);
+}
+
+void WindowManager::OpenSkinFiles(std::vector<std::string> const &paths) {
+  {
+    std::lock_guard lock(m_skinFilesMutex);
+    m_skinFiles.insert(m_skinFiles.end(), paths.begin(), paths.end());
+  }
+  // Before Init (launched by opening a skin), JS takes them when it starts.
+  if (!m_ui) {
+    return;
+  }
+  m_ui.TryEnqueue([this]() {
+    Guarded("open skins", [&] {
+      if (!m_panels.empty()) {
+        auto &main = m_panels.front();
+        if (auto presenter = main.window.Presenter().try_as<OverlappedPresenter>();
+            presenter && presenter.State() == OverlappedPresenterState::Minimized) {
+          presenter.Restore();
+        }
+        main.window.Show(true);
+        SetForegroundWindow(main.hwnd);
+      }
+      Emit(kMain, "skinFilesOpened");
+    });
+  });
+}
+
+std::vector<std::string> WindowManager::TakeOpenedSkinFiles() {
+  std::lock_guard lock(m_skinFilesMutex);
+  return std::exchange(m_skinFiles, {});
 }
 
 void WindowManager::Emit(std::string const &window, std::string const &event) noexcept {

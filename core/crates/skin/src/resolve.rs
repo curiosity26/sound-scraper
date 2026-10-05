@@ -41,6 +41,9 @@ pub struct ResolvedSkin {
     /// The skin's folder.
     pub dir: PathBuf,
     pub builtin: bool,
+    /// Changes when the skin's files do (see `folder_stamp`), so the UI can
+    /// tell a reloaded skin folder's edited images from cached ones.
+    pub revision: String,
     pub colors: BTreeMap<String, String>,
     pub fonts: BTreeMap<String, ResolvedFont>,
     pub panels: ResolvedPanels,
@@ -757,6 +760,7 @@ pub fn load_dir(dir: &Path, base: Option<&ResolvedSkin>) -> Result<ResolvedSkin,
         presets = base.visualizer.presets.clone();
     }
 
+    let revision = crate::folder_stamp(&dir).unwrap_or_default();
     Ok(ResolvedSkin {
         id: m.id,
         name: m.name,
@@ -765,6 +769,7 @@ pub fn load_dir(dir: &Path, base: Option<&ResolvedSkin>) -> Result<ResolvedSkin,
         description: m.description,
         dir,
         builtin: false,
+        revision,
         colors,
         fonts,
         panels: ResolvedPanels { main, library, settings, details },

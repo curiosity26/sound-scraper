@@ -2,6 +2,7 @@ import { type EventSubscription, Platform } from 'react-native';
 
 import NativeSkins, { type WindowEvent } from '../native/NativeSkins';
 import { settings } from '../native/SoundScraper';
+import { setImageRevision } from './SkinImage';
 import type { Rect, Skin, SkinInspection, SkinSummary } from './types';
 
 /** False where the native side has no skin support. */
@@ -78,6 +79,9 @@ function shared<T>(initial: T) {
     },
   };
 }
+
+/** The last note or error in Settings › Skin. */
+export const skinMessages = shared<{ note?: string; error?: string }>({});
 
 /** The settings window's tab. */
 export const settingsTab = shared<'settings' | 'skin' | 'about'>('settings');
@@ -198,6 +202,7 @@ export const skinStore = {
   get: (): Skin | undefined => current,
   set: (skin: Skin) => {
     current = skin;
+    setImageRevision(skin.revision ?? '');
     listeners.forEach(l => l(skin));
   },
   subscribe: (listener: (skin: Skin) => void): (() => void) => {

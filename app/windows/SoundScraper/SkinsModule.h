@@ -78,12 +78,82 @@ struct SkinsModule {
 
   REACT_METHOD(pickSkinArchive)
   void pickSkinArchive(::React::ReactPromise<std::optional<std::string>> &&result) noexcept {
-    Pick(L"Install a skin", false, std::move(result));
+    Pick(L"Install a skin", L"Install", false, std::move(result));
   }
 
   REACT_METHOD(pickSkinFolder)
   void pickSkinFolder(::React::ReactPromise<std::optional<std::string>> &&result) noexcept {
-    Pick(L"Use an unpacked skin folder", true, std::move(result));
+    Pick(L"Use an unpacked skin folder", L"Use Skin", true, std::move(result));
+  }
+
+  REACT_METHOD(pickFolder)
+  void pickFolder(std::string title, std::string prompt,
+                  ::React::ReactPromise<std::optional<std::string>> &&result) noexcept {
+    Pick(std::wstring(winrt::to_hstring(title)), std::wstring(winrt::to_hstring(prompt)), true, std::move(result));
+  }
+
+  REACT_METHOD(pickSkinSaveLocation)
+  void pickSkinSaveLocation(std::string defaultName, ::React::ReactPromise<std::optional<std::string>> &&result) noexcept {
+    std::thread([js = m_js, name = std::wstring(winrt::to_hstring(defaultName)), result]() {
+      CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+      std::optional<std::string> picked;
+      {
+        winrt::com_ptr<IFileSaveDialog> dialog;
+        if (SUCCEEDED(CoCreateInstance(CLSID_FileSaveDialog, nullptr, CLSCTX_INPROC_SERVER,
+                                       IID_PPV_ARGS(dialog.put())))) {
+          FILEOPENDIALOGOPTIONS options{};
+          dialog->GetOptions(&options);
+          dialog->SetOptions(options | FOS_FORCEFILESYSTEM | FOS_OVERWRITEPROMPT);
+          dialog->SetTitle(L"Package skin");
+          dialog->SetOkButtonLabel(L"Package");
+          COMDLG_FILTERSPEC types[] = {{L"Sound Scraper skin", L"*.sskin"}};
+          dialog->SetFileTypes(1, types);
+          dialog->SetDefaultExtension(L"sskin");
+          dialog->SetFileName(name.c_str());
+          winrt::com_ptr<IShellItem> item;
+          PWSTR path = nullptr;
+          if (SUCCEEDED(dialog->Show(nullptr)) && SUCCEEDED(dialog->GetResult(item.put())) &&
+              SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &path))) {
+            picked = winrt::to_string(path);
+            CoTaskMemFree(path);
+          }
+        }
+      }
+      CoUninitialize();
+      js.Post([result, picked]() { result.Resolve(picked); });
+    }).detach();
+  }
+
+  REACT_METHOD(inspectSkin)
+  void inspectSkin(std::string archivePath, ::React::ReactPromise<std::string> &&result) noexcept {
+    ResolveString([archivePath]() { return ss_skin_inspect(archivePath.c_str()); }, std::move(result));
+  }
+
+  REACT_METHOD(skinPreview)
+  void skinPreview(std::string idOrPath, ::React::ReactPromise<std::string> &&result) noexcept {
+    ResolveString([idOrPath]() { return ss_skin_preview(idOrPath.c_str()); }, std::move(result));
+  }
+
+  REACT_METHOD(packageSkin)
+  void packageSkin(std::string dir, std::string outPath, ::React::ReactPromise<std::string> &&result) noexcept {
+    ResolveString([dir, outPath]() { return ss_skin_package(dir.c_str(), outPath.c_str()); }, std::move(result));
+  }
+
+  REACT_METHOD(createSkin)
+  void createSkin(std::string parent, std::string name, ::React::ReactPromise<std::string> &&result) noexcept {
+    ResolveString([parent, name]() { return ss_skin_create(parent.c_str(), name.c_str()); }, std::move(result));
+  }
+
+  REACT_METHOD(skinFolderStamp)
+  void skinFolderStamp(std::string dir, ::React::ReactPromise<std::string> &&result) noexcept {
+    ResolveString([dir]() { return ss_skin_folder_stamp(dir.c_str()); }, std::move(result));
+  }
+
+  REACT_SYNC_METHOD(takeOpenedSkinFiles)
+  std::vector<std::string> takeOpenedSkinFiles() noexcept {
+    std::vector<std::string> files;
+    Guarded("takeOpenedSkinFiles", [&] { files = WindowManager::Get().TakeOpenedSkinFiles(); });
+    return files;
   }
 
   REACT_METHOD(setPanelLayout)
@@ -149,8 +219,9 @@ struct SkinsModule {
     }).detach();
   }
 
-  void Pick(const wchar_t *title, bool folder, ::React::ReactPromise<std::optional<std::string>> &&result) noexcept {
-    std::thread([js = m_js, title, folder, result]() {
+  void Pick(std::wstring title, std::wstring okLabel, bool folder,
+            ::React::ReactPromise<std::optional<std::string>> &&result) noexcept {
+    std::thread([js = m_js, title, okLabel, folder, result]() {
       CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
       std::optional<std::string> picked;
       {
@@ -160,7 +231,8 @@ struct SkinsModule {
           FILEOPENDIALOGOPTIONS options{};
           dialog->GetOptions(&options);
           dialog->SetOptions(options | FOS_FORCEFILESYSTEM | (folder ? FOS_PICKFOLDERS : 0));
-          dialog->SetTitle(title);
+          dialog->SetTitle(title.c_str());
+          dialog->SetOkButtonLabel(okLabel.c_str());
           if (!folder) {
             COMDLG_FILTERSPEC types[] = {{L"Sound Scraper skins", L"*.sskin;*.zip"}};
             dialog->SetFileTypes(1, types);

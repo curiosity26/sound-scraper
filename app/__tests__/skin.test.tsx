@@ -76,6 +76,7 @@ function testSkin(): Skin {
     description: null,
     dir: '/skins/x',
     builtin: false,
+    revision: '',
     colors: { background: '#123456' },
     fonts: {
       lcd: {

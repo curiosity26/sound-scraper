@@ -40,6 +40,14 @@ class WindowManager {
   /// A pop-up menu at (x, y) DIPs in a panel; the chosen index or -1.
   int ShowMenu(std::string const &id, std::vector<std::string> const &items, int checked, double x, double y);
   void SaveLayout();
+  /// Skins (.sskin paths, or skin folders) to install: opened from
+  /// Explorer, passed to a second launch, or dropped on a panel. Any
+  /// thread; JS is told (window event "skinFilesOpened") and takes them.
+  void OpenSkinFiles(std::vector<std::string> const &paths);
+  /// Any thread.
+  std::vector<std::string> TakeOpenedSkinFiles();
+  /// A `.sskin`/`.zip` archive, or a folder holding skin.json.
+  static bool IsSkinFile(std::wstring const &path);
 
  private:
   struct Panel {
@@ -67,7 +75,7 @@ class WindowManager {
   void Tidy();
   void Unoverlap(Panel &panel);
   void ConstrainToScreens();
-  void HookKeys(winrt::Microsoft::ReactNative::ReactNativeWindow const &rnWindow, int attempts = 20);
+  void HookKeys(winrt::Microsoft::ReactNative::ReactNativeWindow const &rnWindow, HWND hwnd, int attempts = 20);
   void Emit(std::string const &window, std::string const &event) noexcept;
 
   winrt::Microsoft::ReactNative::ReactNativeHost m_host{nullptr};
@@ -78,6 +86,9 @@ class WindowManager {
   winrt::Microsoft::UI::Dispatching::DispatcherQueueTimer m_gestureTimer{nullptr};
   std::mutex m_visibleMutex;
   std::set<std::string> m_visible;
+  winrt::Microsoft::UI::Dispatching::DispatcherQueue m_ui{nullptr};
+  std::mutex m_skinFilesMutex;
+  std::vector<std::string> m_skinFiles;
 };
 
 } // namespace SoundScraper

@@ -18,6 +18,7 @@ import {
   doubleSizeStore,
   isFolderSkin,
   pendingInstall,
+  skinMessages,
   skins,
   skinStore,
 } from './skins';
@@ -37,8 +38,11 @@ export function SkinChooser(props: { textStyle: object }): React.JSX.Element {
   const [chosen, setChosen] = useState<string | null>(
     () => safeSettings()?.skin ?? null,
   );
-  const [error, setError] = useState<string>();
-  const [note, setNote] = useState<string>();
+  // Shared, so they survive the window re-mounting for a new skin.
+  const [{ note, error }, setMessage] = useState(skinMessages.get);
+  useEffect(() => skinMessages.subscribe(setMessage), []);
+  const setNote = (text?: string) => skinMessages.set({ note: text });
+  const setError = (text?: string) => skinMessages.set({ error: text });
   const [double, setDouble] = useState(doubleSizeStore.get);
   useEffect(() => doubleSizeStore.subscribe(setDouble), []);
   const [warnings, setWarnings] = useState<string[]>(
@@ -64,8 +68,7 @@ export function SkinChooser(props: { textStyle: object }): React.JSX.Element {
   }, [refresh]);
 
   const run = async (action: () => Promise<void>) => {
-    setError(undefined);
-    setNote(undefined);
+    skinMessages.set({});
     try {
       await action();
     } catch (e) {
@@ -499,6 +502,8 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     paddingHorizontal: 6,
     paddingVertical: 3,
+    // Windows' text box clips its text without room for its own padding.
+    minHeight: 28,
   },
   toggle: { paddingVertical: 4, marginTop: 10 },
   hint: { fontSize: 11, opacity: 0.6, marginTop: 8 },

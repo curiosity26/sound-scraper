@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 
 import { skinStore } from './skins';
 import type { Skin } from './types';
@@ -28,7 +29,21 @@ export function SkinProvider(props: Props): React.JSX.Element {
   }, [onError]);
   return (
     <SkinContext.Provider value={skin}>
-      {skin ? props.children : props.fallback ?? null}
+      {skin ? (
+        // Windows doesn't reload an image whose source changes, so a new
+        // skin (or an edited skin folder) remounts the window's content.
+        <React.Fragment
+          key={
+            Platform.OS === 'windows'
+              ? `${skin.dir}|${skin.revision}`
+              : undefined
+          }
+        >
+          {props.children}
+        </React.Fragment>
+      ) : (
+        props.fallback ?? null
+      )}
     </SkinContext.Provider>
   );
 }

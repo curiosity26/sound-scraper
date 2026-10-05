@@ -126,6 +126,8 @@ export type Skin = {
   description: string | null;
   dir: string;
   builtin: boolean;
+  /** Changes when the skin's files do (a skin folder being edited). */
+  revision: string;
   colors: Record<string, string>;
   fonts: Record<string, SpriteFont>;
   panels: {

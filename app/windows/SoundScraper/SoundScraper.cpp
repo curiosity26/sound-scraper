@@ -13,6 +13,49 @@
 #include "VisualizerView.h"
 #include "WindowManager.h"
 
+#include <shellapi.h>
+#include <winrt/Microsoft.Windows.AppLifecycle.h>
+#include <winrt/Windows.ApplicationModel.Activation.h>
+
+#include <thread>
+
+namespace lifecycle = winrt::Microsoft::Windows::AppLifecycle;
+
+// The skins an activation asks to open: files opened from Explorer (a
+// .sskin is associated with the app) or paths on the command line.
+static std::vector<std::string> SkinFilesFrom(lifecycle::AppActivationArguments const &args) {
+  std::vector<std::wstring> candidates;
+  using namespace winrt::Windows::ApplicationModel::Activation;
+  if (args.Kind() == lifecycle::ExtendedActivationKind::File) {
+    if (auto file = args.Data().try_as<IFileActivatedEventArgs>()) {
+      for (auto const &item : file.Files()) {
+        candidates.emplace_back(item.Path());
+      }
+    }
+  } else if (args.Kind() == lifecycle::ExtendedActivationKind::Launch) {
+    std::wstring line;
+    if (auto launch = args.Data().try_as<ILaunchActivatedEventArgs>()) {
+      line = launch.Arguments();
+    }
+    int argc = 0;
+    if (!line.empty()) {
+      if (LPWSTR *argv = CommandLineToArgvW(line.c_str(), &argc)) {
+        for (int i = 0; i < argc; i++) {
+          candidates.emplace_back(argv[i]);
+        }
+        LocalFree(argv);
+      }
+    }
+  }
+  std::vector<std::string> paths;
+  for (auto const &c : candidates) {
+    if (SoundScraper::WindowManager::IsSkinFile(c)) {
+      paths.push_back(winrt::to_string(c));
+    }
+  }
+  return paths;
+}
+
 // A PackageProvider containing any turbo modules you define within this app project
 struct CompReactPackageProvider
     : winrt::implements<CompReactPackageProvider, winrt::Microsoft::ReactNative::IReactPackageProvider> {
@@ -51,6 +94,31 @@ _Use_decl_annotations_ int CALLBACK WinMain(HINSTANCE instance, HINSTANCE, PSTR 
   });
   // Initialize WinRT
   winrt::init_apartment(winrt::apartment_type::single_threaded);
+
+  // One app at a time: opening a .sskin while it runs hands the file to the
+  // running app (which shows the install card) instead of starting another.
+  try {
+    auto activation = lifecycle::AppInstance::GetCurrent().GetActivatedEventArgs();
+    auto running = lifecycle::AppInstance::FindOrRegisterForKey(L"main");
+    if (!running.IsCurrent()) {
+      AllowSetForegroundWindow(ASFW_ANY);
+      // Redirecting must not block this (STA) thread's COM calls.
+      std::thread([&] { running.RedirectActivationToAsync(activation).get(); }).join();
+      return 0;
+    }
+    running.Activated([](auto const &, lifecycle::AppActivationArguments const &args) {
+      auto files = SkinFilesFrom(args);
+      if (!files.empty()) {
+        SoundScraper::WindowManager::Get().OpenSkinFiles(files);
+      }
+    });
+    auto files = SkinFilesFrom(activation);
+    if (!files.empty()) {
+      SoundScraper::WindowManager::Get().OpenSkinFiles(files);
+    }
+  } catch (winrt::hresult_error const &e) {
+    SoundScraper::LogError(("activation: " + winrt::to_string(e.message())).c_str());
+  }
 
   // Enable per monitor DPI scaling
   SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
