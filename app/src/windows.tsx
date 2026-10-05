@@ -8,6 +8,7 @@ import { safeSettings } from './appHelpers';
 import { DetailsPane } from './DetailsPane';
 import { LibraryScreen, refreshLibraryViews } from './LibraryScreen';
 import { SettingsPanel } from './SettingsPanel';
+import { playback } from './playback';
 import { MainPanel } from './skin/MainPanel';
 import { SkinChooser } from './skin/SkinChooser';
 import { SkinPanelFrame } from './skin/SkinPanelFrame';
@@ -241,7 +242,10 @@ function DetailsContent(props: {
     <View style={styles.content}>
       <DetailsPane
         fileNames={fileNames}
-        onRenamed={(_, renamed) => selection.set([renamed])}
+        onRenamed={(old, renamed) => {
+          playback.renamed(old, renamed);
+          selection.set([renamed]);
+        }}
         onChanged={refreshLibraryViews}
         onClose={close}
         showMenu={(items, x, y) => windows.showMenu(items, -1, x, y, 'details')}

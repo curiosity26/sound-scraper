@@ -61,7 +61,36 @@ typedef enum SsRecorderEventKind {
    Recording failed; see `message`.
    */
   SS_RECORDER_EVENT_KIND_ERROR = 3,
+  /*
+   `player_state` changed.
+   */
+  SS_RECORDER_EVENT_KIND_PLAYER_STATE_CHANGED = 4,
+  /*
+   About 10 Hz while playing, and after loads, seeks and stops:
+   `position_ms`, `duration_ms`, levels.
+   */
+  SS_RECORDER_EVENT_KIND_PLAYER_PROGRESS = 5,
+  /*
+   Playback failed; see `message`.
+   */
+  SS_RECORDER_EVENT_KIND_PLAYER_ERROR = 6,
 } SsRecorderEventKind;
+
+/*
+ Player state as seen from C.
+ */
+typedef enum SsPlayerState {
+  /*
+   Nothing loaded.
+   */
+  SS_PLAYER_STATE_EMPTY = 0,
+  /*
+   Loaded, not playing.
+   */
+  SS_PLAYER_STATE_STOPPED = 1,
+  SS_PLAYER_STATE_PLAYING = 2,
+  SS_PLAYER_STATE_PAUSED = 3,
+} SsPlayerState;
 
 typedef enum SsCoverEdit {
   SS_COVER_EDIT_KEEP = 0,
@@ -95,8 +124,9 @@ typedef struct SsLayoutGesture SsLayoutGesture;
 typedef struct SsLibrary SsLibrary;
 
 /*
- Opaque recorder handle. Create with `ss_recorder_create`, free with
- `ss_recorder_destroy`. Its functions may be called from any thread.
+ Opaque recorder handle, which also plays recordings back (`ss_player_*`).
+ Create with `ss_recorder_create`, free with `ss_recorder_destroy`. Its
+ functions may be called from any thread.
  */
 typedef struct SsRecorder SsRecorder;
 
@@ -106,7 +136,8 @@ typedef struct SsRecorder SsRecorder;
 typedef struct SsRecordingList SsRecordingList;
 
 /*
- Opaque visualizer handle: draws the recorder's live analysis. Create
+ Opaque visualizer handle: draws the live analysis of the recording, or
+ of playback. Create
  with `ss_vis_create`, free with `ss_vis_destroy`. One per view; use it
  from one thread at a time.
  */
@@ -138,9 +169,17 @@ typedef struct SsRecorderEvent {
    */
   const char *path;
   /*
-   UTF-8; non-NULL for `SS_RECORDER_EVENT_KIND_ERROR` only.
+   UTF-8; non-NULL for `SS_RECORDER_EVENT_KIND_ERROR` and
+   `SS_RECORDER_EVENT_KIND_PLAYER_ERROR` only.
    */
   const char *message;
+  /*
+   The player's state, position and the loaded file's duration (all
+   events).
+   */
+  enum SsPlayerState player_state;
+  uint64_t position_ms;
+  uint64_t duration_ms;
 } SsRecorderEvent;
 
 /*
@@ -308,7 +347,8 @@ enum SsRecorderState ss_recorder_state(const struct SsRecorder *recorder);
 uint64_t ss_recorder_elapsed_ms(const struct SsRecorder *recorder);
 
 /*
- Sets (or with NULL, clears) the event callback. Only while Idle.
+ Sets (or with NULL, clears) the event callback, for recorder and player
+ events. Only while the recorder is Idle.
 
  # Safety
  `recorder` must be a live handle; `user_data` must stay valid, and be
@@ -321,8 +361,9 @@ enum SsStatus ss_recorder_set_callback(struct SsRecorder *recorder,
 
 /*
  Starts recording one app (`app_pid` non-zero) or all system audio
- (`app_pid` 0) to a new `.mp3.part` in the recordings folder. May block
- while macOS asks for the audio-capture permission; call off the UI thread.
+ (`app_pid` 0) to a new `.mp3.part` in the recordings folder, unloading
+ whatever the player had loaded. May block while macOS asks for the
+ audio-capture permission; call off the UI thread.
 
  # Safety
  `recorder` must be NULL or a live handle from `ss_recorder_create`.
@@ -355,6 +396,82 @@ enum SsStatus ss_recorder_resume(struct SsRecorder *recorder);
  writable.
  */
 enum SsStatus ss_recorder_stop(struct SsRecorder *recorder, char **out_path);
+
+/*
+ Loads a recording (any MP3) for playback, stopped at the start,
+ replacing what was loaded. Not while recording.
+
+ # Safety
+ `recorder` must be NULL or a live handle; `path` NUL-terminated UTF-8.
+ */
+enum SsStatus ss_player_load(struct SsRecorder *recorder, const char *path);
+
+/*
+ Stops playback and forgets the loaded file. Blocks until the output
+ device is released.
+
+ # Safety
+ `recorder` must be NULL or a live handle.
+ */
+enum SsStatus ss_player_unload(struct SsRecorder *recorder);
+
+/*
+ Plays (or resumes) the loaded file through the default output device.
+ Not while recording.
+
+ # Safety
+ `recorder` must be NULL or a live handle.
+ */
+enum SsStatus ss_player_play(struct SsRecorder *recorder);
+
+/*
+ Pauses playback.
+
+ # Safety
+ `recorder` must be NULL or a live handle.
+ */
+enum SsStatus ss_player_pause(struct SsRecorder *recorder);
+
+/*
+ Stops playback and rewinds to the start.
+
+ # Safety
+ `recorder` must be NULL or a live handle.
+ */
+enum SsStatus ss_player_stop(struct SsRecorder *recorder);
+
+/*
+ Moves playback to `position_ms` (clamped to the file), keeping the state.
+
+ # Safety
+ `recorder` must be NULL or a live handle.
+ */
+enum SsStatus ss_player_seek(struct SsRecorder *recorder, uint64_t position_ms);
+
+/*
+ The player's state; Empty when `recorder` is NULL. Never blocks.
+
+ # Safety
+ `recorder` must be NULL or a live handle.
+ */
+enum SsPlayerState ss_player_state(const struct SsRecorder *recorder);
+
+/*
+ Playback position in milliseconds. Never blocks.
+
+ # Safety
+ `recorder` must be NULL or a live handle.
+ */
+uint64_t ss_player_position_ms(const struct SsRecorder *recorder);
+
+/*
+ The loaded file's duration in milliseconds (0 when nothing is loaded).
+ Never blocks.
+
+ # Safety
+ `recorder` must be NULL or a live handle.
+ */
+uint64_t ss_player_duration_ms(const struct SsRecorder *recorder);
 
 /*
  Finishes `.mp3.part` files left in the recordings folder by a crash.
@@ -616,7 +733,8 @@ bool ss_vis_render(struct SsVis *vis,
                    size_t len);
 
 /*
- Whether a recording is live (active or paused), so frames change. Cheap;
+ Whether a recording (active or paused) or playback (playing or paused)
+ is live, so frames change. Cheap;
  lets a view skip redrawing the idle look.
 
  # Safety

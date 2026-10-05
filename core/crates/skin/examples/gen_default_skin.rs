@@ -38,6 +38,7 @@ const LCD_BG: Color = rgb(0x0d1709);
 const LCD_SCAN: Color = rgb(0x101c0b);
 const LCD_LIT: Color = rgb(0xb8f23e);
 const LCD_GHOST: Color = rgba(0xb8f23e, 26);
+const LCD_HOT: Color = rgb(0xffb03a);
 const SLIME: Color = rgb(0x9fd630);
 const SLIME_LIGHT: Color = rgb(0xd4f57a);
 const RED: Color = rgb(0xd8302a);
@@ -48,7 +49,7 @@ const CREAM_DARK: Color = rgb(0xc9bc96);
 const TAPE: Color = rgb(0x4a2c1a);
 
 const MAIN_W: i32 = 420;
-const MAIN_H: i32 = 150;
+const MAIN_H: i32 = 166;
 const SHADE_H: i32 = 18;
 const KEY_W: i32 = 74;
 
@@ -348,13 +349,23 @@ enum Key {
 #[derive(Clone, Copy)]
 enum Symbol {
     Record,
+    Play,
     Pause,
     Stop,
+}
+
+/// A right-pointing triangle about `r` points from its center.
+fn triangle(c: &mut Canvas, cx: f32, cy: f32, r: f32, color: Color) {
+    let (left, right) = (cx - r * 0.8, cx + r);
+    c.shape((left - 1.0) as i32, (cy - r - 1.0) as i32, (2.0 * r + 3.0) as i32, (2.0 * r + 3.0) as i32, |fx, fy| {
+        (fx >= left && fx <= right && (fy - cy).abs() <= (right - fx) * r / (right - left)).then_some(color)
+    });
 }
 
 fn draw_symbol(c: &mut Canvas, sym: Symbol, cx: i32, cy: i32, color: Color) {
     match sym {
         Symbol::Record => c.circle(cx as f32, cy as f32, 3.6, color),
+        Symbol::Play => triangle(c, cx as f32 + 0.5, cy as f32 + 0.5, 4.0, color),
         Symbol::Pause => {
             c.rect(cx - 3, cy - 4, 2, 8, color);
             c.rect(cx + 1, cy - 4, 2, 8, color);
@@ -470,6 +481,7 @@ fn tiny_button(c: &mut Canvas, x: i32, y: i32, sym: Symbol, state: Key) {
     }
     match sym {
         Symbol::Record => c.circle(x as f32 + 6.0, y as f32 + 6.0 + o as f32, 2.6, ink),
+        Symbol::Play => triangle(c, x as f32 + 6.5, y as f32 + 6.0 + o as f32, 3.0, ink),
         Symbol::Pause => {
             c.rect(x + 3, y + 3 + o, 2, 6, ink);
             c.rect(x + 7, y + 3 + o, 2, 6, ink);
@@ -640,15 +652,32 @@ fn main_background(c: &mut Canvas) {
     for (x, len) in [(14, 5), (40, 9), (77, 4), (112, 11), (139, 6), (160, 8)] {
         drip(c, x, 17, len);
     }
-    // Source strip.
-    lcd_well(c, 10, 106, 402, 18, 1);
-    dots(c, 400, 113, glyph('▼'), 1, LCD_LIT, None);
+    // Seek bar and source strip.
+    lcd_well(c, 10, 105, 402, 14, 1);
+    lcd_well(c, 10, 122, 402, 18, 1);
+    dots(c, 400, 129, glyph('▼'), 1, LCD_LIT, None);
     // Key well, speaker grille, screws.
-    c.round_rect(9, 127, 160, 21, 3.0, INK);
-    c.rect(11, 145, 156, 2, rgba(0x000000, 90));
-    grille(c, 174, 128, 98, 18);
+    c.round_rect(9, 143, 238, 21, 3.0, INK);
+    c.rect(11, 161, 234, 2, rgba(0x000000, 90));
+    grille(c, 252, 144, 22, 18);
     screw(c, 6, 24);
-    screw(c, 6, 140);
+    screw(c, 6, 156);
+}
+
+/// The seek bar's cells (SEEK_W×10): ghost segments (track), lit segments
+/// (fill), then the thumb (4×10) and its pressed look.
+const SEEK_W: i32 = 394;
+
+fn seek_image(c: &mut Canvas) {
+    for (row, color) in [(0, LCD_GHOST), (10, LCD_LIT)] {
+        for x in (1..SEEK_W - 1).step_by(3) {
+            c.rect(x, row + 2, 2, 6, color);
+        }
+    }
+    for (x, color) in [(0, LCD_HOT), (4, rgb(0xffd98a))] {
+        c.rect(x, 20, 4, 10, color);
+        c.rect(x + 1, 21, 2, 8, rgba(0xffffff, 60));
+    }
 }
 
 fn shade_background(c: &mut Canvas) {
@@ -656,7 +685,7 @@ fn shade_background(c: &mut Canvas) {
     c.rect(2, 2, MAIN_W - 4, SHADE_H - 4, CHAR);
     c.rect(2, 2, MAIN_W - 4, 1, CHAR_LIGHT);
     text(c, 8, 5, "SOUND SCRAPER", 1, SLIME);
-    lcd_well(c, 94, 2, 208, 14, 1);
+    lcd_well(c, 94, 2, 196, 14, 1);
     ridges(c, 338, 5, 30, 8);
 }
 
@@ -703,6 +732,7 @@ fn main() {
     draw_both(&dir, "shade", MAIN_W, SHADE_H, shade_background);
     draw_both(&dir, "frame", 48, 48, frame_image);
     draw_both(&dir, "scrollbar", 22, 32, scrollbar_image);
+    draw_both(&dir, "seek", SEEK_W, 30, seek_image);
 
     let lcd_chars: String = GLYPHS.iter().map(|(c, _)| *c).collect();
     font_sheet(&dir, "font-lcd", &lcd_chars, (12, 16), 16, 2, (1, 1));
@@ -711,13 +741,23 @@ fn main() {
     digits_sheet(&dir, digit_chars, (14, 26));
 
     // Buttons.
-    let mut sheet = Sheet::new(KEY_W * 7);
-    // Record is also pause: while recording it shows PAUSE, while paused a
-    // lit RESUME (the "recording…"/"paused…" states the UI asks for).
-    let record_states: [(&'static str, Symbol, &'static str, Key); 7] = [
+    let mut sheet = Sheet::new(KEY_W * 9);
+    // Record lights up while recording (and is disabled); play is pause
+    // while recording or playing, and a lit RESUME while a recording is
+    // paused (the "recording…"/"playing…"/"paused…" states the UI asks for).
+    let record_states: [(&'static str, Symbol, &'static str, Key); 5] = [
         ("normal", Symbol::Record, "REC", Key::Normal),
         ("pressed", Symbol::Record, "REC", Key::Pressed),
         ("disabled", Symbol::Record, "REC", Key::Disabled),
+        ("recording", Symbol::Record, "REC", Key::Active),
+        ("paused", Symbol::Record, "REC", Key::Active),
+    ];
+    let play_states: [(&'static str, Symbol, &'static str, Key); 9] = [
+        ("normal", Symbol::Play, "PLAY", Key::Normal),
+        ("pressed", Symbol::Play, "PLAY", Key::Pressed),
+        ("disabled", Symbol::Play, "PLAY", Key::Disabled),
+        ("playing", Symbol::Pause, "PAUSE", Key::Normal),
+        ("playingPressed", Symbol::Pause, "PAUSE", Key::Pressed),
         ("recording", Symbol::Pause, "PAUSE", Key::Normal),
         ("recordingPressed", Symbol::Pause, "PAUSE", Key::Pressed),
         ("paused", Symbol::Record, "RESUME", Key::Active),
@@ -730,6 +770,7 @@ fn main() {
             .collect()
     };
     let record = sheet.add(KEY_W, 18, keys(&record_states));
+    let play = sheet.add(KEY_W, 18, keys(&play_states));
     let stop = sheet.add(
         KEY_W,
         18,
@@ -764,6 +805,7 @@ fn main() {
             .collect()
     };
     let tiny_record = sheet.add(12, 12, tiny(&record_states));
+    let tiny_play = sheet.add(12, 12, tiny(&play_states));
     let tiny_stop = sheet.add(
         12,
         12,
@@ -784,7 +826,7 @@ fn main() {
             "sprite": { "image": "reels.png", "states": reel_states },
             "frames": reel_frames,
             "fps": 18,
-            "play": "recording"
+            "play": "rolling"
         })
     };
 
@@ -831,11 +873,17 @@ fn main() {
                     "status": { "rect": rect([20, 74, 120, 16]), "font": "lcd", "style": { "pad": true } },
                     "levels": { "rect": rect([146, 32, 112, 20]), "style": levels_style },
                     "visualizer": { "rect": rect([146, 58, 112, 34]), "style": { "grid": "@lcdGhost", "line": "@lcdLit" } },
-                    "source": { "rect": rect([14, 107, 384, 16]), "font": "lcd", "style": { "pad": true } },
-                    "record": { "rect": rect([12, 128, KEY_W, 18]), "sprite": sprite(&record) },
-                    "stop": { "rect": rect([16 + KEY_W, 128, KEY_W, 18]), "sprite": sprite(&stop) },
-                    "toggleLibrary": { "rect": rect([278, 129, 66, 16]), "sprite": sprite(&library) },
-                    "toggleSettings": { "rect": rect([346, 129, 66, 16]), "sprite": sprite(&settings) }
+                    "seek": {
+                        "rect": rect([14, 107, SEEK_W, 10]),
+                        "sprite": { "image": "seek.png", "states": { "track": [0, 0], "fill": [0, 10], "thumb": [0, 20], "thumbPressed": [4, 20] } },
+                        "style": { "thumbSize": [4, 10] }
+                    },
+                    "source": { "rect": rect([14, 123, 384, 16]), "font": "lcd", "style": { "pad": true } },
+                    "record": { "rect": rect([12, 144, KEY_W, 18]), "sprite": sprite(&record) },
+                    "play": { "rect": rect([16 + KEY_W, 144, KEY_W, 18]), "sprite": sprite(&play) },
+                    "stop": { "rect": rect([20 + 2 * KEY_W, 144, KEY_W, 18]), "sprite": sprite(&stop) },
+                    "toggleLibrary": { "rect": rect([278, 145, 66, 16]), "sprite": sprite(&library) },
+                    "toggleSettings": { "rect": rect([346, 145, 66, 16]), "sprite": sprite(&settings) }
                 },
                 "animations": [reel_animation("reelLeft", 282 + 38), reel_animation("reelRight", 282 + 84)],
                 "shade": {
@@ -845,8 +893,9 @@ fn main() {
                     "elements": {
                         "status": { "rect": rect([98, 5, 60, 8]), "font": "tiny" },
                         "elapsed": { "rect": rect([160, 5, 48, 8]), "font": "tiny", "align": "right" },
-                        "levels": { "rect": rect([214, 5, 84, 8]), "style": { "rows": 1, "segments": 21, "gap": 1, "on": "@lcdLit", "hot": "@lcdHot", "clip": "@record", "off": "@lcdGhost" } },
-                        "record": { "rect": rect([306, 3, 12, 12]), "sprite": sprite(&tiny_record) },
+                        "levels": { "rect": rect([214, 5, 72, 8]), "style": { "rows": 1, "segments": 18, "gap": 1, "on": "@lcdLit", "hot": "@lcdHot", "clip": "@record", "off": "@lcdGhost" } },
+                        "record": { "rect": rect([292, 3, 12, 12]), "sprite": sprite(&tiny_record) },
+                        "play": { "rect": rect([306, 3, 12, 12]), "sprite": sprite(&tiny_play) },
                         "stop": { "rect": rect([320, 3, 12, 12]), "sprite": sprite(&tiny_stop) },
                         "minimize": { "rect": rect([372, 4, 12, 10]), "sprite": sprite(&minimize) },
                         "shade": { "rect": rect([386, 4, 12, 10]), "sprite": sprite(&shade_btn) },

@@ -88,10 +88,11 @@ rects that move the window, and `elements`:
 
 | Element | What it is |
 | --- | --- |
-| `record`, `pause`, `stop` | Transport buttons (sprites) |
-| `elapsed` | Recording time, e.g. `12:34.5` (a sprite `font`, `align: "right"`) |
-| `status` | REC / PAUSED / READY and messages (font, `style.pad` shows unlit cells) |
-| `source` | What's being recorded; click to choose |
+| `record`, `play`, `pause`, `stop` | Transport buttons (sprites; see below) |
+| `seek` | The playback position bar (scrubber; see below) |
+| `elapsed` | Recording time, or the playback position, e.g. `12:34.5` (a sprite `font`, `align: "right"`) |
+| `status` | REC / PAUSED / READY / PLAYING and messages (font, `style.pad` shows unlit cells) |
+| `source` | What's being recorded (or the recording loaded for playback); click to choose |
 | `levels` | Level meter (see below) |
 | `visualizer` | Spectrum and scope looks from `visualizer.presets`; click to cycle |
 | `toggleLibrary`, `toggleSettings` | Open and close those panels (use `active` for open) |
@@ -103,10 +104,47 @@ painted into the background.
 `shade` is the collapsed one-line layout (toggled by double-clicking the
 title area). It has the same keys as the main panel.
 
+### Transport
+
+Buttons take a mode state when there is one, falling back to `active`
+and then `normal`; `<mode>Pressed` while pressed:
+
+- `record` starts a new recording. While one runs it's disabled and shows
+  `recording` or `paused` (so it can stay lit).
+- `play` plays the recording selected in the library. It shows `playing`
+  while playing back and `recording` while recording (both mean "press to
+  pause"), and `paused` while a recording is paused (press to resume).
+- `stop` stops a recording, or stops playback and rewinds.
+- `pause`, if present, pauses and resumes either.
+
+A skin without `play` (made before playback) keeps record as pause while
+recording, as before. `play` and `seek` never fall back to the Default
+skin's, since they'd land on top of the skin's own artwork.
+
+### Seek bar
+
+```json
+"seek": {
+  "rect": [14, 107, 394, 10],
+  "sprite": { "image": "seek.png", "states": { "track": [0, 0], "fill": [0, 10], "thumb": [0, 20], "thumbPressed": [4, 20] } },
+  "style": { "thumbSize": [4, 10] }
+}
+```
+
+`track` (drawn always) and `fill` (shown from the left up to the thumb)
+are cells the element's size; `thumb`, `thumbPressed` and
+`thumbDisabled` are `style.thumbSize`. Without sprite cells, the style
+colors `track`, `fill`, `thumb` and `thumbPressed` draw plain bars. Fill
+and thumb show only while a recording is loaded for playback.
+
+### Animations
+
 `animations` are decorative sprite loops such as tape reels or a blinking
 lamp. Each lists `frames` (sprite states) at `fps`. Set `play` to
-`recording` (the default), `active` (recording or paused) or `always`, and
-`speed: "level"` to make it run faster when the audio is louder.
+`recording` (the default; not during playback), `playing` (playback only),
+`rolling` (recording or playing back: the tape is moving), `active`
+(recording or playback, paused included) or `always`, and `speed: "level"`
+to make it run faster when the audio is louder.
 
 ### Fonts
 

@@ -67,12 +67,12 @@
           "image": "buttons.png",
           "states": {
             "normal": [
-              272,
-              60
+              56,
+              90
             ],
             "pressed": [
-              286,
-              60
+              70,
+              90
             ]
           }
         }
@@ -111,12 +111,12 @@
           "image": "buttons.png",
           "states": {
             "normal": [
-              300,
-              60
+              84,
+              90
             ],
             "pressed": [
-              314,
-              60
+              98,
+              90
             ]
           }
         }
@@ -149,12 +149,12 @@
           "image": "buttons.png",
           "states": {
             "normal": [
-              272,
-              60
+              56,
+              90
             ],
             "pressed": [
-              286,
-              60
+              70,
+              90
             ]
           }
         }
@@ -245,12 +245,12 @@
             "image": "buttons.png",
             "states": {
               "off": [
-                448,
-                60
+                316,
+                90
               ],
               "on": [
-                460,
-                60
+                328,
+                90
               ]
             }
           }
@@ -262,7 +262,7 @@
           0,
           0,
           460,
-          168
+          186
         ]
       ],
       "elements": {
@@ -277,12 +277,12 @@
             "image": "buttons.png",
             "states": {
               "normal": [
-                272,
-                60
+                56,
+                90
               ],
               "pressed": [
-                286,
-                60
+                70,
+                90
               ]
             }
           }
@@ -335,12 +335,61 @@
             "image": "buttons.png",
             "states": {
               "normal": [
-                216,
-                60
+                0,
+                90
               ],
               "pressed": [
-                230,
-                60
+                14,
+                90
+              ]
+            }
+          }
+        },
+        "play": {
+          "rect": [
+            96,
+            148,
+            72,
+            30
+          ],
+          "sprite": {
+            "image": "buttons.png",
+            "states": {
+              "disabled": [
+                144,
+                30
+              ],
+              "normal": [
+                0,
+                30
+              ],
+              "paused": [
+                504,
+                30
+              ],
+              "pausedPressed": [
+                576,
+                30
+              ],
+              "playing": [
+                216,
+                30
+              ],
+              "playingPressed": [
+                288,
+                30
+              ],
+              "pressed": [
+                72,
+                30
+              ],
+              "recording": [
+                360,
+                30
+              ],
+              "recordingPressed": [
+                432,
+                30
               ]
             }
           }
@@ -348,7 +397,7 @@
         "record": {
           "rect": [
             20,
-            132,
+            148,
             72,
             30
           ],
@@ -364,11 +413,7 @@
                 0
               ],
               "paused": [
-                360,
-                0
-              ],
-              "pausedPressed": [
-                432,
+                288,
                 0
               ],
               "pressed": [
@@ -378,12 +423,39 @@
               "recording": [
                 216,
                 0
-              ],
-              "recordingPressed": [
-                288,
-                0
               ]
             }
+          }
+        },
+        "seek": {
+          "rect": [
+            26,
+            130,
+            408,
+            14
+          ],
+          "sprite": {
+            "image": "seek.png",
+            "states": {
+              "fill": [
+                0,
+                0
+              ],
+              "thumb": [
+                0,
+                14
+              ],
+              "thumbPressed": [
+                10,
+                14
+              ]
+            }
+          },
+          "style": {
+            "thumbSize": [
+              10,
+              14
+            ]
           }
         },
         "shade": {
@@ -397,12 +469,12 @@
             "image": "buttons.png",
             "states": {
               "normal": [
-                244,
-                60
+                28,
+                90
               ],
               "pressed": [
-                258,
-                60
+                42,
+                90
               ]
             }
           }
@@ -433,8 +505,8 @@
         },
         "stop": {
           "rect": [
-            96,
-            132,
+            172,
+            148,
             72,
             30
           ],
@@ -443,15 +515,15 @@
             "states": {
               "disabled": [
                 144,
-                30
+                60
               ],
               "normal": [
                 0,
-                30
+                60
               ],
               "pressed": [
                 72,
-                30
+                60
               ]
             }
           }
@@ -459,7 +531,7 @@
         "toggleLibrary": {
           "rect": [
             290,
-            134,
+            150,
             72,
             26
           ],
@@ -468,15 +540,15 @@
             "states": {
               "active": [
                 360,
-                30
+                60
               ],
               "normal": [
                 216,
-                30
+                60
               ],
               "pressed": [
                 288,
-                30
+                60
               ]
             }
           }
@@ -484,7 +556,7 @@
         "toggleSettings": {
           "rect": [
             366,
-            134,
+            150,
             72,
             26
           ],
@@ -492,15 +564,15 @@
             "image": "buttons.png",
             "states": {
               "active": [
-                144,
+                576,
                 60
               ],
               "normal": [
-                0,
+                432,
                 60
               ],
               "pressed": [
-                72,
+                504,
                 60
               ]
             }
@@ -542,12 +614,12 @@
               "image": "buttons.png",
               "states": {
                 "normal": [
-                  272,
-                  60
+                  56,
+                  90
                 ],
                 "pressed": [
-                  286,
-                  60
+                  70,
+                  90
                 ]
               }
             }
@@ -590,12 +662,61 @@
               "image": "buttons.png",
               "states": {
                 "normal": [
-                  216,
-                  60
+                  0,
+                  90
                 ],
                 "pressed": [
-                  230,
-                  60
+                  14,
+                  90
+                ]
+              }
+            }
+          },
+          "play": {
+            "rect": [
+              330,
+              3,
+              12,
+              12
+            ],
+            "sprite": {
+              "image": "buttons.png",
+              "states": {
+                "disabled": [
+                  196,
+                  90
+                ],
+                "normal": [
+                  172,
+                  90
+                ],
+                "paused": [
+                  256,
+                  90
+                ],
+                "pausedPressed": [
+                  268,
+                  90
+                ],
+                "playing": [
+                  208,
+                  90
+                ],
+                "playingPressed": [
+                  220,
+                  90
+                ],
+                "pressed": [
+                  184,
+                  90
+                ],
+                "recording": [
+                  232,
+                  90
+                ],
+                "recordingPressed": [
+                  244,
+                  90
                 ]
               }
             }
@@ -611,32 +732,24 @@
               "image": "buttons.png",
               "states": {
                 "disabled": [
-                  352,
-                  60
+                  136,
+                  90
                 ],
                 "normal": [
-                  328,
-                  60
+                  112,
+                  90
                 ],
                 "paused": [
-                  388,
-                  60
-                ],
-                "pausedPressed": [
-                  400,
-                  60
+                  160,
+                  90
                 ],
                 "pressed": [
-                  340,
-                  60
+                  124,
+                  90
                 ],
                 "recording": [
-                  364,
-                  60
-                ],
-                "recordingPressed": [
-                  376,
-                  60
+                  148,
+                  90
                 ]
               }
             }
@@ -652,12 +765,12 @@
               "image": "buttons.png",
               "states": {
                 "normal": [
-                  244,
-                  60
+                  28,
+                  90
                 ],
                 "pressed": [
-                  258,
-                  60
+                  42,
+                  90
                 ]
               }
             }
@@ -673,7 +786,7 @@
           },
           "stop": {
             "rect": [
-              330,
+              344,
               3,
               12,
               12
@@ -682,16 +795,16 @@
               "image": "buttons.png",
               "states": {
                 "disabled": [
-                  436,
-                  60
+                  304,
+                  90
                 ],
                 "normal": [
-                  412,
-                  60
+                  280,
+                  90
                 ],
                 "pressed": [
-                  424,
-                  60
+                  292,
+                  90
                 ]
               }
             }
@@ -704,7 +817,7 @@
       },
       "size": [
         460,
-        168
+        186
       ]
     },
     "settings": {
@@ -721,12 +834,12 @@
           "image": "buttons.png",
           "states": {
             "normal": [
-              272,
-              60
+              56,
+              90
             ],
             "pressed": [
-              286,
-              60
+              70,
+              90
             ]
           }
         }

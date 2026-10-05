@@ -365,11 +365,19 @@ impl Resolver<'_> {
                     }
                 }
                 for (state, offset) in &sprite.states {
-                    if !cell_fits(*offset, el.rect[2], el.rect[3], &image) {
+                    // The seek bar's thumb cells are the thumb's size.
+                    let [w, h] = if name == "seek" && state.starts_with("thumb") {
+                        thumb_size(el).ok_or_else(|| {
+                            format!("skin.json: {at}.style.thumbSize must be [width, height] for the sprite's thumb states")
+                        })?
+                    } else {
+                        [el.rect[2], el.rect[3]]
+                    };
+                    if !cell_fits(*offset, w, h, &image) {
                         return Err(format!(
                             "skin.json: {at}.sprite.states.{state}: a {}×{} cell at [{}, {}] extends past {} ({}×{})",
-                            el.rect[2],
-                            el.rect[3],
+                            w,
+                            h,
                             offset[0],
                             offset[1],
                             sprite.image,
@@ -786,10 +794,22 @@ fn as_fallback(layout: &ResolvedLayout) -> ResolvedLayout {
     layout
 }
 
+/// `style.thumbSize` of a seek bar: positive [width, height].
+fn thumb_size(el: &ElementDef) -> Option<[i64; 2]> {
+    let size = el.style.as_ref()?.get("thumbSize")?.as_array()?;
+    match size.as_slice() {
+        [w, h] => {
+            let (w, h) = (w.as_f64()?.round() as i64, h.as_f64()?.round() as i64);
+            (w > 0 && h > 0).then_some([w, h])
+        }
+        _ => None,
+    }
+}
+
 /// Adds the base layout's elements that `layout` lacks, where they fit.
 fn fill_from(layout: &mut ResolvedLayout, base: &ResolvedLayout, at: &str, warnings: &mut Vec<String>) {
     for (name, el) in &base.elements {
-        if layout.elements.contains_key(name) {
+        if layout.elements.contains_key(name) || manifest::NO_FALLBACK.contains(&name.as_str()) {
             continue;
         }
         if rect_fits(&el.rect, layout.size) {

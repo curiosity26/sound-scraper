@@ -4,13 +4,15 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { formatElapsed } from '../RecordBar';
-import type { RecorderState } from '../native/SoundScraper';
+import type { PlayerState, RecorderState } from '../native/SoundScraper';
+import { playback, usePlayback } from '../playback';
 import { type Message, useRecorder } from '../useRecorder';
 import { DragSurface } from './DragSurface';
 import { LevelMeter } from './LevelMeter';
 import { SkinAnimation } from './SkinAnimation';
 import { Visualizer } from './Visualizer';
 import { SkinButton } from './SkinButton';
+import { SkinSeek } from './SkinSeek';
 import { scaleRect, SkinImage, SpriteCell, useSkinScale } from './SkinImage';
 import { useSkin } from './SkinProvider';
 import { windows } from './skins';
@@ -20,8 +22,10 @@ import type { ElementName, Rect, SkinElement } from './types';
 /** Elements that take clicks, so the window doesn't drag from them. */
 const INTERACTIVE: ElementName[] = [
   'record',
+  'play',
   'pause',
   'stop',
+  'seek',
   'source',
   'toggleLibrary',
   'toggleSettings',
@@ -46,11 +50,25 @@ export function statusText(state: RecorderState, starting: boolean): string {
   }
 }
 
+/** Status while a loaded recording plays back (the recorder is idle). */
+export function playbackStatusText(state: PlayerState): string {
+  switch (state) {
+    case 'playing':
+      return '▶ PLAYING';
+    case 'paused':
+      return '⏸ PAUSED';
+    default:
+      return '■ STOPPED';
+  }
+}
+
 /** The skinned main window: transport, time, status, levels and source. */
 export function MainPanel(): React.JSX.Element {
   const skin = useSkin();
   const s = useSkinScale();
   const r = useRecorder();
+  const p = usePlayback();
+  const [scrubMs, setScrubMs] = useState<number>();
   const [shaded, setShaded] = useState(false);
   const [panels, setPanels] = useState(() => ({
     library: windows.isPanelVisible('library'),
@@ -67,7 +85,7 @@ export function MainPanel(): React.JSX.Element {
       if (e.window === 'main' && e.event === 'toggleShade') {
         setShaded(on => !on);
       } else if (e.window === 'library' || e.window === 'settings') {
-        setPanels(p => ({ ...p, [e.window]: e.event === 'shown' }));
+        setPanels(prev => ({ ...prev, [e.window]: e.event === 'shown' }));
       }
     });
     return () => subscription.remove();
@@ -92,6 +110,12 @@ export function MainPanel(): React.JSX.Element {
     );
   }, [layout, s]);
 
+  const { setMessage: showMessage } = r;
+  useEffect(
+    () => playback.onError(text => showMessage({ text, isError: true })),
+    [showMessage],
+  );
+
   // Messages show in the source display for a while.
   useEffect(() => {
     if (!r.message) {
@@ -107,6 +131,10 @@ export function MainPanel(): React.JSX.Element {
 
   const active = r.state === 'recording' || r.state === 'paused';
   const busy = r.starting || r.state === 'finalizing';
+  // A recording loaded for playback, and no recording running: the
+  // displays show the playback.
+  const loaded = p.state !== 'empty' && !active && !busy;
+  const playing = loaded && p.state === 'playing';
 
   const { refreshApps, setSelectedPid, selectedPid, setMessage } = r;
   const chooseSource = useCallback(async () => {
@@ -160,30 +188,84 @@ export function MainPanel(): React.JSX.Element {
     windows.quit();
   }, [active, r]);
 
-  // With no separate pause element, record is also pause: it starts,
-  // pauses while recording and resumes while paused.
-  const pauseSeparate = els.pause != null;
+  // Record starts a new recording (unloading what was loaded for
+  // playback). Play is pause while recording or playing, and resumes a
+  // paused recording; record is disabled meanwhile. Skins without a play
+  // element (made before playback) keep record as pause too, unless they
+  // have a separate pause element.
+  const hasPlay = els.play != null;
+  const pauseSeparate = els.pause != null || hasPlay;
   const onRecord = () => {
     if (r.state === 'idle') {
       r.record();
+    } else if (hasPlay) {
+      return;
     } else if (r.state === 'paused') {
       r.resume();
     } else if (r.state === 'recording' && !pauseSeparate) {
       r.pause();
     }
   };
+  const onPlay = () => {
+    if (r.state === 'recording') {
+      r.pause();
+    } else if (r.state === 'paused') {
+      r.resume();
+    } else if (playing) {
+      playback.pause();
+    } else if (loaded) {
+      playback.play();
+    }
+  };
+  const onPause = () => {
+    if (active) {
+      r.state === 'paused' ? r.resume() : r.pause();
+    } else if (playing) {
+      playback.pause();
+    } else if (loaded && p.state === 'paused') {
+      playback.play();
+    }
+  };
+  const onStop = () => {
+    if (active) {
+      r.stop();
+    } else if (loaded) {
+      playback.stop();
+    }
+  };
+  const stoppable =
+    active || (loaded && (p.state !== 'stopped' || p.positionMs > 0));
   const recordMode =
     r.state === 'paused'
       ? 'paused'
       : r.state === 'recording'
       ? 'recording'
       : undefined;
-  const recordLabel =
+  const recordLabel = hasPlay
+    ? 'Record'
+    : r.state === 'paused'
+    ? 'Resume'
+    : r.state === 'recording' && !pauseSeparate
+    ? 'Pause'
+    : 'Record';
+  const playMode =
+    r.state === 'recording' || r.state === 'paused'
+      ? r.state
+      : playing
+      ? 'playing'
+      : undefined;
+  const playLabel =
     r.state === 'paused'
       ? 'Resume'
-      : r.state === 'recording' && !pauseSeparate
+      : r.state === 'recording' || playing
       ? 'Pause'
-      : 'Record';
+      : 'Play';
+  // Animations follow the tape: recording, or playing back.
+  const tapeState: RecorderState = playing
+    ? 'recording'
+    : loaded && p.state === 'paused'
+    ? 'paused'
+    : r.state;
 
   const togglePanel = (panel: 'library' | 'settings') => {
     windows.setPanelVisible(panel, !panels[panel]);
@@ -211,8 +293,13 @@ export function MainPanel(): React.JSX.Element {
   };
 
   const [width, height] = layout.size;
-  const status = statusText(r.state, r.starting);
-  const sourceText = shownMessage?.text ?? r.sourceName;
+  const status = loaded
+    ? playbackStatusText(p.state)
+    : statusText(r.state, r.starting);
+  const sourceText =
+    shownMessage?.text ?? (loaded && p.title ? `♪ ${p.title}` : r.sourceName);
+  const levels = loaded ? p.levels : r.levels;
+  const elapsedMs = loaded ? scrubMs ?? p.positionMs : r.elapsedMs;
 
   return (
     <View
@@ -245,8 +332,9 @@ export function MainPanel(): React.JSX.Element {
         <SkinAnimation
           key={a.name ?? i}
           animation={a}
-          state={r.state}
-          level={r.levels.peak}
+          state={tapeState}
+          playing={playing}
+          level={levels.peak}
         />
       ))}
       {els.visualizer && (
@@ -258,11 +346,11 @@ export function MainPanel(): React.JSX.Element {
       {els.levels && (
         <LevelMeter
           element={els.levels}
-          peak={r.levels.peak}
-          left={r.levels.left}
-          right={r.levels.right}
-          rmsLeft={r.levels.rmsLeft}
-          rmsRight={r.levels.rmsRight}
+          peak={levels.peak}
+          left={levels.left}
+          right={levels.right}
+          rmsLeft={levels.rmsLeft}
+          rmsRight={levels.rmsRight}
         />
       )}
       {els.elapsed && (
@@ -270,14 +358,14 @@ export function MainPanel(): React.JSX.Element {
           testID="elapsed"
           element={els.elapsed}
           fonts={skin.fonts}
-          text={formatElapsed(r.elapsedMs)}
+          text={formatElapsed(elapsedMs)}
         />
       )}
       {els.status && (
         <StatusElement
           element={els.status}
           fonts={skin.fonts}
-          state={r.starting ? 'recording' : r.state}
+          state={loaded ? p.state : r.starting ? 'recording' : r.state}
           text={status}
         />
       )}
@@ -308,20 +396,36 @@ export function MainPanel(): React.JSX.Element {
           text={sourceText}
         />
       )}
+      {els.seek && (
+        <SkinSeek
+          element={els.seek}
+          positionMs={p.positionMs}
+          durationMs={p.durationMs}
+          enabled={loaded}
+          onScrub={setScrubMs}
+          onSeek={playback.seek}
+        />
+      )}
       {button('record', recordLabel, onRecord, {
         mode: recordMode,
-        disabled: busy,
+        disabled: busy || (hasPlay && active),
+      })}
+      {button('play', playLabel, onPlay, {
+        mode: playMode,
+        disabled: busy || (!active && !loaded),
       })}
       {button(
         'pause',
-        r.state === 'paused' ? 'Resume' : 'Pause',
-        r.state === 'paused' ? r.resume : r.pause,
+        r.state === 'paused' || (loaded && p.state === 'paused')
+          ? 'Resume'
+          : 'Pause',
+        onPause,
         {
-          active: r.state === 'paused',
-          disabled: !active,
+          active: r.state === 'paused' || (loaded && p.state === 'paused'),
+          disabled: !active && !(loaded && p.state !== 'stopped'),
         },
       )}
-      {button('stop', 'Stop', r.stop, { disabled: !active })}
+      {button('stop', 'Stop', onStop, { disabled: !stoppable })}
       {button('toggleLibrary', 'Library', () => togglePanel('library'), {
         active: panels.library,
       })}
@@ -346,7 +450,8 @@ export function MainPanel(): React.JSX.Element {
 function StatusElement(props: {
   element: SkinElement;
   fonts: Parameters<typeof ElementText>[0]['fonts'];
-  state: RecorderState;
+  /** A recorder state, or a player state during playback. */
+  state: string;
   text: string;
 }) {
   const { element } = props;

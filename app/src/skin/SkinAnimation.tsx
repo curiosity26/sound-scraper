@@ -5,11 +5,25 @@ import { meterScale } from './LevelMeter';
 import { scaleRect, SpriteCell, useSkinScale } from './SkinImage';
 import type { SkinAnimationDef } from './types';
 
-/** Whether an animation plays in this recorder state. */
-export function animationPlays(play: string, state: RecorderState): boolean {
+/**
+ * Whether an animation plays in this state: the recorder's, or during
+ * playback "recording"/"paused" for playing/paused (`playing` is true
+ * while playing back).
+ */
+export function animationPlays(
+  play: string,
+  state: RecorderState,
+  playing = false,
+): boolean {
   switch (play) {
     case 'always':
       return true;
+    case 'playing':
+      return playing;
+    case 'rolling':
+      return state === 'recording';
+    case 'recording':
+      return state === 'recording' && !playing;
     case 'active':
       return state === 'recording' || state === 'paused';
     default:
@@ -28,6 +42,8 @@ const TICK_MS = 33;
 export function SkinAnimation(props: {
   animation: SkinAnimationDef;
   state: RecorderState;
+  /** Playing back (state is then "recording"). */
+  playing?: boolean;
   /** Linear 0..1, for speed "level". */
   level: number;
 }): React.JSX.Element {
@@ -37,7 +53,7 @@ export function SkinAnimation(props: {
   const phase = useRef(0);
   const rate = useRef(0);
   rate.current = animationRate(animation.fps, animation.speed, level);
-  const playing = animationPlays(animation.play, state);
+  const playing = animationPlays(animation.play, state, props.playing);
   const count = animation.frames.length;
 
   useEffect(() => {

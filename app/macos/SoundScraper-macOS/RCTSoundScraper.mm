@@ -24,9 +24,23 @@ static NSString *SSStateName(SsRecorderState state)
   return @"idle";
 }
 
+static NSString *SSPlayerStateName(SsPlayerState state)
+{
+  switch (state) {
+    case SS_PLAYER_STATE_STOPPED: return @"stopped";
+    case SS_PLAYER_STATE_PLAYING: return @"playing";
+    case SS_PLAYER_STATE_PAUSED: return @"paused";
+    case SS_PLAYER_STATE_EMPTY: break;
+  }
+  return @"empty";
+}
+
 static NSString *SSEventKindName(SsRecorderEventKind kind)
 {
   switch (kind) {
+    case SS_RECORDER_EVENT_KIND_PLAYER_STATE_CHANGED: return @"playerState";
+    case SS_RECORDER_EVENT_KIND_PLAYER_PROGRESS: return @"playerProgress";
+    case SS_RECORDER_EVENT_KIND_PLAYER_ERROR: return @"playerError";
     case SS_RECORDER_EVENT_KIND_PROGRESS: return @"progress";
     case SS_RECORDER_EVENT_KIND_FINISHED: return @"finished";
     case SS_RECORDER_EVENT_KIND_ERROR: return @"error";
@@ -49,6 +63,7 @@ struct SSEventTarget {
   SsLibrary *_library; // NULL if the library couldn't be opened
   SSEventTarget *_eventTarget;
   dispatch_queue_t _libraryQueue;
+  dispatch_queue_t _playerQueue; // player commands, in order, off the main thread
 }
 - (SsRecorder *)recorder;
 - (SsLibrary *)library;
@@ -87,6 +102,9 @@ static void SSOnRecorderEvent(const SsRecorderEvent *event, void *userData)
     @"rmsRight" : @(event->rms_right),
     @"path" : SSString(event->path) ?: (id)[NSNull null],
     @"message" : SSString(event->message) ?: (id)[NSNull null],
+    @"playerState" : SSPlayerStateName(event->player_state),
+    @"positionMs" : @(event->position_ms),
+    @"durationMs" : @(event->duration_ms),
   };
   RCTSoundScraper *module = static_cast<SSEventTarget *>(userData)->module;
   dispatch_async(dispatch_get_main_queue(), ^{
@@ -276,6 +294,78 @@ RCT_EXPORT_MODULE(SoundScraper)
   // Creates the recorder on JS's first look (cheap; nothing is captured), so
   // the visualizer view can show its idle look before the first recording.
   return SSStateName(ss_recorder_state([self recorder]));
+}
+
+- (dispatch_queue_t)playerQueue
+{
+  @synchronized(self) {
+    if (!_playerQueue) {
+      _playerQueue = dispatch_queue_create("com.alexboyce.soundscraper.player", DISPATCH_QUEUE_SERIAL);
+    }
+    return _playerQueue;
+  }
+}
+
+- (void)playerLoad:(NSString *)path resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject
+{
+  SsRecorder *recorder = [self recorder];
+  std::string p = path.UTF8String ?: "";
+  dispatch_async([self playerQueue], ^{
+    if (ss_player_load(recorder, p.c_str()) != SS_STATUS_OK) {
+      reject(@"load_failed", SSString(ss_last_error_message()), nil);
+      return;
+    }
+    resolve(nil);
+  });
+}
+
+- (void)playerUnload
+{
+  SsRecorder *recorder = [self recorder];
+  dispatch_async([self playerQueue], ^{
+    ss_player_unload(recorder);
+  });
+}
+
+- (void)playerPlay:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject
+{
+  SsRecorder *recorder = [self recorder];
+  dispatch_async([self playerQueue], ^{
+    if (ss_player_play(recorder) != SS_STATUS_OK) {
+      reject(@"play_failed", SSString(ss_last_error_message()), nil);
+      return;
+    }
+    resolve(nil);
+  });
+}
+
+- (void)playerPause
+{
+  SsRecorder *recorder = [self recorder];
+  dispatch_async([self playerQueue], ^{
+    ss_player_pause(recorder);
+  });
+}
+
+- (void)playerStop
+{
+  SsRecorder *recorder = [self recorder];
+  dispatch_async([self playerQueue], ^{
+    ss_player_stop(recorder);
+  });
+}
+
+- (void)playerSeek:(double)positionMs
+{
+  SsRecorder *recorder = [self recorder];
+  dispatch_async([self playerQueue], ^{
+    ss_player_seek(recorder, (uint64_t)MAX(0.0, positionMs));
+  });
+}
+
+- (NSString *)playerState
+{
+  return SSPlayerStateName(ss_player_state([self recorder]));
 }
 
 - (NSNumber *)recoverPartialRecordings

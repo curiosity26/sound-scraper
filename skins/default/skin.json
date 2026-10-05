@@ -59,11 +59,11 @@
           "states": {
             "normal": [
               270,
-              18
+              36
             ],
             "pressed": [
               282,
-              18
+              36
             ]
           }
         }
@@ -99,11 +99,11 @@
           "states": {
             "normal": [
               294,
-              18
+              36
             ],
             "pressed": [
               306,
-              18
+              36
             ]
           }
         }
@@ -136,11 +136,11 @@
           "states": {
             "normal": [
               270,
-              18
+              36
             ],
             "pressed": [
               282,
-              18
+              36
             ]
           }
         }
@@ -229,7 +229,7 @@
             "f11"
           ],
           "name": "reelLeft",
-          "play": "recording",
+          "play": "rolling",
           "rect": [
             312,
             49,
@@ -307,7 +307,7 @@
             "f11"
           ],
           "name": "reelRight",
-          "play": "recording",
+          "play": "rolling",
           "rect": [
             358,
             49,
@@ -375,7 +375,7 @@
           0,
           0,
           420,
-          150
+          166
         ]
       ],
       "elements": {
@@ -391,11 +391,11 @@
             "states": {
               "normal": [
                 270,
-                18
+                36
               ],
               "pressed": [
                 282,
-                18
+                36
               ]
             }
           }
@@ -439,10 +439,59 @@
             "states": {
               "normal": [
                 222,
-                18
+                36
               ],
               "pressed": [
                 234,
+                36
+              ]
+            }
+          }
+        },
+        "play": {
+          "rect": [
+            90,
+            144,
+            74,
+            18
+          ],
+          "sprite": {
+            "image": "buttons.png",
+            "states": {
+              "disabled": [
+                148,
+                18
+              ],
+              "normal": [
+                0,
+                18
+              ],
+              "paused": [
+                518,
+                18
+              ],
+              "pausedPressed": [
+                592,
+                18
+              ],
+              "playing": [
+                222,
+                18
+              ],
+              "playingPressed": [
+                296,
+                18
+              ],
+              "pressed": [
+                74,
+                18
+              ],
+              "recording": [
+                370,
+                18
+              ],
+              "recordingPressed": [
+                444,
                 18
               ]
             }
@@ -451,7 +500,7 @@
         "record": {
           "rect": [
             12,
-            128,
+            144,
             74,
             18
           ],
@@ -467,11 +516,7 @@
                 0
               ],
               "paused": [
-                370,
-                0
-              ],
-              "pausedPressed": [
-                444,
+                296,
                 0
               ],
               "pressed": [
@@ -481,12 +526,43 @@
               "recording": [
                 222,
                 0
+              ]
+            }
+          }
+        },
+        "seek": {
+          "rect": [
+            14,
+            107,
+            394,
+            10
+          ],
+          "sprite": {
+            "image": "seek.png",
+            "states": {
+              "fill": [
+                0,
+                10
               ],
-              "recordingPressed": [
-                296,
+              "thumb": [
+                0,
+                20
+              ],
+              "thumbPressed": [
+                4,
+                20
+              ],
+              "track": [
+                0,
                 0
               ]
             }
+          },
+          "style": {
+            "thumbSize": [
+              4,
+              10
+            ]
           }
         },
         "shade": {
@@ -501,11 +577,11 @@
             "states": {
               "normal": [
                 246,
-                18
+                36
               ],
               "pressed": [
                 258,
-                18
+                36
               ]
             }
           }
@@ -514,7 +590,7 @@
           "font": "lcd",
           "rect": [
             14,
-            107,
+            123,
             384,
             16
           ],
@@ -536,8 +612,8 @@
         },
         "stop": {
           "rect": [
-            90,
-            128,
+            168,
+            144,
             74,
             18
           ],
@@ -546,15 +622,15 @@
             "states": {
               "disabled": [
                 148,
-                18
+                36
               ],
               "normal": [
                 0,
-                18
+                36
               ],
               "pressed": [
                 74,
-                18
+                36
               ]
             }
           }
@@ -562,7 +638,7 @@
         "toggleLibrary": {
           "rect": [
             278,
-            129,
+            145,
             66,
             16
           ],
@@ -571,15 +647,15 @@
             "states": {
               "active": [
                 450,
-                18
+                36
               ],
               "normal": [
                 318,
-                18
+                36
               ],
               "pressed": [
                 384,
-                18
+                36
               ]
             }
           }
@@ -587,7 +663,7 @@
         "toggleSettings": {
           "rect": [
             346,
-            129,
+            145,
             66,
             16
           ],
@@ -596,15 +672,15 @@
             "states": {
               "active": [
                 132,
-                36
+                54
               ],
               "normal": [
                 0,
-                36
+                54
               ],
               "pressed": [
                 66,
-                36
+                54
               ]
             }
           }
@@ -645,11 +721,11 @@
               "states": {
                 "normal": [
                   270,
-                  18
+                  36
                 ],
                 "pressed": [
                   282,
-                  18
+                  36
                 ]
               }
             }
@@ -668,7 +744,7 @@
             "rect": [
               214,
               5,
-              84,
+              72,
               8
             ],
             "style": {
@@ -678,7 +754,7 @@
               "off": "@lcdGhost",
               "on": "@lcdLit",
               "rows": 1,
-              "segments": 21
+              "segments": 18
             }
           },
           "minimize": {
@@ -693,16 +769,16 @@
               "states": {
                 "normal": [
                   222,
-                  18
+                  36
                 ],
                 "pressed": [
                   234,
-                  18
+                  36
                 ]
               }
             }
           },
-          "record": {
+          "play": {
             "rect": [
               306,
               3,
@@ -713,32 +789,73 @@
               "image": "buttons.png",
               "states": {
                 "disabled": [
+                  282,
+                  54
+                ],
+                "normal": [
+                  258,
+                  54
+                ],
+                "paused": [
+                  342,
+                  54
+                ],
+                "pausedPressed": [
+                  354,
+                  54
+                ],
+                "playing": [
+                  294,
+                  54
+                ],
+                "playingPressed": [
+                  306,
+                  54
+                ],
+                "pressed": [
+                  270,
+                  54
+                ],
+                "recording": [
+                  318,
+                  54
+                ],
+                "recordingPressed": [
+                  330,
+                  54
+                ]
+              }
+            }
+          },
+          "record": {
+            "rect": [
+              292,
+              3,
+              12,
+              12
+            ],
+            "sprite": {
+              "image": "buttons.png",
+              "states": {
+                "disabled": [
                   222,
-                  36
+                  54
                 ],
                 "normal": [
                   198,
-                  36
+                  54
                 ],
                 "paused": [
-                  258,
-                  36
-                ],
-                "pausedPressed": [
-                  270,
-                  36
+                  246,
+                  54
                 ],
                 "pressed": [
                   210,
-                  36
+                  54
                 ],
                 "recording": [
                   234,
-                  36
-                ],
-                "recordingPressed": [
-                  246,
-                  36
+                  54
                 ]
               }
             }
@@ -755,11 +872,11 @@
               "states": {
                 "normal": [
                   246,
-                  18
+                  36
                 ],
                 "pressed": [
                   258,
-                  18
+                  36
                 ]
               }
             }
@@ -784,16 +901,16 @@
               "image": "buttons.png",
               "states": {
                 "disabled": [
-                  306,
-                  36
+                  390,
+                  54
                 ],
                 "normal": [
-                  282,
-                  36
+                  366,
+                  54
                 ],
                 "pressed": [
-                  294,
-                  36
+                  378,
+                  54
                 ]
               }
             }
@@ -806,7 +923,7 @@
       },
       "size": [
         420,
-        150
+        166
       ]
     },
     "settings": {
@@ -824,11 +941,11 @@
           "states": {
             "normal": [
               270,
-              18
+              36
             ],
             "pressed": [
               282,
-              18
+              36
             ]
           }
         }

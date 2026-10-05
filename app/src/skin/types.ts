@@ -51,8 +51,10 @@ export type SkinElement = {
 
 export type ElementName =
   | 'record'
+  | 'play'
   | 'pause'
   | 'stop'
+  | 'seek'
   | 'elapsed'
   | 'status'
   | 'source'

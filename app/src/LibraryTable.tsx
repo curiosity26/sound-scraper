@@ -29,6 +29,8 @@ type Props = {
   recordings: Recording[];
   /** The row shown in the details panel. */
   selected?: string;
+  /** The recording loaded for playback (marked ▶). */
+  loaded?: string;
   /** A row was clicked: show it in the details panel. */
   onSelect: (fileName: string) => void;
   /** Opens the details panel for these (checked) recordings. */
@@ -218,6 +220,7 @@ export function LibraryTable(props: Props): React.JSX.Element {
                   style={[styles.cell, cellText, { flex: COLUMNS[0].flex }]}
                   numberOfLines={1}
                 >
+                  {r.fileName === props.loaded ? '▶ ' : ''}
                   {displayName(r)}
                 </Text>
                 <Text

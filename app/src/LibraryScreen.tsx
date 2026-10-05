@@ -5,6 +5,7 @@ import { errorText } from './appHelpers';
 import { DetailsPane, type ShowMenu } from './DetailsPane';
 import { LibraryTable } from './LibraryTable';
 import { library, type Recording } from './native/SoundScraper';
+import { playback, usePlayback } from './playback';
 import { selection } from './selection';
 
 type Props = {
@@ -40,10 +41,13 @@ export function LibraryScreen(props: Props): React.JSX.Element {
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<string[]>(selection.get());
   useEffect(() => selection.subscribe(setSelected), []);
+  const loaded = usePlayback().fileName;
+  const [listed, setListed] = useState(false);
 
   const refreshLibrary = useCallback(async () => {
     try {
       setRecordings(await library.list());
+      setListed(true);
     } catch (e) {
       onMessage({
         text: `Couldn't read the library: ${errorText(e)}`,
@@ -77,7 +81,23 @@ export function LibraryScreen(props: Props): React.JSX.Element {
     if (recordings.length > 0 && current.some(n => !names.has(n))) {
       selection.set(current.filter(n => names.has(n)));
     }
-  }, [recordings]);
+    // The loaded recording was trashed (or moved away).
+    const p = playback.get();
+    if (listed && p.fileName && !names.has(p.fileName)) {
+      playback.clear();
+    }
+  }, [recordings, listed]);
+
+  // Selecting one recording loads it for playback.
+  useEffect(() => {
+    if (selected.length !== 1) {
+      return;
+    }
+    const recording = recordings.find(r => r.fileName === selected[0]);
+    if (recording) {
+      playback.select(recording);
+    }
+  }, [selected, recordings]);
 
   const show = (fileNames: string[]) => {
     selection.set(fileNames);
@@ -89,6 +109,7 @@ export function LibraryScreen(props: Props): React.JSX.Element {
       <LibraryTable
         recordings={recordings}
         selected={selected.length === 1 ? selected[0] : undefined}
+        loaded={loaded}
         onSelect={name => show([name])}
         onEditTags={show}
         checked={checked}
@@ -101,7 +122,10 @@ export function LibraryScreen(props: Props): React.JSX.Element {
         <View style={styles.pane}>
           <DetailsPane
             fileNames={selected}
-            onRenamed={(_, renamed) => selection.set([renamed])}
+            onRenamed={(old, renamed) => {
+              playback.renamed(old, renamed);
+              selection.set([renamed]);
+            }}
             onChanged={refreshLibraryViews}
             onClose={() => selection.set([])}
             showMenu={props.showMenu}

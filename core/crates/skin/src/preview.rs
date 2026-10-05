@@ -19,11 +19,15 @@ pub fn render(skin: &ResolvedSkin, layout: &ResolvedLayout, scale: u32) -> RgbaI
     }
     for (name, el) in &layout.elements {
         let [x, y, w, h] = el.rect;
+        if name == "seek" {
+            p.seek(&mut out, el, 0.4);
+            continue;
+        }
         if let Some(sprite) = &el.sprite
             && let Some(sheet) = p.load(&sprite.image)
         {
             let state = match name.as_str() {
-                "record" => "recording",
+                "record" | "play" => "recording",
                 "toggleLibrary" => "active",
                 "status" => "recording",
                 _ => "normal",
@@ -216,6 +220,41 @@ impl Painter {
                 };
                 fill(dst, (sx * s as f64) as i64, (y + row * (row_h + gap)) * s, (sw * s as f64).max(1.0) as i64, row_h * s, c);
             }
+        }
+    }
+
+    /// A seek bar at `progress` (0..1): the track, the fill up to the
+    /// thumb's center and the thumb, from sprite cells or style colors.
+    fn seek(&self, dst: &mut RgbaImage, el: &ResolvedElement, progress: f64) {
+        let s = self.scale as i64;
+        let [x, y, w, h] = el.rect;
+        let style = el.style.clone().unwrap_or_default();
+        let thumb = style
+            .get("thumbSize")
+            .and_then(Value::as_array)
+            .and_then(|a| Some([a.first()?.as_f64()? as i64, a.get(1)?.as_f64()? as i64]))
+            .unwrap_or([6.max(h / 2), h]);
+        let travel = (w - thumb[0]).max(0);
+        let tx = x + (travel as f64 * progress).round() as i64;
+        let fill_w = tx - x + thumb[0] / 2;
+        let sheet = el.sprite.as_ref().and_then(|sp| Some((sp, self.load(&sp.image)?)));
+        let cell = |state: &str| sheet.as_ref().and_then(|(sp, img)| Some((sp.states.get(state)?, img)));
+        let color = |k: &str| style.get(k).and_then(Value::as_str).map(hex);
+        if let Some((at, img)) = cell("track") {
+            blit(dst, img, at[0] * s, at[1] * s, w * s, h * s, x * s, y * s);
+        } else if let Some(c) = color("track") {
+            fill(dst, x * s, y * s, w * s, h * s, c);
+        }
+        if let Some((at, img)) = cell("fill") {
+            blit(dst, img, at[0] * s, at[1] * s, fill_w * s, h * s, x * s, y * s);
+        } else if let Some(c) = color("fill") {
+            fill(dst, x * s, y * s, fill_w * s, h * s, c);
+        }
+        let ty = y + (h - thumb[1]) / 2;
+        if let Some((at, img)) = cell("thumb") {
+            blit(dst, img, at[0] * s, at[1] * s, thumb[0] * s, thumb[1] * s, tx * s, ty * s);
+        } else if let Some(c) = color("thumb") {
+            fill(dst, tx * s, ty * s, thumb[0] * s, thumb[1] * s, c);
         }
     }
 

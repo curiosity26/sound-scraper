@@ -16,16 +16,44 @@ use std::{
 use crate::{
     capture_test,
     library::{Library, Recording},
+    player::{Player, PlayerEvent, PlayerState, PlayerStatus},
     recorder::{self, Recorder, RecorderEvent, RecorderState, Status},
     settings, skins, sources,
     tags::{CoverEdit, TagEdit, TagVersion},
 };
 
-/// Opaque recorder handle. Create with `ss_recorder_create`, free with
-/// `ss_recorder_destroy`. Its functions may be called from any thread.
+/// Opaque recorder handle, which also plays recordings back (`ss_player_*`).
+/// Create with `ss_recorder_create`, free with `ss_recorder_destroy`. Its
+/// functions may be called from any thread.
 pub struct SsRecorder {
     inner: Mutex<Recorder>,
     status: Arc<Status>,
+    // Lock order: `inner`, then `player`.
+    player: Mutex<Player>,
+    player_status: Arc<PlayerStatus>,
+}
+
+/// Player state as seen from C.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SsPlayerState {
+    /// Nothing loaded.
+    Empty = 0,
+    /// Loaded, not playing.
+    Stopped = 1,
+    Playing = 2,
+    Paused = 3,
+}
+
+impl From<PlayerState> for SsPlayerState {
+    fn from(state: PlayerState) -> Self {
+        match state {
+            PlayerState::Empty => Self::Empty,
+            PlayerState::Stopped => Self::Stopped,
+            PlayerState::Playing => Self::Playing,
+            PlayerState::Paused => Self::Paused,
+        }
+    }
 }
 
 /// Recorder state as seen from C.
@@ -60,6 +88,13 @@ pub enum SsRecorderEventKind {
     Finished = 2,
     /// Recording failed; see `message`.
     Error = 3,
+    /// `player_state` changed.
+    PlayerStateChanged = 4,
+    /// About 10 Hz while playing, and after loads, seeks and stops:
+    /// `position_ms`, `duration_ms`, levels.
+    PlayerProgress = 5,
+    /// Playback failed; see `message`.
+    PlayerError = 6,
 }
 
 /// A recorder event. Pointers are valid only during the callback.
@@ -80,8 +115,14 @@ pub struct SsRecorderEvent {
     pub rms_right: f32,
     /// UTF-8; non-NULL for `SS_RECORDER_EVENT_KIND_FINISHED` only.
     pub path: *const c_char,
-    /// UTF-8; non-NULL for `SS_RECORDER_EVENT_KIND_ERROR` only.
+    /// UTF-8; non-NULL for `SS_RECORDER_EVENT_KIND_ERROR` and
+    /// `SS_RECORDER_EVENT_KIND_PLAYER_ERROR` only.
     pub message: *const c_char,
+    /// The player's state, position and the loaded file's duration (all
+    /// events).
+    pub player_state: SsPlayerState,
+    pub position_ms: u64,
+    pub duration_ms: u64,
 }
 
 /// Receives recorder events, on a recorder thread or the calling thread.
@@ -103,7 +144,9 @@ pub extern "C" fn ss_version() -> *const c_char {
 pub extern "C" fn ss_recorder_create() -> *mut SsRecorder {
     let recorder = Recorder::new();
     let status = recorder.status();
-    Box::into_raw(Box::new(SsRecorder { inner: Mutex::new(recorder), status }))
+    let player = Player::new(status.vis());
+    let player_status = player.status();
+    Box::into_raw(Box::new(SsRecorder { inner: Mutex::new(recorder), status, player: Mutex::new(player), player_status }))
 }
 
 /// Destroys a recorder, finalizing any recording in progress. NULL is a no-op.
@@ -145,7 +188,8 @@ struct CallbackTarget {
 unsafe impl Send for CallbackTarget {}
 unsafe impl Sync for CallbackTarget {}
 
-/// Sets (or with NULL, clears) the event callback. Only while Idle.
+/// Sets (or with NULL, clears) the event callback, for recorder and player
+/// events. Only while the recorder is Idle.
 ///
 /// # Safety
 /// `recorder` must be a live handle; `user_data` must stay valid, and be
@@ -162,17 +206,24 @@ pub unsafe extern "C" fn ss_recorder_set_callback(
     if inner.state() != RecorderState::Idle {
         return fail("the callback can only be changed while idle");
     }
-    let sink: Option<recorder::EventSink> = callback.map(|callback| {
-        let target = CallbackTarget { callback, user_data };
+    let target = callback.map(|callback| Arc::new(CallbackTarget { callback, user_data }));
+    let sink: Option<recorder::EventSink> = target.clone().map(|target| {
         let status = r.status.clone();
-        Arc::new(move |event: &RecorderEvent| deliver(&target, &status, event)) as recorder::EventSink
+        let player = r.player_status.clone();
+        Arc::new(move |event: &RecorderEvent| deliver(&target, &status, &player, event)) as recorder::EventSink
     });
     inner.set_event_sink(sink);
+    let player_sink: Option<crate::player::PlayerSink> = target.map(|target| {
+        let status = r.status.clone();
+        let player = r.player_status.clone();
+        Arc::new(move |event: &PlayerEvent| deliver_player(&target, &status, &player, event)) as crate::player::PlayerSink
+    });
+    r.player.lock().unwrap_or_else(|e| e.into_inner()).set_event_sink(player_sink);
     SsStatus::Ok
 }
 
-fn deliver(target: &CallbackTarget, status: &Status, event: &RecorderEvent) {
-    let mut c = SsRecorderEvent {
+fn base_event(status: &Status, player: &PlayerStatus) -> SsRecorderEvent {
+    SsRecorderEvent {
         kind: SsRecorderEventKind::StateChanged,
         state: status.state().into(),
         elapsed_ms: status.elapsed().as_millis() as u64,
@@ -184,7 +235,39 @@ fn deliver(target: &CallbackTarget, status: &Status, event: &RecorderEvent) {
         rms_right: 0.0,
         path: ptr::null(),
         message: ptr::null(),
-    };
+        player_state: player.state().into(),
+        position_ms: player.position().as_millis() as u64,
+        duration_ms: player.duration().as_millis() as u64,
+    }
+}
+
+fn deliver_player(target: &CallbackTarget, status: &Status, player: &PlayerStatus, event: &PlayerEvent) {
+    let mut c = base_event(status, player);
+    let text;
+    match event {
+        PlayerEvent::StateChanged(state) => {
+            c.kind = SsRecorderEventKind::PlayerStateChanged;
+            c.player_state = (*state).into();
+        }
+        PlayerEvent::Progress { position, duration, peak, rms } => {
+            c.kind = SsRecorderEventKind::PlayerProgress;
+            c.position_ms = position.as_millis() as u64;
+            c.duration_ms = duration.as_millis() as u64;
+            (c.peak, c.rms) = (peak[0].max(peak[1]), (rms[0] + rms[1]) / 2.0);
+            [c.peak_left, c.peak_right] = *peak;
+            [c.rms_left, c.rms_right] = *rms;
+        }
+        PlayerEvent::Error { message } => {
+            c.kind = SsRecorderEventKind::PlayerError;
+            text = CString::new(message.replace('\0', " ")).unwrap_or_default();
+            c.message = text.as_ptr();
+        }
+    }
+    unsafe { (target.callback)(&c, target.user_data) };
+}
+
+fn deliver(target: &CallbackTarget, status: &Status, player: &PlayerStatus, event: &RecorderEvent) {
+    let mut c = base_event(status, player);
     let text;
     match event {
         RecorderEvent::StateChanged(state) => c.state = (*state).into(),
@@ -226,14 +309,19 @@ fn with_recorder(
 }
 
 /// Starts recording one app (`app_pid` non-zero) or all system audio
-/// (`app_pid` 0) to a new `.mp3.part` in the recordings folder. May block
-/// while macOS asks for the audio-capture permission; call off the UI thread.
+/// (`app_pid` 0) to a new `.mp3.part` in the recordings folder, unloading
+/// whatever the player had loaded. May block while macOS asks for the
+/// audio-capture permission; call off the UI thread.
 ///
 /// # Safety
 /// `recorder` must be NULL or a live handle from `ss_recorder_create`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ss_recorder_start(recorder: *mut SsRecorder, app_pid: u32) -> SsStatus {
+    let Some(handle) = (unsafe { recorder.as_ref() }) else { return fail("recorder is NULL") };
     with_recorder(recorder, |r| {
+        // Held until the recording runs, so nothing loads in between.
+        let mut player = handle.player.lock().unwrap_or_else(|e| e.into_inner());
+        player.unload();
         let s = settings::load();
         r.set_options(recorder::RecorderOptions { dir: s.recordings_dir(), quality: s.quality, tag_version: s.tag_version() });
         r.start(sources::source_for_pid((app_pid != 0).then_some(app_pid)))
@@ -275,6 +363,123 @@ pub unsafe extern "C" fn ss_recorder_stop(recorder: *mut SsRecorder, out_path: *
         }
         Ok(())
     })
+}
+
+fn with_player(
+    recorder: *const SsRecorder,
+    f: impl FnOnce(&mut Player, RecorderState) -> Result<(), String>,
+) -> SsStatus {
+    let Some(r) = (unsafe { recorder.as_ref() }) else { return fail("recorder is NULL") };
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        let mut player = r.player.lock().unwrap_or_else(|e| e.into_inner());
+        f(&mut player, r.status.state())
+    }));
+    match result {
+        Ok(Ok(())) => SsStatus::Ok,
+        Ok(Err(message)) => fail(message),
+        Err(_) => fail("player panicked"),
+    }
+}
+
+fn not_recording(state: RecorderState) -> Result<(), String> {
+    match state {
+        RecorderState::Idle => Ok(()),
+        _ => Err("can't play back while recording".into()),
+    }
+}
+
+/// Loads a recording (any MP3) for playback, stopped at the start,
+/// replacing what was loaded. Not while recording.
+///
+/// # Safety
+/// `recorder` must be NULL or a live handle; `path` NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_player_load(recorder: *mut SsRecorder, path: *const c_char) -> SsStatus {
+    with_player(recorder, |p, state| {
+        not_recording(state)?;
+        p.load(std::path::Path::new(unsafe { arg_str(path, "path")? }))
+    })
+}
+
+/// Stops playback and forgets the loaded file. Blocks until the output
+/// device is released.
+///
+/// # Safety
+/// `recorder` must be NULL or a live handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_player_unload(recorder: *mut SsRecorder) -> SsStatus {
+    with_player(recorder, |p, _| {
+        p.unload();
+        Ok(())
+    })
+}
+
+/// Plays (or resumes) the loaded file through the default output device.
+/// Not while recording.
+///
+/// # Safety
+/// `recorder` must be NULL or a live handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_player_play(recorder: *mut SsRecorder) -> SsStatus {
+    with_player(recorder, |p, state| {
+        not_recording(state)?;
+        p.play()
+    })
+}
+
+/// Pauses playback.
+///
+/// # Safety
+/// `recorder` must be NULL or a live handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_player_pause(recorder: *mut SsRecorder) -> SsStatus {
+    with_player(recorder, |p, _| p.pause())
+}
+
+/// Stops playback and rewinds to the start.
+///
+/// # Safety
+/// `recorder` must be NULL or a live handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_player_stop(recorder: *mut SsRecorder) -> SsStatus {
+    with_player(recorder, |p, _| p.stop())
+}
+
+/// Moves playback to `position_ms` (clamped to the file), keeping the state.
+///
+/// # Safety
+/// `recorder` must be NULL or a live handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_player_seek(recorder: *mut SsRecorder, position_ms: u64) -> SsStatus {
+    with_player(recorder, |p, _| p.seek(std::time::Duration::from_millis(position_ms)))
+}
+
+/// The player's state; Empty when `recorder` is NULL. Never blocks.
+///
+/// # Safety
+/// `recorder` must be NULL or a live handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_player_state(recorder: *const SsRecorder) -> SsPlayerState {
+    unsafe { recorder.as_ref() }.map_or(SsPlayerState::Empty, |r| r.player_status.state().into())
+}
+
+/// Playback position in milliseconds. Never blocks.
+///
+/// # Safety
+/// `recorder` must be NULL or a live handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_player_position_ms(recorder: *const SsRecorder) -> u64 {
+    unsafe { recorder.as_ref() }.map_or(0, |r| r.player_status.position().as_millis() as u64)
+}
+
+/// The loaded file's duration in milliseconds (0 when nothing is loaded).
+/// Never blocks.
+///
+/// # Safety
+/// `recorder` must be NULL or a live handle.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_player_duration_ms(recorder: *const SsRecorder) -> u64 {
+    unsafe { recorder.as_ref() }.map_or(0, |r| r.player_status.duration().as_millis() as u64)
 }
 
 /// Finishes `.mp3.part` files left in the recordings folder by a crash.
@@ -894,7 +1099,8 @@ pub unsafe extern "C" fn ss_library_apply_settings(library: *mut SsLibrary) -> S
     with_library(library, |l| l.set_dir(settings::load().recordings_dir())).map_or_else(|status| status, |()| SsStatus::Ok)
 }
 
-/// Opaque visualizer handle: draws the recorder's live analysis. Create
+/// Opaque visualizer handle: draws the live analysis of the recording, or
+/// of playback. Create
 /// with `ss_vis_create`, free with `ss_vis_destroy`. One per view; use it
 /// from one thread at a time.
 pub struct SsVis {
@@ -968,7 +1174,8 @@ pub unsafe extern "C" fn ss_vis_render(
     .unwrap_or(false)
 }
 
-/// Whether a recording is live (active or paused), so frames change. Cheap;
+/// Whether a recording (active or paused) or playback (playing or paused)
+/// is live, so frames change. Cheap;
 /// lets a view skip redrawing the idle look.
 ///
 /// # Safety
@@ -1309,6 +1516,17 @@ mod tests {
         assert_eq!(unsafe { ss_recorder_state(r) }, SsRecorderState::Idle);
         unsafe { ss_recorder_destroy(r) };
         unsafe { ss_recorder_destroy(std::ptr::null_mut()) };
+    }
+
+    #[test]
+    fn player_without_a_file() {
+        let r = ss_recorder_create();
+        assert_eq!(unsafe { ss_player_state(r) }, SsPlayerState::Empty);
+        assert_eq!(unsafe { ss_player_play(r) }, SsStatus::Error);
+        assert_eq!(unsafe { ss_player_load(r, c"/nonexistent.mp3".as_ptr()) }, SsStatus::Error);
+        assert_eq!(unsafe { ss_player_unload(r) }, SsStatus::Ok);
+        assert_eq!(unsafe { ss_player_duration_ms(r) }, 0);
+        unsafe { ss_recorder_destroy(r) };
     }
 
     #[test]

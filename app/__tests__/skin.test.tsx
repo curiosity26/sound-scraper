@@ -26,6 +26,7 @@ jest.mock('../src/native/NativeSkins', () => ({
   __esModule: true,
   default: mockSkins,
 }));
+const mockRecorderListeners: Array<(e: any) => void> = [];
 const mockCore: Record<string, any> = {
   listAudioApps: () => [],
   recorderStart: jest.fn(() => Promise.resolve()),
@@ -34,7 +35,17 @@ const mockCore: Record<string, any> = {
   recorderStop: jest.fn(() => Promise.resolve('/tmp/x.mp3')),
   recorderState: () => 'idle',
   recoverPartialRecordings: () => 0,
-  onRecorderEvent: () => ({ remove: jest.fn() }),
+  onRecorderEvent: (listener: (e: any) => void) => {
+    mockRecorderListeners.push(listener);
+    return { remove: jest.fn() };
+  },
+  playerLoad: jest.fn(() => Promise.resolve()),
+  playerUnload: jest.fn(),
+  playerPlay: jest.fn(() => Promise.resolve()),
+  playerPause: jest.fn(),
+  playerStop: jest.fn(),
+  playerSeek: jest.fn(),
+  playerState: () => 'empty',
   getSettings: () =>
     JSON.stringify({ quality: 'cbr192', id3Version: '2.4', lastSource: null }),
   setSettings: jest.fn(() => Promise.resolve()),
@@ -191,6 +202,30 @@ test('button states fall back toward normal', () => {
     'pressed',
   );
   expect(buttonState(rec, { ...flags, mode: 'paused' })).toBe('normal');
+  // Disabled in a mode keeps the mode's look (record lit while recording).
+  expect(
+    buttonState(
+      { ...rec, disabled: 1 },
+      { ...flags, mode: 'recording', disabled: true },
+    ),
+  ).toBe('recording');
+  expect(
+    buttonState(
+      { ...rec, disabled: 1 },
+      { ...flags, mode: 'paused', disabled: true },
+    ),
+  ).toBe('disabled');
+});
+
+test('the seek bar places its thumb and fill', () => {
+  const { seekGeometry, thumbSize } = require('../src/skin/SkinSeek');
+  expect(seekGeometry(104, 4, 0)).toEqual({ thumbX: 0, fillWidth: 2 });
+  expect(seekGeometry(104, 4, 0.5)).toEqual({ thumbX: 50, fillWidth: 52 });
+  expect(seekGeometry(104, 4, 2)).toEqual({ thumbX: 100, fillWidth: 102 });
+  expect(
+    thumbSize(el([0, 0, 100, 10], { style: { thumbSize: [6, 12] } })),
+  ).toEqual([6, 12]);
+  expect(thumbSize(el([0, 0, 100, 10]))).toEqual([5, 10]);
 });
 
 test('sprite text maps, aligns, pads and scrolls', () => {
@@ -281,6 +316,84 @@ test('the main panel renders the skin and drives the recorder', async () => {
   expect(mockCore.recorderStart).toHaveBeenCalledWith(0);
 });
 
+test('the main panel plays back a loaded recording', async () => {
+  const { skinStore } = require('../src/skin/skins');
+  const { MainPanel } = require('../src/skin/MainPanel');
+  const { SkinProvider } = require('../src/skin/SkinProvider');
+  const { playback } = require('../src/playback');
+  const skin = testSkin();
+  const { elements } = skin.panels.main;
+  elements.play = el([56, 30, 20, 10]);
+  elements.seek = el([4, 20, 100, 6], { style: { fill: '#00ff00' } });
+  skinStore.set(skin);
+  let tree: ReactTestRenderer.ReactTestRenderer | undefined;
+  await ReactTestRenderer.act(() => {
+    tree = ReactTestRenderer.create(
+      <SkinProvider>
+        <MainPanel />
+      </SkinProvider>,
+    );
+  });
+  const find = (id: string) => tree!.root.findByProps({ testID: id });
+  expect(find('play').props.disabled).toBe(true);
+  await ReactTestRenderer.act(async () => {
+    await playback.select({
+      fileName: 'a.mp3',
+      path: '/music/a.mp3',
+      title: 'a',
+      artist: null,
+      album: null,
+      durationMs: 60000,
+      sizeBytes: 1,
+      recordedAtMs: 0,
+    });
+    mockRecorderListeners.forEach(l =>
+      l({
+        kind: 'playerState',
+        playerState: 'stopped',
+        positionMs: 0,
+        durationMs: 60000,
+      }),
+    );
+  });
+  expect(mockCore.playerLoad).toHaveBeenCalledWith('/music/a.mp3');
+  expect(find('play').props.disabled).toBe(false);
+  await ReactTestRenderer.act(async () => {
+    find('play').props.onPress();
+  });
+  expect(mockCore.playerPlay).toHaveBeenCalled();
+  await ReactTestRenderer.act(async () => {
+    mockRecorderListeners.forEach(l =>
+      l({
+        kind: 'playerState',
+        playerState: 'playing',
+        positionMs: 0,
+        durationMs: 60000,
+      }),
+    );
+    mockRecorderListeners.forEach(l =>
+      l({
+        kind: 'playerProgress',
+        playerState: 'playing',
+        positionMs: 30000,
+        durationMs: 60000,
+        peak: 0.5,
+        rms: 0.2,
+      }),
+    );
+  });
+  expect(find('play').props.accessibilityLabel).toBe('Pause');
+  expect(find('seek').props.accessibilityValue.now).toBe(30);
+  // Record is enabled while playing back: it starts a new recording.
+  expect(find('record').props.disabled).toBe(false);
+  await ReactTestRenderer.act(async () => {
+    find('play').props.onPress();
+    find('stop').props.onPress();
+  });
+  expect(mockCore.playerPause).toHaveBeenCalled();
+  expect(mockCore.playerStop).toHaveBeenCalled();
+});
+
 test('double size scales the window and its drag regions', async () => {
   const { skinStore } = require('../src/skin/skins');
   const { MainPanel } = require('../src/skin/MainPanel');
@@ -320,6 +433,12 @@ test('animations play by recorder state and speed', () => {
   expect(animationPlays('active', 'paused')).toBe(true);
   expect(animationPlays('active', 'idle')).toBe(false);
   expect(animationPlays('always', 'idle')).toBe(true);
+  // During playback the state is "recording" and playing is true.
+  expect(animationPlays('recording', 'recording', true)).toBe(false);
+  expect(animationPlays('rolling', 'recording', true)).toBe(true);
+  expect(animationPlays('rolling', 'recording')).toBe(true);
+  expect(animationPlays('playing', 'recording', true)).toBe(true);
+  expect(animationPlays('playing', 'recording')).toBe(false);
   expect(animationRate(12, 'constant', 0)).toBe(12);
   expect(animationRate(12, 'level', 1)).toBeCloseTo(24);
   expect(animationRate(12, 'level', 0)).toBeCloseTo(3.6);

@@ -38,7 +38,7 @@ const RED: Color = rgb(0xe0402a);
 const RED_HOT: Color = rgb(0xff8a6a);
 
 const MAIN_W: i32 = 460;
-const MAIN_H: i32 = 168;
+const MAIN_H: i32 = 186;
 const SHADE_H: i32 = 18;
 const CHEEK: f32 = 14.0;
 
@@ -477,6 +477,7 @@ enum Key {
 #[derive(Clone, Copy)]
 enum Symbol {
     Record,
+    Play,
     Pause,
     Stop,
     None,
@@ -485,6 +486,12 @@ enum Symbol {
 fn symbol(c: &mut Canvas, sym: Symbol, cx: f32, cy: f32, color: Color) {
     match sym {
         Symbol::Record => c.circle(cx, cy, 3.2, color),
+        Symbol::Play => {
+            let (left, right) = (cx - 2.6, cx + 3.6);
+            c.paint(left, cy - 3.6, right, cy + 3.6, |px, py| {
+                (px >= left && (py - cy).abs() <= (right - px) * 3.6 / (right - left)).then_some(color)
+            });
+        }
         Symbol::Pause => {
             c.rect(cx - 3.0, cy - 3.5, 2.2, 7.0, color);
             c.rect(cx + 0.8, cy - 3.5, 2.2, 7.0, color);
@@ -770,16 +777,57 @@ fn main_background(c: &mut Canvas) {
     c.circle(378.0, 118.0, 4.2, AMBER);
     c.circle(376.8, 116.6, 1.1, AMBER_HOT);
     engraved(c, 388.0, 115.0, "POWER", 0.85);
+    // Tape position: a fader slot with a printed scale (the seek bar).
+    let (sx, sw) = (SEEK_RECT[0] as f32, SEEK_RECT[2] as f32);
+    let sy = SEEK_RECT[1] as f32 + SEEK_RECT[3] as f32 / 2.0;
+    for i in 0..=20 {
+        let x = sx + 5.0 + i as f32 * (sw - 10.0) / 20.0;
+        let tall = i % 5 == 0;
+        c.rect(x - 0.3, sy + 4.0, 0.6, if tall { 2.5 } else { 1.2 }, rgba(0x2b2622, 150));
+        c.rect(x - 0.3, sy - 4.0 - if tall { 2.5 } else { 1.2 }, 0.6, if tall { 2.5 } else { 1.2 }, rgba(0x2b2622, 150));
+    }
+    c.round_rect(sx + 1.0, sy - 2.0, sw - 2.0, 4.0, 2.0, rgba(0xffffff, 140));
+    c.round_rect(sx + 1.0, sy - 2.5, sw - 2.0, 4.0, 2.0, INK);
     // Key slots.
-    for (x, y, kw, kh) in [(20.0, 132.0, 72.0, 30.0), (96.0, 132.0, 72.0, 30.0), (290.0, 134.0, 72.0, 26.0), (366.0, 134.0, 72.0, 26.0)] {
+    for (x, y, kw, kh) in [
+        (20.0, 148.0, 72.0, 30.0),
+        (96.0, 148.0, 72.0, 30.0),
+        (172.0, 148.0, 72.0, 30.0),
+        (290.0, 150.0, 72.0, 26.0),
+        (366.0, 150.0, 72.0, 26.0),
+    ] {
         c.round_rect(x - 1.0, y - 1.0, kw + 2.0, kh + 2.0, 2.0, rgba(0x000000, 60));
         c.round_rect(x, y, kw, kh, 1.5, INK);
     }
-    // Tone knobs (decorative).
-    engraved_centered(c, 198.0, 127.0, "BASS", 0.85);
-    engraved_centered(c, 248.0, 127.0, "TREBLE", 0.85);
-    knob(c, 198.0, 149.0, 13.0, -30.0);
-    knob(c, 248.0, 149.0, 13.0, 20.0);
+    // Tone knob (decorative).
+    engraved_centered(c, 267.0, 146.0, "TONE", 0.75);
+    knob(c, 267.0, 166.0, 12.0, -20.0);
+}
+
+/// The seek bar: the slot is in the background; the fill is an amber glow
+/// along it and the thumb a silver fader cap.
+const SEEK_RECT: [i32; 4] = [26, 130, 408, 14];
+const SEEK_THUMB: [i32; 2] = [10, 14];
+
+fn seek_image(c: &mut Canvas) {
+    let (w, h) = (SEEK_RECT[2] as f32, SEEK_RECT[3] as f32);
+    let cy = h / 2.0;
+    c.round_rect(1.0, cy - 3.5, w - 2.0, 6.0, 3.0, rgba(0xffb24a, 40));
+    c.round_rect(1.5, cy - 2.0, w - 3.0, 3.0, 1.5, AMBER);
+    c.rect(2.5, cy - 1.5, w - 5.0, 1.0, AMBER_HOT);
+    for (x, pressed) in [(0.0, false), (SEEK_THUMB[0] as f32, true)] {
+        let (tw, th) = (SEEK_THUMB[0] as f32, SEEK_THUMB[1] as f32);
+        let y = h;
+        c.round_rect(x + 0.5, y + 1.0, tw - 1.0, th - 1.0, 1.5, rgba(0x000000, 110));
+        c.paint(x + 1.0, y, x + tw - 1.0, y + th - 1.5, |px, py| {
+            in_round_rect(px, py, x + 1.0, y, tw - 2.0, th - 1.5, 1.5).then(|| {
+                let t = (py - y) / th;
+                shade(aluminum(px * 3.0, py * 0.7), if pressed { 0.85 } else { 1.1 - 0.25 * t })
+            })
+        });
+        c.rect(x + tw / 2.0 - 0.5, y + 2.0, 1.0, th - 5.0, ENGRAVE);
+        c.rect(x + 1.5, y + 0.5, tw - 3.0, 0.6, rgba(0xffffff, 170));
+    }
 }
 
 fn shade_background(c: &mut Canvas) {
@@ -837,6 +885,7 @@ fn main() {
     draw_all(&dir, "shade", MAIN_W, SHADE_H, shade_background);
     draw_all(&dir, "frame", 48, 48, frame_image);
     draw_all(&dir, "scrollbar", 22, 32, scrollbar_image);
+    draw_all(&dir, "seek", SEEK_RECT[2], SEEK_RECT[3] + SEEK_THUMB[1], seek_image);
 
     let chars: String = GLYPHS.iter().map(|(c, _)| *c).collect();
     font_sheet(&dir, "font-dial", &chars, (12, 16), 16, |c, x, y, ch| vfd_glyph(c, x + 1.0, y + 1.0, ch, 2.0, AMBER, Some(AMBER_GHOST)));
@@ -850,13 +899,25 @@ fn main() {
     digits_sheet(&dir, digit_chars, (14, 26));
 
     // Buttons.
-    let mut sheet = Sheet::new(72 * 7);
+    let mut sheet = Sheet::new(72 * 9);
     let red = Some(rgb(0xb02a1c));
-    let record_states: [(&'static str, Symbol, &'static str, Key); 7] = [
+    // Record latches down with a lit inlay while recording (and is
+    // disabled); play is pause while recording or playing, and RESUME while
+    // a recording is paused.
+    let record_states: [(&'static str, Symbol, &'static str, Key); 5] = [
         ("normal", Symbol::Record, "REC", Key::Normal),
         ("pressed", Symbol::Record, "REC", Key::Pressed),
         ("disabled", Symbol::Record, "REC", Key::Disabled),
-        ("recording", Symbol::Pause, "PAUSE", Key::Active),
+        ("recording", Symbol::Record, "REC", Key::Active),
+        ("paused", Symbol::Record, "REC", Key::Active),
+    ];
+    let play_states: [(&'static str, Symbol, &'static str, Key); 9] = [
+        ("normal", Symbol::Play, "PLAY", Key::Normal),
+        ("pressed", Symbol::Play, "PLAY", Key::Pressed),
+        ("disabled", Symbol::Play, "PLAY", Key::Disabled),
+        ("playing", Symbol::Pause, "PAUSE", Key::Normal),
+        ("playingPressed", Symbol::Pause, "PAUSE", Key::Pressed),
+        ("recording", Symbol::Pause, "PAUSE", Key::Normal),
         ("recordingPressed", Symbol::Pause, "PAUSE", Key::Pressed),
         ("paused", Symbol::Record, "RESUME", Key::Normal),
         ("pausedPressed", Symbol::Record, "RESUME", Key::Pressed),
@@ -870,6 +931,7 @@ fn main() {
             .collect()
     };
     let record = sheet.add(72, 30, keys(&record_states, red));
+    let play = sheet.add(72, 30, keys(&play_states, Some(rgb(0x3d6b3a))));
     let stop = sheet.add(
         72,
         30,
@@ -904,6 +966,7 @@ fn main() {
         states.iter().map(|&(name, sym, _, k)| (name, Box::new(move |c: &mut Canvas, x, y| tiny_key(c, x, y, sym, k)) as Draw)).collect()
     };
     let tiny_record = sheet.add(12, 12, tiny(&record_states));
+    let tiny_play = sheet.add(12, 12, tiny(&play_states));
     let tiny_stop = sheet.add(
         12,
         12,
@@ -1004,10 +1067,16 @@ fn main() {
                         }
                     },
                     "source": { "rect": r(24, 110, 288, 16), "font": "dial", "style": { "pad": true } },
-                    "record": { "rect": r(20, 132, 72, 30), "sprite": sprite(&record) },
-                    "stop": { "rect": r(96, 132, 72, 30), "sprite": sprite(&stop) },
-                    "toggleLibrary": { "rect": r(290, 134, 72, 26), "sprite": sprite(&library) },
-                    "toggleSettings": { "rect": r(366, 134, 72, 26), "sprite": sprite(&settings) }
+                    "seek": {
+                        "rect": SEEK_RECT,
+                        "sprite": { "image": "seek.png", "states": { "fill": [0, 0], "thumb": [0, SEEK_RECT[3]], "thumbPressed": [SEEK_THUMB[0], SEEK_RECT[3]] } },
+                        "style": { "thumbSize": SEEK_THUMB }
+                    },
+                    "record": { "rect": r(20, 148, 72, 30), "sprite": sprite(&record) },
+                    "play": { "rect": r(96, 148, 72, 30), "sprite": sprite(&play) },
+                    "stop": { "rect": r(172, 148, 72, 30), "sprite": sprite(&stop) },
+                    "toggleLibrary": { "rect": r(290, 150, 72, 26), "sprite": sprite(&library) },
+                    "toggleSettings": { "rect": r(366, 150, 72, 26), "sprite": sprite(&settings) }
                 },
                 "animations": [{
                     "name": "recLamp",
@@ -1029,7 +1098,8 @@ fn main() {
                             "style": { "rows": 1, "segments": 24, "gap": 1, "on": "@amber", "hot": "@amberHot", "clip": "@record", "off": "@amberGhost" }
                         },
                         "record": { "rect": r(316, 3, 12, 12), "sprite": sprite(&tiny_record) },
-                        "stop": { "rect": r(330, 3, 12, 12), "sprite": sprite(&tiny_stop) },
+                        "play": { "rect": r(330, 3, 12, 12), "sprite": sprite(&tiny_play) },
+                        "stop": { "rect": r(344, 3, 12, 12), "sprite": sprite(&tiny_stop) },
                         "minimize": { "rect": r(398, 4, 14, 10), "sprite": sprite(&minimize) },
                         "shade": { "rect": r(414, 4, 14, 10), "sprite": sprite(&shade_btn) },
                         "close": { "rect": r(430, 4, 14, 10), "sprite": sprite(&close) }

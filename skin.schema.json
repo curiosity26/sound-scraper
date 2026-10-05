@@ -403,6 +403,28 @@
             "pixelated": {
               "type": "boolean",
               "description": "visualizer: hard pixel edges when scaled (default true)."
+            },
+            "thumbSize": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "minItems": 2,
+              "maxItems": 2,
+              "description": "seek: the thumb's [width, height]; the sprite's thumb* cells are this size."
+            },
+            "track": {
+              "$ref": "#/$defs/color"
+            },
+            "fill": {
+              "$ref": "#/$defs/color"
+            },
+            "thumb": {
+              "$ref": "#/$defs/color"
+            },
+            "thumbPressed": {
+              "$ref": "#/$defs/color"
             }
           }
         }
@@ -413,8 +435,10 @@
       "propertyNames": {
         "enum": [
           "record",
+          "play",
           "pause",
           "stop",
+          "seek",
           "elapsed",
           "status",
           "source",
@@ -673,11 +697,13 @@
         "play": {
           "enum": [
             "recording",
+            "playing",
+            "rolling",
             "active",
             "always"
           ],
           "default": "recording",
-          "description": "recording: only while recording (stops when paused); active: recording or paused; always."
+          "description": "recording: only while recording (stops when paused); playing: only while playing back; rolling: recording or playing back (the tape is moving); active: recording or playback, paused included; always."
         },
         "speed": {
           "enum": [

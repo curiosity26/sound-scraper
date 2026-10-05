@@ -129,7 +129,7 @@ pub struct AnimationDef {
     pub speed: Option<String>,
 }
 
-pub const ANIMATION_PLAY: &[&str] = &["recording", "active", "always"];
+pub const ANIMATION_PLAY: &[&str] = &["recording", "playing", "rolling", "active", "always"];
 pub const ANIMATION_SPEED: &[&str] = &["constant", "level"];
 pub const VISUALIZER_STYLES: &[&str] = &["bars", "scope", "mirror", "radial", "fire"];
 
@@ -275,8 +275,10 @@ pub struct VisualizerDef {
 /// Elements the main panel and its shade layout know about.
 pub const MAIN_ELEMENTS: &[&str] = &[
     "record",
+    "play",
     "pause",
     "stop",
+    "seek",
     "elapsed",
     "status",
     "source",
@@ -289,12 +291,16 @@ pub const MAIN_ELEMENTS: &[&str] = &[
     "close",
 ];
 
+/// Elements a skin only gets if it places them itself: the Default skin's
+/// would land on top of whatever the skin put there.
+pub const NO_FALLBACK: &[&str] = &["play", "seek"];
+
 /// Sprite states an element must define when it has a sprite.
 pub fn required_states(element: &str) -> &'static [&'static str] {
     match element {
         "status" => &["idle"],
         "levels" => &["off", "on"],
-        "elapsed" | "source" | "visualizer" => &[],
+        "elapsed" | "source" | "visualizer" | "seek" => &[],
         _ => &["normal"],
     }
 }

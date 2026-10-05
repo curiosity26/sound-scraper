@@ -22,7 +22,10 @@ export type CaptureReport = {
 
 /** Mirrors SsRecorderEvent in sound_scraper.h. */
 export type RecorderEvent = {
-  /** 'state' | 'progress' | 'finished' | 'error' */
+  /**
+   * 'state' | 'progress' | 'finished' | 'error' (recorder),
+   * 'playerState' | 'playerProgress' | 'playerError' (player)
+   */
   kind: string;
   /** 'idle' | 'recording' | 'paused' | 'finalizing' */
   state: string;
@@ -38,6 +41,11 @@ export type RecorderEvent = {
   rmsRight?: number;
   path: string | null;
   message: string | null;
+  /** 'empty' | 'stopped' | 'playing' | 'paused' */
+  playerState: string;
+  /** Playback position and the loaded file's duration. */
+  positionMs: number;
+  durationMs: number;
 };
 
 /** Mirrors SsRecording in sound_scraper.h. */
@@ -111,6 +119,19 @@ export interface Spec extends TurboModule {
   recorderState(): string;
   /** Finishes recordings left by a crash; returns how many. */
   recoverPartialRecordings(): number;
+
+  /** Loads a recording for playback, stopped at the start. Not while recording. */
+  playerLoad(path: string): Promise<void>;
+  /** Stops and forgets the loaded file. */
+  playerUnload(): void;
+  /** Plays or resumes the loaded file. */
+  playerPlay(): Promise<void>;
+  playerPause(): void;
+  /** Stops and rewinds. */
+  playerStop(): void;
+  playerSeek(positionMs: number): void;
+  /** 'empty' | 'stopped' | 'playing' | 'paused' */
+  playerState(): string;
 
   /** Rescans the recordings folder; newest first. */
   listRecordings(): Promise<Array<Recording>>;

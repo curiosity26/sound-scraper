@@ -144,11 +144,13 @@ fn missing_elements_fall_back_to_default() {
     let store = store();
     let dir = tempdir().join("tiny");
     let mut m = minimal_manifest();
-    m["panels"]["main"]["size"] = json!([420, 150]);
+    m["panels"]["main"]["size"] = json!([420, 166]);
     write_skin(&dir, &m);
     let skin = store.load_dir(&dir).unwrap();
     let els = &skin.panels.main.layout.elements;
     assert!(!els["record"].fallback);
+    // Play and seek would land on whatever the skin put there.
+    assert!(!els.contains_key("play") && !els.contains_key("seek"));
     assert!(els["stop"].fallback && els["elapsed"].fallback);
     assert_eq!(els["record"].sprite.as_ref().unwrap().image.path, dir.canonicalize().unwrap().join("btn.png"));
     // Fallback sprites still point into the Default skin's folder.

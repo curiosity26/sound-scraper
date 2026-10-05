@@ -13,6 +13,7 @@ import {
   recorder,
   type RecorderState,
 } from './native/SoundScraper';
+import { selection } from './selection';
 
 export type Message = { text: string; isError: boolean };
 
@@ -25,7 +26,7 @@ export type Levels = {
   rmsLeft: number;
   rmsRight: number;
 };
-const SILENT: Levels = {
+export const SILENT: Levels = {
   peak: 0,
   rms: 0,
   left: 0,
@@ -101,6 +102,9 @@ export function useRecorder() {
     setStarting(true);
     setMessage(undefined);
     setElapsedMs(0);
+    // A new track: the one loaded for playback is unloaded by the core and
+    // deselected here.
+    selection.set([]);
     try {
       const app = apps.find(a => a.pid === selectedPid);
       await recorder.start(app);

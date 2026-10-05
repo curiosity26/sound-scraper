@@ -6,6 +6,7 @@ pub mod ffi;
 pub mod library;
 pub mod mp3;
 pub mod paths;
+pub mod player;
 pub mod recorder;
 pub mod settings;
 pub mod skins;

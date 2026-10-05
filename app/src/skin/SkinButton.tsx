@@ -33,8 +33,12 @@ export function buttonState(
   },
 ): string {
   const { mode } = flags;
+  // A disabled button in a mode keeps the mode's look (record stays lit
+  // while recording).
   const candidates = flags.disabled
-    ? ['disabled']
+    ? mode
+      ? [`${mode}Disabled`, mode, 'disabled']
+      : ['disabled']
     : mode && flags.pressed
     ? [`${mode}Pressed`, 'activePressed', 'pressed']
     : mode
@@ -79,7 +83,7 @@ export function SkinButton(props: Props): React.JSX.Element {
           disabled,
           mode: props.mode,
         });
-        const dim = disabled && !('disabled' in sprite.states);
+        const dim = disabled && state === 'normal';
         return (
           <SpriteCell
             image={sprite.image}
