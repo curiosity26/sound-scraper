@@ -8,7 +8,11 @@
 #include <commdlg.h>
 #include <shobjidl.h>
 
+#include <condition_variable>
+#include <deque>
+#include <functional>
 #include <memory>
+#include <mutex>
 #include <thread>
 
 #pragma comment(lib, "comdlg32.lib")
@@ -19,6 +23,50 @@
 #include "sound_scraper.h"
 
 namespace SoundScraper {
+
+// Runs player commands in order on one thread, off the JS thread (loading
+// and opening the output device can take a moment).
+class SerialQueue {
+ public:
+  SerialQueue() : m_thread([this] { Run(); }) {}
+  ~SerialQueue() {
+    {
+      std::lock_guard lock(m_mutex);
+      m_done = true;
+    }
+    m_wake.notify_one();
+    m_thread.join();
+  }
+  void Post(std::function<void()> work) {
+    {
+      std::lock_guard lock(m_mutex);
+      m_work.push_back(std::move(work));
+    }
+    m_wake.notify_one();
+  }
+
+ private:
+  void Run() {
+    for (;;) {
+      std::function<void()> work;
+      {
+        std::unique_lock lock(m_mutex);
+        m_wake.wait(lock, [this] { return m_done || !m_work.empty(); });
+        if (m_work.empty()) {
+          return;
+        }
+        work = std::move(m_work.front());
+        m_work.pop_front();
+      }
+      work();
+    }
+  }
+  std::mutex m_mutex;
+  std::condition_variable m_wake;
+  std::deque<std::function<void()>> m_work;
+  bool m_done{false};
+  std::thread m_thread;
+};
 
 REACT_TURBO_MODULE(SoundScraperModule, L"SoundScraper")
 struct SoundScraperModule {
@@ -57,6 +105,7 @@ struct SoundScraperModule {
       CurrentRecorder() = nullptr;
     }
     m_sink.reset(); // late events become no-ops
+    m_player.reset(); // finishes queued player commands
     ss_recorder_destroy(m_recorder); // finalizes an in-progress recording
     ss_library_destroy(m_library);
     delete m_sinkRef;
@@ -144,6 +193,54 @@ struct SoundScraperModule {
   REACT_SYNC_METHOD(recorderState)
   std::string recorderState() noexcept {
     return StateName(ss_recorder_state(m_recorder));
+  }
+
+  REACT_METHOD(playerLoad)
+  void playerLoad(std::string path, ::React::ReactPromise<void> &&result) noexcept {
+    m_player->Post([recorder = m_recorder, path, result, js = m_js]() {
+      if (ss_player_load(recorder, path.c_str()) != SS_STATUS_OK) {
+        js.Post([result, message = std::string(ss_last_error_message())]() { result.Reject(message.c_str()); });
+        return;
+      }
+      js.Post([result]() { result.Resolve(); });
+    });
+  }
+
+  REACT_METHOD(playerUnload)
+  void playerUnload() noexcept {
+    m_player->Post([recorder = m_recorder]() { ss_player_unload(recorder); });
+  }
+
+  REACT_METHOD(playerPlay)
+  void playerPlay(::React::ReactPromise<void> &&result) noexcept {
+    m_player->Post([recorder = m_recorder, result, js = m_js]() {
+      if (ss_player_play(recorder) != SS_STATUS_OK) {
+        js.Post([result, message = std::string(ss_last_error_message())]() { result.Reject(message.c_str()); });
+        return;
+      }
+      js.Post([result]() { result.Resolve(); });
+    });
+  }
+
+  REACT_METHOD(playerPause)
+  void playerPause() noexcept {
+    m_player->Post([recorder = m_recorder]() { ss_player_pause(recorder); });
+  }
+
+  REACT_METHOD(playerStop)
+  void playerStop() noexcept {
+    m_player->Post([recorder = m_recorder]() { ss_player_stop(recorder); });
+  }
+
+  REACT_METHOD(playerSeek)
+  void playerSeek(double positionMs) noexcept {
+    auto at = static_cast<uint64_t>(positionMs > 0 ? positionMs : 0);
+    m_player->Post([recorder = m_recorder, at]() { ss_player_seek(recorder, at); });
+  }
+
+  REACT_SYNC_METHOD(playerState)
+  std::string playerState() noexcept {
+    return PlayerStateName(ss_player_state(m_recorder));
   }
 
   REACT_SYNC_METHOD(recoverPartialRecordings)
@@ -379,8 +476,20 @@ struct SoundScraperModule {
     }
   }
 
+  static std::string PlayerStateName(SsPlayerState state) noexcept {
+    switch (state) {
+      case SS_PLAYER_STATE_STOPPED: return "stopped";
+      case SS_PLAYER_STATE_PLAYING: return "playing";
+      case SS_PLAYER_STATE_PAUSED: return "paused";
+      default: return "empty";
+    }
+  }
+
   static std::string KindName(SsRecorderEventKind kind) noexcept {
     switch (kind) {
+      case SS_RECORDER_EVENT_KIND_PLAYER_STATE_CHANGED: return "playerState";
+      case SS_RECORDER_EVENT_KIND_PLAYER_PROGRESS: return "playerProgress";
+      case SS_RECORDER_EVENT_KIND_PLAYER_ERROR: return "playerError";
       case SS_RECORDER_EVENT_KIND_PROGRESS: return "progress";
       case SS_RECORDER_EVENT_KIND_FINISHED: return "finished";
       case SS_RECORDER_EVENT_KIND_ERROR: return "error";
@@ -404,6 +513,9 @@ struct SoundScraperModule {
     out.peakRight = event->peak_right;
     out.rmsLeft = event->rms_left;
     out.rmsRight = event->rms_right;
+    out.playerState = PlayerStateName(event->player_state);
+    out.positionMs = static_cast<double>(event->position_ms);
+    out.durationMs = static_cast<double>(event->duration_ms);
     if (event->path) {
       out.path = event->path;
     }
@@ -427,6 +539,7 @@ struct SoundScraperModule {
 
   JsThread m_js;
   SsRecorder *m_recorder{nullptr};
+  std::unique_ptr<SerialQueue> m_player{std::make_unique<SerialQueue>()};
   SsLibrary *m_library{nullptr};
   std::shared_ptr<EventSink> m_sink;
   std::weak_ptr<EventSink> *m_sinkRef{nullptr};
