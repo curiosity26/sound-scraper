@@ -1,5 +1,7 @@
-//! Draws "Hi-Fi '74", a 1970s stereo receiver skin (walnut cheeks, brushed
-//! aluminum, a warm amber dial and needle VU meters), into `skins/hifi74/`
+//! Draws "Hi-Fi '74", a 1970s stereo receiver skin with nothing digital on
+//! it (walnut cheeks, brushed aluminum, a chrome script badge, a flip-card
+//! clock, pilot lamps, label tape, a phosphor scope and needle VU meters),
+//! into `skins/hifi74/`
 //! at the repo root. It isn't built in: it's the skin for trying out
 //! installing a `.sskin`.
 //!
@@ -33,7 +35,6 @@ const ENGRAVE_LIGHT: Color = rgba(0xffffff, 150);
 const GLASS: Color = rgb(0x0b0a09);
 const AMBER: Color = rgb(0xffb24a);
 const AMBER_HOT: Color = rgb(0xffd98a);
-const AMBER_GHOST: Color = rgba(0xffb24a, 22);
 const RED: Color = rgb(0xe0402a);
 const RED_HOT: Color = rgb(0xff8a6a);
 
@@ -269,18 +270,6 @@ fn glass(c: &mut Canvas, x: f32, y: f32, w: f32, h: f32, r: f32) {
     });
 }
 
-/// A backlit amber window: brighter in the middle, dark at the edges.
-fn amber_window(c: &mut Canvas, x: f32, y: f32, w: f32, h: f32) {
-    c.paint(x, y, x + w, y + h, |fx, fy| {
-        let (u, v) = ((fx - x) / w - 0.5, (fy - y) / h - 0.5);
-        let glow = (1.0 - (u * u * 2.2 + v * v * 2.8)).max(0.0);
-        Some(mix(rgb(0x120902), rgb(0x3a2108), glow))
-    });
-    // Inner shadow under the bezel.
-    c.rect(x, y, w, 1.0, rgba(0x000000, 140));
-    c.rect(x, y, 1.0, h, rgba(0x000000, 90));
-}
-
 // ----------------------------------------------------------------- text
 
 include!("common/glyphs.rs");
@@ -315,30 +304,6 @@ fn engraved_centered(c: &mut Canvas, cx: f32, y: f32, s: &str, size: f32) {
     engraved(c, cx - text_width(s, size) / 2.0, y, s, size);
 }
 
-/// Glowing round dots, like a vacuum fluorescent display; unlit dots
-/// as `ghost`.
-fn vfd_glyph(c: &mut Canvas, x: f32, y: f32, ch: char, dot: f32, lit: Color, ghost: Option<Color>) {
-    let rows = glyph(ch);
-    let r = dot * 0.42;
-    c.paint(x - dot, y - dot, x + 6.0 * dot, y + 8.0 * dot, |fx, fy| {
-        let mut best: Option<Color> = None;
-        let mut glow = 0.0f32;
-        for (row, bits) in rows.iter().enumerate() {
-            for col in 0..5 {
-                let (cx, cy) = (x + (col as f32 + 0.5) * dot, y + (row as f32 + 0.5) * dot);
-                let d = ((fx - cx).powi(2) + (fy - cy).powi(2)).sqrt();
-                let on = bits & (0b10000 >> col) != 0;
-                if d <= r {
-                    best = Some(if on { lit } else { ghost.unwrap_or([0; 4]) });
-                } else if on {
-                    glow = glow.max((1.0 - (d - r) / (dot * 0.9)).max(0.0));
-                }
-            }
-        }
-        best.filter(|c| c[3] > 0).or_else(|| (glow > 0.0).then(|| [lit[0], lit[1], lit[2], (glow * 70.0) as u8]))
-    });
-}
-
 fn font_sheet(dir: &Path, name: &str, chars: &str, cell: (i32, i32), columns: i32, draw: impl Fn(&mut Canvas, f32, f32, char)) {
     let count = chars.chars().count() as i32;
     let rows = (count + columns - 1) / columns;
@@ -346,81 +311,6 @@ fn font_sheet(dir: &Path, name: &str, chars: &str, cell: (i32, i32), columns: i3
         for (i, ch) in chars.chars().enumerate() {
             let (cx, cy) = ((i as i32 % columns) * cell.0, (i as i32 / columns) * cell.1);
             draw(c, cx as f32, cy as f32, ch);
-        }
-    });
-}
-
-/// Seven-segment amber digits with a soft glow; unlit segments ghosted.
-fn digits_sheet(dir: &Path, chars: &str, cell: (i32, i32)) {
-    // Signed distance to segment k of a 14×26 cell (negative inside).
-    let seg = |k: usize, fx: f32, fy: f32| -> f32 {
-        let t = 1.5;
-        let (l, r, top, mid, bot) = (3.5, 11.5, 3.0, 13.0, 23.0);
-        let slant = |fy: f32| (13.0 - fy) * 0.08; // a slight italic
-        let fx = fx - slant(fy);
-        let horiz = |y: f32| (fy - y).abs() + ((fx - (l + r) / 2.0).abs() - ((r - l) / 2.0 - t - 0.6)).max(0.0) - t;
-        let vert = |x: f32, y0: f32, y1: f32| (fx - x).abs() + ((fy - (y0 + y1) / 2.0).abs() - ((y1 - y0) / 2.0 - t - 0.6)).max(0.0) - t;
-        match k {
-            0 => horiz(top),
-            1 => vert(r, top, mid),
-            2 => vert(r, mid, bot),
-            3 => horiz(bot),
-            4 => vert(l, mid, bot),
-            5 => vert(l, top, mid),
-            _ => horiz(mid),
-        }
-    };
-    let pattern = |ch: char| -> u8 {
-        match ch {
-            '0' => 0b0111111,
-            '1' => 0b0000110,
-            '2' => 0b1011011,
-            '3' => 0b1001111,
-            '4' => 0b1100110,
-            '5' => 0b1101101,
-            '6' => 0b1111101,
-            '7' => 0b0000111,
-            '8' => 0b1111111,
-            '9' => 0b1101111,
-            '-' => 0b1000000,
-            _ => 0,
-        }
-    };
-    let n = chars.chars().count() as i32;
-    draw_all(dir, "digits", cell.0 * n, cell.1, |c| {
-        for (i, ch) in chars.chars().enumerate() {
-            let ox = (i as i32 * cell.0) as f32;
-            let bits = pattern(ch);
-            let segmented = ch.is_ascii_digit() || ch == '-' || ch == ' ';
-            c.paint(ox, 0.0, ox + cell.0 as f32, cell.1 as f32, |fx, fy| {
-                let fx = fx - ox;
-                let (lit_d, ghost_d) = if segmented {
-                    let mut lit = f32::MAX;
-                    let mut ghost = f32::MAX;
-                    for k in 0..7 {
-                        let d = seg(k, fx, fy);
-                        if bits & (1 << k) != 0 { lit = lit.min(d) } else { ghost = ghost.min(d) }
-                    }
-                    (lit, ghost)
-                } else {
-                    let dot = |x: f32, y: f32| ((fx - x).powi(2) + (fy - y).powi(2)).sqrt() - 1.6;
-                    let d = match ch {
-                        ':' => dot(7.4, 9.0).min(dot(6.6, 18.0)),
-                        '.' => dot(6.4, 22.5),
-                        _ => f32::MAX,
-                    };
-                    (d, f32::MAX)
-                };
-                if lit_d <= 0.0 {
-                    Some(mix(AMBER, AMBER_HOT, (-lit_d / 1.5).min(1.0)))
-                } else if ghost_d <= 0.0 {
-                    Some(AMBER_GHOST)
-                } else if lit_d < 2.2 {
-                    Some([AMBER[0], AMBER[1], AMBER[2], ((1.0 - lit_d / 2.2) * 80.0) as u8])
-                } else {
-                    None
-                }
-            });
         }
     });
 }
@@ -743,6 +633,512 @@ fn vu_face(c: &mut Canvas, x: f32, y: f32, w: f32, h: f32, channel: &str) {
     c.rect(x, y, w, 1.5, rgba(0x000000, 110));
 }
 
+// ------------------------------------------------------------- strokes
+
+/// A smooth pen path: points (x, y, width scale) through which a
+/// Catmull-Rom spline is drawn.
+type Pen = Vec<(f32, f32, f32)>;
+
+fn spline(points: &[(f32, f32, f32)], steps: usize) -> Pen {
+    let n = points.len();
+    let at = |i: isize| points[i.clamp(0, n as isize - 1) as usize];
+    let mut out = Vec::new();
+    for i in 0..n.saturating_sub(1) {
+        let (p0, p1, p2, p3) = (at(i as isize - 1), at(i as isize), at(i as isize + 1), at(i as isize + 2));
+        for k in 0..steps {
+            let t = k as f32 / steps as f32;
+            let (t2, t3) = (t * t, t * t * t);
+            let f = |a: f32, b: f32, c: f32, d: f32| 0.5 * (2.0 * b + (-a + c) * t + (2.0 * a - 5.0 * b + 4.0 * c - d) * t2 + (-a + 3.0 * b - 3.0 * c + d) * t3);
+            out.push((f(p0.0, p1.0, p2.0, p3.0), f(p0.1, p1.1, p2.1, p3.1), p1.2 + (p2.2 - p1.2) * t));
+        }
+    }
+    if let Some(&last) = points.last() {
+        out.push(last);
+    }
+    out
+}
+
+/// Points along an elliptical arc (degrees, 0 = right, 90 = down).
+fn arc(cx: f32, cy: f32, rx: f32, ry: f32, a0: f32, a1: f32) -> Vec<(f32, f32)> {
+    let n = (((a1 - a0).abs() / 6.0).ceil() as usize).max(2);
+    (0..=n)
+        .map(|i| {
+            let a = (a0 + (a1 - a0) * i as f32 / n as f32).to_radians();
+            (cx + rx * a.cos(), cy + ry * a.sin())
+        })
+        .collect()
+}
+
+/// Capsule segments of strokes, bucketed by x for quick lookups.
+struct Ink {
+    segs: Vec<[f32; 6]>, // x0, y0, x1, y1, half width at 0, at 1
+    buckets: Vec<Vec<usize>>,
+    x0: f32,
+    cell: f32,
+}
+
+impl Ink {
+    fn new(segs: Vec<[f32; 6]>) -> Self {
+        let cell = 3.0;
+        let x0 = segs.iter().map(|s| s[0].min(s[2]) - s[4].max(s[5])).fold(f32::MAX, f32::min) - 1.0;
+        let x1 = segs.iter().map(|s| s[0].max(s[2]) + s[4].max(s[5])).fold(f32::MIN, f32::max) + 1.0;
+        let mut buckets = vec![Vec::new(); ((x1 - x0) / cell).ceil() as usize + 1];
+        for (i, s) in segs.iter().enumerate() {
+            let pad = s[4].max(s[5]) + 2.0;
+            let a = ((s[0].min(s[2]) - pad - x0) / cell).floor().max(0.0) as usize;
+            let b = (((s[0].max(s[2]) + pad - x0) / cell).ceil() as usize).min(buckets.len() - 1);
+            for bucket in &mut buckets[a..=b] {
+                bucket.push(i);
+            }
+        }
+        Self { segs, buckets, x0, cell }
+    }
+
+    /// How far (fx, fy) is outside the ink grown by `grow` (negative inside).
+    fn distance(&self, fx: f32, fy: f32, grow: f32) -> f32 {
+        let b = ((fx - self.x0) / self.cell).floor();
+        if b < 0.0 || b as usize >= self.buckets.len() {
+            return f32::MAX;
+        }
+        let mut best = f32::MAX;
+        for &i in &self.buckets[b as usize] {
+            let [x0, y0, x1, y1, w0, w1] = self.segs[i];
+            let (dx, dy) = (x1 - x0, y1 - y0);
+            let len2 = (dx * dx + dy * dy).max(1e-6);
+            let t = (((fx - x0) * dx + (fy - y0) * dy) / len2).clamp(0.0, 1.0);
+            let d = ((fx - x0 - t * dx).powi(2) + (fy - y0 - t * dy).powi(2)).sqrt() - (w0 + (w1 - w0) * t) - grow;
+            best = best.min(d);
+        }
+        best
+    }
+
+    fn bounds(&self) -> (f32, f32, f32, f32) {
+        let mut b = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
+        for s in &self.segs {
+            let w = s[4].max(s[5]);
+            b = (b.0.min(s[0].min(s[2]) - w), b.1.min(s[1].min(s[3]) - w), b.2.max(s[0].max(s[2]) + w), b.3.max(s[1].max(s[3]) + w));
+        }
+        b
+    }
+}
+
+// --------------------------------------------------------------- script
+
+/// "Sound Scraper" as a chrome appliance script, like the badge on a
+/// vintage refrigerator door: slanted connected lettering drawn with a
+/// broad nib, the S of Sound trailing into an underline swash. Units:
+/// baseline 0, x-height 10, capitals 20, y up.
+fn script_paths() -> Vec<Pen> {
+    let p = |pts: &[(f32, f32)]| -> Pen { pts.iter().map(|&(x, y)| (x, y, 1.0)).collect() };
+    let mut sound_s = p(&[
+        (13.2, 16.8), (13.0, 19.0), (10.5, 20.4), (6.5, 20.2), (3.8, 18.2), (3.6, 15.0), (6.0, 12.4), (9.8, 10.0),
+        (12.4, 7.0), (12.6, 3.6), (10.4, 0.8), (6.6, -0.4), (2.8, 0.2), (0.8, 2.0), (1.4, 3.8), (3.2, 3.2),
+        (4.8, 0.6), (7.0, -1.8), (11.0, -3.2), (20.0, -3.9), (34.0, -4.0), (46.0, -3.4), (55.0, -2.4),
+    ]);
+    // Taper the swash.
+    let n = sound_s.len();
+    for (i, pt) in sound_s.iter_mut().enumerate().skip(n - 5) {
+        pt.2 = 1.0 - (i + 5 - n) as f32 * 0.19;
+    }
+    let ound = p(&[
+        (19.6, 9.4), (17.6, 10.1), (15.6, 8.6), (15.0, 5.0), (15.9, 1.5), (18.0, 0.0), (20.3, 0.7), (21.6, 3.6),
+        (21.7, 7.0), (20.8, 9.5), (19.2, 10.0), (20.6, 9.2), (22.6, 9.5), (24.4, 10.2), (24.4, 7.0), (24.0, 3.0),
+        (25.2, 0.3), (27.6, 0.4), (29.4, 3.0), (30.4, 6.8), (31.0, 10.0), (30.6, 6.0), (30.3, 2.0), (31.2, 0.1),
+        (33.0, 0.6), (34.6, 4.6), (35.6, 10.0), (35.3, 5.0), (35.0, 0.0), (35.4, 4.2), (36.8, 8.2), (38.8, 10.0),
+        (40.6, 9.2), (41.2, 6.0), (41.0, 2.0), (42.0, 0.0), (44.0, 0.6), (47.0, 6.4), (50.2, 9.6), (48.0, 10.1),
+        (46.0, 8.5), (45.3, 5.0), (46.0, 1.5), (48.0, 0.0), (50.3, 0.8), (51.5, 4.0), (52.4, 9.0), (53.6, 15.0),
+        (54.6, 20.0), (53.8, 15.0), (52.8, 8.0), (52.4, 2.5), (53.3, 0.2), (55.4, 0.8), (57.0, 2.6),
+    ]);
+    let scraper_s = p(&[
+        (76.2, 16.8), (76.0, 19.0), (73.5, 20.4), (69.5, 20.2), (66.8, 18.2), (66.6, 15.0), (69.0, 12.4), (72.8, 10.0),
+        (75.4, 7.0), (75.6, 3.6), (73.4, 0.8), (69.6, -0.4), (65.8, 0.2), (63.8, 2.0), (64.4, 3.8), (66.2, 3.2),
+    ]);
+    let craper = p(&[
+        (83.6, 8.3), (83.4, 9.7), (81.6, 10.1), (79.6, 8.6), (78.8, 5.0), (79.5, 1.5), (81.6, 0.0), (83.8, 0.4),
+        (85.8, 2.0), (87.4, 6.5), (88.5, 10.0), (89.3, 9.0), (90.7, 9.7), (91.0, 6.0), (91.0, 2.0), (91.4, 0.2),
+        (93.2, 0.5), (94.8, 2.2), (96.8, 6.6), (99.6, 9.6), (97.5, 10.1), (95.6, 8.5), (95.0, 5.0), (95.7, 1.5),
+        (97.6, 0.0), (99.8, 0.8), (100.8, 4.0), (101.4, 10.0), (101.0, 5.0), (100.8, 2.0), (101.8, 0.0), (103.6, 0.6),
+        (104.9, 5.0), (105.6, 10.0), (105.2, 2.0), (104.8, -4.5), (104.5, -9.0), (104.8, -4.0), (105.1, 2.0),
+        (105.8, 6.4), (107.0, 8.8), (108.8, 10.0), (110.7, 9.0), (111.4, 5.5), (110.7, 2.0), (108.7, 0.0),
+        (106.4, 0.5), (105.4, 2.2), (106.6, 0.3), (109.0, 0.0), (111.4, 0.8), (113.2, 2.6), (115.6, 5.0),
+        (116.6, 7.8), (115.7, 9.8), (113.8, 9.8), (112.6, 7.0), (112.5, 3.0), (113.8, 0.5), (116.0, 0.0),
+        (118.0, 1.2), (119.5, 6.0), (120.5, 10.0), (121.3, 9.0), (122.7, 9.7), (123.0, 6.0), (123.0, 2.0),
+        (123.4, 0.2), (125.3, 0.8), (127.4, 3.2),
+    ]);
+    vec![sound_s, ound, scraper_s, craper]
+}
+
+/// Lays the script out at (x, top) `k` points per unit: returns the ink
+/// and the baseline y.
+fn script_ink(x: f32, top: f32, k: f32) -> (Ink, f32) {
+    const SLANT: f32 = 0.24;
+    const NIB: f32 = 0.52; // radians: hairlines run up and to the right
+    let baseline = top + 20.6 * k;
+    let mut segs = Vec::new();
+    for path in script_paths() {
+        let pts = spline(&path, 10);
+        for w in pts.windows(2) {
+            let (a, b) = (w[0], w[1]);
+            let ang = (b.1 - a.1).atan2(b.0 - a.0);
+            let width = (0.62 + 1.05 * (ang - NIB).sin().abs()) * k;
+            let to = |p: (f32, f32, f32)| (x + (p.0 + SLANT * p.1) * k, baseline - p.1 * k);
+            let (pa, pb) = (to(a), to(b));
+            segs.push([pa.0, pa.1, pb.0, pb.1, width * a.2, width * b.2]);
+        }
+    }
+    (Ink::new(segs), baseline)
+}
+
+/// Polished chrome lettering with a dark rim and a shadow on the metal.
+fn chrome_script(c: &mut Canvas, x: f32, top: f32, k: f32) {
+    let (ink, baseline) = script_ink(x, top, k);
+    let (bx0, by0, bx1, by1) = ink.bounds();
+    let rim = 0.45 * k.max(0.6);
+    // Shadow, then the rim, then the chrome face.
+    let (sx, sy) = (0.6 * k, 0.9 * k);
+    c.paint(bx0 - 2.0, by0 - 2.0, bx1 + 3.0, by1 + 3.0, |fx, fy| {
+        let d = ink.distance(fx - sx, fy - sy, rim + 0.3);
+        (d < 0.6).then(|| rgba(0x000000, (90.0 * (1.0 - d.max(0.0) / 0.6)) as u8))
+    });
+    c.paint(bx0 - 2.0, by0 - 2.0, bx1 + 2.0, by1 + 2.0, |fx, fy| (ink.distance(fx, fy, rim) <= 0.0).then_some(rgb(0x221c17)));
+    c.paint(bx0, by0, bx1, by1, |fx, fy| {
+        let d = ink.distance(fx, fy, 0.0);
+        if d > 0.0 {
+            return None;
+        }
+        // Height in units: sky above, a dark horizon below the middle of
+        // the x-height, warm ground reflected below it.
+        let u = (baseline - fy) / k;
+        let col = if u > 5.2 {
+            mix(rgb(0x8f979e), rgb(0xffffff), ((u - 5.2) / 7.0).min(1.0))
+        } else if u > 3.6 {
+            mix(rgb(0x3b3f44), rgb(0x8f979e), (u - 3.6) / 1.6)
+        } else {
+            mix(rgb(0xf0e6d6), rgb(0x6e655a), ((u + 4.0) / 7.6).clamp(0.0, 1.0))
+        };
+        // A bright bevel just inside the edge on the upper side.
+        let up = ink.distance(fx, fy - 0.5 * k, 0.0) > 0.0;
+        Some(if up { mix(col, rgb(0xffffff), 0.55) } else { col })
+    });
+}
+
+// ----------------------------------------------------------- flip cards
+
+/// The flip clock numerals: bold strokes in a 10×18 box.
+fn numeral(ch: char) -> Vec<Vec<(f32, f32)>> {
+    let flip = |paths: Vec<Vec<(f32, f32)>>| -> Vec<Vec<(f32, f32)>> {
+        paths.into_iter().map(|p| p.into_iter().map(|(x, y)| (10.0 - x, 18.0 - y)).collect()).collect()
+    };
+    let six = || {
+        let mut tail: Vec<(f32, f32)> = spline(&[(0.2, 12.6, 1.0), (0.7, 6.0, 1.0), (2.8, 1.6, 1.0), (6.2, 0.0, 1.0), (9.2, 1.4, 1.0)], 8)
+            .into_iter()
+            .map(|p| (p.0, p.1))
+            .collect();
+        tail.reverse();
+        vec![tail, arc(5.0, 12.8, 4.9, 5.2, 0.0, 360.0)]
+    };
+    match ch {
+        '0' => {
+            let mut p = arc(5.0, 5.0, 5.0, 5.0, 180.0, 360.0);
+            p.extend(arc(5.0, 13.0, 5.0, 5.0, 0.0, 180.0));
+            p.push((0.0, 5.0));
+            vec![p]
+        }
+        '1' => vec![vec![(2.2, 3.6), (6.2, 0.0), (6.2, 18.0)]],
+        '2' => {
+            let mut p = arc(5.0, 5.0, 5.0, 5.0, 195.0, 380.0);
+            p.extend([(0.0, 18.0), (10.0, 18.0)]);
+            vec![p]
+        }
+        '3' => {
+            let mut p = arc(5.0, 4.6, 4.6, 4.6, 200.0, 450.0);
+            p.extend(arc(5.0, 13.2, 4.9, 4.8, 270.0, 520.0));
+            vec![p]
+        }
+        '4' => vec![vec![(7.6, 18.0), (7.6, 0.0), (0.0, 12.4), (10.4, 12.4)]],
+        '5' => {
+            let mut p = vec![(9.4, 0.0), (1.2, 0.0), (0.6, 8.4)];
+            p.extend(arc(5.0, 12.6, 5.0, 5.4, 225.0, 510.0));
+            vec![p]
+        }
+        '6' => six(),
+        '7' => vec![vec![(0.0, 0.0), (10.0, 0.0), (3.6, 18.0)]],
+        '8' => vec![arc(5.0, 4.4, 4.3, 4.4, 0.0, 360.0), arc(5.0, 13.2, 4.9, 4.8, 0.0, 360.0)],
+        '9' => flip(six()),
+        '-' => vec![vec![(1.5, 9.0), (8.5, 9.0)]],
+        _ => vec![],
+    }
+}
+
+/// One split-flap card filling a `w`×`h` cell: a dark card split across
+/// the middle, with a cream numeral. ':' is a colon on the housing.
+fn flip_card(c: &mut Canvas, x: f32, y: f32, w: f32, h: f32, ch: char) {
+    let cream = rgb(0xf3ede0);
+    if ch == ':' || ch == '.' {
+        let r = (w * 0.11).max(0.8);
+        let dots: &[f32] = if ch == ':' { &[0.36, 0.64] } else { &[0.86] };
+        for &t in dots {
+            c.circle(x + w / 2.0, y + h * t, r, cream);
+        }
+        return;
+    }
+    let (cx, cy, cw, chh) = (x + w * 0.06, y + 0.25, w * 0.88, h - 0.5);
+    let r = (w * 0.12).max(1.0);
+    let mid = cy + chh / 2.0;
+    c.paint(cx, cy, cx + cw, cy + chh, |px, py| {
+        in_round_rect(px, py, cx, cy, cw, chh, r).then(|| {
+            let t = (py - cy) / chh;
+            if py < mid { mix(rgb(0x34302c), rgb(0x23201d), t * 2.0) } else { mix(rgb(0x1d1a18), rgb(0x141210), t * 2.0 - 1.0) }
+        })
+    });
+    c.rect(cx + r, cy, cw - 2.0 * r, (h / 60.0).max(0.4), rgba(0xffffff, 40));
+    // The numeral.
+    let paths = numeral(ch);
+    if !paths.is_empty() {
+        let k = chh * 0.66 / 18.0;
+        let (ox, oy) = (x + w / 2.0 - 5.0 * k, y + h / 2.0 - 9.0 * k);
+        let half = 1.45 * k;
+        let mut segs = Vec::new();
+        for p in &paths {
+            for s in p.windows(2) {
+                segs.push([ox + s[0].0 * k, oy + s[0].1 * k, ox + s[1].0 * k, oy + s[1].1 * k, half, half]);
+            }
+        }
+        let ink = Ink::new(segs);
+        c.paint(cx, cy, cx + cw, cy + chh, |px, py| {
+            (ink.distance(px, py, 0.0) <= 0.0).then(|| if py < mid { cream } else { shade(cream, 0.9) })
+        });
+    }
+    // The split, and the hinge pins at its ends.
+    let gap = (h / 40.0).max(0.5);
+    c.rect(cx, mid - gap / 2.0, cw, gap, rgba(0x000000, 230));
+    c.rect(cx, mid + gap / 2.0, cw, (gap * 0.6).max(0.3), rgba(0xffffff, 26));
+    let pin = (w * 0.05).max(0.5);
+    c.rect(x, mid - gap, pin * 1.4, gap * 2.0, rgb(0x8a8680));
+    c.rect(x + w - pin * 1.4, mid - gap, pin * 1.4, gap * 2.0, rgb(0x8a8680));
+}
+
+/// A smoked housing the cards sit in.
+fn card_housing(c: &mut Canvas, x: f32, y: f32, w: f32, h: f32) {
+    c.round_rect(x - 1.0, y - 1.0, w + 2.0, h + 2.0, 2.5, rgba(0xffffff, 30));
+    c.paint(x, y, x + w, y + h, |px, py| {
+        in_round_rect(px, py, x, y, w, h, 2.0).then(|| mix(rgb(0x050404), rgb(0x141210), (py - y) / h))
+    });
+    c.rect(x + 1.0, y, w - 2.0, 1.0, rgba(0x000000, 200));
+}
+
+// ----------------------------------------------------------------- dymo
+
+/// Embossed label-maker lettering: the raised plastic goes white where
+/// it was stretched, lit from above.
+fn dymo_glyph(c: &mut Canvas, x: f32, y: f32, ch: char) {
+    let rows = glyph(ch);
+    let size = 1.12;
+    let inside = |fx: f32, fy: f32| -> bool {
+        let (gx, gy) = ((fx - x) / size, (fy - y) / size);
+        let mut best = f32::MAX;
+        for (row, bits) in rows.iter().enumerate() {
+            for col in 0..5 {
+                if bits & (0b10000 >> col) == 0 {
+                    continue;
+                }
+                let dx = (col as f32 - gx).max(gx - (col as f32 + 1.0)).max(0.0);
+                let dy = (row as f32 - gy).max(gy - (row as f32 + 1.0)).max(0.0);
+                best = best.min((dx * dx + dy * dy).sqrt());
+            }
+        }
+        best <= 0.08
+    };
+    c.paint(x - 1.0, y - 1.0, x + 6.0 * size + 1.0, y + 8.0 * size + 1.0, |fx, fy| {
+        if !inside(fx, fy) {
+            return inside(fx - 0.4, fy - 0.6).then_some(rgba(0x000000, 70));
+        }
+        let lit = !inside(fx, fy - 0.45);
+        let dark = !inside(fx, fy + 0.45);
+        Some(if lit {
+            rgba(0xffffff, 250)
+        } else if dark {
+            rgba(0xb8b2aa, 245)
+        } else {
+            rgba(0xf0ebe4, 240)
+        })
+    });
+}
+
+/// A strip of red embossing tape, ends cut on a slant.
+fn dymo_tape(c: &mut Canvas, x: f32, y: f32, w: f32, h: f32) {
+    let cut = 3.0;
+    let shape = move |px: f32, py: f32| {
+        let t = (py - y) / h;
+        px >= x + cut * (1.0 - t) && px <= x + w - cut * t && py >= y && py < y + h
+    };
+    c.paint(x, y + 0.8, x + w + 1.0, y + h + 1.2, |px, py| shape(px - 0.6, py - 1.0).then_some(rgba(0x000000, 80)));
+    c.paint(x, y, x + w, y + h, |px, py| {
+        shape(px, py).then(|| {
+            let t = (py - y) / h;
+            let rib = noise(px * 1.6, py * 0.15, 91) * 0.08;
+            let gloss = (1.0 - ((t - 0.22) / 0.16).abs()).max(0.0) * 0.28;
+            let base = shade(rgb(0xa8221a), 0.86 + rib + 0.18 * (1.0 - t));
+            mix(base, rgb(0xffd0c8), gloss)
+        })
+    });
+}
+
+// ---------------------------------------------------------------- lamps
+
+#[derive(Clone, Copy)]
+enum Lamp {
+    Red,
+    Amber,
+    Green,
+}
+
+fn lamp_colors(l: Lamp) -> (Color, Color, Color) {
+    // Unlit lens, lit lens, hot center.
+    match l {
+        Lamp::Red => (rgb(0x4a1410), RED, RED_HOT),
+        Lamp::Amber => (rgb(0x4a3010), AMBER, AMBER_HOT),
+        Lamp::Green => (rgb(0x163a1e), rgb(0x52d66a), rgb(0xb8ffc4)),
+    }
+}
+
+/// A jewel pilot lamp's chrome bezel and unlit lens.
+fn lamp_socket(c: &mut Canvas, cx: f32, cy: f32, r: f32, l: Lamp) {
+    c.circle(cx, cy + 0.5, r + 1.2, rgba(0x000000, 120));
+    c.circle(cx, cy, r + 0.9, rgb(0x9a9a94));
+    c.circle(cx, cy, r + 0.3, rgb(0x2a2420));
+    c.circle(cx, cy, r, lamp_colors(l).0);
+    c.circle(cx - r * 0.35, cy - r * 0.4, r * 0.3, rgba(0xffffff, 60));
+}
+
+/// The lit lens and its glow (drawn over a socket).
+fn lamp_lit(c: &mut Canvas, cx: f32, cy: f32, r: f32, l: Lamp) {
+    let (_, lit, hot) = lamp_colors(l);
+    c.circle(cx, cy, r * 2.0, [lit[0], lit[1], lit[2], 50]);
+    c.circle(cx, cy, r, lit);
+    c.circle(cx, cy, r * 0.6, hot);
+    c.circle(cx - r * 0.35, cy - r * 0.4, r * 0.28, rgb(0xfff4e8));
+}
+
+/// Black crinkle-finish panel.
+fn crinkle(c: &mut Canvas, x: f32, y: f32, w: f32, h: f32) {
+    c.paint(x, y, x + w, y + h, |px, py| {
+        let n = noise(px * 2.2, py * 2.2, 103) * 0.5 + noise(px * 5.0, py * 5.0, 107) * 0.5;
+        let l = 0.09 + 0.05 * n;
+        let v = (l * 255.0) as u8;
+        Some([v, (v as f32 * 0.95) as u8, (v as f32 * 0.9) as u8, 255])
+    });
+    c.rect(x, y, w, 1.0, rgba(0x000000, 160));
+    c.rect(x, y, 1.0, h, rgba(0x000000, 110));
+}
+
+/// Cream print on a dark panel.
+fn printed(c: &mut Canvas, cx: f32, y: f32, s: &str, size: f32) {
+    blocks(c, cx - text_width(s, size) / 2.0, y, s, size, rgb(0xe8dcc0));
+}
+
+const STATUS_RECT: [i32; 4] = [26, 70, 122, 28];
+const STATUS_LAMPS: [(&str, Lamp); 4] = [("REC", Lamp::Red), ("PAUSE", Lamp::Amber), ("PLAY", Lamp::Green), ("STOP", Lamp::Amber)];
+
+fn status_lamp_center(i: usize) -> (f32, f32) {
+    let col = STATUS_RECT[2] as f32 / 4.0;
+    (STATUS_RECT[0] as f32 + col * (i as f32 + 0.5), STATUS_RECT[1] as f32 + 9.0)
+}
+
+/// Which status lamp is lit for a recorder or player state.
+fn status_lamp(state: &str) -> Option<usize> {
+    match state {
+        "recording" | "finalizing" => Some(0),
+        "paused" => Some(1),
+        "playing" => Some(2),
+        "stopped" => Some(3),
+        _ => None,
+    }
+}
+
+// ----------------------------------------------------------- oscilloscope
+
+const SCOPE_RECT: [i32; 4] = [158, 33, 88, 62];
+
+/// A small oscilloscope: a dark green phosphor screen with a graticule in
+/// a black bezel; the visualizer draws the trace.
+fn scope(c: &mut Canvas) {
+    let [sx, sy, sw, sh] = SCOPE_RECT.map(|v| v as f32);
+    let (hx, hy, hw, hh) = (sx - 6.0, sy - 5.0, sw + 12.0, sh + 10.0);
+    c.paint(hx, hy, hx + hw, hy + hh, |px, py| {
+        in_round_rect(px, py, hx, hy, hw, hh, 3.0).then(|| mix(rgb(0x3a3632), rgb(0x1a1816), (py - hy) / hh))
+    });
+    c.rect(hx + 2.0, hy, hw - 4.0, 0.8, rgba(0xffffff, 50));
+    for (px, py) in [(hx + 3.0, hy + 3.0), (hx + hw - 3.0, hy + 3.0), (hx + 3.0, hy + hh - 3.0), (hx + hw - 3.0, hy + hh - 3.0)] {
+        c.circle(px, py, 1.3, rgb(0x8a8680));
+        c.line(px - 0.9, py, px + 0.9, py, 0.4, rgb(0x2a2622));
+    }
+    let r = 7.0;
+    c.round_rect(sx - 1.0, sy - 1.0, sw + 2.0, sh + 2.0, r + 1.0, rgb(0x050505));
+    c.paint(sx, sy, sx + sw, sy + sh, |px, py| {
+        in_round_rect(px, py, sx, sy, sw, sh, r).then(|| {
+            let (u, v) = ((px - sx) / sw - 0.5, (py - sy) / sh - 0.5);
+            let glow = (1.0 - (u * u + v * v) * 2.2).max(0.0);
+            let mut col = mix(rgb(0x030a06), rgb(0x0e2616), glow);
+            // Graticule: 8 × 6 divisions, a scale on the axes.
+            let (gx, gy) = ((px - sx) / sw * 8.0, (py - sy) / sh * 6.0);
+            let line = |g: f32, per: f32| ((g - g.round()).abs() * per) < 0.35;
+            if line(gx, sw / 8.0) || line(gy, sh / 6.0) {
+                col = mix(col, rgb(0x4f8c62), 0.35);
+            }
+            let axis_x = (py - (sy + sh / 2.0)).abs() < 1.4 && ((gx * 5.0 - (gx * 5.0).round()).abs() * sw / 40.0) < 0.3;
+            let axis_y = (px - (sx + sw / 2.0)).abs() < 1.4 && ((gy * 5.0 - (gy * 5.0).round()).abs() * sh / 30.0) < 0.3;
+            if axis_x || axis_y {
+                col = mix(col, rgb(0x6fb884), 0.5);
+            }
+            col
+        })
+    });
+    // Curved glass catching the light.
+    c.paint(sx, sy, sx + sw, sy + sh, |px, py| {
+        let (u, v) = ((px - sx) / sw, (py - sy) / sh);
+        (in_round_rect(px, py, sx, sy, sw, sh, r) && u + v * 0.6 < 0.42 && u + v * 0.6 > 0.18).then_some(rgba(0xffffff, 12))
+    });
+}
+
+// --------------------------------------------------- edgewise meters
+
+const EDGE_RECT: [i32; 4] = [210, 3, 100, 12];
+const EDGE_GAP: f32 = 6.0;
+const EDGE_PIVOT: (f32, f32) = (23.5, 58.0);
+const EDGE_LENGTH: f32 = 57.0;
+const EDGE_SWEEP: f32 = 40.0;
+
+/// A cassette deck's edgewise level meter: a narrow backlit strip the
+/// needle swings across.
+fn edge_face(c: &mut Canvas, x: f32, y: f32, w: f32, h: f32) {
+    bezel(c, x, y, w, h, 1.0);
+    c.paint(x, y, x + w, y + h, |fx, _| {
+        let u = (fx - x) / w - 0.5;
+        Some(mix(rgb(0xb07a2a), rgb(0xfbe6aa), (1.0 - u * u * 3.0).clamp(0.0, 1.0)))
+    });
+    let (px, py) = (x + EDGE_PIVOT.0, y + EDGE_PIVOT.1);
+    let angle = |vu: f32| {
+        let t = ((vu - VU_RANGE.0) / (VU_RANGE.1 - VU_RANGE.0)).clamp(0.0, 1.0);
+        (-EDGE_SWEEP / 2.0 + t * EDGE_SWEEP).to_radians()
+    };
+    let r = 52.5;
+    for vu in [-20.0, -10.0, -7.0, -5.0, -3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0] {
+        let a = angle(vu);
+        let len = if vu == 0.0 || vu == -20.0 || vu == -10.0 { 3.5 } else { 2.2 };
+        let col = if vu > 0.0 { RED } else { INK };
+        c.line(px + a.sin() * r, py - a.cos() * r, px + a.sin() * (r + len), py - a.cos() * (r + len), 0.6, col);
+    }
+    // The red zone.
+    c.paint(x, y, x + w, y + h, |fx, fy| {
+        let (dx, dy) = (fx - px, fy - py);
+        let d = (dx * dx + dy * dy).sqrt();
+        let a = dx.atan2(-dy);
+        (a >= angle(0.0) && a <= angle(3.0) && (d - r - 0.4).abs() < 0.6).then_some(RED)
+    });
+    c.rect(x, y, w, 1.0, rgba(0x000000, 110));
+}
+
 // ------------------------------------------------------------ panels
 
 fn main_background(c: &mut Canvas) {
@@ -750,25 +1146,26 @@ fn main_background(c: &mut Canvas) {
     cheek(c, 0.0, 0.0, CHEEK, h);
     cheek(c, w - CHEEK, 0.0, CHEEK, h);
     faceplate(c, CHEEK, 0.0, w - 2.0 * CHEEK, h);
-    // Title.
-    engraved(c, 24.0, 6.0, "SOUND SCRAPER", 1.4);
-    engraved(c, 152.0, 8.5, "STEREO MASTER RECORDER  SS-74", 0.75);
-    // The glass band: dial window and meters.
+    // Title: a chrome script badge.
+    chrome_script(c, LOGO.0, LOGO.1, LOGO.2);
+    engraved(c, 150.0, 8.5, "STEREO MASTER RECORDER  SS-74", 0.75);
+    // The glass band: the clock panel, the scope and the meters.
     glass(c, 20.0, 22.0, 420.0, 84.0, 2.0);
-    bezel(c, 26.0, 28.0, 226.0, 72.0, 1.5);
-    amber_window(c, 26.0, 28.0, 226.0, 72.0);
-    // A printed dial scale along the window's bottom edge.
-    for i in 0..=20 {
-        let x = 34.0 + i as f32 * 5.6;
-        let tall = i % 5 == 0;
-        c.rect(x, 96.5 - if tall { 3.0 } else { 1.5 }, 0.6, if tall { 3.0 } else { 1.5 }, rgba(0xffb24a, 90));
+    bezel(c, 26.0, 28.0, 122.0, 72.0, 1.5);
+    crinkle(c, 26.0, 28.0, 122.0, 72.0);
+    let [ex, ey, ew, eh] = ELAPSED_RECT.map(|v| v as f32);
+    card_housing(c, ex - 4.0, ey - 2.0, ew + 8.0, eh + 4.0);
+    for (i, (label, lamp)) in STATUS_LAMPS.iter().enumerate() {
+        let (lx, ly) = status_lamp_center(i);
+        lamp_socket(c, lx, ly, 3.0, *lamp);
+        printed(c, lx, ly + 7.0, label, 0.75);
     }
+    scope(c);
     let face_w = (VU_RECT[2] as f32 - VU_GAP) / 2.0;
     vu_face(c, VU_RECT[0] as f32, VU_RECT[1] as f32, face_w, VU_RECT[3] as f32, "LEFT");
     vu_face(c, VU_RECT[0] as f32 + face_w + VU_GAP, VU_RECT[1] as f32, face_w, VU_RECT[3] as f32, "RIGHT");
     // Source window, record lamp (an animation) and the power lamp.
-    bezel(c, 20.0, 109.0, 300.0, 18.0, 1.0);
-    amber_window(c, 20.0, 109.0, 300.0, 18.0);
+    dymo_tape(c, 20.0, 109.0, 300.0, 18.0);
     engraved(c, 344.0, 115.0, "REC", 0.85);
     rec_lamp(c, 328.0, 112.0, false);
     c.circle(378.0, 118.0, 5.6, rgb(0x9a9a94));
@@ -835,10 +1232,39 @@ fn shade_background(c: &mut Canvas) {
     cheek(c, 0.0, 0.0, CHEEK, h);
     cheek(c, w - CHEEK, 0.0, CHEEK, h);
     faceplate(c, CHEEK, 0.0, w - 2.0 * CHEEK, h);
-    engraved(c, 20.0, 5.5, "SOUND SCRAPER", 0.85);
-    bezel(c, 92.0, 3.0, 214.0, 12.0, 1.0);
-    amber_window(c, 92.0, 3.0, 214.0, 12.0);
+    chrome_script(c, SHADE_LOGO.0, SHADE_LOGO.1, SHADE_LOGO.2);
+    let [ex, ey, ew, eh] = SHADE_ELAPSED_RECT.map(|v| v as f32);
+    card_housing(c, ex - 2.0, ey - 1.0, ew + 4.0, eh + 2.0);
+    let face_w = (EDGE_RECT[2] as f32 - EDGE_GAP) / 2.0;
+    for i in 0..2 {
+        edge_face(c, EDGE_RECT[0] as f32 + i as f32 * (face_w + EDGE_GAP), EDGE_RECT[1] as f32, face_w, EDGE_RECT[3] as f32);
+    }
 }
+
+/// The shade strip's status: a lamp and the engraved word.
+fn shade_status(c: &mut Canvas, x: f32, y: f32, state: &str) {
+    let (word, lamp) = match state {
+        "recording" => ("REC", Some(Lamp::Red)),
+        "finalizing" => ("SAVING", Some(Lamp::Red)),
+        "paused" => ("PAUSE", Some(Lamp::Amber)),
+        "playing" => ("PLAY", Some(Lamp::Green)),
+        "stopped" => ("STOP", Some(Lamp::Amber)),
+        _ => ("READY", None),
+    };
+    let (lx, ly) = (x + 4.5, y + 6.0);
+    lamp_socket(c, lx, ly, 2.2, lamp.unwrap_or(Lamp::Amber));
+    if let Some(l) = lamp {
+        lamp_lit(c, lx, ly, 2.2, l);
+    }
+    engraved(c, x + 11.0, y + 3.0, word, 0.85);
+}
+
+const LOGO: (f32, f32, f32) = (23.0, 2.0, 0.62);
+const SHADE_LOGO: (f32, f32, f32) = (19.0, 1.0, 0.56);
+const ELAPSED_RECT: [i32; 4] = [33, 34, 108, 30];
+const SHADE_STATUS_RECT: [i32; 4] = [100, 3, 50, 12];
+const SHADE_ELAPSED_RECT: [i32; 4] = [154, 3, 48, 12];
+const STATUS_STATES: [&str; 6] = ["idle", "recording", "paused", "finalizing", "playing", "stopped"];
 
 /// Nine-slice frame for the library, details and settings panels: walnut
 /// sides and bottom, a brushed aluminum title strip.
@@ -888,18 +1314,20 @@ fn main() {
     draw_all(&dir, "seek", SEEK_RECT[2], SEEK_RECT[3] + SEEK_THUMB[1], seek_image);
 
     let chars: String = GLYPHS.iter().map(|(c, _)| *c).collect();
-    font_sheet(&dir, "font-dial", &chars, (12, 16), 16, |c, x, y, ch| vfd_glyph(c, x + 1.0, y + 1.0, ch, 2.0, AMBER, Some(AMBER_GHOST)));
-    font_sheet(&dir, "font-tiny", &chars, (6, 8), 16, |c, x, y, ch| vfd_glyph(c, x, y, ch, 1.0, AMBER, None));
+    // Label tape has capitals only (lowercase text maps onto them).
+    let dymo_chars: String = chars.chars().filter(|c| !c.is_lowercase()).collect();
+    font_sheet(&dir, "font-dymo", &dymo_chars, (8, 12), 16, |c, x, y, ch| dymo_glyph(c, x + 1.0, y + 2.0, ch));
     font_sheet(&dir, "font-label", &chars, (6, 8), 16, |c, x, y, ch| {
         let s = ch.to_string();
         blocks(c, x, y + 0.5, &s, 1.0, ENGRAVE_LIGHT);
         blocks(c, x, y, &s, 1.0, ENGRAVE);
     });
-    let digit_chars = "0123456789:.- ";
-    digits_sheet(&dir, digit_chars, (14, 26));
+    let flip_chars = "0123456789:.- ";
+    font_sheet(&dir, "flip", flip_chars, (18, 30), 14, |c, x, y, ch| flip_card(c, x, y, 18.0, 30.0, ch));
+    font_sheet(&dir, "flip-small", flip_chars, (8, 12), 14, |c, x, y, ch| flip_card(c, x, y, 8.0, 12.0, ch));
 
     // Buttons.
-    let mut sheet = Sheet::new(72 * 9);
+    let mut sheet = Sheet::new(STATUS_RECT[2] * 6);
     let red = Some(rgb(0xb02a1c));
     // Record latches down with a lit inlay while recording (and is
     // disabled); play is pause while recording or playing, and RESUME while
@@ -984,6 +1412,21 @@ fn main() {
             ("on", Box::new(|c: &mut Canvas, x, y| rec_lamp(c, x, y, true)) as Draw),
         ],
     );
+    let status_cells = |w: i32, h: i32, draw: fn(&mut Canvas, f32, f32, &str)| -> States {
+        let _ = (w, h);
+        STATUS_STATES.iter().map(|&state| (state, Box::new(move |c: &mut Canvas, x, y| draw(c, x, y, state)) as Draw)).collect()
+    };
+    let status = sheet.add(
+        STATUS_RECT[2],
+        STATUS_RECT[3],
+        status_cells(STATUS_RECT[2], STATUS_RECT[3], |c, x, y, state| {
+            if let Some(i) = status_lamp(state) {
+                let (lx, ly) = status_lamp_center(i);
+                lamp_lit(c, x + lx - STATUS_RECT[0] as f32, y + ly - STATUS_RECT[1] as f32, 3.0, STATUS_LAMPS[i].1);
+            }
+        }),
+    );
+    let shade_status_sprite = sheet.add(SHADE_STATUS_RECT[2], SHADE_STATUS_RECT[3], status_cells(0, 0, shade_status));
     sheet.save(&dir, "buttons");
 
     let sprite = |states: &BTreeMap<String, [i32; 2]>| json!({ "image": "buttons.png", "states": states });
@@ -1021,8 +1464,8 @@ fn main() {
         "id": "com.alexboyce.soundscraper.hifi74",
         "name": "Hi-Fi '74",
         "author": "Sound Scraper",
-        "version": "1.0",
-        "description": "A 1970s stereo receiver: walnut cheeks, brushed aluminum, a warm amber dial and needle VU meters.",
+        "version": "1.1",
+        "description": "A 1970s stereo receiver: walnut cheeks, brushed aluminum, a chrome script badge, a flip-card clock, pilot lamps, label tape, a phosphor scope and needle VU meters.",
         "colors": {
             "background": "#c9c8c2",
             "aluminum": "#c9c8c2",
@@ -1034,13 +1477,16 @@ fn main() {
             "accent": "#ffb24a",
             "record": "#e0402a",
             "cream": "#f1e3c2",
-            "walnut": "#4a2b17"
+            "walnut": "#4a2b17",
+            "phosphor": "#6dff9a",
+            "phosphorHot": "#d2ffe0",
+            "phosphorGhost": "#6dff9a24"
         },
         "fonts": {
-            "dial": { "sprite": "font-dial.png", "glyphs": chars.clone(), "cell": [12, 16] },
-            "tiny": { "sprite": "font-tiny.png", "glyphs": chars.clone(), "cell": [6, 8] },
+            "dymo": { "sprite": "font-dymo.png", "glyphs": dymo_chars, "cell": [8, 12] },
             "label": { "sprite": "font-label.png", "glyphs": chars.clone(), "cell": [6, 8] },
-            "digits": { "sprite": "digits.png", "glyphs": digit_chars, "cell": [14, 26] }
+            "flip": { "sprite": "flip.png", "glyphs": flip_chars, "cell": [18, 30] },
+            "flipSmall": { "sprite": "flip-small.png", "glyphs": flip_chars, "cell": [8, 12] }
         },
         "panels": {
             "main": {
@@ -1051,11 +1497,11 @@ fn main() {
                     "minimize": { "rect": r(398, 6, 14, 10), "sprite": sprite(&minimize) },
                     "shade": { "rect": r(414, 6, 14, 10), "sprite": sprite(&shade_btn) },
                     "close": { "rect": r(430, 6, 14, 10), "sprite": sprite(&close) },
-                    "elapsed": { "rect": r(32, 34, 112, 26), "font": "digits", "align": "right" },
-                    "status": { "rect": r(32, 72, 120, 16), "font": "dial", "style": { "pad": true } },
+                    "elapsed": { "rect": ELAPSED_RECT, "font": "flip", "align": "right", "style": { "flip": true, "tenths": false } },
+                    "status": { "rect": STATUS_RECT, "sprite": sprite(&status) },
                     "visualizer": {
-                        "rect": r(152, 32, 96, 62),
-                        "style": { "grid": "@amberGhost", "line": "@amber", "pixelated": false }
+                        "rect": SCOPE_RECT,
+                        "style": { "grid": "#00000000", "line": "@phosphor", "pixelated": false }
                     },
                     "levels": {
                         "rect": VU_RECT,
@@ -1066,7 +1512,7 @@ fn main() {
                             "needle": "#1a120a", "tip": "#b02a1c", "width": 1.2
                         }
                     },
-                    "source": { "rect": r(24, 110, 288, 16), "font": "dial", "style": { "pad": true } },
+                    "source": { "rect": r(26, 112, 288, 12), "font": "dymo" },
                     "seek": {
                         "rect": SEEK_RECT,
                         "sprite": { "image": "seek.png", "states": { "fill": [0, 0], "thumb": [0, SEEK_RECT[3]], "thumbPressed": [SEEK_THUMB[0], SEEK_RECT[3]] } },
@@ -1091,11 +1537,16 @@ fn main() {
                     "background": "shade.png",
                     "dragRegion": [[0, 0, MAIN_W, SHADE_H]],
                     "elements": {
-                        "status": { "rect": r(96, 5, 60, 8), "font": "tiny" },
-                        "elapsed": { "rect": r(158, 5, 48, 8), "font": "tiny", "align": "right" },
+                        "status": { "rect": SHADE_STATUS_RECT, "sprite": sprite(&shade_status_sprite) },
+                        "elapsed": { "rect": SHADE_ELAPSED_RECT, "font": "flipSmall", "align": "right", "style": { "flip": true, "tenths": false } },
                         "levels": {
-                            "rect": r(212, 5, 90, 8),
-                            "style": { "rows": 1, "segments": 24, "gap": 1, "on": "@amber", "hot": "@amberHot", "clip": "@record", "off": "@amberGhost" }
+                            "rect": EDGE_RECT,
+                            "style": {
+                                "kind": "needle", "faces": 2, "gap": EDGE_GAP,
+                                "pivot": [EDGE_PIVOT.0, EDGE_PIVOT.1], "length": EDGE_LENGTH,
+                                "sweep": EDGE_SWEEP, "range": [VU_RANGE.0, VU_RANGE.1], "reference": VU_REFERENCE,
+                                "needle": "#1a120a", "tip": "#b02a1c", "width": 0.8
+                            }
                         },
                         "record": { "rect": r(316, 3, 12, 12), "sprite": sprite(&tiny_record) },
                         "play": { "rect": r(330, 3, 12, 12), "sprite": sprite(&tiny_play) },
@@ -1111,16 +1562,16 @@ fn main() {
             "settings": frame([360, 340], false)
         },
         "visualizer": {
+            // A phosphor trace on the scope screen (its graticule is the
+            // artwork, so no grid).
             "presets": [
-                { "name": "Bars", "style": "bars", "bands": 20, "color": "@amber", "peak": "@amberHot", "gap": 1, "beat": 0.4,
-                  "grid": "@amberGhost", "line": "@amber" },
-                { "name": "Scope", "style": "scope", "color": "@amber", "lineWidth": 1, "grid": "@amberGhost", "line": "@amber" },
-                { "name": "Mirror", "style": "mirror", "bands": 20, "gradient": ["@amber", "@amberHot"], "gap": 1,
-                  "grid": "@amberGhost", "line": "@amber" },
-                { "name": "Radial", "style": "radial", "bands": 30, "color": "@amber", "lineWidth": 1,
-                  "grid": "@amberGhost", "line": "@amber" },
-                { "name": "Fire", "style": "fire", "bands": 20, "gradient": ["@record", "@amber", "#fff0c0"], "gap": 1,
-                  "decay": 0.86, "grid": "@amberGhost", "line": "@amberHot" }
+                { "name": "Scope", "style": "scope", "color": "@phosphor", "lineWidth": 1.5, "grid": "#00000000", "line": "@phosphor" },
+                { "name": "Radial", "style": "radial", "bands": 30, "color": "@phosphor", "lineWidth": 1,
+                  "grid": "#00000000", "line": "@phosphor" },
+                { "name": "Spectrum", "style": "bars", "bands": 16, "color": "@phosphorGhost", "peak": "@phosphorHot", "gap": 2, "beat": 0.3,
+                  "grid": "#00000000", "line": "@phosphor" },
+                { "name": "Mirror", "style": "mirror", "bands": 16, "gradient": ["@phosphorGhost", "@phosphor"], "gap": 2,
+                  "grid": "#00000000", "line": "@phosphor" }
             ]
         }
     });

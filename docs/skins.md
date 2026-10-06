@@ -90,8 +90,8 @@ rects that move the window, and `elements`:
 | --- | --- |
 | `record`, `play`, `pause`, `stop` | Transport buttons (sprites; see below) |
 | `seek` | The playback position bar (scrubber; see below) |
-| `elapsed` | Recording time, or the playback position, e.g. `12:34.5` (a sprite `font`, `align: "right"`) |
-| `status` | REC / PAUSED / READY / PLAYING and messages (font, `style.pad` shows unlit cells) |
+| `elapsed` | Recording time, or the playback position, e.g. `12:34.5` (a sprite `font`, `align: "right"`; `style.tenths: false` shows `12:34`; `style.flip: true` flips changed cells over like split-flap clock cards, so draw each glyph as a whole card split across the middle, as in Hi-Fi '74) |
+| `status` | REC / PAUSED / READY / PLAYING and messages (font, `style.pad` shows unlit cells), or a sprite with a cell per state: `idle`, `recording`, `paused`, `finalizing`, `playing`, `stopped` |
 | `source` | What's being recorded (or the recording loaded for playback); click to choose |
 | `levels` | Level meter (see below) |
 | `visualizer` | Spectrum and scope looks from `visualizer.presets`; click to cycle |

@@ -56,6 +56,8 @@ test('renders the core version and an idle record bar', async () => {
 test('formats elapsed time', () => {
   expect(formatElapsed(0)).toBe('0:00.0');
   expect(formatElapsed(65_432)).toBe('1:05.4');
+  expect(formatElapsed(65_432, false)).toBe('01:05');
+  expect(formatElapsed(6_065_432, false)).toBe('101:05');
 });
 
 describe('library model', () => {

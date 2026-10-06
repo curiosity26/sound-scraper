@@ -38,6 +38,7 @@ pub fn render(skin: &ResolvedSkin, layout: &ResolvedLayout, scale: u32) -> RgbaI
         }
         if el.font.is_some() {
             let sample = match name.as_str() {
+                "elapsed" if el.style.as_ref().and_then(|s| s.get("tenths")).and_then(Value::as_bool) == Some(false) => "12:34",
                 "elapsed" => "12:34.5",
                 "status" => "● REC",
                 "source" => "Spotify: Lo-fi beats",

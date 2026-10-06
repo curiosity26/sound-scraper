@@ -302,9 +302,15 @@
         },
         "style": {
           "type": "object",
-          "description": "Element parameters. Text: pad (fill the rect with spaces, showing a sprite font's unlit cells). levels: rows (1 = peak, 2 = left and right), segments, gap, vertical, on, hot, clip, off colors; or kind \"needle\" for analog meters: faces (1, or 2 for left and right side by side gap apart), pivot and length of the needle in points from a face's top left, sweep (degrees), range ([low, high] VU at the ends of the sweep), reference (the dBFS that reads 0 VU), needle and tip colors, width, source (\"rms\" or \"peak\"). The scale is the skin's artwork. visualizer: grid, line colors, pixelated.",
+          "description": "Element parameters. Text: pad (fill the rect with spaces, showing a sprite font's unlit cells), flip (sprite font cells flip over like split-flap clock cards when they change; each glyph cell is a whole card split across the middle). elapsed: tenths (false shows MM:SS instead of M:SS.t). levels: rows (1 = peak, 2 = left and right), segments, gap, vertical, on, hot, clip, off colors; or kind \"needle\" for analog meters: faces (1, or 2 for left and right side by side gap apart), pivot and length of the needle in points from a face's top left, sweep (degrees), range ([low, high] VU at the ends of the sweep), reference (the dBFS that reads 0 VU), needle and tip colors, width, source (\"rms\" or \"peak\"). The scale is the skin's artwork. visualizer: grid, line colors, pixelated.",
           "properties": {
             "pad": {
+              "type": "boolean"
+            },
+            "flip": {
+              "type": "boolean"
+            },
+            "tenths": {
               "type": "boolean"
             },
             "kind": {

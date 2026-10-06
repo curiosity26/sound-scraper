@@ -358,7 +358,10 @@ export function MainPanel(): React.JSX.Element {
           testID="elapsed"
           element={els.elapsed}
           fonts={skin.fonts}
-          text={formatElapsed(elapsedMs)}
+          text={formatElapsed(
+            elapsedMs,
+            els.elapsed.style?.tenths !== false,
+          )}
         />
       )}
       {els.status && (

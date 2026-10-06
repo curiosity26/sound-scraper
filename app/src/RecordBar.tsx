@@ -94,12 +94,15 @@ function Button(props: {
   );
 }
 
-export function formatElapsed(ms: number): string {
+export function formatElapsed(ms: number, tenths = true): string {
   const total = Math.floor(ms / 100);
-  const tenths = total % 10;
   const seconds = Math.floor(total / 10) % 60;
   const minutes = Math.floor(total / 600);
-  return `${minutes}:${String(seconds).padStart(2, '0')}.${tenths}`;
+  if (!tenths) {
+    // MM:SS, like a clock (skins with flip-card digits).
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+  return `${minutes}:${String(seconds).padStart(2, '0')}.${total % 10}`;
 }
 
 /** Maps a linear peak to a 0..1 meter position over a 60 dB range. */
