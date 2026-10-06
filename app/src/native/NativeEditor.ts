@@ -12,6 +12,8 @@ export interface Spec extends TurboModule {
   status(id: number): string;
   /** The tracks an edit list (JSON) makes, as JSON (ss_editor_tracks). */
   tracks(id: number, editsJson: string): string;
+  /** Find Tracks: proposed splices as JSON (ss_editor_detect). */
+  detect(id: number, optionsJson: string): string;
   /** Unsaved edits kept for a recording (JSON), or "null". */
   loadDraft(fileName: string): string;
   saveDraft(fileName: string, editsJson: string): void;

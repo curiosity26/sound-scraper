@@ -3,7 +3,14 @@ import NativeEditor from './NativeEditor';
 
 export type WaveformStatus =
   | { state: 'loading'; progress: number }
-  | { state: 'ready'; rate: number; durationMs: number }
+  | {
+      state: 'ready';
+      rate: number;
+      durationMs: number;
+      /** The MP3 frame grid lossless cuts land on. */
+      frameMs: number | null;
+      frameOffsetMs: number | null;
+    }
   | { state: 'failed'; message: string };
 
 /** A track an edit makes (ss_editor_tracks). */
@@ -14,6 +21,22 @@ export type TrackInfo = {
   durationMs: number;
   /** Has a deleted stretch inside it, so it's re-encoded on save. */
   reencode: boolean;
+};
+
+export type DetectOptions = {
+  thresholdDb: number;
+  minGapMs: number;
+  minTrackMs: number;
+  removeGaps: boolean;
+};
+
+/** A splice Find Tracks proposes, in a gap. */
+export type Proposal = {
+  atMs: number;
+  gapStartMs: number;
+  gapEndMs: number;
+  /** With removeGaps: the stretch to delete. */
+  delete: [number, number] | null;
 };
 
 export type SaveResult = { files: string[]; reencoded: number };
@@ -34,6 +57,8 @@ export const editorCore = {
   status: (id: number): WaveformStatus => JSON.parse(native().status(id)),
   tracks: (id: number, editsJson: string): TrackInfo[] =>
     JSON.parse(native().tracks(id, editsJson) || '[]') ?? [],
+  detect: (id: number, options: DetectOptions): Proposal[] =>
+    JSON.parse(native().detect(id, JSON.stringify(options)) || '[]') ?? [],
   /** The saved draft's JSON, or "null". */
   loadDraft: (fileName: string): string => native().loadDraft(fileName),
   saveDraft: (fileName: string, editsJson: string): void =>

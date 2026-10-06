@@ -6,3 +6,4 @@ pub mod edits;
 pub mod save;
 pub mod editor;
 pub mod peaks;
+pub mod detect;

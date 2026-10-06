@@ -1,4 +1,5 @@
 import {
+  applyProposals,
   addSplice,
   adjacentSplice,
   clampZoom,
@@ -91,4 +92,19 @@ test('zoom limits and anchoring', () => {
   expect(clampZoom(0.001, 60_000, 600)).toBe(0.1);
   // 30 s was 300 pt in: zooming to 50 ms/pt keeps it there.
   expect(zoomScroll(30_000, 300, 50)).toBe(300);
+});
+
+test('proposals become splices, skipping ones near existing splices', () => {
+  const start = addSplice(emptyEdits('A'), 60_000, 'Kept').edits;
+  const e = applyProposals(start, [
+    { atMs: 30_000, delete: [29_000, 29_800] },
+    { atMs: 61_000, delete: null },
+    { atMs: 90_000, delete: null },
+  ]);
+  expect(e.splices.map(s => [s.atMs, s.name])).toEqual([
+    [30_000, 'Track 2'],
+    [60_000, 'Kept'],
+    [90_000, 'Track 4'],
+  ]);
+  expect(e.deleted.map(r => [r.startMs, r.endMs])).toEqual([[29_000, 29_800]]);
 });

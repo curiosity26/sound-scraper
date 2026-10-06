@@ -59,6 +59,11 @@ RCT_EXPORT_MODULE(SoundScraperEditor)
   return SSTakeEditorString(ss_editor_tracks((uint64_t)id, editsJson.UTF8String)) ?: @"[]";
 }
 
+- (NSString *)detect:(double)id optionsJson:(NSString *)optionsJson
+{
+  return SSTakeEditorString(ss_editor_detect((uint64_t)id, optionsJson.UTF8String)) ?: @"[]";
+}
+
 - (NSString *)loadDraft:(NSString *)fileName
 {
   return SSTakeEditorString(ss_edits_load_draft(fileName.UTF8String)) ?: @"null";

@@ -976,7 +976,8 @@ void ss_editor_close(uint64_t id);
 
 /*
  The editor's waveform as JSON: `{"state":"loading","progress":0..1}`,
- `{"state":"ready","rate":48000,"durationMs":…}` or
+ `{"state":"ready","rate":48000,"durationMs":…,"frameMs":…,
+ "frameOffsetMs":…}` (the MP3 frame grid lossless cuts land on) or
  `{"state":"failed","message":…}`. Free with `ss_string_free`.
  */
 char *ss_editor_status(uint64_t id);
@@ -1013,6 +1014,18 @@ bool ss_editor_render(uint64_t id,
  `edits_json` must be NUL-terminated UTF-8.
  */
 char *ss_editor_tracks(uint64_t id, const char *edits_json);
+
+/*
+ Find Tracks: splices proposed in the silences between songs, for
+ options `{"thresholdDb","minGapMs","minTrackMs","removeGaps"}` (missing
+ ones take defaults). Returns `[{"atMs","gapStartMs","gapEndMs",
+ "delete":null|[startMs,endMs]}]`, or NULL until the waveform is ready.
+ Free with `ss_string_free`.
+
+ # Safety
+ `options_json` must be NUL-terminated UTF-8.
+ */
+char *ss_editor_detect(uint64_t id, const char *options_json);
 
 /*
  The unsaved edits kept for a recording (JSON), or "null". Free with

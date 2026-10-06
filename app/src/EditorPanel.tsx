@@ -33,6 +33,7 @@ import { errorText } from './appHelpers';
 import {
   addSplice,
   adjacentSplice,
+  applyProposals,
   clampZoom,
   deletedAt,
   deleteRegion,
@@ -54,7 +55,9 @@ import {
   zoomScroll,
 } from './editorModel';
 import {
+  type DetectOptions,
   editorCore,
+  type Proposal,
   type TrackInfo,
   type WaveformStatus,
 } from './native/editor';
@@ -94,6 +97,39 @@ const CLICK_SLOP = 3;
 // Snapping is a preference that outlives one editor.
 let snapPreference = true;
 
+const PRESETS: Record<
+  'digital' | 'vinyl',
+  Omit<DetectOptions, 'removeGaps'>
+> = {
+  // Streams and files: the gaps are digital silence.
+  digital: { thresholdDb: -60, minGapMs: 1500, minTrackMs: 30_000 },
+  // Vinyl, tape, radio: noise between songs.
+  vinyl: { thresholdDb: -40, minGapMs: 1500, minTrackMs: 30_000 },
+};
+// Find Tracks' last settings, for the next time it opens.
+let detectPreference: DetectOptions = { ...PRESETS.digital, removeGaps: false };
+
+const THRESHOLDS = [
+  -80, -75, -70, -65, -60, -55, -50, -45, -40, -35, -30, -25, -20,
+];
+const GAPS = [300, 500, 750, 1000, 1500, 2000, 3000, 5000, 10_000];
+const MIN_TRACKS = [0, 10_000, 30_000, 60_000, 120_000, 300_000];
+
+/** The next value in `list` after (dir 1) or before (dir -1) `v`. */
+function stepIn(list: number[], v: number, dir: 1 | -1): number {
+  const i = list.findIndex(x => x >= v);
+  const at = i < 0 ? list.length - 1 : i;
+  const exact = list[at] === v;
+  const next = dir > 0 ? (exact ? at + 1 : at) : at - 1;
+  return list[Math.max(0, Math.min(list.length - 1, next))];
+}
+
+/** Snippets played while scrubbing, and the stop after the pointer rests. */
+const SCRUB_INTERVAL_MS = 60;
+const SCRUB_REST_MS = 150;
+/** P plays this much either side of the selected splice. */
+const PREVIEW_MS = 2000;
+
 type Drag =
   | {
       kind: 'splice';
@@ -106,6 +142,9 @@ type Drag =
   | { kind: 'select'; anchorMs: number; ms: number; x0: number };
 
 type Modal = { kind: 'save'; saving: boolean; error?: string } | null;
+
+const OVERVIEW = 30;
+const SCRUB_HANDLE = 11;
 
 export function EditorPanel(props: Props): React.JSX.Element {
   const { target, colors } = props;
@@ -235,6 +274,23 @@ export function EditorPanel(props: Props): React.JSX.Element {
   };
   const [snapOn, setSnapOn] = useState(snapPreference);
   const [modal, setModal] = useState<Modal>(null);
+  /** Find Tracks' settings while its popover is open. */
+  const [finding, setFinding] = useState<DetectOptions | null>(null);
+  const proposals: Proposal[] = useMemo(
+    () =>
+      finding && status.state === 'ready'
+        ? editorCore.detect(editorId, finding)
+        : [],
+    [finding, status.state, editorId],
+  );
+  const setFindOptions = (o: DetectOptions) => {
+    detectPreference = o;
+    setFinding(o);
+  };
+  const applyFound = () => {
+    commit(applyProposals(finishNaming(), proposals));
+    setFinding(null);
+  };
 
   // ------------------------------------------------------------ view
   const [viewWidth, setViewWidth] = useState(0);
@@ -365,6 +421,95 @@ export function EditorPanel(props: Props): React.JSX.Element {
     playback.seek(Math.max(0, Math.min(ms, durationMs)));
   };
 
+  // Stops a preview or a scrub snippet after a while.
+  const stopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pauseAfter = (ms: number) => {
+    if (stopTimer.current) {
+      clearTimeout(stopTimer.current);
+    }
+    stopTimer.current = setTimeout(() => {
+      stopTimer.current = null;
+      playback.pause();
+    }, ms);
+  };
+  const cancelPauseTimer = () => {
+    if (stopTimer.current) {
+      clearTimeout(stopTimer.current);
+      stopTimer.current = null;
+    }
+  };
+  useEffect(() => cancelPauseTimer, []);
+
+  /** P: plays a couple of seconds either side of the selected splice. */
+  const previewSplice = async () => {
+    const s = edits.splices.find(x => x.id === selectedSplice);
+    if (!s) {
+      return;
+    }
+    await seek(s.atMs - PREVIEW_MS);
+    await playback.play();
+    pauseAfter(Math.min(s.atMs, PREVIEW_MS) + PREVIEW_MS);
+  };
+
+  // Scrubbing: dragging the playhead plays short snippets from where it is.
+  const scrub = useRef({
+    active: false,
+    wasPlaying: false,
+    x0: 0,
+    from: 0,
+    last: 0,
+  });
+  const [scrubMs, setScrubMs] = useState<number | null>(null);
+  const scrubGrant = async (e: GestureResponderEvent) => {
+    finishNaming();
+    cancelPauseTimer();
+    const from = loaded ? pb.positionMs : 0;
+    scrub.current = {
+      active: true,
+      wasPlaying: loaded && pb.state === 'playing',
+      x0: e.nativeEvent.pageX,
+      from,
+      last: 0,
+    };
+    setScrubMs(from);
+    await ensureLoaded();
+  };
+  const scrubMove = async (e: GestureResponderEvent) => {
+    const sc = scrub.current;
+    if (!sc.active) {
+      return;
+    }
+    const ms = snapMs(sc.from + (e.nativeEvent.pageX - sc.x0) * scale);
+    setScrubMs(ms);
+    const now = Date.now();
+    if (now - sc.last < SCRUB_INTERVAL_MS) {
+      return;
+    }
+    sc.last = now;
+    playback.seek(ms);
+    if (playback.get().state !== 'playing') {
+      await playback.play();
+    }
+    if (!sc.wasPlaying) {
+      pauseAfter(SCRUB_REST_MS);
+    }
+  };
+  const scrubRelease = () => {
+    const sc = scrub.current;
+    if (!sc.active) {
+      return;
+    }
+    sc.active = false;
+    if (scrubMs !== null) {
+      playback.seek(scrubMs);
+    }
+    setScrubMs(null);
+    if (!sc.wasPlaying) {
+      cancelPauseTimer();
+      playback.pause();
+    }
+  };
+
   // ------------------------------------------------------------ actions
   const addSpliceAt = (ms: number, nameIt = true) => {
     const { edits: next, id } = addSplice(edits, snapMs(ms));
@@ -446,6 +591,9 @@ export function EditorPanel(props: Props): React.JSX.Element {
     if (modal || naming !== null) {
       return;
     }
+    if (!/^[pP]$/.test(e.nativeEvent.key)) {
+      cancelPauseTimer();
+    }
     const { key, metaKey, shiftKey } = e.nativeEvent;
     if (metaKey) {
       if (key === 'z') {
@@ -478,6 +626,10 @@ export function EditorPanel(props: Props): React.JSX.Element {
       case 'Tab':
         jump(shiftKey ? -1 : 1);
         break;
+      case 'p':
+      case 'P':
+        previewSplice();
+        break;
       case '=':
       case '+':
         zoomTo(scale / 2);
@@ -490,6 +642,7 @@ export function EditorPanel(props: Props): React.JSX.Element {
         toggleSnap();
         break;
       case 'Escape':
+        setFinding(null);
         setSelection(null);
         setSelectedSplice(null);
         setSelectedRegion(null);
@@ -624,6 +777,24 @@ export function EditorPanel(props: Props): React.JSX.Element {
       });
     }
   }
+  // MP3 frame boundaries (where lossless cuts land), once they're 6 pt apart.
+  const frameTicks: number[] = [];
+  if (
+    status.state === 'ready' &&
+    status.frameMs &&
+    status.frameMs / scale >= 6 &&
+    viewWidth > 0
+  ) {
+    const f = status.frameMs;
+    const off = status.frameOffsetMs ?? 0;
+    for (
+      let ms = off + Math.max(0, Math.floor((firstVisible - off) / f)) * f;
+      ms <= lastVisible && frameTicks.length < 1000;
+      ms += f
+    ) {
+      frameTicks.push(ms);
+    }
+  }
   const liveSelection =
     drag?.kind === 'select' &&
     Math.abs(drag.ms - drag.anchorMs) * (1 / scale) >= CLICK_SLOP
@@ -661,6 +832,12 @@ export function EditorPanel(props: Props): React.JSX.Element {
           {formatTime(playheadMs, 100)} / {formatTime(durationMs, 1000)}
         </Text>
         <View style={styles.gap} />
+        <Btn
+          t={t}
+          label="Find Tracks…"
+          onPress={() => setFinding(finding ? null : detectPreference)}
+          disabled={!ready}
+        />
         <Btn
           t={t}
           label="Add Splice"
@@ -731,6 +908,28 @@ export function EditorPanel(props: Props): React.JSX.Element {
           accent
         />
       </View>
+
+      {/* Overview: the whole recording, with the visible stretch */}
+      {editorId > 0 && viewWidth > 0 && durationMs > 0 && (
+        <Overview
+          editorId={editorId}
+          width={viewWidth}
+          durationMs={durationMs}
+          colors={waveColors}
+          c={c}
+          viewStartMs={firstVisible}
+          viewEndMs={Math.min(durationMs, lastVisible)}
+          edits={shown}
+          onScrollTo={ms => {
+            const x = Math.max(
+              0,
+              Math.min(ms / scale - viewWidth / 2, contentWidth - viewWidth),
+            );
+            scrollRef.current?.scrollTo({ x, animated: false });
+            setScrollX(x);
+          }}
+        />
+      )}
 
       {/* Ruler and waveform */}
       <View
@@ -841,6 +1040,51 @@ export function EditorPanel(props: Props): React.JSX.Element {
                   }}
                 />
               )}
+              {frameTicks.map(ms => (
+                <View
+                  key={`f${ms}`}
+                  pointerEvents="none"
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    height: 6,
+                    left: ms / scale,
+                    width: StyleSheet.hairlineWidth,
+                    backgroundColor: c('rulerText', '#f3ead0'),
+                    opacity: 0.35,
+                  }}
+                />
+              ))}
+              {finding &&
+                proposals.map(p => (
+                  <React.Fragment key={`p${p.atMs}`}>
+                    <View
+                      pointerEvents="none"
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        bottom: 0,
+                        left: p.gapStartMs / scale,
+                        width: Math.max(1, (p.gapEndMs - p.gapStartMs) / scale),
+                        backgroundColor: c('selection', '#ffffff30'),
+                        opacity: 0.6,
+                      }}
+                    />
+                    <View
+                      pointerEvents="none"
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        bottom: 0,
+                        left: p.atMs / scale,
+                        width: 0,
+                        borderLeftWidth: 1,
+                        borderStyle: 'dashed',
+                        borderColor: c('splice', '#9fd630'),
+                      }}
+                    />
+                  </React.Fragment>
+                ))}
               {shown.splices.map(s => (
                 <View
                   key={s.id}
@@ -858,19 +1102,37 @@ export function EditorPanel(props: Props): React.JSX.Element {
                   }}
                 />
               ))}
-              {loaded && (
+              {(loaded || scrubMs !== null) && (
                 <View
                   pointerEvents="none"
                   style={{
                     position: 'absolute',
                     top: 0,
                     bottom: 0,
-                    left: playheadMs / scale,
+                    left: (scrubMs ?? playheadMs) / scale,
                     width: 1,
                     backgroundColor: c('playhead', '#ff4a3a'),
                   }}
                 />
               )}
+              {/* The playhead's handle: drag it to scrub */}
+              <View
+                testID="editor-scrub"
+                accessibilityLabel="Playhead: drag to scrub"
+                style={[
+                  styles.scrubHandle,
+                  {
+                    left: (scrubMs ?? playheadMs) / scale - SCRUB_HANDLE / 2,
+                    backgroundColor: c('playhead', '#ff4a3a'),
+                  },
+                ]}
+                onStartShouldSetResponder={() => ready && !modal}
+                onResponderGrant={scrubGrant}
+                onResponderMove={scrubMove}
+                onResponderRelease={scrubRelease}
+                onResponderTerminate={scrubRelease}
+                onResponderTerminationRequest={() => false}
+              />
             </View>
 
             {/* Splice flags, on top of the ruler */}
@@ -923,6 +1185,92 @@ export function EditorPanel(props: Props): React.JSX.Element {
             onChange={setNameDraft}
             onDone={finishNaming}
           />
+        )}
+
+        {finding && (
+          <View
+            style={[styles.finder, t.panel, t.border]}
+            {...closeNamingOnPress}
+          >
+            <View style={styles.finderRow}>
+              <Text style={[styles.finderLabel, t.text]}>Preset</Text>
+              <Btn
+                t={t}
+                label="Digital"
+                onPress={() =>
+                  setFindOptions({ ...finding, ...PRESETS.digital })
+                }
+              />
+              <Btn
+                t={t}
+                label="Vinyl / Radio"
+                onPress={() => setFindOptions({ ...finding, ...PRESETS.vinyl })}
+              />
+            </View>
+            <Stepper
+              t={t}
+              label="Silence below"
+              value={`${finding.thresholdDb} dB`}
+              onStep={dir =>
+                setFindOptions({
+                  ...finding,
+                  thresholdDb: stepIn(THRESHOLDS, finding.thresholdDb, dir),
+                })
+              }
+            />
+            <Stepper
+              t={t}
+              label="Gaps at least"
+              value={formatStep(finding.minGapMs)}
+              onStep={dir =>
+                setFindOptions({
+                  ...finding,
+                  minGapMs: stepIn(GAPS, finding.minGapMs, dir),
+                })
+              }
+            />
+            <Stepper
+              t={t}
+              label="Tracks at least"
+              value={
+                finding.minTrackMs ? formatStep(finding.minTrackMs) : 'any'
+              }
+              onStep={dir =>
+                setFindOptions({
+                  ...finding,
+                  minTrackMs: stepIn(MIN_TRACKS, finding.minTrackMs, dir),
+                })
+              }
+            />
+            <Pressable
+              onPress={() =>
+                setFindOptions({ ...finding, removeGaps: !finding.removeGaps })
+              }
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: finding.removeGaps }}
+            >
+              <Text style={[styles.toggle, t.text]}>
+                {finding.removeGaps ? '☑' : '☐'} Remove the gaps
+              </Text>
+            </Pressable>
+            <Text style={[styles.finderNote, t.text]}>
+              {proposals.length === 0
+                ? 'No gaps found with these settings.'
+                : `${proposals.length + 1} tracks: ${proposals.length} new ${
+                    proposals.length === 1 ? 'splice' : 'splices'
+                  } (dashed).`}
+            </Text>
+            <View style={styles.modalButtons}>
+              <Btn t={t} label="Cancel" onPress={() => setFinding(null)} />
+              <Btn
+                t={t}
+                label="Apply"
+                onPress={applyFound}
+                disabled={proposals.length === 0}
+                accent
+              />
+            </View>
+          </View>
         )}
 
         {status.state !== 'ready' && (
@@ -1010,7 +1358,7 @@ export function EditorPanel(props: Props): React.JSX.Element {
             } a deleted stretch inside, so saving re-encodes ${
               reencoded === 1 ? 'it' : 'them'
             }. Everything else is cut without re-encoding.`
-          : 'Click the ruler to add a splice, drag in the waveform to select. Space plays, M splices at the playhead, Delete removes. Unsaved edits are kept until you save.'}
+          : 'Click the ruler to add a splice, drag in the waveform to select, drag the red handle to scrub. Space plays, M splices at the playhead, P previews a splice, Delete removes. Unsaved edits are kept until you save.'}
       </Text>
 
       {modal?.kind === 'save' && (
@@ -1051,6 +1399,8 @@ const KEYS = [
   { key: 'ArrowRight', shiftKey: true },
   { key: 'Tab' },
   { key: 'Tab', shiftKey: true },
+  { key: 'p' },
+  { key: 'P' },
   { key: '=' },
   { key: '+' },
   { key: '-' },
@@ -1074,6 +1424,109 @@ function formatStep(ms: number): string {
 }
 
 type Styles = ReturnType<typeof usePanelStyles>;
+
+function Stepper(props: {
+  t: Styles;
+  label: string;
+  value: string;
+  onStep: (dir: 1 | -1) => void;
+}) {
+  return (
+    <View style={styles.finderRow}>
+      <Text style={[styles.finderLabel, props.t.text]}>{props.label}</Text>
+      <Btn t={props.t} label="−" onPress={() => props.onStep(-1)} />
+      <Text style={[styles.finderValue, props.t.text]}>{props.value}</Text>
+      <Btn t={props.t} label="+" onPress={() => props.onStep(1)} />
+    </View>
+  );
+}
+
+/**
+ * The whole recording at a glance: its waveform, splices and deleted
+ * stretches, with a box around what the editor shows. Click or drag to
+ * move the view.
+ */
+function Overview(props: {
+  editorId: number;
+  width: number;
+  durationMs: number;
+  colors: string;
+  c: (k: string, fallback: string) => string;
+  viewStartMs: number;
+  viewEndMs: number;
+  edits: Edits;
+  onScrollTo: (centerMs: number) => void;
+}) {
+  const { width, durationMs, c } = props;
+  const per = durationMs / Math.max(1, width);
+  const go = (e: GestureResponderEvent) =>
+    props.onScrollTo(
+      Math.max(0, Math.min(durationMs, e.nativeEvent.locationX * per)),
+    );
+  return (
+    <View
+      testID="editor-overview"
+      style={[
+        styles.overview,
+        { width, backgroundColor: c('background', '#141210') },
+      ]}
+      onStartShouldSetResponder={() => true}
+      onMoveShouldSetResponder={() => true}
+      onResponderGrant={go}
+      onResponderMove={go}
+      onResponderTerminationRequest={() => false}
+    >
+      <SSWaveformView
+        pointerEvents="none"
+        style={StyleSheet.absoluteFill}
+        editorId={props.editorId}
+        startMs={0}
+        msPerPoint={per}
+        colors={props.colors}
+      />
+      {props.edits.deleted.map(r => (
+        <View
+          key={r.id}
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: 0,
+            bottom: 0,
+            left: r.startMs / per,
+            width: Math.max(1, (r.endMs - r.startMs) / per),
+            backgroundColor: c('deleted', '#00000099'),
+          }}
+        />
+      ))}
+      {props.edits.splices.map(s => (
+        <View
+          key={s.id}
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: 0,
+            bottom: 0,
+            left: s.atMs / per,
+            width: 1,
+            backgroundColor: c('splice', '#9fd630'),
+          }}
+        />
+      ))}
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          top: 0,
+          bottom: 0,
+          left: props.viewStartMs / per,
+          width: Math.max(3, (props.viewEndMs - props.viewStartMs) / per),
+          borderWidth: 1,
+          borderColor: c('spliceSelected', '#fff0a0'),
+        }}
+      />
+    </View>
+  );
+}
 
 function Btn(props: {
   t: Styles;
@@ -1265,6 +1718,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   center: { alignItems: 'center', justifyContent: 'center' },
+  overview: {
+    height: OVERVIEW,
+    marginBottom: 4,
+    overflow: 'hidden',
+    borderRadius: 2,
+  },
+  scrubHandle: {
+    position: 'absolute',
+    top: 0,
+    width: SCRUB_HANDLE,
+    height: 10,
+    borderBottomLeftRadius: SCRUB_HANDLE / 2,
+    borderBottomRightRadius: SCRUB_HANDLE / 2,
+  },
+  finder: {
+    position: 'absolute',
+    right: 8,
+    top: RULER + 6,
+    width: 270,
+    padding: 10,
+    gap: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  finderRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  finderLabel: { width: 96, fontSize: 12 },
+  finderValue: { minWidth: 56, fontSize: 12, textAlign: 'center' },
+  finderNote: { fontSize: 11, opacity: 0.8 },
   note: { fontSize: 12 },
   tracks: { height: 110, marginTop: 6, borderRadius: 2 },
   trackRow: {

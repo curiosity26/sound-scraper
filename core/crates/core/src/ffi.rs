@@ -1550,17 +1550,24 @@ pub extern "C" fn ss_editor_close(id: u64) {
 }
 
 /// The editor's waveform as JSON: `{"state":"loading","progress":0..1}`,
-/// `{"state":"ready","rate":48000,"durationMs":…}` or
+/// `{"state":"ready","rate":48000,"durationMs":…,"frameMs":…,
+/// "frameOffsetMs":…}` (the MP3 frame grid lossless cuts land on) or
 /// `{"state":"failed","message":…}`. Free with `ss_string_free`.
 #[unsafe(no_mangle)]
 pub extern "C" fn ss_editor_status(id: u64) -> *mut c_char {
     use crate::edit::editor::Status as S;
     json_or_null(catch("reading the editor", || {
-        Ok(match editor(id)?.status() {
+        let editor = editor(id)?;
+        let grid = editor.frame_grid();
+        Ok(match editor.status() {
             S::Loading(p) => serde_json::json!({ "state": "loading", "progress": p }),
-            S::Ready { rate, frames } => {
-                serde_json::json!({ "state": "ready", "rate": rate, "durationMs": frames as f64 * 1000.0 / f64::from(rate) })
-            }
+            S::Ready { rate, frames } => serde_json::json!({
+                "state": "ready",
+                "rate": rate,
+                "durationMs": frames as f64 * 1000.0 / f64::from(rate),
+                "frameMs": grid.map(|g| g.0),
+                "frameOffsetMs": grid.map(|g| g.1),
+            }),
             S::Failed(message) => serde_json::json!({ "state": "failed", "message": message }),
         })
     }))
@@ -1625,6 +1632,23 @@ pub unsafe extern "C" fn ss_editor_tracks(id: u64, edits_json: *const c_char) ->
                 })
             })
             .collect::<Vec<_>>())
+    }))
+}
+
+/// Find Tracks: splices proposed in the silences between songs, for
+/// options `{"thresholdDb","minGapMs","minTrackMs","removeGaps"}` (missing
+/// ones take defaults). Returns `[{"atMs","gapStartMs","gapEndMs",
+/// "delete":null|[startMs,endMs]}]`, or NULL until the waveform is ready.
+/// Free with `ss_string_free`.
+///
+/// # Safety
+/// `options_json` must be NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_editor_detect(id: u64, options_json: *const c_char) -> *mut c_char {
+    json_or_null(catch("finding tracks", || {
+        let opts: crate::edit::detect::DetectOptions =
+            serde_json::from_str(unsafe { arg_str(options_json, "options_json")? }).map_err(|e| format!("invalid options: {e}"))?;
+        editor(id)?.detect(&opts).ok_or_else(|| "the waveform isn't ready".to_string())
     }))
 }
 

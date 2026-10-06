@@ -24,6 +24,9 @@ pub struct Editor {
     /// Decoded samples for deep zoom: (first frame, interleaved stereo).
     detail: Mutex<Option<(u64, Vec<f32>)>>,
     style: Mutex<(String, Style)>,
+    /// MP3 frame grid in the presentation timeline: (frame length, where
+    /// the first boundary falls), in ms. Lossless cuts land on it.
+    frame_grid: Option<(f64, f64)>,
 }
 
 #[derive(Default)]
@@ -117,7 +120,19 @@ impl Editor {
             worker,
             detail: Mutex::new(None),
             style: Mutex::new((String::new(), Style::default())),
+            frame_grid: frame_grid(path),
         }
+    }
+
+    /// The MP3 frame grid: (frame length, first boundary) in ms.
+    pub fn frame_grid(&self) -> Option<(f64, f64)> {
+        self.frame_grid
+    }
+
+    /// Find Tracks; None until the waveform is ready.
+    pub fn detect(&self, opts: &super::detect::DetectOptions) -> Option<Vec<super::detect::Proposal>> {
+        let peaks = self.shared.peaks.lock().unwrap().clone()?;
+        Some(super::detect::detect(&peaks, opts))
     }
 
     pub fn path(&self) -> &Path {
@@ -240,6 +255,20 @@ impl Drop for Editor {
     }
 }
 
+/// Reads the start of the file for its frame size and encoder delay.
+fn frame_grid(path: &Path) -> Option<(f64, f64)> {
+    use std::io::Read;
+    let mut head = Vec::new();
+    std::fs::File::open(path).ok()?.take(256 * 1024).read_to_end(&mut head).ok()?;
+    let index = super::mp3cut::Mp3Index::parse(&head).ok()?;
+    let rate = f64::from(index.header.sample_rate);
+    let spf = index.samples_per_frame() as f64;
+    let lead = if index.gapless { (super::mp3cut::DECODER_DELAY + index.delay_field) as f64 } else { 0.0 };
+    // Raw boundaries are at multiples of spf; presentation = raw - lead.
+    let first = (spf - lead.rem_euclid(spf)) % spf;
+    Some((spf * 1000.0 / rate, first * 1000.0 / rate))
+}
+
 fn sample_range(first: u64, samples: &[f32], a: f64, b: f64) -> Option<(f32, f32, f32)> {
     let i = (a as u64).checked_sub(first)? as usize;
     // Through the next sample too, so neighbouring columns join up.
@@ -293,6 +322,11 @@ mod tests {
         let path = dir.join("w.mp3");
         std::fs::write(&path, crate::mp3::tests::encode_all(&samples, rate, true)).unwrap();
         let editor = Editor::open(&path);
+        let (frame, first) = editor.frame_grid().unwrap();
+        assert_eq!(frame, 24.0, "1152 samples at 48 kHz");
+        // LAME's 576 + the decoder's 529 = 1105 samples: the first boundary
+        // is 47 samples in.
+        assert!((first - 47.0 / 48.0).abs() < 1e-9, "{first}");
         let start = std::time::Instant::now();
         while !matches!(editor.status(), Status::Ready { .. }) {
             assert!(start.elapsed().as_secs() < 10, "{:?}", editor.status());
