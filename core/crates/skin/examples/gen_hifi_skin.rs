@@ -1666,13 +1666,21 @@ fn main() {
     });
     library_panel["scrollbar"] =
         json!({ "image": "scrollbar.png", "track": [0, 0, 10, 32], "thumb": [12, 0, 10, 24], "thumbSlice": [4, 0, 4, 0] });
+    // The track editor: the waveform drawn like the scope's trace.
+    let mut editor_panel = frame([640, 430], false);
+    editor_panel["table"] = library_panel["table"].clone();
+    editor_panel["waveform"] = json!({
+        "background": "#06110a", "wave": "#2f8a4e", "rms": "@phosphor", "center": "#1d3a27",
+        "ruler": "#1f1c19", "rulerText": "@cream", "splice": "@amber", "spliceSelected": "@amberHot",
+        "selection": "#ffffff26", "deleted": "#000000a8", "playhead": "@record"
+    });
     let manifest = json!({
         "$schema": "../../skin.schema.json",
         "format": 1,
         "id": "com.alexboyce.soundscraper.hifi74",
         "name": "Hi-Fi '74",
         "author": "Sound Scraper",
-        "version": "1.3",
+        "version": "1.4",
         "description": "A 1970s stereo receiver: brushed aluminum, screwed-on black modules, an enamel nameplate, a flip-card clock, pilot lamps, label tape, a phosphor scope and needle VU meters.",
         "colors": {
             "background": "#c9c8c2",
@@ -1767,7 +1775,8 @@ fn main() {
             },
             "library": library_panel,
             "details": frame([240, 320], true),
-            "settings": frame([360, 340], false)
+            "settings": frame([360, 340], false),
+            "editor": editor_panel
         },
         "visualizer": {
             // A phosphor trace on the scope screen (its graticule is the
