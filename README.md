@@ -197,13 +197,16 @@ C++/WinRT module notes (`SoundScraperModule.h`): it must be a `REACT_TURBO_MODUL
 
 ## Release builds
 
-**macOS:** `scripts/package-macos.sh` builds an Apple silicon (arm64) Release app. The installer window is styled with a background (`scripts/gen-dmg-background.sh`) and laid out by Finder via `scripts/dmg-layout.applescript`, so macOS asks once to allow controlling Finder, and a window opens briefly during packaging. The app (Intel Macs aren't targeted; macOS 26 is their last release) with the JS bundled in, and writes `dist/SoundScraper-<version>.dmg` with "Sound Scraper.app" and an Applications shortcut. It signs with `SIGN_IDENTITY` (default: the local self-signed "GolfNutz Dev"). Such builds aren't notarized, so the first launch needs right-click › Open.
+**macOS:** `scripts/package-macos.sh` builds an Apple silicon (arm64) Release app (Intel Macs aren't targeted; macOS 26 is their last release) with the JS bundled in, and writes `dist/SoundScraper-<version>.dmg` with "Sound Scraper.app" and an Applications shortcut. The installer window is styled with a background (`scripts/gen-dmg-background.sh`) and laid out by Finder via `scripts/dmg-layout.applescript`, so macOS asks once to allow controlling Finder, and a window opens briefly during packaging. Eject any mounted "Sound Scraper" disk first. The script re-signs every nested framework and dylib (Hermes, LAME), then the app, with one identity.
 
-For distribution, get an Apple **Developer ID Application** certificate, then:
+By default it signs with the local self-signed "GolfNutz Dev" identity, with the hardened runtime off (its library validation rejects the embedded frameworks when the certificate has no Team ID). Such builds can't be notarized, so the first launch needs right-click › Open.
 
-1. Set `CODE_SIGN_IDENTITY` (Release) to it and set `ENABLE_HARDENED_RUNTIME = YES`. Hardened runtime is off for now because its library validation rejects the embedded frameworks (Hermes, LAME) when the signing certificate has no Team ID, as self-signed ones don't.
-2. Run `SIGN_IDENTITY="Developer ID Application: …" scripts/package-macos.sh`.
-3. Notarize and staple: `xcrun notarytool submit dist/SoundScraper-<v>.dmg --keychain-profile <profile> --wait && xcrun stapler staple dist/SoundScraper-<v>.dmg`.
+**Distribution (Developer ID):** a .dmg needs only the **Developer ID Application** certificate (Developer ID Installer is for .pkg installers). One-time setup on the build Mac:
+
+1. Create the certificate: Xcode › Settings › Accounts › your team › Manage Certificates › + › Developer ID Application (the team's Account Holder must do this). It lands in the login keychain; `security find-identity -v -p codesigning` lists it.
+2. Make an app-specific password at appleid.apple.com, then store it in the keychain as a notarytool profile: `xcrun notarytool store-credentials soundscraper-notary --apple-id <email> --team-id <TEAMID>`. Never commit it.
+
+Then run `SIGN_IDENTITY="Developer ID Application: <Name> (<TEAMID>)" scripts/package-macos.sh`. With a Developer ID identity the script turns on the hardened runtime, adds secure timestamps, notarizes the .dmg with the `soundscraper-notary` profile (`NOTARY_PROFILE` to use another, `NOTARIZE=0` to skip), staples the ticket, and checks it with Gatekeeper (`spctl`). If Apple rejects it, the script prints the notary log.
 
 **Windows:** `.\scripts\package-windows.ps1 -Platform ARM64 -Thumbprint <SHA1>` builds a Release MSIX into `dist\`. The package identity is `com.alexboyce.soundscraper` with publisher `CN=alexboyce`, so the signing certificate's subject must be `CN=alexboyce`. To install a test-signed package, the certificate has to be trusted on that machine (Local Machine › Trusted People). For public distribution, use a code-signing certificate from a CA, or the Microsoft Store.
 
