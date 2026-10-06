@@ -21,7 +21,7 @@ pub struct DetectOptions {
 
 impl Default for DetectOptions {
     fn default() -> Self {
-        Self { threshold_db: -60.0, min_gap_ms: 1500.0, min_track_ms: 30_000.0, remove_gaps: false }
+        Self { threshold_db: -60.0, min_gap_ms: 1500.0, min_track_ms: 10_000.0, remove_gaps: false }
     }
 }
 
@@ -117,11 +117,18 @@ mod tests {
 
     #[test]
     fn short_pauses_and_short_tracks_are_ignored() {
-        // A 1 s pause (too short a gap) and a 10 s "track" (too short).
-        let p = peaks(&[(true, 40_000), (false, 1000), (true, 40_000), (false, 2000), (true, 10_000), (false, 5000), (true, 40_000)]);
+        // A 1 s pause (too short a gap) and a 3 s "track" (too short).
+        let p = peaks(&[(true, 40_000), (false, 1000), (true, 40_000), (false, 2000), (true, 3000), (false, 4000), (true, 40_000)]);
         let found = detect(&p, &DetectOptions::default());
         assert_eq!(found.len(), 1, "{found:?}");
-        assert!((found[0].gap_end_ms - found[0].gap_start_ms - 5000.0).abs() < 1.0, "the longer gap wins");
+        assert!((found[0].gap_end_ms - found[0].gap_start_ms - 4000.0).abs() < 1.0, "the longer gap wins");
+    }
+
+    #[test]
+    fn a_short_last_track_is_found() {
+        // Alex's test recording: 42 s, 35 s, then 25 s.
+        let p = peaks(&[(true, 42_000), (false, 2700), (true, 35_000), (false, 2700), (true, 25_000)]);
+        assert_eq!(detect(&p, &DetectOptions::default()).len(), 2);
     }
 
     #[test]

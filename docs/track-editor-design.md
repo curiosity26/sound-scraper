@@ -247,7 +247,7 @@ ones; a proposal within 2 s of an existing splice is dropped).
 |---|---|---|---|
 | Silence threshold | −60 dBFS (Digital), −40 (Vinyl/Radio) | −80 to −20 | We capture system audio, so gaps between streamed songs are usually digital silence. −60 matches `trim.rs` and Fission's Digital preset. Vinyl or radio needs −40 to −30 because of noise. |
 | Minimum gap | 1.5 s | 0.3 to 10 s | Gaps on streamed albums are often 1 to 2 s; shorter ones catch quiet passages inside songs. Streams with crossfade or gapless albums have no gap at all (see §8). |
-| Minimum track length | 30 s | 0 s to 5 min | Stops a quiet bridge or a classical movement pause from becoming a split. |
+| Minimum track length | 10 s (was 30 s; Alex's test clip ended with a 25 s track) | 0 s to 5 min | Stops a quiet bridge or a classical movement pause from becoming a split. |
 
 How it works (Rust, `edit/detect.rs`):
 

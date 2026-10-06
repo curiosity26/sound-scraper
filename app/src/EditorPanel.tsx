@@ -39,6 +39,7 @@ import {
   type Edits,
   editsFromJson,
   editsToJson,
+  emptyEdits,
   fitZoom,
   formatTime,
   hasEdits,
@@ -96,9 +97,9 @@ const PRESETS: Record<
   Omit<DetectOptions, 'removeGaps'>
 > = {
   // Streams and files: the gaps are digital silence.
-  digital: { thresholdDb: -60, minGapMs: 1500, minTrackMs: 30_000 },
+  digital: { thresholdDb: -60, minGapMs: 1500, minTrackMs: 10_000 },
   // Vinyl, tape, radio: noise between songs.
-  vinyl: { thresholdDb: -40, minGapMs: 1500, minTrackMs: 30_000 },
+  vinyl: { thresholdDb: -40, minGapMs: 1500, minTrackMs: 10_000 },
 };
 // Find Tracks' last settings, for the next time it opens.
 let detectPreference: DetectOptions = { ...PRESETS.digital, removeGaps: false };
@@ -107,7 +108,7 @@ const THRESHOLDS = [
   -80, -75, -70, -65, -60, -55, -50, -45, -40, -35, -30, -25, -20,
 ];
 const GAPS = [300, 500, 750, 1000, 1500, 2000, 3000, 5000, 10_000];
-const MIN_TRACKS = [0, 10_000, 30_000, 60_000, 120_000, 300_000];
+const MIN_TRACKS = [0, 5000, 10_000, 20_000, 30_000, 60_000, 120_000, 300_000];
 
 /** Snippets played while scrubbing, and the stop after the pointer rests. */
 const SCRUB_INTERVAL_MS = 60;
@@ -509,7 +510,12 @@ export function EditorPanel(props: Props): React.JSX.Element {
 
   // ------------------------------------------------------------ actions
   const addSpliceAt = (ms: number, nameIt = true) => {
-    const { edits: next, id } = addSplice(edits, snapMs(ms));
+    const at = snapMs(ms);
+    // A splice at either end would make an empty track.
+    if (at <= 0 || at >= durationMs) {
+      return null;
+    }
+    const { edits: next, id } = addSplice(edits, at);
     commit(next);
     setSelectedSplice(id);
     setSelectedRegion(null);
@@ -857,6 +863,18 @@ export function EditorPanel(props: Props): React.JSX.Element {
           label="Redo"
           onPress={redo}
           disabled={hist.future.length === 0}
+        />
+        <Btn
+          t={t}
+          label="Clear All"
+          onPress={() => {
+            finishNaming(false);
+            commit(emptyEdits(target.title));
+            setSelection(null);
+            setSelectedSplice(null);
+            setSelectedRegion(null);
+          }}
+          disabled={!hasEdits(edits)}
         />
         <View style={styles.gap} />
         <Pressable
