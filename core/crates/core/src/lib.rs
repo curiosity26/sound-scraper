@@ -5,6 +5,7 @@ pub mod capture_test;
 pub mod edit;
 pub mod ffi;
 pub mod library;
+pub mod masters;
 pub mod mp3;
 pub mod paths;
 pub mod player;

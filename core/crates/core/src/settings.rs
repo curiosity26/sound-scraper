@@ -53,6 +53,14 @@ pub struct Settings {
     pub double_size: bool,
     /// Drop silence before the first and after the last sound of a recording.
     pub trim_silence: bool,
+    /// Record a lossless master for the track editor (masters.rs).
+    pub keep_masters: bool,
+    /// Recordings shorter than this (minutes) drop their master.
+    pub master_min_minutes: u32,
+    /// Masters together stay under this many GB.
+    pub master_budget_gb: u32,
+    /// Masters not edited for this many days are removed.
+    pub master_max_age_days: u32,
 }
 
 impl Default for Settings {
@@ -66,6 +74,10 @@ impl Default for Settings {
             skin: None,
             double_size: false,
             trim_silence: true,
+            keep_masters: true,
+            master_min_minutes: 20,
+            master_budget_gb: 10,
+            master_max_age_days: 30,
         }
     }
 }
@@ -82,6 +94,16 @@ pub fn default_id3_version() -> &'static str {
 impl Settings {
     pub fn recordings_dir(&self) -> PathBuf {
         self.recordings_dir.clone().unwrap_or_else(paths::recordings_dir)
+    }
+
+    pub fn master_policy(&self) -> crate::masters::Policy {
+        use std::time::Duration;
+        crate::masters::Policy {
+            keep: self.keep_masters,
+            min_length: Duration::from_secs(u64::from(self.master_min_minutes) * 60),
+            budget_bytes: u64::from(self.master_budget_gb) * 1024 * 1024 * 1024,
+            max_age: Duration::from_secs(u64::from(self.master_max_age_days) * 86_400),
+        }
     }
 
     pub fn tag_version(&self) -> TagVersion {
@@ -167,6 +189,10 @@ mod tests {
             skin: Some("com.example.green".into()),
             double_size: true,
             trim_silence: false,
+            keep_masters: false,
+            master_min_minutes: 5,
+            master_budget_gb: 2,
+            master_max_age_days: 7,
         };
         save_to(&path, &s).unwrap();
         assert_eq!(load_from(&path), s);

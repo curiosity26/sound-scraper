@@ -29,13 +29,23 @@ use crate::{
 pub struct Saved {
     /// The new files, in track order.
     pub paths: Vec<PathBuf>,
-    /// How many were re-encoded rather than cut losslessly.
+    /// How many were re-encoded from the MP3 rather than cut losslessly.
     pub reencoded: usize,
+    /// Every track was encoded once from the lossless master.
+    pub from_master: bool,
 }
 
 /// Writes the tracks `edits` describe, from the MP3 at `original`, into the
-/// original's folder. `progress` gets 0..=1.
-pub fn save(original: &Path, edits: &EditList, version: TagVersion, progress: &dyn Fn(f32)) -> Result<Saved, String> {
+/// original's folder. With a lossless `master` (masters.rs), each track is
+/// encoded from it at the exact samples; otherwise the MP3 is cut.
+/// `progress` gets 0..=1.
+pub fn save(
+    original: &Path,
+    edits: &EditList,
+    version: TagVersion,
+    master: Option<&Path>,
+    progress: &dyn Fn(f32),
+) -> Result<Saved, String> {
     let data = std::fs::read(original).map_err(|e| format!("reading {}: {e}", original.display()))?;
     let index = Mp3Index::parse(&data)?;
     let rate = index.header.sample_rate;
@@ -51,15 +61,18 @@ pub fn save(original: &Path, edits: &EditList, version: TagVersion, progress: &d
     let mut reencoded = 0;
     let result = (|| -> Result<(), String> {
         for (i, track) in plan.iter().enumerate() {
-            let audio = match track.segments.as_slice() {
-                [(a, b)] => index.cut(&data, *a, *b)?,
+            let audio = match (master, track.segments.as_slice()) {
+                (Some(_), _) => None,
+                (None, [(a, b)]) => index.cut(&data, *a, *b)?,
                 _ => None,
             };
             let audio = match audio {
                 Some(audio) => audio,
                 None => {
-                    reencoded += 1;
-                    reencode(original, &track.segments, rate, quality_of(&index))?
+                    if master.is_none() {
+                        reencoded += 1;
+                    }
+                    reencode(master.unwrap_or(original), &track.segments, rate, quality_of(&index))?
                 }
             };
             let tag = tags::track_tag_bytes(original, &track.name, i as u32 + 1, total, version)?;
@@ -83,7 +96,7 @@ pub fn save(original: &Path, edits: &EditList, version: TagVersion, progress: &d
         }
         return Err(e);
     }
-    Ok(Saved { paths: written, reencoded })
+    Ok(Saved { paths: written, reencoded, from_master: master.is_some() })
 }
 
 /// The encoder setting closest to the original's.
@@ -103,8 +116,8 @@ fn quality_of(index: &Mp3Index) -> Quality {
     }
 }
 
-/// Decodes `segments` (presentation frames), joins them and encodes the
-/// result with its LAME tag.
+/// Decodes `segments` (presentation frames) of `source` (the MP3 or its
+/// master), joins them and encodes the result with its LAME tag.
 fn reencode(original: &Path, segments: &[(u64, u64)], rate: u32, quality: Quality) -> Result<Vec<u8>, String> {
     let mut source = Source::open(original)?;
     let mut encoder = Mp3Encoder::new(rate, quality)?;
@@ -181,7 +194,7 @@ mod tests {
             splices: vec![Splice { at_ms: 2000.0, name: "Middle/Part".into() }, Splice { at_ms: 4000.0, name: "Album".into() }],
             deleted: vec![Region { start_ms: 2500.0, end_ms: 3000.0 }],
         };
-        let saved = save(&original, &edits, TagVersion::V24, &|_| {}).unwrap();
+        let saved = save(&original, &edits, TagVersion::V24, None, &|_| {}).unwrap();
         let names: Vec<String> = saved.paths.iter().map(|p| p.file_name().unwrap().to_string_lossy().into()).collect();
         assert_eq!(names, vec!["Opening.mp3", "Middle_Part.mp3", "Album (2).mp3"]);
         assert_eq!(saved.reencoded, 1, "only the track with a hole is re-encoded");
@@ -201,11 +214,38 @@ mod tests {
     }
 
     #[test]
+    fn with_a_master_every_track_is_encoded_from_it_exactly() {
+        let dir = paths::tempdir();
+        let original = recording(&dir);
+        // The master holds what the MP3 was made from.
+        let rate = 48000;
+        let samples: Vec<f32> = (0..rate * 6)
+            .flat_map(|i| {
+                let v = (i as f32 * 330.0 * std::f32::consts::TAU / rate as f32).sin() * 0.3;
+                [v, v]
+            })
+            .collect();
+        let mut w = crate::masters::MasterWriter::create(&dir.join("m"), "Album.mp3.part", rate).unwrap();
+        w.push(&samples).unwrap();
+        let master = w.finish("Album.mp3").unwrap();
+
+        let edits = EditList {
+            first_name: "One".into(),
+            splices: vec![Splice { at_ms: 2500.0, name: "Two".into() }],
+            deleted: vec![Region { start_ms: 4000.0, end_ms: 4500.0 }],
+        };
+        let saved = save(&original, &edits, TagVersion::V24, Some(&master), &|_| {}).unwrap();
+        assert!(saved.from_master && saved.reencoded == 0);
+        assert_eq!(decode(&saved.paths[0]).len(), 120_000 * 2, "2.5 s exactly");
+        assert_eq!(decode(&saved.paths[1]).len(), (168_000 - 24_000) * 2, "3.5 s less the 0.5 s deleted");
+    }
+
+    #[test]
     fn nothing_left_is_an_error_and_writes_nothing() {
         let dir = paths::tempdir();
         let original = recording(&dir);
         let edits = EditList { deleted: vec![Region { start_ms: 0.0, end_ms: 10_000.0 }], ..Default::default() };
-        assert!(save(&original, &edits, TagVersion::V24, &|_| {}).is_err());
+        assert!(save(&original, &edits, TagVersion::V24, None, &|_| {}).is_err());
         assert_eq!(dir.read_dir().unwrap().count(), 1);
     }
 }

@@ -30,6 +30,7 @@ use sound_scraper_capture::{AudioChunk, CaptureBackend, CaptureSource, Session, 
 use sound_scraper_vis::{Analyzer, Tap, VisHub};
 
 use crate::{
+    masters::{self, MasterWriter},
     mp3, paths,
     settings::Quality,
     sources,
@@ -90,11 +91,19 @@ pub struct RecorderOptions {
     pub tag_version: TagVersion,
     /// Drop silence before the first and after the last sound.
     pub trim_silence: bool,
+    /// Write a lossless master (in `masters_dir`) under this policy.
+    pub master: Option<(PathBuf, masters::Policy)>,
 }
 
 impl Default for RecorderOptions {
     fn default() -> Self {
-        Self { dir: paths::recordings_dir(), quality: Quality::default(), tag_version: TagVersion::V24, trim_silence: true }
+        Self {
+            dir: paths::recordings_dir(),
+            quality: Quality::default(),
+            tag_version: TagVersion::V24,
+            trim_silence: true,
+            master: None,
+        }
     }
 }
 
@@ -205,6 +214,8 @@ impl Recorder {
             quality: self.options.quality,
             tag_version: self.options.tag_version,
             trim_silence: self.options.trim_silence,
+            master_options: self.options.master.clone(),
+            master: None,
             paused: paused.clone(),
             status: self.status.clone(),
             events: self.events.clone(),
@@ -297,6 +308,9 @@ struct EncodeJob {
     quality: Quality,
     tag_version: TagVersion,
     trim_silence: bool,
+    master_options: Option<(PathBuf, masters::Policy)>,
+    /// The lossless master, from the first audio; dropped on a write error.
+    master: Option<MasterWriter>,
     paused: Arc<AtomicBool>,
     status: Arc<Status>,
     events: Option<EventSink>,
@@ -305,10 +319,23 @@ struct EncodeJob {
 impl EncodeJob {
     fn run(mut self) -> Result<PathBuf, String> {
         let result = self.encode_until_disconnected();
-        let EncodeJob { file, part, title, comment, tag_version, .. } = self;
+        let elapsed = self.status.elapsed();
+        let EncodeJob { file, part, title, comment, tag_version, master, master_options, .. } = self;
         let finalized = result.and_then(|encoder| finalize(file, &part, encoder, &title, comment.as_deref(), tag_version));
         if finalized.is_err() && std::fs::metadata(&part).map(|m| m.len() == 0).unwrap_or(false) {
             let _ = std::fs::remove_file(&part);
+        }
+        // The master is kept for long recordings only, and never fails the
+        // recording.
+        if let (Some(master), Some((_, policy))) = (master, master_options) {
+            match &finalized {
+                Ok(path) if policy.keep && elapsed >= policy.min_length => {
+                    let name = path.file_name().unwrap_or_default().to_string_lossy();
+                    let _ = master.finish(&name);
+                    masters::cleanup(&policy);
+                }
+                _ => master.discard(),
+            }
         }
         finalized
     }
@@ -394,7 +421,33 @@ impl EncodeJob {
         }
         let bytes = encoder.as_mut().unwrap().encode(stereo)?;
         self.file.write_all(bytes).map_err(|e| format!("writing {}: {e}", self.part.display()))?;
+        self.write_master(sample_rate, stereo);
         Ok((stereo.len() / 2) as u64)
+    }
+
+    /// Feeds the lossless master (started on first use, if enabled).
+    fn write_master(&mut self, sample_rate: u32, stereo: &[f32]) {
+        let Some((dir, policy)) = &self.master_options else { return };
+        if !policy.keep {
+            return;
+        }
+        if self.master.is_none() {
+            let name = self.part.file_name().unwrap_or_default().to_string_lossy();
+            match MasterWriter::create(dir, &name, sample_rate) {
+                Ok(m) => self.master = Some(m),
+                Err(_) => {
+                    // No master this time; the recording goes on.
+                    self.master_options = None;
+                    return;
+                }
+            }
+        }
+        if let Some(master) = &mut self.master
+            && master.push(stereo).is_err()
+        {
+            self.master.take().unwrap().discard();
+            self.master_options = None;
+        }
     }
 }
 
@@ -610,7 +663,7 @@ mod tests {
 
     fn recorder(dir: &Path) -> (Recorder, Arc<Mutex<Vec<RecorderEvent>>>) {
         let mut r = Recorder::with_backend(
-            RecorderOptions { dir: dir.to_owned(), quality: Quality::Cbr192, tag_version: TagVersion::V24, trim_silence: false },
+            RecorderOptions { dir: dir.to_owned(), quality: Quality::Cbr192, tag_version: TagVersion::V24, trim_silence: false, master: None },
             ToneBackend::factory(48000, 2),
         );
         let events = Arc::new(Mutex::new(Vec::new()));
@@ -677,6 +730,7 @@ mod tests {
             quality: Quality::Cbr192,
             tag_version: TagVersion::V24,
             trim_silence,
+            master: None,
         };
         // 0.5 s of silence, then 0.6 s of tone, then silence.
         let audible: fn(u32) -> bool = |n| (51..=110).contains(&n);
@@ -693,9 +747,38 @@ mod tests {
     }
 
     #[test]
+    fn long_recordings_keep_a_lossless_master_matching_the_mp3() {
+        let dir = crate::paths::tempdir();
+        let masters_dir = dir.join("Masters");
+        let options = |min_secs| RecorderOptions {
+            dir: dir.clone(),
+            quality: Quality::Cbr192,
+            tag_version: TagVersion::V24,
+            trim_silence: true,
+            master: Some((masters_dir.clone(), masters::Policy { min_length: Duration::from_secs(min_secs), ..Default::default() })),
+        };
+        let audible: fn(u32) -> bool = |n| (21..=80).contains(&n);
+        let record = |min_secs| {
+            let mut r = Recorder::with_backend(options(min_secs), ToneBackend::pattern(48000, 2, audible));
+            r.start(system()).unwrap();
+            std::thread::sleep(Duration::from_millis(1100));
+            r.stop().unwrap()
+        };
+        let mp3 = record(0);
+        let master = masters::path_for(&masters_dir, &mp3.file_name().unwrap().to_string_lossy());
+        assert!(master.is_file(), "kept: {}", master.display());
+        let frames = |p: &Path| crate::player::Source::open(p).unwrap().n_frames.unwrap();
+        assert_eq!(frames(&master), frames(&mp3), "the master and the MP3 line up sample for sample");
+        assert!(std::fs::read_dir(&masters_dir).unwrap().all(|e| !e.unwrap().path().to_string_lossy().ends_with(".part")));
+
+        let short = record(3600);
+        assert!(!masters::path_for(&masters_dir, &short.file_name().unwrap().to_string_lossy()).exists(), "short: dropped");
+    }
+
+    #[test]
     fn only_silence_leaves_no_file_when_trimming() {
         let dir = crate::paths::tempdir();
-        let options = RecorderOptions { dir: dir.clone(), quality: Quality::Cbr192, tag_version: TagVersion::V24, trim_silence: true };
+        let options = RecorderOptions { dir: dir.clone(), quality: Quality::Cbr192, tag_version: TagVersion::V24, trim_silence: true, master: None };
         let mut r = Recorder::with_backend(options, ToneBackend::pattern(48000, 2, |_| false));
         r.start(system()).unwrap();
         std::thread::sleep(Duration::from_millis(300));
@@ -722,7 +805,7 @@ mod tests {
     fn stopping_before_any_audio_leaves_no_file() {
         let dir = crate::paths::tempdir();
         let mut r = Recorder::with_backend(
-            RecorderOptions { dir: dir.clone(), quality: Quality::Cbr192, tag_version: TagVersion::V24, trim_silence: false },
+            RecorderOptions { dir: dir.clone(), quality: Quality::Cbr192, tag_version: TagVersion::V24, trim_silence: false, master: None },
             ToneBackend::factory(48000, 2),
         );
         r.start(system()).unwrap();
@@ -736,7 +819,7 @@ mod tests {
     fn warns_when_no_audio_arrives() {
         let dir = crate::paths::tempdir();
         let mut r = Recorder::with_backend(
-            RecorderOptions { dir, quality: Quality::Cbr192, tag_version: TagVersion::V24, trim_silence: false },
+            RecorderOptions { dir, quality: Quality::Cbr192, tag_version: TagVersion::V24, trim_silence: false, master: None },
             Box::new(|| Box::new(SilentBackend) as Box<dyn CaptureBackend>),
         );
         let (tx, rx) = mpsc::channel();

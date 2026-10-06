@@ -1,5 +1,6 @@
 import {
   applyProposals,
+  stepIn,
   addSplice,
   adjacentSplice,
   clampZoom,
@@ -107,4 +108,13 @@ test('proposals become splices, skipping ones near existing splices', () => {
     [90_000, 'Track 4'],
   ]);
   expect(e.deleted.map(r => [r.startMs, r.endMs])).toEqual([[29_000, 29_800]]);
+});
+
+test('stepping through a list of values', () => {
+  const list = [1, 5, 10];
+  expect(stepIn(list, 5, 1)).toBe(10);
+  expect(stepIn(list, 5, -1)).toBe(1);
+  expect(stepIn(list, 10, 1)).toBe(10);
+  expect(stepIn(list, 7, 1)).toBe(10);
+  expect(stepIn(list, 7, -1)).toBe(5);
 });

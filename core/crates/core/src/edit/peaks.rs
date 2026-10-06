@@ -150,7 +150,7 @@ fn cache_path(path: &Path) -> Option<PathBuf> {
     let mtime = meta.modified().ok()?.duration_since(UNIX_EPOCH).ok()?.as_nanos();
     let mut h = std::collections::hash_map::DefaultHasher::new();
     (path, meta.len(), mtime).hash(&mut h);
-    Some(paths::app_data_dir().join("Peaks").join(format!("{:016x}.peaks", h.finish())))
+    Some(paths::editor_data_dir().join("Peaks").join(format!("{:016x}.peaks", h.finish())))
 }
 
 #[cfg(test)]

@@ -99,6 +99,11 @@ fn parse_color(s: &str) -> Option<[u8; 4]> {
 impl Editor {
     /// Opens `path` and starts building its waveform summary.
     pub fn open(path: &Path) -> Self {
+        // Opening a recording counts as using its master (cleanup is by
+        // least recent use).
+        if let Some(master) = crate::masters::find(&path.file_name().unwrap_or_default().to_string_lossy()) {
+            crate::masters::touch(&master);
+        }
         let shared = Arc::new(Shared::default());
         let worker = {
             let shared = shared.clone();

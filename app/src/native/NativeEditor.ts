@@ -18,6 +18,9 @@ export interface Spec extends TurboModule {
   loadDraft(fileName: string): string;
   saveDraft(fileName: string, editsJson: string): void;
   discardDraft(fileName: string): void;
+  /** The lossless masters kept: `{"count":n,"bytes":n}` JSON. */
+  mastersUsage(): string;
+  deleteAllMasters(): Promise<void>;
   /**
    * Writes the tracks, then trashes the original unless keepOriginal;
    * resolves with `{"files":[…],"reencoded":n}` JSON (ss_editor_save).

@@ -115,7 +115,7 @@ impl EditList {
 // ---------------------------------------------------------------- drafts
 
 fn drafts_dir() -> PathBuf {
-    paths::app_data_dir().join("Edits")
+    paths::editor_data_dir().join("Edits")
 }
 
 fn draft_path(dir: &Path, file_name: &str) -> PathBuf {

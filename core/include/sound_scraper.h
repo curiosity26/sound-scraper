@@ -977,7 +977,8 @@ void ss_editor_close(uint64_t id);
 /*
  The editor's waveform as JSON: `{"state":"loading","progress":0..1}`,
  `{"state":"ready","rate":48000,"durationMs":…,"frameMs":…,
- "frameOffsetMs":…}` (the MP3 frame grid lossless cuts land on) or
+ "frameOffsetMs":…,"master":bool}` (the MP3 frame grid lossless cuts
+ land on; whether a lossless master will be used instead) or
  `{"state":"failed","message":…}`. Free with `ss_string_free`.
  */
 char *ss_editor_status(uint64_t id);
@@ -1026,6 +1027,17 @@ char *ss_editor_tracks(uint64_t id, const char *edits_json);
  `options_json` must be NUL-terminated UTF-8.
  */
 char *ss_editor_detect(uint64_t id, const char *options_json);
+
+/*
+ The lossless masters kept: `{"count":n,"bytes":n}`. Free with
+ `ss_string_free`.
+ */
+char *ss_masters_usage(void);
+
+/*
+ Deletes every lossless master (the recordings stay).
+ */
+enum SsStatus ss_masters_delete_all(void);
 
 /*
  The unsaved edits kept for a recording (JSON), or "null". Free with

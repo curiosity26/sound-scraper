@@ -116,6 +116,14 @@ export type Settings = {
   doubleSize?: boolean;
   /** Drop silence before the first and after the last sound (default on). */
   trimSilence?: boolean;
+  /** Record a lossless master for the track editor (default on). */
+  keepMasters?: boolean;
+  /** Recordings shorter than this drop their master (default 20). */
+  masterMinMinutes?: number;
+  /** Masters together stay under this (default 10). */
+  masterBudgetGb?: number;
+  /** Masters not edited for this long are removed (default 30). */
+  masterMaxAgeDays?: number;
 };
 
 export const settings = {
@@ -133,6 +141,10 @@ export const settings = {
         skin: value.skin ?? null,
         doubleSize: value.doubleSize ?? false,
         trimSilence: value.trimSilence ?? true,
+        keepMasters: value.keepMasters ?? true,
+        masterMinMinutes: value.masterMinMinutes ?? 20,
+        masterBudgetGb: value.masterBudgetGb ?? 10,
+        masterMaxAgeDays: value.masterMaxAgeDays ?? 30,
       }),
     ),
   pickFolder: (): Promise<string | null> => NativeSoundScraper.pickFolder(),

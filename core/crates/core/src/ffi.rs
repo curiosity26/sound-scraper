@@ -323,7 +323,13 @@ pub unsafe extern "C" fn ss_recorder_start(recorder: *mut SsRecorder, app_pid: u
         let mut player = handle.player.lock().unwrap_or_else(|e| e.into_inner());
         player.unload();
         let s = settings::load();
-        r.set_options(recorder::RecorderOptions { dir: s.recordings_dir(), quality: s.quality, tag_version: s.tag_version(), trim_silence: s.trim_silence });
+        r.set_options(recorder::RecorderOptions {
+            dir: s.recordings_dir(),
+            quality: s.quality,
+            tag_version: s.tag_version(),
+            trim_silence: s.trim_silence,
+            master: Some((crate::masters::dir(), s.master_policy())),
+        });
         r.start(sources::source_for_pid((app_pid != 0).then_some(app_pid)))
     })
 }
@@ -489,6 +495,10 @@ pub unsafe extern "C" fn ss_player_duration_ms(recorder: *const SsRecorder) -> u
 pub extern "C" fn ss_recover_partial_recordings() -> i32 {
     catch_unwind(|| {
         let s = settings::load();
+        // Half-written masters can't be finished; startup also applies the
+        // masters' budget and age limit.
+        crate::masters::remove_partials();
+        crate::masters::cleanup(&s.master_policy());
         recorder::recover_partials(&s.recordings_dir(), s.tag_version())
     }.iter().filter(|r| r.is_ok()).count() as i32)
         .unwrap_or(-1)
@@ -1551,7 +1561,8 @@ pub extern "C" fn ss_editor_close(id: u64) {
 
 /// The editor's waveform as JSON: `{"state":"loading","progress":0..1}`,
 /// `{"state":"ready","rate":48000,"durationMs":…,"frameMs":…,
-/// "frameOffsetMs":…}` (the MP3 frame grid lossless cuts land on) or
+/// "frameOffsetMs":…,"master":bool}` (the MP3 frame grid lossless cuts
+/// land on; whether a lossless master will be used instead) or
 /// `{"state":"failed","message":…}`. Free with `ss_string_free`.
 #[unsafe(no_mangle)]
 pub extern "C" fn ss_editor_status(id: u64) -> *mut c_char {
@@ -1559,6 +1570,8 @@ pub extern "C" fn ss_editor_status(id: u64) -> *mut c_char {
     json_or_null(catch("reading the editor", || {
         let editor = editor(id)?;
         let grid = editor.frame_grid();
+        let name = editor.path().file_name().unwrap_or_default().to_string_lossy().into_owned();
+        let master = crate::masters::find(&name).is_some();
         Ok(match editor.status() {
             S::Loading(p) => serde_json::json!({ "state": "loading", "progress": p }),
             S::Ready { rate, frames } => serde_json::json!({
@@ -1567,6 +1580,7 @@ pub extern "C" fn ss_editor_status(id: u64) -> *mut c_char {
                 "durationMs": frames as f64 * 1000.0 / f64::from(rate),
                 "frameMs": grid.map(|g| g.0),
                 "frameOffsetMs": grid.map(|g| g.1),
+                "master": master,
             }),
             S::Failed(message) => serde_json::json!({ "state": "failed", "message": message }),
         })
@@ -1652,6 +1666,22 @@ pub unsafe extern "C" fn ss_editor_detect(id: u64, options_json: *const c_char) 
     }))
 }
 
+/// The lossless masters kept: `{"count":n,"bytes":n}`. Free with
+/// `ss_string_free`.
+#[unsafe(no_mangle)]
+pub extern "C" fn ss_masters_usage() -> *mut c_char {
+    json_or_null(catch("reading masters", || {
+        let (count, bytes) = crate::masters::usage();
+        Ok(serde_json::json!({ "count": count, "bytes": bytes }))
+    }))
+}
+
+/// Deletes every lossless master (the recordings stay).
+#[unsafe(no_mangle)]
+pub extern "C" fn ss_masters_delete_all() -> SsStatus {
+    catch("deleting masters", crate::masters::remove_all).map_or_else(fail, |()| SsStatus::Ok)
+}
+
 /// The unsaved edits kept for a recording (JSON), or "null". Free with
 /// `ss_string_free`.
 ///
@@ -1720,7 +1750,8 @@ pub unsafe extern "C" fn ss_editor_save(
     let Ok(dir) = with_library(library, |l| Ok(l.dir().to_path_buf())) else { return ptr::null_mut() };
     let original = dir.join(&name);
     let saved = catch("saving the tracks", || {
-        crate::edit::save::save(&original, &edits, settings::load().tag_version(), &|_| {})
+        let master = crate::masters::find(&name);
+        crate::edit::save::save(&original, &edits, settings::load().tag_version(), master.as_deref(), &|_| {})
     });
     let saved = match saved {
         Ok(s) => s,
@@ -1746,6 +1777,7 @@ pub unsafe extern "C" fn ss_editor_save(
     json_or_null(Ok(serde_json::json!({
         "files": files.iter().map(|p| p.file_name().unwrap_or_default().to_string_lossy().into_owned()).collect::<Vec<_>>(),
         "reencoded": saved.reencoded,
+        "fromMaster": saved.from_master,
     })))
 }
 
@@ -1799,7 +1831,7 @@ mod tests {
         let out = unsafe { ss_editor_save(library, c"Album.mp3".as_ptr(), edits.as_ptr(), false) };
         assert!(!out.is_null(), "{:?}", unsafe { CStr::from_ptr(ss_last_error_message()) });
         // The first track takes the original's name once it's gone.
-        assert_eq!(take(out), "{\"files\":[\"Album.mp3\",\"Second.mp3\"],\"reencoded\":0}");
+        assert_eq!(take(out), "{\"files\":[\"Album.mp3\",\"Second.mp3\"],\"fromMaster\":false,\"reencoded\":0}");
         assert!(dir.join("Second.mp3").exists() && !dir.join("Album (2).mp3").exists());
         unsafe { ss_library_destroy(library) };
     }

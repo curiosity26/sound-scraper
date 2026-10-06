@@ -8,6 +8,8 @@ import {
   View,
 } from 'react-native';
 
+import { stepIn as step } from './editorModel';
+import { editorAvailable, editorCore } from './native/editor';
 import { type Quality, settings, type Settings } from './native/SoundScraper';
 import { usePanelStyles } from './panelTheme';
 import { colors } from './theme';
@@ -113,6 +115,10 @@ export function SettingsPanel(props: Props): React.JSX.Element {
           </Text>
         </Pressable>
 
+        {editorAvailable && (
+          <Masters current={current} save={save} textStyle={textStyle} />
+        )}
+
         <Text style={[styles.section, textStyle]}>Tags</Text>
         <Choice
           selected={current.id3Version === '2.4'}
@@ -144,6 +150,112 @@ export function SettingsPanel(props: Props): React.JSX.Element {
         {error && <Text style={styles.error}>{error}</Text>}
       </ScrollView>
     </View>
+  );
+}
+
+const MIN_MINUTES = [0, 5, 10, 15, 20, 30, 45, 60, 90, 120];
+const BUDGETS_GB = [1, 2, 5, 10, 20, 50, 100];
+const AGES_DAYS = [7, 14, 30, 60, 90, 180, 365];
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1024 ** 3) {
+    return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+  }
+  return `${Math.round(bytes / 1024 ** 2)} MB`;
+}
+
+/**
+ * Lossless masters (docs/track-editor-design.md §6.1): kept for long
+ * recordings so the track editor's cuts are sample-exact, within a size
+ * budget and an age limit.
+ */
+function Masters(props: {
+  current: Settings;
+  save: (patch: Partial<Settings>) => Promise<void>;
+  textStyle: object;
+}) {
+  const { current, save, textStyle } = props;
+  const t = usePanelStyles();
+  const [usage, setUsage] = useState(() => editorCore.mastersUsage());
+  const [confirming, setConfirming] = useState(false);
+  const keep = current.keepMasters !== false;
+  const minutes = current.masterMinMinutes ?? 20;
+  const budget = current.masterBudgetGb ?? 10;
+  const age = current.masterMaxAgeDays ?? 30;
+  const row = (label: string, value: string, onStep: (dir: 1 | -1) => void) => (
+    <View style={[styles.row, styles.stepRow]}>
+      <Text style={[styles.stepLabel, textStyle]}>{label}</Text>
+      <Pressable onPress={() => onStep(-1)} disabled={!keep}>
+        <Text style={[styles.link, t.link, !keep && styles.dim]}>−</Text>
+      </Pressable>
+      <Text style={[styles.stepValue, textStyle, !keep && styles.dim]}>
+        {value}
+      </Text>
+      <Pressable onPress={() => onStep(1)} disabled={!keep}>
+        <Text style={[styles.link, t.link, !keep && styles.dim]}>+</Text>
+      </Pressable>
+    </View>
+  );
+  return (
+    <>
+      <Text style={[styles.section, textStyle]}>Lossless masters</Text>
+      <Pressable
+        onPress={() => save({ keepMasters: !keep })}
+        style={styles.choice}
+        testID="keep-masters"
+      >
+        <Text style={[styles.choiceLabel, textStyle]}>
+          {keep ? '☑ ' : '☐ '}
+          Keep a lossless copy of long recordings
+        </Text>
+        <Text style={[styles.choiceDetail, textStyle]}>
+          So the track editor cuts them exactly, without re-encoding the MP3.
+          About 400 MB per hour, kept out of your recordings folder · default
+        </Text>
+      </Pressable>
+      {row('Longer than', minutes ? `${minutes} min` : 'any length', dir =>
+        save({ masterMinMinutes: step(MIN_MINUTES, minutes, dir) }),
+      )}
+      {row('Use at most', `${budget} GB`, dir =>
+        save({ masterBudgetGb: step(BUDGETS_GB, budget, dir) }),
+      )}
+      {row('Keep for', `${age} days`, dir =>
+        save({ masterMaxAgeDays: step(AGES_DAYS, age, dir) }),
+      )}
+      <Text style={[styles.note, textStyle]}>
+        {usage.count === 0
+          ? 'No masters are kept right now.'
+          : `${usage.count} ${
+              usage.count === 1 ? 'master' : 'masters'
+            }, ${formatBytes(
+              usage.bytes,
+            )}. The oldest go first when space runs out; a master goes with its recording.`}
+      </Text>
+      {usage.count > 0 &&
+        (confirming ? (
+          <View style={styles.row}>
+            <Text style={[styles.note, textStyle]}>
+              Delete every master? Recordings stay.
+            </Text>
+            <Pressable
+              onPress={async () => {
+                setConfirming(false);
+                await editorCore.deleteAllMasters();
+                setUsage(editorCore.mastersUsage());
+              }}
+            >
+              <Text style={[styles.link, t.link]}>Delete</Text>
+            </Pressable>
+            <Pressable onPress={() => setConfirming(false)}>
+              <Text style={[styles.link, t.link]}>Cancel</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <Pressable onPress={() => setConfirming(true)}>
+            <Text style={[styles.link, t.link]}>Delete all masters…</Text>
+          </Pressable>
+        ))}
+    </>
   );
 }
 
@@ -205,5 +317,9 @@ const styles = StyleSheet.create({
   choiceLabel: { fontSize: 13 },
   choiceDetail: { fontSize: 11, opacity: 0.6, marginLeft: 18 },
   note: { fontSize: 11, opacity: 0.6, marginTop: 16 },
+  stepRow: { alignItems: 'center', gap: 10, paddingVertical: 2 },
+  stepLabel: { fontSize: 13, width: 100 },
+  stepValue: { fontSize: 13, minWidth: 80, textAlign: 'center' },
+  dim: { opacity: 0.4 },
   error: { color: colors.error, fontSize: 12, marginTop: 8 },
 });

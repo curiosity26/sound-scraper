@@ -64,6 +64,23 @@ RCT_EXPORT_MODULE(SoundScraperEditor)
   return SSTakeEditorString(ss_editor_detect((uint64_t)id, optionsJson.UTF8String)) ?: @"[]";
 }
 
+- (NSString *)mastersUsage
+{
+  return SSTakeEditorString(ss_masters_usage()) ?: @"{\"count\":0,\"bytes\":0}";
+}
+
+- (void)deleteAllMasters:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject
+{
+  dispatch_async(_queue, ^{
+    if (ss_masters_delete_all() != SS_STATUS_OK) {
+      NSString *message = SSEditorError();
+      reject(@"delete_failed", message, [NSError errorWithDomain:@"SoundScraper" code:1 userInfo:@{NSLocalizedDescriptionKey : message}]);
+      return;
+    }
+    resolve(nil);
+  });
+}
+
 - (NSString *)loadDraft:(NSString *)fileName
 {
   return SSTakeEditorString(ss_edits_load_draft(fileName.UTF8String)) ?: @"null";

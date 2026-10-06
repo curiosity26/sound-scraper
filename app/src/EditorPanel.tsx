@@ -34,6 +34,7 @@ import {
   addSplice,
   adjacentSplice,
   applyProposals,
+  stepIn,
   clampZoom,
   deletedAt,
   deleteRegion,
@@ -114,15 +115,6 @@ const THRESHOLDS = [
 ];
 const GAPS = [300, 500, 750, 1000, 1500, 2000, 3000, 5000, 10_000];
 const MIN_TRACKS = [0, 10_000, 30_000, 60_000, 120_000, 300_000];
-
-/** The next value in `list` after (dir 1) or before (dir -1) `v`. */
-function stepIn(list: number[], v: number, dir: 1 | -1): number {
-  const i = list.findIndex(x => x >= v);
-  const at = i < 0 ? list.length - 1 : i;
-  const exact = list[at] === v;
-  const next = dir > 0 ? (exact ? at + 1 : at) : at - 1;
-  return list[Math.max(0, Math.min(list.length - 1, next))];
-}
 
 /** Snippets played while scrubbing, and the stop after the pointer rests. */
 const SCRUB_INTERVAL_MS = 60;
@@ -781,6 +773,7 @@ export function EditorPanel(props: Props): React.JSX.Element {
   const frameTicks: number[] = [];
   if (
     status.state === 'ready' &&
+    !status.master &&
     status.frameMs &&
     status.frameMs / scale >= 6 &&
     viewWidth > 0
@@ -810,7 +803,9 @@ export function EditorPanel(props: Props): React.JSX.Element {
       ? shown.splices.find(s => s.id === naming)
       : undefined;
   const ready = status.state === 'ready';
-  const reencoded = tracks.filter(tr => tr.reencode).length;
+  const hasMaster = status.state === 'ready' && status.master;
+  // With a master every track is encoded from it, so none is "re-encoded".
+  const reencoded = hasMaster ? 0 : tracks.filter(tr => tr.reencode).length;
 
   return (
     <View style={styles.root} focusable {...macKeys(onKeyDown)}>
@@ -1344,7 +1339,7 @@ export function EditorPanel(props: Props): React.JSX.Element {
                 </Text>
                 <Text style={[styles.colTime, t.tableText]}>
                   {formatTime(tr.durationMs, 100)}
-                  {tr.reencode ? ' ·' : ''}
+                  {tr.reencode && !hasMaster ? ' ·' : ''}
                 </Text>
               </View>
             );
@@ -1358,7 +1353,8 @@ export function EditorPanel(props: Props): React.JSX.Element {
             } a deleted stretch inside, so saving re-encodes ${
               reencoded === 1 ? 'it' : 'them'
             }. Everything else is cut without re-encoding.`
-          : 'Click the ruler to add a splice, drag in the waveform to select, drag the red handle to scrub. Space plays, M splices at the playhead, P previews a splice, Delete removes. Unsaved edits are kept until you save.'}
+          : (hasMaster ? 'Lossless master: every cut is exact. ' : '') +
+            'Click the ruler to add a splice, drag in the waveform to select, drag the red handle to scrub. Space plays, M splices at the playhead, P previews a splice, Delete removes. Unsaved edits are kept until you save.'}
       </Text>
 
       {modal?.kind === 'save' && (
@@ -1367,6 +1363,7 @@ export function EditorPanel(props: Props): React.JSX.Element {
           title={target.title}
           count={tracks.length}
           reencoded={reencoded}
+          fromMaster={!!hasMaster}
           saving={modal.saving}
           error={modal.error}
           onCancel={() => setModal(null)}
@@ -1622,6 +1619,7 @@ function SaveModal(props: {
   title: string;
   count: number;
   reencoded: number;
+  fromMaster: boolean;
   saving: boolean;
   error?: string;
   onCancel: () => void;
@@ -1642,6 +1640,9 @@ function SaveModal(props: {
             ? ` ${
                 props.reencoded === 1 ? 'One is' : `${props.reencoded} are`
               } re-encoded because a stretch inside was deleted.`
+            : ''}
+          {props.fromMaster
+            ? ' Each is encoded once from the lossless master, cut exactly.'
             : ''}
         </Text>
         {props.error && (

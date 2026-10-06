@@ -29,6 +29,17 @@ pub fn app_data_dir() -> PathBuf {
     recordings_dir().join(".sound-scraper")
 }
 
+/// Where the track editor keeps its files (masters, drafts, waveform
+/// caches): the app data folder, or a scratch folder under test so tests
+/// never touch the user's.
+pub fn editor_data_dir() -> PathBuf {
+    if cfg!(test) {
+        std::env::temp_dir().join(format!("sound-scraper-test-data-{}", std::process::id()))
+    } else {
+        app_data_dir()
+    }
+}
+
 /// Replaces characters that are illegal in file names on macOS or Windows.
 pub fn sanitize(name: &str) -> String {
     let cleaned: String = name

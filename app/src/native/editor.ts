@@ -10,6 +10,8 @@ export type WaveformStatus =
       /** The MP3 frame grid lossless cuts land on. */
       frameMs: number | null;
       frameOffsetMs: number | null;
+      /** A lossless master exists: tracks are encoded from it on save. */
+      master: boolean;
     }
   | { state: 'failed'; message: string };
 
@@ -39,7 +41,11 @@ export type Proposal = {
   delete: [number, number] | null;
 };
 
-export type SaveResult = { files: string[]; reencoded: number };
+export type SaveResult = {
+  files: string[];
+  reencoded: number;
+  fromMaster: boolean;
+};
 
 /** False where the editor isn't available yet (Windows). */
 export const editorAvailable = NativeEditor != null;
@@ -59,6 +65,9 @@ export const editorCore = {
     JSON.parse(native().tracks(id, editsJson) || '[]') ?? [],
   detect: (id: number, options: DetectOptions): Proposal[] =>
     JSON.parse(native().detect(id, JSON.stringify(options)) || '[]') ?? [],
+  mastersUsage: (): { count: number; bytes: number } =>
+    JSON.parse(native().mastersUsage()),
+  deleteAllMasters: (): Promise<void> => native().deleteAllMasters(),
   /** The saved draft's JSON, or "null". */
   loadDraft: (fileName: string): string => native().loadDraft(fileName),
   saveDraft: (fileName: string, editsJson: string): void =>
