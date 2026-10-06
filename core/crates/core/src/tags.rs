@@ -146,6 +146,32 @@ pub fn write(path: &Path, edit: &TagEdit, version: TagVersion) -> Result<(), Str
     write_atomically(path, &tag, version)
 }
 
+/// The original's tag for one track cut from it (track editor): every frame
+/// copied, the title replaced, the track number set to `number`/`total`,
+/// encoded ready to put in front of the track's audio.
+pub fn track_tag_bytes(original: &Path, title: &str, number: u32, total: u32, version: TagVersion) -> Result<Vec<u8>, String> {
+    let mut tag = match Tag::read_from_path(original) {
+        Ok(tag) => tag,
+        Err(e) if matches!(e.kind, id3::ErrorKind::NoTag) => Tag::new(),
+        Err(e) => return Err(format!("reading tags from {}: {e}", original.display())),
+    };
+    tag.set_title(title.trim());
+    tag.set_track(number);
+    tag.set_total_tracks(total);
+    // The original's length doesn't describe the track.
+    tag.remove("TLEN");
+    let version = match version {
+        TagVersion::V24 => Version::Id3v24,
+        TagVersion::V23 => {
+            downgrade_dates_for_v23(&mut tag);
+            Version::Id3v23
+        }
+    };
+    let mut out = Vec::new();
+    tag.write_to(&mut out, version).map_err(|e| format!("writing tags: {e}"))?;
+    Ok(out)
+}
+
 /// Copies the file, writes the tag into the copy, then renames it over the
 /// original. On any error the original is untouched and the copy removed.
 fn write_atomically(path: &Path, tag: &Tag, version: Version) -> Result<(), String> {

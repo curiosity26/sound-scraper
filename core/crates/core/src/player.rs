@@ -239,20 +239,23 @@ fn emit(events: &Option<PlayerSink>, event: &PlayerEvent) {
 
 // ------------------------------------------------------------------ source
 
-/// An MP3 being decoded to interleaved stereo f32 at its own rate.
-struct Source {
+/// An MP3 being decoded to interleaved stereo f32 at its own rate (also
+/// used by the track editor).
+pub(crate) struct Source {
     format: Box<dyn FormatReader>,
     decoder: Box<dyn Decoder>,
     track_id: u32,
-    rate: u32,
-    duration: Duration,
+    pub(crate) rate: u32,
+    pub(crate) duration: Duration,
+    /// Length in frames (gapless), when the file says.
+    pub(crate) n_frames: Option<u64>,
     /// Frames before this timestamp are dropped (after an accurate seek).
     skip_until: u64,
     eof: bool,
 }
 
 impl Source {
-    fn open(path: &Path) -> Result<Self, String> {
+    pub(crate) fn open(path: &Path) -> Result<Self, String> {
         let file = File::open(path).map_err(|e| format!("opening {}: {e}", path.display()))?;
         let stream = MediaSourceStream::new(Box::new(file), Default::default());
         let mut hint = Hint::new();
@@ -278,7 +281,26 @@ impl Source {
             .n_frames
             .map(|n| Duration::from_secs_f64(n as f64 / f64::from(rate)))
             .unwrap_or_default();
-        Ok(Self { track_id: track.id, format, decoder, rate, duration, skip_until: 0, eof: false })
+        Ok(Self { track_id: track.id, format, decoder, rate, duration, n_frames: params.n_frames, skip_until: 0, eof: false })
+    }
+
+    /// Seeks to frame `ts` exactly (decoding resumes there); false if it
+    /// couldn't (past the end).
+    pub(crate) fn seek_frame(&mut self, ts: u64) -> bool {
+        self.eof = false;
+        self.skip_until = 0;
+        let to = SeekTo::TimeStamp { ts, track_id: self.track_id };
+        match self.format.seek(SeekMode::Accurate, to) {
+            Ok(seeked) => {
+                self.decoder.reset();
+                self.skip_until = seeked.required_ts;
+                true
+            }
+            Err(_) => {
+                self.eof = true;
+                false
+            }
+        }
     }
 
     /// Seeks to `at`; returns the position actually reached.
@@ -303,7 +325,7 @@ impl Source {
 
     /// Decodes the next packet into interleaved stereo, appended to `out`.
     /// Returns false at the end of the file.
-    fn decode(&mut self, out: &mut Vec<f32>) -> bool {
+    pub(crate) fn decode(&mut self, out: &mut Vec<f32>) -> bool {
         loop {
             if self.eof {
                 return false;

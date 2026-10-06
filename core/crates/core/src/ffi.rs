@@ -1499,6 +1499,239 @@ pub unsafe extern "C" fn ss_skin_folder_stamp(dir: *const c_char) -> *mut c_char
     json_or_null(catch("reading the skin folder", || skins::folder_stamp(std::path::Path::new(dir?))))
 }
 
+// ------------------------------------------------------------ track editor
+
+/// Open editors by id, and the next id (ids are never reused).
+type Editors = (u64, std::collections::HashMap<u64, Arc<crate::edit::editor::Editor>>);
+static EDITORS: Mutex<Option<Editors>> = Mutex::new(None);
+
+fn editor(id: u64) -> Result<Arc<crate::edit::editor::Editor>, String> {
+    EDITORS
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .as_ref()
+        .and_then(|(_, map)| map.get(&id).cloned())
+        .ok_or_else(|| "the editor is closed".to_string())
+}
+
+/// Opens a recording in the track editor and starts building its waveform
+/// in the background (see `ss_editor_status`). Returns the editor's id, or
+/// 0 on failure. Close with `ss_editor_close`.
+///
+/// # Safety
+/// `path` must be NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_editor_open(path: *const c_char) -> u64 {
+    let result = catch("opening the editor", || {
+        let path = std::path::PathBuf::from(unsafe { arg_str(path, "path")? });
+        if !path.is_file() {
+            return Err(format!("{} doesn't exist", path.display()));
+        }
+        let editor = Arc::new(crate::edit::editor::Editor::open(&path));
+        let mut editors = EDITORS.lock().unwrap_or_else(|e| e.into_inner());
+        let (next, map) = editors.get_or_insert_with(|| (1, Default::default()));
+        let id = *next;
+        *next += 1;
+        map.insert(id, editor);
+        Ok(id)
+    });
+    result.unwrap_or_else(|e| {
+        fail(e);
+        0
+    })
+}
+
+/// Closes an editor (stopping its waveform build). Unknown ids are ignored.
+#[unsafe(no_mangle)]
+pub extern "C" fn ss_editor_close(id: u64) {
+    let removed = EDITORS.lock().unwrap_or_else(|e| e.into_inner()).as_mut().and_then(|(_, map)| map.remove(&id));
+    // Dropping joins the worker; do it outside the lock.
+    drop(removed);
+}
+
+/// The editor's waveform as JSON: `{"state":"loading","progress":0..1}`,
+/// `{"state":"ready","rate":48000,"durationMs":…}` or
+/// `{"state":"failed","message":…}`. Free with `ss_string_free`.
+#[unsafe(no_mangle)]
+pub extern "C" fn ss_editor_status(id: u64) -> *mut c_char {
+    use crate::edit::editor::Status as S;
+    json_or_null(catch("reading the editor", || {
+        Ok(match editor(id)?.status() {
+            S::Loading(p) => serde_json::json!({ "state": "loading", "progress": p }),
+            S::Ready { rate, frames } => {
+                serde_json::json!({ "state": "ready", "rate": rate, "durationMs": frames as f64 * 1000.0 / f64::from(rate) })
+            }
+            S::Failed(message) => serde_json::json!({ "state": "failed", "message": message }),
+        })
+    }))
+}
+
+/// Draws the waveform from `start_ms` at `ms_per_px` milliseconds per
+/// pixel into `rgba` (`width`×`height` premultiplied RGBA, `len` bytes),
+/// with colors from `style_json` (`background`, `wave`, `rms`, `center` as
+/// "#rrggbb[aa]"). Returns false while the waveform is still loading (the
+/// background is drawn) or on bad arguments.
+///
+/// # Safety
+/// `rgba` must point to `len` writable bytes; `style_json` must be NULL or
+/// NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_editor_render(
+    id: u64,
+    start_ms: f64,
+    ms_per_px: f64,
+    width: u32,
+    height: u32,
+    style_json: *const c_char,
+    rgba: *mut u8,
+    len: usize,
+) -> bool {
+    let needed = width as usize * height as usize * 4;
+    if rgba.is_null() || width == 0 || height == 0 || len < needed {
+        return false;
+    }
+    let Ok(editor) = editor(id) else { return false };
+    let style = if style_json.is_null() { "" } else { unsafe { arg_str(style_json, "style_json") }.unwrap_or("") };
+    let buf = unsafe { std::slice::from_raw_parts_mut(rgba, needed) };
+    catch_unwind(AssertUnwindSafe(|| editor.render(start_ms, ms_per_px, width, height, style, buf))).unwrap_or(false)
+}
+
+/// The tracks an edit list (JSON, see `crate::edit::edits::EditList`) makes
+/// of the editor's recording: `[{"name","startMs","durationMs","reencode"}]`,
+/// where `startMs` is in the original's timeline and `reencode` means the
+/// track has a deleted stretch inside it. NULL until the waveform is ready.
+/// Free with `ss_string_free`.
+///
+/// # Safety
+/// `edits_json` must be NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_editor_tracks(id: u64, edits_json: *const c_char) -> *mut c_char {
+    use crate::edit::editor::Status as S;
+    json_or_null(catch("planning the tracks", || {
+        let edits: crate::edit::edits::EditList =
+            serde_json::from_str(unsafe { arg_str(edits_json, "edits_json")? }).map_err(|e| format!("invalid edits: {e}"))?;
+        let S::Ready { rate, frames } = editor(id)?.status() else { return Err("the waveform isn't ready".into()) };
+        let ms = |f: u64| f as f64 * 1000.0 / f64::from(rate);
+        Ok(edits
+            .plan(rate, frames)
+            .iter()
+            .map(|t| {
+                serde_json::json!({
+                    "name": t.name,
+                    "startMs": ms(t.segments[0].0),
+                    "durationMs": ms(t.frames()),
+                    "reencode": t.segments.len() > 1,
+                })
+            })
+            .collect::<Vec<_>>())
+    }))
+}
+
+/// The unsaved edits kept for a recording (JSON), or "null". Free with
+/// `ss_string_free`.
+///
+/// # Safety
+/// `file_name` must be NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_edits_load_draft(file_name: *const c_char) -> *mut c_char {
+    json_or_null(catch("loading edits", || Ok(crate::edit::edits::load_draft(unsafe { arg_str(file_name, "file_name")? }))))
+}
+
+/// Keeps unsaved edits (JSON) for a recording; empty edits remove the draft.
+///
+/// # Safety
+/// `file_name` and `edits_json` must be NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_edits_save_draft(file_name: *const c_char, edits_json: *const c_char) -> SsStatus {
+    catch("saving edits", || {
+        let edits: crate::edit::edits::EditList =
+            serde_json::from_str(unsafe { arg_str(edits_json, "edits_json")? }).map_err(|e| format!("invalid edits: {e}"))?;
+        crate::edit::edits::save_draft(unsafe { arg_str(file_name, "file_name")? }, &edits)
+    })
+    .map_or_else(fail, |()| SsStatus::Ok)
+}
+
+/// Forgets a recording's unsaved edits.
+///
+/// # Safety
+/// `file_name` must be NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_edits_discard_draft(file_name: *const c_char) -> SsStatus {
+    catch("discarding edits", || {
+        crate::edit::edits::discard_draft(unsafe { arg_str(file_name, "file_name")? });
+        Ok(())
+    })
+    .map_or_else(fail, |()| SsStatus::Ok)
+}
+
+/// Saves an edit of the recording `file_name`: writes its tracks next to it
+/// (tagged like it, except title and track number), then, unless
+/// `keep_original`, moves the original to the trash. Blocks until done.
+/// Returns `{"files":[file names…],"reencoded":n}`, or NULL on failure (the
+/// original untouched, nothing written). Free with `ss_string_free`.
+///
+/// # Safety
+/// `library` must be a live handle; `file_name` and `edits_json` must be
+/// NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_editor_save(
+    library: *mut SsLibrary,
+    file_name: *const c_char,
+    edits_json: *const c_char,
+    keep_original: bool,
+) -> *mut c_char {
+    let args = (|| -> Result<(String, crate::edit::edits::EditList), String> {
+        let name = unsafe { arg_str(file_name, "file_name")? }.to_string();
+        let edits = serde_json::from_str(unsafe { arg_str(edits_json, "edits_json")? }).map_err(|e| format!("invalid edits: {e}"))?;
+        Ok((name, edits))
+    })();
+    let (name, edits) = match args {
+        Ok(a) => a,
+        Err(e) => {
+            fail(e);
+            return ptr::null_mut();
+        }
+    };
+    let Ok(dir) = with_library(library, |l| Ok(l.dir().to_path_buf())) else { return ptr::null_mut() };
+    let original = dir.join(&name);
+    let saved = catch("saving the tracks", || {
+        crate::edit::save::save(&original, &edits, settings::load().tag_version(), &|_| {})
+    });
+    let saved = match saved {
+        Ok(s) => s,
+        Err(e) => {
+            fail(e);
+            return ptr::null_mut();
+        }
+    };
+    crate::edit::edits::discard_draft(&name);
+    let mut files: Vec<std::path::PathBuf> = saved.paths;
+    if !keep_original {
+        if with_library(library, |l| l.trash(&name)).is_err() {
+            return ptr::null_mut();
+        }
+        // A track named like the original got " (2)" while it was there.
+        let wanted = std::path::Path::new(&name).file_stem().map(|s| s.to_string_lossy().into_owned());
+        for path in &mut files {
+            if !original.exists() && strip_counter(path) == wanted && std::fs::rename(&*path, &original).is_ok() {
+                *path = original.clone();
+            }
+        }
+    }
+    json_or_null(Ok(serde_json::json!({
+        "files": files.iter().map(|p| p.file_name().unwrap_or_default().to_string_lossy().into_owned()).collect::<Vec<_>>(),
+        "reencoded": saved.reencoded,
+    })))
+}
+
+/// "Name (2).mp3" → "Name"; None without a counter.
+fn strip_counter(path: &std::path::Path) -> Option<String> {
+    let stem = path.file_stem()?.to_string_lossy();
+    let open = stem.rfind(" (")?;
+    let inner = stem[open + 2..].strip_suffix(')')?;
+    inner.parse::<u32>().ok().map(|_| stem[..open].to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1508,6 +1741,42 @@ mod tests {
     fn version_matches_crate() {
         let v = unsafe { CStr::from_ptr(ss_version()) };
         assert_eq!(v.to_str().unwrap(), crate::VERSION);
+    }
+
+    #[test]
+    fn editor_saves_tracks_and_can_replace_the_original() {
+        let dir = crate::paths::tempdir();
+        let rate = 48000;
+        let samples: Vec<f32> = (0..rate * 3).flat_map(|i| [(i as f32 * 0.03).sin() * 0.3; 2]).collect();
+        std::fs::write(dir.join("Album.mp3"), crate::mp3::tests::encode_all(&samples, rate, true)).unwrap();
+        let lib = Library::open(dir.clone(), &dir.join("db.sqlite"), Box::new(|p: &std::path::Path| {
+            std::fs::remove_file(p).map_err(|e| e.to_string())
+        }))
+        .unwrap();
+        let library = Box::into_raw(Box::new(SsLibrary { inner: Mutex::new(lib) }));
+
+        let id = unsafe { ss_editor_open(CString::new(dir.join("Album.mp3").to_str().unwrap()).unwrap().as_ptr()) };
+        assert_ne!(id, 0);
+        let take = |p: *mut c_char| {
+            let s = unsafe { CStr::from_ptr(p) }.to_str().unwrap().to_string();
+            unsafe { ss_string_free(p) };
+            s
+        };
+        while !take(ss_editor_status(id)).contains("ready") {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        let edits = c"{\"firstName\":\"Album\",\"splices\":[{\"atMs\":1000,\"name\":\"Second\"}],\"deleted\":[]}";
+        let tracks = take(unsafe { ss_editor_tracks(id, edits.as_ptr()) });
+        assert!(tracks.contains("\"name\":\"Second\"") && tracks.contains("\"startMs\":1000.0"), "{tracks}");
+        ss_editor_close(id);
+        assert!(ss_editor_status(id).is_null(), "closed");
+
+        let out = unsafe { ss_editor_save(library, c"Album.mp3".as_ptr(), edits.as_ptr(), false) };
+        assert!(!out.is_null(), "{:?}", unsafe { CStr::from_ptr(ss_last_error_message()) });
+        // The first track takes the original's name once it's gone.
+        assert_eq!(take(out), "{\"files\":[\"Album.mp3\",\"Second.mp3\"],\"reencoded\":0}");
+        assert!(dir.join("Second.mp3").exists() && !dir.join("Album (2).mp3").exists());
+        unsafe { ss_library_destroy(library) };
     }
 
     #[test]

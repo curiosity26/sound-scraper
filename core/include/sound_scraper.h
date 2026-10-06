@@ -7,6 +7,13 @@
 #include <stdbool.h>
 
 /*
+ The decoder's own delay, in samples.
+ */
+#define DECODER_DELAY 529
+
+#define BUCKET 256
+
+/*
  Bits for `SsTagEdit::set_mask`: which fields the edit changes.
  */
 #define SS_TAG_TITLE (1 << 0)
@@ -951,6 +958,101 @@ char *ss_skin_create(const char *parent, const char *name);
  `dir` must be NUL-terminated UTF-8.
  */
 char *ss_skin_folder_stamp(const char *dir);
+
+/*
+ Opens a recording in the track editor and starts building its waveform
+ in the background (see `ss_editor_status`). Returns the editor's id, or
+ 0 on failure. Close with `ss_editor_close`.
+
+ # Safety
+ `path` must be NUL-terminated UTF-8.
+ */
+uint64_t ss_editor_open(const char *path);
+
+/*
+ Closes an editor (stopping its waveform build). Unknown ids are ignored.
+ */
+void ss_editor_close(uint64_t id);
+
+/*
+ The editor's waveform as JSON: `{"state":"loading","progress":0..1}`,
+ `{"state":"ready","rate":48000,"durationMs":…}` or
+ `{"state":"failed","message":…}`. Free with `ss_string_free`.
+ */
+char *ss_editor_status(uint64_t id);
+
+/*
+ Draws the waveform from `start_ms` at `ms_per_px` milliseconds per
+ pixel into `rgba` (`width`×`height` premultiplied RGBA, `len` bytes),
+ with colors from `style_json` (`background`, `wave`, `rms`, `center` as
+ "#rrggbb[aa]"). Returns false while the waveform is still loading (the
+ background is drawn) or on bad arguments.
+
+ # Safety
+ `rgba` must point to `len` writable bytes; `style_json` must be NULL or
+ NUL-terminated UTF-8.
+ */
+bool ss_editor_render(uint64_t id,
+                      double start_ms,
+                      double ms_per_px,
+                      uint32_t width,
+                      uint32_t height,
+                      const char *style_json,
+                      uint8_t *rgba,
+                      size_t len);
+
+/*
+ The tracks an edit list (JSON, see `crate::edit::edits::EditList`) makes
+ of the editor's recording: `[{"name","startMs","durationMs","reencode"}]`,
+ where `startMs` is in the original's timeline and `reencode` means the
+ track has a deleted stretch inside it. NULL until the waveform is ready.
+ Free with `ss_string_free`.
+
+ # Safety
+ `edits_json` must be NUL-terminated UTF-8.
+ */
+char *ss_editor_tracks(uint64_t id, const char *edits_json);
+
+/*
+ The unsaved edits kept for a recording (JSON), or "null". Free with
+ `ss_string_free`.
+
+ # Safety
+ `file_name` must be NUL-terminated UTF-8.
+ */
+char *ss_edits_load_draft(const char *file_name);
+
+/*
+ Keeps unsaved edits (JSON) for a recording; empty edits remove the draft.
+
+ # Safety
+ `file_name` and `edits_json` must be NUL-terminated UTF-8.
+ */
+enum SsStatus ss_edits_save_draft(const char *file_name, const char *edits_json);
+
+/*
+ Forgets a recording's unsaved edits.
+
+ # Safety
+ `file_name` must be NUL-terminated UTF-8.
+ */
+enum SsStatus ss_edits_discard_draft(const char *file_name);
+
+/*
+ Saves an edit of the recording `file_name`: writes its tracks next to it
+ (tagged like it, except title and track number), then, unless
+ `keep_original`, moves the original to the trash. Blocks until done.
+ Returns `{"files":[file names…],"reencoded":n}`, or NULL on failure (the
+ original untouched, nothing written). Free with `ss_string_free`.
+
+ # Safety
+ `library` must be a live handle; `file_name` and `edits_json` must be
+ NUL-terminated UTF-8.
+ */
+char *ss_editor_save(struct SsLibrary *library,
+                     const char *file_name,
+                     const char *edits_json,
+                     bool keep_original);
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -2,6 +2,7 @@
 //! through the C ABI in [`ffi`].
 
 pub mod capture_test;
+pub mod edit;
 pub mod ffi;
 pub mod library;
 pub mod mp3;

@@ -193,6 +193,7 @@ impl Library {
         };
         std::fs::rename(&from, &to).map_err(|e| format!("renaming {file_name}: {e}"))?;
         let final_stem = stem(&to.file_name().unwrap().to_string_lossy());
+        crate::edit::edits::rename_draft(file_name, &to.file_name().unwrap().to_string_lossy());
         update_title_if_default(&to, &old_stem, &final_stem)?;
         self.db
             .execute("DELETE FROM recordings WHERE file_name = ?1", [file_name])
