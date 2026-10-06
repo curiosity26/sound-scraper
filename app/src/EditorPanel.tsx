@@ -1466,14 +1466,17 @@ function Overview(props: {
       onResponderMove={go}
       onResponderTerminationRequest={() => false}
     >
-      <SSWaveformView
-        pointerEvents="none"
-        style={StyleSheet.absoluteFill}
-        editorId={props.editorId}
-        startMs={0}
-        msPerPoint={per}
-        colors={props.colors}
-      />
+      {/* pointerEvents isn't supported on the native (legacy) view itself:
+          setting it there crashes on macOS. */}
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <SSWaveformView
+          style={StyleSheet.absoluteFill}
+          editorId={props.editorId}
+          startMs={0}
+          msPerPoint={per}
+          colors={props.colors}
+        />
+      </View>
       {props.edits.deleted.map(r => (
         <View
           key={r.id}
