@@ -1,6 +1,6 @@
-# Sound Scraper: Track Editor Design v0.2
+# Sound Scraper: Track Editor Design v0.3
 
-Status: proposal built on Alex's brief (2026-10-06). Waiting for answers to the questions in §10.
+Status: agreed with Alex (2026-10-06); decisions in §10.
 
 ## 1. Goal
 
@@ -216,9 +216,8 @@ With no splices and only deleted regions, Save produces one edited track
 
 **Tags.** Every new track gets a copy of the original's ID3 tags (artist,
 album, album artist, year, genre, comment, cover art, and any others)
-with the **title replaced by its splice name**. One question (§10): the
-track number. Copying it unchanged gives every track the same number;
-setting it to 1/N … N/N is probably what people expect for an album.
+with the **title replaced by its splice name** and the **track number set
+to 1/N … N/N** (§10).
 
 ### 4.8 Scrubbing and playback
 
@@ -231,7 +230,7 @@ setting it to 1/N … N/N is probably what people expect for an album.
   mouse (Audition, Audacity's newer Scrub). Seek-scrub is straightforward
   with the current player (a "play snippet" command). Tape-style needs
   variable-rate resampling and reverse playback in the player, which is a
-  bigger job. Plan: seek-scrub first, tape-style later if wanted (§10).
+  bigger job. Seek-scrub first, tape-style later (§10).
 - **Undo/redo** (⌘/Ctrl+Z, ⇧⌘Z / Ctrl+Y) covers splices, names, regions
   and Find Tracks. Edits are plain data, so undo is a snapshot stack.
 
@@ -341,13 +340,60 @@ again), so that one track is re-encoded at the recording's quality and the
 rest stay lossless. The editor marks such tracks in the track list ("re-encodes")
 so it's never a surprise. Fades, if they come later, work the same way.
 
-**Option C, worth deciding now:** keep a lossless copy while recording.
-The recorder could write FLAC beside the MP3 (about 450 MB per hour for
-48 kHz stereo, versus 86 MB for the 192 kbps MP3), and the editor would
-cut from it and encode each track once, sample-exact with no generation
-loss, then delete the FLAC after the split (or keep it, as a setting).
-It doubles the encoding work during recording and costs disk, but it
-makes every later edit perfect. See question 4.
+**Option C (chosen, 2026-10-06): keep a lossless master while recording.**
+The recorder writes a FLAC copy beside the MP3 (16-bit, about 400 MB per
+hour at 48 kHz stereo, versus 86 MB for the 192 kbps MP3). When a master
+exists, the editor cuts from it at the exact sample and encodes each new
+track once from the master, so the tracks are no worse than the original
+MP3 and every cut, deletion and fade is perfect. Without one (older
+recordings, or a master already cleaned up) the editor falls back to
+options A and B above.
+
+### 6.1 Masters and disk space
+
+Most recordings are a single track and never edited, so keeping a master
+for every one would waste a lot of disk. The plan balances the two cases
+automatically, with settings for people who care:
+
+- **Always record a master.** We can't know in advance whether a
+  recording will be edited, and the cost while recording is small (FLAC
+  encodes far faster than real time). It goes through the same silence
+  trimmer as the MP3, so the timelines match sample for sample.
+- **Masters live outside the recordings folder**, in the app's data
+  folder (`Masters/`), keyed to the recording and following its renames.
+  The library stays clean and users never see stray `.flac` files.
+- **Short recordings drop their master at stop.** Below a length
+  threshold (default **20 minutes**, a setting), a recording is almost
+  certainly one song or clip; its master is deleted as soon as the MP3
+  is finalized. Long recordings (albums, shows, sets) keep theirs.
+- **A disk budget with oldest-first cleanup.** Masters are capped at a
+  total size (default **10 GB**, roughly 25 hours) and an age (default
+  **30 days** since the recording was last opened in the editor). When
+  either is exceeded, the least recently used masters are deleted first.
+- **A master's job ends with its recording.** Saving edits with *No,
+  delete it* deletes the master along with the original. With *Yes, keep
+  it* the master stays (the original may be edited again) until the
+  budget or age removes it. Trashing a recording from the library deletes
+  its master.
+- **Visible and in the user's hands.** Settings › Recording shows "Keep
+  lossless masters for recordings longer than [20 min]", the budget and
+  age, the space in use, and **Delete all masters**. The editor shows
+  whether a master is available ("Lossless master: yes, edits are
+  sample-exact"), and the details panel offers **Delete master** for one
+  recording.
+- **Fallback is graceful.** A recording whose master is gone edits exactly
+  as in options A and B, so cleanup never breaks anything; it only makes
+  later edits slightly less perfect.
+
+A record-time choice ("this is a long recording") was considered and
+dropped: people forget to set it, and the length threshold infers the
+same thing after the fact.
+
+Implementation note: FLAC encoding in Rust via a pure-Rust encoder crate
+(e.g. `flacenc`) to avoid another C library, if its streaming support is
+good enough; otherwise libFLAC (BSD licensed, no LGPL concerns).
+Symphonia already decodes FLAC (one feature flag). Crash recovery treats
+a leftover master like the `.part` MP3: finished on next launch.
 
 ## 7. Architecture
 
@@ -379,8 +425,7 @@ New module tree in `crates/core/src/edit/`:
   return per-frame offsets), map sample positions to frames, copy ranges,
   write the new LAME/Info tag (frame count, bytes, TOC, delay, padding).
 - **`split.rs`:** runs a save: for each track, cut (A) or encode (B),
-  copy the original's ID3 tag and replace the title (and the track number,
-  per §10), write to `.part` then rename, add to the library. All tracks
+  copy the original's ID3 tag and replace the title and track number, write to `.part` then rename, add to the library. All tracks
   are written before the original is touched; on any error the finished
   pieces are removed and the original is untouched. Then, if asked, the
   original goes to the trash through the library's existing `trash`.
@@ -455,30 +500,26 @@ skin, so existing skins (including Hi-Fi '74) work unchanged.
   plus a **Remove gaps** option.
 - Seek-scrub, P to preview a cut, overview strip, frame ticks at deep
   zoom.
+- Lossless masters (§6.1): FLAC while recording, the length threshold,
+  budget and cleanup, the settings, and editing from the master.
 - Windows: the native waveform view and panel parity.
 
 **Phase 3: optional extras.**
-- Tape-style scrubbing (if wanted, §10).
+- Tape-style scrubbing.
 - A Mark button while recording that drops splices into the new
   recording; optional split-on-silence during recording (Audio Hijack
   style).
 - Fades in/out per track.
 - Album lookup (MusicBrainz) or fingerprinting (AcoustID) to name tracks;
   Windows Now Playing track changes as splices.
-- A lossless FLAC copy while recording, if chosen in §10.
 
-## 10. Questions for Alex
+## 10. Decisions (Alex, 2026-10-06)
 
-1. **Middle-of-track region deletes:** re-encode just that track
-   (recommended, no click at the seam), or keep everything lossless and
-   accept a possible tiny click?
-2. **Track numbers on new tracks:** set them to 1/N … N/N (recommended),
-   or copy the original's unchanged like the other tags?
-3. **Scrubbing:** seek-scrub first and tape-style later (recommended), or
-   tape-style from the start?
-4. **Lossless copy while recording (§6, option C):** no for now
-   (recommended), or record FLAC beside the MP3 so every edit is perfect
-   (about 450 MB per hour)?
+1. A region deleted from the middle of a track re-encodes that track (from
+   the master when there is one); everything else is lossless.
+2. New tracks are numbered 1/N … N/N.
+3. Snippet (seek) scrubbing first; tape-style later.
+4. Record a lossless master, balanced against disk space as in §6.1.
 
 ## Sources
 
