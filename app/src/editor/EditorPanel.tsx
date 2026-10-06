@@ -60,7 +60,7 @@ import {
   type WaveformStatus,
 } from '../native/editor';
 import { playback, usePlayback } from '../playback';
-import { Divider, IconButton, Lcd, ToolButton } from './controls';
+import { Divider, IconButton, Lcd, Slider, ToolButton } from './controls';
 import {
   AutoSliceBar,
   DETECT_PRESETS,
@@ -97,6 +97,8 @@ const HANDLE = 10;
 /** A press that moves less than this (points) is a click. */
 const CLICK_SLOP = 3;
 const DOUBLE_CLICK_MS = 400;
+/** The vertical zoom beside the waveform. */
+const VSTRIP = 26;
 /** The deepest vertical zoom. */
 const MAX_GAIN = 16;
 
@@ -310,6 +312,7 @@ export function EditorPanel(props: Props): React.JSX.Element {
   const [msPerPoint, setMsPerPoint] = useState(0);
   const [scrollX, setScrollX] = useState(0);
   const [vZoom, setVZoom] = useState(0);
+  const [viewHeight, setViewHeight] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
   /** Where to scroll once a new zoom is laid out ({x} so equal values still apply). */
   const [pendingScroll, setPendingScroll] = useState<{ x: number } | null>(
@@ -977,7 +980,7 @@ export function EditorPanel(props: Props): React.JSX.Element {
         <OverviewBar
           th={th}
           editorId={editorId}
-          width={Math.max(60, viewWidth - 206)}
+          width={viewWidth + VSTRIP}
           durationMs={durationMs}
           colors={waveColors}
           viewStartMs={firstVisible}
@@ -992,337 +995,383 @@ export function EditorPanel(props: Props): React.JSX.Element {
             scrollRef.current?.scrollTo({ x, animated: false });
             setScrollX(x);
           }}
-          hZoom={hZoom}
-          onHZoom={setHZoom}
-          vZoom={vZoom}
-          onVZoom={setVZoom}
-          disabled={!ready}
         />
       )}
 
-      {/* The timeline: ruler, track lane, waveform */}
-      <View
-        style={[
-          styles.timeline,
-          {
-            backgroundColor: c('background', '#141210'),
-            borderColor: th.border,
-          },
-        ]}
-        onLayout={(e: LayoutChangeEvent) =>
-          setViewWidth(e.nativeEvent.layout.width)
-        }
-      >
-        {editorId > 0 && (
-          <SSWaveformView
-            style={[StyleSheet.absoluteFill, { top: RULER + LANE }]}
-            editorId={editorId}
-            startMs={firstVisible}
-            msPerPoint={scale}
-            colors={waveColors}
-          />
-        )}
-        <ScrollView
-          ref={scrollRef}
-          horizontal
-          scrollEventThrottle={16}
-          onScroll={e => setScrollX(e.nativeEvent.contentOffset.x)}
-          showsHorizontalScrollIndicator
-          style={StyleSheet.absoluteFill}
-          contentContainerStyle={{ width: contentWidth }}
+      {/* The timeline (ruler, track lane, waveform), with the vertical zoom
+          along its right edge */}
+      <View style={styles.timelineRow}>
+        <View
+          style={[
+            styles.timeline,
+            {
+              backgroundColor: c('background', '#141210'),
+              borderColor: th.border,
+            },
+          ]}
+          onLayout={(e: LayoutChangeEvent) => {
+            setViewWidth(e.nativeEvent.layout.width);
+            setViewHeight(e.nativeEvent.layout.height);
+          }}
         >
-          <View style={{ width: contentWidth, flex: 1 }}>
-            {/* Ruler: click for the playhead, drag to scrub */}
-            <View
-              testID="editor-ruler"
-              style={[
-                styles.ruler,
-                { width: contentWidth, backgroundColor: c('ruler', '#221d1a') },
-              ]}
-              onStartShouldSetResponder={() => ready && !modal}
-              onResponderGrant={scrubGrant}
-              onResponderMove={scrubMove}
-              onResponderRelease={scrubRelease}
-              onResponderTerminate={scrubRelease}
-              onResponderTerminationRequest={() => false}
-            >
-              {ticks.map(tick => (
-                <View
-                  key={tick.ms}
-                  pointerEvents="none"
-                  style={{
-                    position: 'absolute',
-                    left: tick.ms / scale,
-                    bottom: 0,
-                    width: StyleSheet.hairlineWidth,
-                    height: tick.major ? RULER / 2 : RULER / 5,
-                    backgroundColor: c('rulerText', '#f3ead0'),
-                    opacity: tick.major ? 0.7 : 0.35,
-                  }}
-                />
-              ))}
-              {ticks
-                .filter(tick => tick.major)
-                .map(tick => (
-                  <Text
-                    key={`l${tick.ms}`}
+          {editorId > 0 && (
+            <SSWaveformView
+              style={[StyleSheet.absoluteFill, { top: RULER + LANE }]}
+              editorId={editorId}
+              startMs={firstVisible}
+              msPerPoint={scale}
+              colors={waveColors}
+            />
+          )}
+          <ScrollView
+            ref={scrollRef}
+            horizontal
+            scrollEventThrottle={16}
+            onScroll={e => setScrollX(e.nativeEvent.contentOffset.x)}
+            showsHorizontalScrollIndicator
+            style={StyleSheet.absoluteFill}
+            contentContainerStyle={{ width: contentWidth }}
+          >
+            <View style={{ width: contentWidth, flex: 1 }}>
+              {/* Ruler: click for the playhead, drag to scrub */}
+              <View
+                testID="editor-ruler"
+                style={[
+                  styles.ruler,
+                  {
+                    width: contentWidth,
+                    backgroundColor: c('ruler', '#221d1a'),
+                  },
+                ]}
+                onStartShouldSetResponder={() => ready && !modal}
+                onResponderGrant={scrubGrant}
+                onResponderMove={scrubMove}
+                onResponderRelease={scrubRelease}
+                onResponderTerminate={scrubRelease}
+                onResponderTerminationRequest={() => false}
+              >
+                {ticks.map(tick => (
+                  <View
+                    key={tick.ms}
                     pointerEvents="none"
-                    style={[
-                      styles.tickLabel,
-                      {
-                        left: tick.ms / scale + 3,
-                        color: c('rulerText', '#f3ead0'),
-                      },
-                    ]}
-                  >
-                    {formatTime(tick.ms, steps.major)}
-                  </Text>
+                    style={{
+                      position: 'absolute',
+                      left: tick.ms / scale,
+                      bottom: 0,
+                      width: StyleSheet.hairlineWidth,
+                      height: tick.major ? RULER / 2 : RULER / 5,
+                      backgroundColor: c('rulerText', '#f3ead0'),
+                      opacity: tick.major ? 0.7 : 0.35,
+                    }}
+                  />
                 ))}
-              {(loaded || scrubMs !== null) && (
-                <View
-                  pointerEvents="none"
-                  style={[
-                    styles.playheadCap,
-                    {
-                      left: headMs / scale - 6,
-                      borderTopColor: c('playhead', '#ff4a3a'),
-                    },
-                  ]}
-                />
-              )}
-            </View>
-
-            {/* Track lane: the tracks as named regions */}
-            <View style={[styles.lane, { width: contentWidth }]}>
-              {rows.map((tr, i) => {
-                const left = tr.startMs / scale;
-                const width = Math.max(2, (trackEnds[i] - tr.startMs) / scale);
-                const selected = selectedTrack === i;
-                const color = trackColor(i);
-                return (
-                  <View
-                    key={`${i}-${tr.startMs}`}
-                    accessibilityLabel={`Track ${i + 1}: ${tr.name}`}
-                    style={[
-                      styles.region,
-                      {
-                        left: left + 1,
-                        width: width - 2,
-                        backgroundColor: withAlpha(
-                          color,
-                          selected ? 0xb0 : 0x70,
-                        ),
-                        borderColor: selected ? th.text : color,
-                      },
-                    ]}
-                    onStartShouldSetResponder={() => ready && !modal}
-                    onResponderGrant={regionGrant(i)}
-                  >
+                {ticks
+                  .filter(tick => tick.major)
+                  .map(tick => (
                     <Text
-                      numberOfLines={1}
-                      pointerEvents="none"
-                      style={styles.regionText}
-                    >
-                      <Text style={styles.regionNum}>{i + 1} </Text>
-                      {tr.name}
-                      {tr.reencode && !hasMaster ? '  ·' : ''}
-                    </Text>
-                  </View>
-                );
-              })}
-              {/* Slice edges: grab to move */}
-              {shown.splices.map(s => {
-                const selected = s.id === selectedSlice;
-                return (
-                  <View
-                    key={s.id}
-                    testID={`editor-slice-${s.id}`}
-                    accessibilityLabel={`Slice ${s.name} at ${formatTime(
-                      s.atMs,
-                      100,
-                    )}`}
-                    style={[styles.edge, { left: s.atMs / scale - HANDLE / 2 }]}
-                    {...responder(sliceGrant(s.id, s.atMs))}
-                  >
-                    <View
+                      key={`l${tick.ms}`}
                       pointerEvents="none"
                       style={[
-                        styles.edgeGrip,
+                        styles.tickLabel,
                         {
-                          backgroundColor: selected
-                            ? c('spliceSelected', '#fff0a0')
-                            : th.text,
-                          opacity: selected ? 1 : 0.8,
+                          left: tick.ms / scale + 3,
+                          color: c('rulerText', '#f3ead0'),
                         },
                       ]}
-                    />
-                  </View>
-                );
-              })}
-            </View>
+                    >
+                      {formatTime(tick.ms, steps.major)}
+                    </Text>
+                  ))}
+                {(loaded || scrubMs !== null) && (
+                  <View
+                    pointerEvents="none"
+                    style={[
+                      styles.playheadCap,
+                      {
+                        left: headMs / scale - 6,
+                        borderTopColor: c('playhead', '#ff4a3a'),
+                      },
+                    ]}
+                  />
+                )}
+              </View>
 
-            {/* Waveform overlays */}
-            <View style={styles.waveArea} {...responder(waveGrant)}>
-              {rows.map((tr, i) => (
-                <View
-                  key={`t${i}-${tr.startMs}`}
-                  pointerEvents="none"
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    bottom: 0,
-                    left: tr.startMs / scale,
-                    width: (trackEnds[i] - tr.startMs) / scale,
-                    backgroundColor: withAlpha(
-                      trackColor(i),
-                      selectedTrack === i ? 0x22 : 0x10,
-                    ),
-                  }}
-                />
-              ))}
-              {shown.deleted.map(r => (
-                <View
-                  key={r.id}
-                  pointerEvents="none"
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    bottom: 0,
-                    left: r.startMs / scale,
-                    width: Math.max(1, (r.endMs - r.startMs) / scale),
-                    backgroundColor: c('deleted', '#00000099'),
-                    borderColor:
-                      r.id === selectedRegion
-                        ? c('spliceSelected', '#fff0a0')
-                        : 'transparent',
-                    borderWidth: 1,
-                  }}
-                />
-              ))}
-              {liveSelection && (
-                <View
-                  pointerEvents="none"
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    bottom: 0,
-                    left: liveSelection.startMs / scale,
-                    width: Math.max(
-                      1,
-                      (liveSelection.endMs - liveSelection.startMs) / scale,
-                    ),
-                    backgroundColor: c('selection', '#ffffff30'),
-                    borderLeftWidth: 1,
-                    borderRightWidth: 1,
-                    borderColor: withAlpha(th.text, 0x90),
-                  }}
-                />
-              )}
-              {frameTicks.map(ms => (
-                <View
-                  key={`f${ms}`}
-                  pointerEvents="none"
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    height: 6,
-                    left: ms / scale,
-                    width: StyleSheet.hairlineWidth,
-                    backgroundColor: c('rulerText', '#f3ead0'),
-                    opacity: 0.35,
-                  }}
-                />
-              ))}
-              {autoSlice &&
-                proposals.map(p => (
-                  <React.Fragment key={`p${p.atMs}`}>
+              {/* Track lane: the tracks as named regions */}
+              <View style={[styles.lane, { width: contentWidth }]}>
+                {rows.map((tr, i) => {
+                  const left = tr.startMs / scale;
+                  const width = Math.max(
+                    2,
+                    (trackEnds[i] - tr.startMs) / scale,
+                  );
+                  const selected = selectedTrack === i;
+                  const color = trackColor(i);
+                  return (
                     <View
-                      pointerEvents="none"
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        bottom: 0,
-                        left: p.gapStartMs / scale,
-                        width: Math.max(1, (p.gapEndMs - p.gapStartMs) / scale),
-                        backgroundColor: withAlpha(th.accent, 0x26),
-                      }}
-                    />
+                      key={`${i}-${tr.startMs}`}
+                      accessibilityLabel={`Track ${i + 1}: ${tr.name}`}
+                      style={[
+                        styles.region,
+                        {
+                          left: left + 1,
+                          width: width - 2,
+                          backgroundColor: withAlpha(
+                            color,
+                            selected ? 0xb0 : 0x70,
+                          ),
+                          borderColor: selected ? th.text : color,
+                        },
+                      ]}
+                      onStartShouldSetResponder={() => ready && !modal}
+                      onResponderGrant={regionGrant(i)}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        pointerEvents="none"
+                        style={styles.regionText}
+                      >
+                        <Text style={styles.regionNum}>{i + 1} </Text>
+                        {tr.name}
+                        {tr.reencode && !hasMaster ? '  ·' : ''}
+                      </Text>
+                    </View>
+                  );
+                })}
+                {/* Slice edges: grab to move */}
+                {shown.splices.map(s => {
+                  const selected = s.id === selectedSlice;
+                  return (
                     <View
-                      pointerEvents="none"
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        bottom: 0,
-                        left: p.atMs / scale,
-                        width: 0,
-                        borderLeftWidth: 1.5,
-                        borderStyle: 'dashed',
-                        borderColor: th.accent,
-                      }}
-                    />
-                  </React.Fragment>
+                      key={s.id}
+                      testID={`editor-slice-${s.id}`}
+                      accessibilityLabel={`Slice ${s.name} at ${formatTime(
+                        s.atMs,
+                        100,
+                      )}`}
+                      style={[
+                        styles.edge,
+                        { left: s.atMs / scale - HANDLE / 2 },
+                      ]}
+                      {...responder(sliceGrant(s.id, s.atMs))}
+                    >
+                      <View
+                        pointerEvents="none"
+                        style={[
+                          styles.edgeGrip,
+                          {
+                            backgroundColor: selected
+                              ? c('spliceSelected', '#fff0a0')
+                              : th.text,
+                            opacity: selected ? 1 : 0.8,
+                          },
+                        ]}
+                      />
+                    </View>
+                  );
+                })}
+              </View>
+
+              {/* Waveform overlays */}
+              <View style={styles.waveArea} {...responder(waveGrant)}>
+                {rows.map((tr, i) => (
+                  <View
+                    key={`t${i}-${tr.startMs}`}
+                    pointerEvents="none"
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      bottom: 0,
+                      left: tr.startMs / scale,
+                      width: (trackEnds[i] - tr.startMs) / scale,
+                      backgroundColor: withAlpha(
+                        trackColor(i),
+                        selectedTrack === i ? 0x22 : 0x10,
+                      ),
+                    }}
+                  />
                 ))}
-              {shown.splices.map(s => (
-                <View
-                  key={s.id}
-                  pointerEvents="none"
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    bottom: 0,
-                    left: s.atMs / scale,
-                    width: 1,
-                    backgroundColor:
-                      s.id === selectedSlice
-                        ? c('spliceSelected', '#fff0a0')
-                        : withAlpha(th.text, 0xb0),
-                  }}
-                />
-              ))}
-              {(loaded || scrubMs !== null) && (
-                <View
-                  pointerEvents="none"
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    bottom: 0,
-                    left: headMs / scale,
-                    width: 1,
-                    backgroundColor: c('playhead', '#ff4a3a'),
-                  }}
-                />
-              )}
+                {shown.deleted.map(r => (
+                  <View
+                    key={r.id}
+                    pointerEvents="none"
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      bottom: 0,
+                      left: r.startMs / scale,
+                      width: Math.max(1, (r.endMs - r.startMs) / scale),
+                      backgroundColor: c('deleted', '#00000099'),
+                      borderColor:
+                        r.id === selectedRegion
+                          ? c('spliceSelected', '#fff0a0')
+                          : 'transparent',
+                      borderWidth: 1,
+                    }}
+                  />
+                ))}
+                {liveSelection && (
+                  <View
+                    pointerEvents="none"
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      bottom: 0,
+                      left: liveSelection.startMs / scale,
+                      width: Math.max(
+                        1,
+                        (liveSelection.endMs - liveSelection.startMs) / scale,
+                      ),
+                      backgroundColor: c('selection', '#ffffff30'),
+                      borderLeftWidth: 1,
+                      borderRightWidth: 1,
+                      borderColor: withAlpha(th.text, 0x90),
+                    }}
+                  />
+                )}
+                {frameTicks.map(ms => (
+                  <View
+                    key={`f${ms}`}
+                    pointerEvents="none"
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      height: 6,
+                      left: ms / scale,
+                      width: StyleSheet.hairlineWidth,
+                      backgroundColor: c('rulerText', '#f3ead0'),
+                      opacity: 0.35,
+                    }}
+                  />
+                ))}
+                {autoSlice &&
+                  proposals.map(p => (
+                    <React.Fragment key={`p${p.atMs}`}>
+                      <View
+                        pointerEvents="none"
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          bottom: 0,
+                          left: p.gapStartMs / scale,
+                          width: Math.max(
+                            1,
+                            (p.gapEndMs - p.gapStartMs) / scale,
+                          ),
+                          backgroundColor: withAlpha(th.accent, 0x26),
+                        }}
+                      />
+                      <View
+                        pointerEvents="none"
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          bottom: 0,
+                          left: p.atMs / scale,
+                          width: 0,
+                          borderLeftWidth: 1.5,
+                          borderStyle: 'dashed',
+                          borderColor: th.accent,
+                        }}
+                      />
+                    </React.Fragment>
+                  ))}
+                {shown.splices.map(s => (
+                  <View
+                    key={s.id}
+                    pointerEvents="none"
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      bottom: 0,
+                      left: s.atMs / scale,
+                      width: 1,
+                      backgroundColor:
+                        s.id === selectedSlice
+                          ? c('spliceSelected', '#fff0a0')
+                          : withAlpha(th.text, 0xb0),
+                    }}
+                  />
+                ))}
+                {(loaded || scrubMs !== null) && (
+                  <View
+                    pointerEvents="none"
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      bottom: 0,
+                      left: headMs / scale,
+                      width: 1,
+                      backgroundColor: c('playhead', '#ff4a3a'),
+                    }}
+                  />
+                )}
+              </View>
             </View>
-          </View>
-        </ScrollView>
+          </ScrollView>
 
-        {naming !== null && namingRow >= 0 && (
-          <NameField
-            key={String(naming)}
+          {naming !== null && namingRow >= 0 && (
+            <NameField
+              key={String(naming)}
+              th={th}
+              left={Math.min(
+                Math.max(0, rows[namingRow].startMs / scale - scrollX + 2),
+                Math.max(0, viewWidth - 200),
+              )}
+              top={RULER + 1}
+              value={nameDraft}
+              onChange={setNameDraft}
+              onDone={finishNaming}
+            />
+          )}
+
+          {status.state !== 'ready' && (
+            <View
+              pointerEvents="none"
+              style={[StyleSheet.absoluteFill, styles.center]}
+            >
+              <Text style={[styles.note, { color: c('rulerText', '#f3ead0') }]}>
+                {status.state === 'loading'
+                  ? `Reading the waveform… ${Math.round(
+                      status.progress * 100,
+                    )}%`
+                  : `Couldn't read the recording: ${status.message}`}
+              </Text>
+            </View>
+          )}
+        </View>
+        <View style={[styles.vstrip, { paddingTop: RULER + LANE }]}>
+          <Slider
             th={th}
-            left={Math.min(
-              Math.max(0, rows[namingRow].startMs / scale - scrollX + 2),
-              Math.max(0, viewWidth - 200),
-            )}
-            top={RULER + 1}
-            value={nameDraft}
-            onChange={setNameDraft}
-            onDone={finishNaming}
+            vertical
+            label="Vertical zoom"
+            low="zoomOutV"
+            high="zoomInV"
+            length={viewHeight - RULER - LANE - 34}
+            value={vZoom}
+            onChange={setVZoom}
+            disabled={!ready}
           />
-        )}
+        </View>
+      </View>
 
-        {status.state !== 'ready' && (
-          <View
-            pointerEvents="none"
-            style={[StyleSheet.absoluteFill, styles.center]}
-          >
-            <Text style={[styles.note, { color: c('rulerText', '#f3ead0') }]}>
-              {status.state === 'loading'
-                ? `Reading the waveform… ${Math.round(status.progress * 100)}%`
-                : `Couldn't read the recording: ${status.message}`}
-            </Text>
-          </View>
-        )}
+      {/* Under the timeline: what's in view, and the horizontal zoom */}
+      <View style={[styles.zoomBar, { marginRight: VSTRIP }]}>
+        <Text style={[styles.range, { color: th.dim }]}>
+          {formatTime(firstVisible, steps.minor)} –{' '}
+          {formatTime(Math.min(durationMs, lastVisible), steps.minor)}
+        </Text>
+        <View style={styles.flex} />
+        <ToolButton th={th} label="Fit" onPress={zoomFit} disabled={!ready} />
+        <Slider
+          th={th}
+          label="Horizontal zoom"
+          low="zoomOutH"
+          high="zoomInH"
+          length={140}
+          value={hZoom}
+          onChange={setHZoom}
+          disabled={!ready}
+        />
       </View>
 
       <View {...closeNamingOnPress}>
@@ -1427,6 +1476,15 @@ const styles = StyleSheet.create({
     height: 30,
     marginRight: 4,
   },
+  timelineRow: { flex: 1, flexDirection: 'row' },
+  vstrip: { width: VSTRIP, alignItems: 'center' },
+  zoomBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  range: { fontSize: 10, fontVariant: ['tabular-nums'] },
   timeline: {
     flex: 1,
     minHeight: 140,

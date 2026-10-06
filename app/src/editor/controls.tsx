@@ -306,7 +306,10 @@ export function Stepper(props: {
   );
 }
 
-/** A horizontal slider, 0..1, with an icon at each end (Logic's zoom). */
+/**
+ * A slider, 0..1, with an icon at each end (zoom). Horizontal by default;
+ * `vertical` runs bottom (0) to top (1).
+ */
 export function Slider(props: {
   th: EditorTheme;
   value: number;
@@ -314,76 +317,93 @@ export function Slider(props: {
   label: string;
   low: IconName;
   high: IconName;
-  width?: number;
+  /** The track's length in points. */
+  length?: number;
+  vertical?: boolean;
   disabled?: boolean;
 }): React.JSX.Element {
-  const { th } = props;
-  const width = props.width ?? 80;
+  const { th, vertical } = props;
+  const length = Math.max(20, props.length ?? 80);
   const track = useRef<View>(null);
-  const left = useRef(0);
-  const set = (e: GestureResponderEvent) =>
-    props.onChange(
-      Math.min(1, Math.max(0, (e.nativeEvent.pageX - left.current) / width)),
-    );
+  const origin = useRef(0);
+  const measure = () =>
+    track.current?.measure((_x, _y, _w, _h, pageX, pageY) => {
+      origin.current = vertical ? pageY : pageX;
+    });
+  const set = (e: GestureResponderEvent) => {
+    const at = vertical ? e.nativeEvent.pageY : e.nativeEvent.pageX;
+    const t = (at - origin.current) / length;
+    props.onChange(Math.min(1, Math.max(0, vertical ? 1 - t : t)));
+  };
   const v = Math.min(1, Math.max(0, props.value));
+  const end = (which: 'low' | 'high') => (
+    <Pressable
+      accessibilityLabel={`${props.label}: ${
+        which === 'low' ? 'less' : 'more'
+      }`}
+      onPress={() =>
+        props.onChange(
+          which === 'low' ? Math.max(0, v - 0.1) : Math.min(1, v + 0.1),
+        )
+      }
+      disabled={props.disabled}
+      hitSlop={4}
+    >
+      <Icon name={props[which]} color={th.dim} size={10} />
+    </Pressable>
+  );
   return (
-    <View style={[styles.slider, { opacity: props.disabled ? 0.35 : 1 }]}>
-      <Pressable
-        accessibilityLabel={`${props.label}: less`}
-        onPress={() => props.onChange(Math.max(0, v - 0.1))}
-        disabled={props.disabled}
-      >
-        <Icon name={props.low} color={th.dim} size={10} />
-      </Pressable>
+    <View
+      style={[
+        vertical ? styles.sliderV : styles.slider,
+        { opacity: props.disabled ? 0.35 : 1 },
+      ]}
+    >
+      {end(vertical ? 'high' : 'low')}
       <View
         ref={track}
         accessible
         accessibilityRole="adjustable"
         accessibilityLabel={props.label}
         accessibilityValue={{ min: 0, max: 100, now: Math.round(v * 100) }}
-        style={[styles.sliderTrack, { width }]}
-        onLayout={() =>
-          track.current?.measure((_x, _y, _w, _h, pageX) => {
-            left.current = pageX;
-          })
+        style={
+          vertical
+            ? [styles.sliderTrackV, { height: length }]
+            : [styles.sliderTrack, { width: length }]
         }
+        onLayout={measure}
         onStartShouldSetResponder={() => !props.disabled}
         onMoveShouldSetResponder={() => !props.disabled}
         onResponderGrant={e => {
           // Re-measure: the window may have moved since layout.
-          track.current?.measure((_x, _y, _w, _h, pageX) => {
-            left.current = pageX;
-          });
+          measure();
           set(e);
         }}
         onResponderMove={set}
         onResponderTerminationRequest={() => false}
       >
-        <View style={[styles.sliderRail, { backgroundColor: th.border }]} />
         <View
           style={[
-            styles.sliderFill,
-            { width: v * width, backgroundColor: th.accent },
+            vertical ? styles.sliderRailV : styles.sliderRail,
+            { backgroundColor: th.border },
+          ]}
+        />
+        <View
+          style={[
+            vertical ? styles.sliderFillV : styles.sliderFill,
+            vertical ? { height: v * length } : { width: v * length },
+            { backgroundColor: th.accent },
           ]}
         />
         <View
           style={[
             styles.sliderThumb,
-            {
-              left: v * width - 5,
-              backgroundColor: th.text,
-              borderColor: th.background,
-            },
+            vertical ? { top: (1 - v) * length - 5 } : { left: v * length - 5 },
+            { backgroundColor: th.text, borderColor: th.background },
           ]}
         />
       </View>
-      <Pressable
-        accessibilityLabel={`${props.label}: more`}
-        onPress={() => props.onChange(Math.min(1, v + 0.1))}
-        disabled={props.disabled}
-      >
-        <Icon name={props.high} color={th.dim} size={10} />
-      </Pressable>
+      {end(vertical ? 'low' : 'high')}
     </View>
   );
 }
@@ -455,6 +475,16 @@ const styles = StyleSheet.create({
   },
   slider: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   sliderTrack: { height: 16, justifyContent: 'center' },
+  sliderV: { alignItems: 'center', gap: 5 },
+  sliderTrackV: { width: 16, alignItems: 'center' },
+  sliderRailV: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 3,
+    borderRadius: 2,
+  },
+  sliderFillV: { position: 'absolute', bottom: 0, width: 3, borderRadius: 2 },
   sliderRail: {
     position: 'absolute',
     left: 0,

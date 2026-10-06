@@ -16,7 +16,7 @@ import {
 import { type Edits, formatTime, stepIn } from '../editorModel';
 import type { DetectOptions, TrackInfo } from '../native/editor';
 import WaveformNative from '../skin/WaveformNative';
-import { Segmented, Slider, Stepper, ToolButton } from './controls';
+import { Segmented, Stepper, ToolButton } from './controls';
 import { type EditorTheme, trackColor, withAlpha } from './theme';
 
 // SSWaveformView.mm on macOS, WaveformView.h on Windows.
@@ -38,9 +38,8 @@ export function formatStep(ms: number): string {
 // ------------------------------------------------------------ overview
 
 /**
- * The whole recording at a glance (its tracks, deleted stretches and a box
- * around what the editor shows; click or drag to move the view), with
- * Logic-style horizontal and vertical zoom sliders beside it.
+ * The whole recording at a glance: its tracks, deleted stretches and a box
+ * around what the editor shows. Click or drag to move the view.
  */
 export function OverviewBar(props: {
   th: EditorTheme;
@@ -53,11 +52,6 @@ export function OverviewBar(props: {
   edits: Edits;
   tracks: TrackInfo[];
   onScrollTo: (centerMs: number) => void;
-  hZoom: number;
-  onHZoom: (value: number) => void;
-  vZoom: number;
-  onVZoom: (value: number) => void;
-  disabled: boolean;
 }): React.JSX.Element {
   const { th, width, durationMs } = props;
   const per = durationMs / Math.max(1, width);
@@ -136,27 +130,6 @@ export function OverviewBar(props: {
             borderColor: th.text,
             backgroundColor: withAlpha(th.text, 0x14),
           }}
-        />
-      </View>
-      <View style={styles.zooms}>
-        <Slider
-          th={th}
-          label="Horizontal zoom"
-          low="zoomOutH"
-          high="zoomInH"
-          value={props.hZoom}
-          onChange={props.onHZoom}
-          disabled={props.disabled}
-        />
-        <Slider
-          th={th}
-          label="Vertical zoom"
-          low="zoomOutV"
-          high="zoomInV"
-          width={56}
-          value={props.vZoom}
-          onChange={props.onVZoom}
-          disabled={props.disabled}
         />
       </View>
     </View>
@@ -521,7 +494,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     borderWidth: 1,
   },
-  zooms: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   autoBar: {
     flexDirection: 'row',
     alignItems: 'center',
