@@ -205,7 +205,7 @@ For distribution, get an Apple **Developer ID Application** certificate, then:
 2. Run `SIGN_IDENTITY="Developer ID Application: …" scripts/package-macos.sh`.
 3. Notarize and staple: `xcrun notarytool submit dist/SoundScraper-<v>.dmg --keychain-profile <profile> --wait && xcrun stapler staple dist/SoundScraper-<v>.dmg`.
 
-**Windows:** `.\scripts\package-windows.ps1 -Platform ARM64 -Thumbprint <SHA1>` builds a Release MSIX into `dist\`. The package identity is `com.alexboyce.soundscraper` with publisher `CN=alexboyce`, so the signing certificate's subject must be `CN=alexboyce`. To install a test-signed package, the certificate has to be trusted on that machine (Local Machine › Trusted People). For public distribution, use a code-signing certificate from a CA, or the Microsoft Store.
+**Windows:** `.\scripts\package-windows.ps1 -Platform ARM64 -Thumbprint <SHA1>` builds a Release MSIX into `dist\`. The package identity is `com.alexboyce.soundscraper` with publisher `CN=alexboyce`, so the signing certificate's subject must be `CN=alexboyce`. To install a test-signed package, the certificate has to be trusted on that machine (Local Machine › Trusted People). For public distribution, `-ArtifactSigning` signs with Azure Artifact Signing instead; see [docs/windows-signing.md](docs/windows-signing.md) for the options and setup.
 
 ## Licensing
 
