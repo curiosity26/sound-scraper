@@ -14,13 +14,15 @@ NOTARY_PROFILE="${NOTARY_PROFILE:-soundscraper-notary}"
 export LANG=en_US.UTF-8
 
 SIGN_FLAGS=(--force --sign "$IDENTITY")
-BUILD_FLAGS=()
+# The project signs automatically with the team's Apple Development cert; a
+# release build names its identity explicitly instead.
+BUILD_FLAGS=(CODE_SIGN_STYLE=Manual)
 if [[ "$IDENTITY" == "Developer ID Application"* ]]; then
   DISTRIBUTION=1
   # Hardened runtime needs a certificate with a Team ID: its library validation
   # rejects the embedded frameworks otherwise (hence off for self-signed builds).
   SIGN_FLAGS+=(--timestamp --options runtime)
-  BUILD_FLAGS=(ENABLE_HARDENED_RUNTIME=YES OTHER_CODE_SIGN_FLAGS=--timestamp)
+  BUILD_FLAGS+=(ENABLE_HARDENED_RUNTIME=YES OTHER_CODE_SIGN_FLAGS=--timestamp)
   if [ "${NOTARIZE:-1}" != 0 ] && ! xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null 2>&1; then
     echo "error: no notarytool keychain profile \"$NOTARY_PROFILE\"; create it with" >&2
     echo "  xcrun notarytool store-credentials $NOTARY_PROFILE --apple-id <email> --team-id <TEAMID>" >&2
@@ -28,6 +30,7 @@ if [[ "$IDENTITY" == "Developer ID Application"* ]]; then
   fi
 else
   DISTRIBUTION=0
+  BUILD_FLAGS+=(DEVELOPMENT_TEAM=)  # self-signed: no team
 fi
 if [ -d "/Volumes/Sound Scraper" ]; then
   echo "error: eject the mounted \"Sound Scraper\" disk first" >&2; exit 1
@@ -35,7 +38,7 @@ fi
 
 cd "$ROOT/app/macos"
 xcodebuild -workspace SoundScraper.xcworkspace -scheme SoundScraper-macOS -configuration Release \
-  -derivedDataPath build/Release ARCHS=arm64 CODE_SIGN_IDENTITY="$IDENTITY" ${BUILD_FLAGS[@]+"${BUILD_FLAGS[@]}"} build \
+  -derivedDataPath build/Release ARCHS=arm64 CODE_SIGN_IDENTITY="$IDENTITY" "${BUILD_FLAGS[@]}" build \
   | grep -E "error:|BUILD (SUCCEEDED|FAILED)"
 APP="$ROOT/app/macos/build/Release/Build/Products/Release/SoundScraper.app"
 

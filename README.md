@@ -148,7 +148,7 @@ npm run macos               # or open macos/SoundScraper.xcworkspace and Run
 
 The Xcode target has a **Build Rust core** phase (before Compile Sources) that runs `core/scripts/build-apple.sh` for the active `ARCHS`/`CONFIGURATION`. It writes `core/target/apple/<Configuration>/libsound_scraper_core.a`, which the target links with `-lsound_scraper_core -framework CoreAudio`. Header search path: `core/include`.
 
-Debug builds are signed with the local self-signed identity "GolfNutz Dev" (Manual signing, Debug only), so macOS keeps the System Audio Recording permission across rebuilds. If that identity isn't in your keychain, change `CODE_SIGN_IDENTITY` for Debug to `-` (ad-hoc) or to your own certificate. Expect to re-allow the permission after rebuilding.
+Xcode builds sign automatically with the team's **Apple Development** certificate (team B53W8TX3Q9), so macOS keeps the System Audio Recording permission across rebuilds. Without access to that team, set the target's Team to your own (or Signing Certificate to "Sign to Run Locally"); expect to re-allow the permission after rebuilding.
 
 If Xcode can't find Node (nvm), put `export NODE_BINARY=$(command -v node)` in `app/macos/.xcode.env.local`.
 
@@ -199,7 +199,7 @@ C++/WinRT module notes (`SoundScraperModule.h`): it must be a `REACT_TURBO_MODUL
 
 **macOS:** `scripts/package-macos.sh` builds an Apple silicon (arm64) Release app (Intel Macs aren't targeted; macOS 26 is their last release) with the JS bundled in, and writes `dist/SoundScraper-<version>.dmg` with "Sound Scraper.app" and an Applications shortcut. The installer window is styled with a background (`scripts/gen-dmg-background.sh`) and laid out by Finder via `scripts/dmg-layout.applescript`, so macOS asks once to allow controlling Finder, and a window opens briefly during packaging. Eject any mounted "Sound Scraper" disk first. The script re-signs every nested framework and dylib (Hermes, LAME), then the app, with one identity.
 
-By default it signs with the local self-signed "GolfNutz Dev" identity, with the hardened runtime off (its library validation rejects the embedded frameworks when the certificate has no Team ID). Such builds can't be notarized, so the first launch needs right-click › Open.
+By default the script signs with the local self-signed "GolfNutz Dev" identity, with the hardened runtime off (its library validation rejects the embedded frameworks when the certificate has no Team ID). Such builds can't be notarized, so the first launch needs right-click › Open.
 
 **Distribution (Developer ID):** a .dmg needs only the **Developer ID Application** certificate (Developer ID Installer is for .pkg installers). One-time setup on the build Mac:
 
