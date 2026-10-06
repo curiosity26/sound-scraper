@@ -194,6 +194,45 @@ export function EditorPanel(props: Props): React.JSX.Element {
   } | null>(null);
   /** The splice (or 'first' track) whose name is being typed. */
   const [naming, setNaming] = useState<number | 'first' | null>(null);
+  /** What's typed in the name field so far. */
+  const [nameDraft, setNameDraft] = useState('');
+  // Which splice is being named, updated at once so a blur that arrives
+  // after a click has closed the field doesn't apply the name twice.
+  const namingRef = useRef<number | null>(null);
+  const startNaming = (id: number, name: string) => {
+    namingRef.current = id;
+    setNameDraft(name);
+    setNaming(id);
+  };
+  /**
+   * Closes the name field, keeping what was typed: called on Enter, on
+   * blur, and when anything else in the editor is clicked (macOS doesn't
+   * blur the field for clicks on non-focusable views). Returns the edits
+   * with the name applied, for a handler that changes them further.
+   */
+  const finishNaming = (keep = true): Edits => {
+    const id = namingRef.current;
+    if (id === null) {
+      return edits;
+    }
+    namingRef.current = null;
+    setNaming(null);
+    const splice = edits.splices.find(x => x.id === id);
+    const name = nameDraft.trim();
+    if (!keep || !splice || !name || name === splice.name) {
+      return edits;
+    }
+    const renamed = renameSplice(edits, splice.id, name);
+    commit(renamed);
+    return renamed;
+  };
+  /** Clicks anywhere (but the field) close the name field first. */
+  const closeNamingOnPress = {
+    onStartShouldSetResponderCapture: () => {
+      finishNaming();
+      return false;
+    },
+  };
   const [snapOn, setSnapOn] = useState(snapPreference);
   const [modal, setModal] = useState<Modal>(null);
 
@@ -327,13 +366,13 @@ export function EditorPanel(props: Props): React.JSX.Element {
   };
 
   // ------------------------------------------------------------ actions
-  const addSpliceAt = (ms: number, startNaming = true) => {
+  const addSpliceAt = (ms: number, nameIt = true) => {
     const { edits: next, id } = addSplice(edits, snapMs(ms));
     commit(next);
     setSelectedSplice(id);
     setSelectedRegion(null);
-    if (startNaming) {
-      setNaming(id);
+    if (nameIt) {
+      startNaming(id, next.splices.find(x => x.id === id)?.name ?? '');
     }
     return id;
   };
@@ -464,7 +503,7 @@ export function EditorPanel(props: Props): React.JSX.Element {
   // The ruler: press to add a splice and drag it into place.
   const rulerGrant = (e: GestureResponderEvent) => {
     const at = snapMs(msAt(e.nativeEvent.locationX));
-    const { edits: next, id } = addSplice(edits, at);
+    const { edits: next, id } = addSplice(finishNaming(), at);
     setHist(h => history.push(h, next));
     setSelectedSplice(id);
     setSelectedRegion(null);
@@ -487,10 +526,11 @@ export function EditorPanel(props: Props): React.JSX.Element {
         now - lastFlagPress.current.at < 400
       ) {
         lastFlagPress.current = { id: 0, at: 0 };
-        setNaming(id);
+        startNaming(id, edits.splices.find(x => x.id === id)?.name ?? '');
         return;
       }
       lastFlagPress.current = { id, at: now };
+      finishNaming();
       setSelectedSplice(id);
       setSelectedRegion(null);
       setSelection(null);
@@ -504,6 +544,7 @@ export function EditorPanel(props: Props): React.JSX.Element {
       });
     };
   const waveGrant = (e: GestureResponderEvent) => {
+    finishNaming();
     const ms = Math.max(0, Math.min(durationMs, msAt(e.nativeEvent.locationX)));
     setDrag({ kind: 'select', anchorMs: ms, ms, x0: e.nativeEvent.pageX });
   };
@@ -535,7 +576,10 @@ export function EditorPanel(props: Props): React.JSX.Element {
         );
       }
       if (drag.isNew) {
-        setNaming(drag.id);
+        startNaming(
+          drag.id,
+          edits.splices.find(x => x.id === drag.id)?.name ?? '',
+        );
       }
     } else if (Math.abs(dx) < CLICK_SLOP) {
       // A click: move the playhead; a click in a deleted stretch selects it.
@@ -600,7 +644,7 @@ export function EditorPanel(props: Props): React.JSX.Element {
   return (
     <View style={styles.root} focusable {...macKeys(onKeyDown)}>
       {/* Toolbar */}
-      <View style={styles.toolbar}>
+      <View style={styles.toolbar} {...closeNamingOnPress}>
         <Btn
           t={t}
           label={loaded && pb.state === 'playing' ? 'Pause' : 'Play'}
@@ -875,17 +919,9 @@ export function EditorPanel(props: Props): React.JSX.Element {
               Math.max(0, namingSplice.atMs / scale - scrollX),
               Math.max(0, viewWidth - 200),
             )}
-            value={namingSplice.name}
-            onDone={name => {
-              if (
-                name !== undefined &&
-                name.trim() &&
-                name !== namingSplice.name
-              ) {
-                commit(renameSplice(edits, namingSplice.id, name.trim()));
-              }
-              setNaming(null);
-            }}
+            value={nameDraft}
+            onChange={setNameDraft}
+            onDone={finishNaming}
           />
         )}
 
@@ -904,7 +940,7 @@ export function EditorPanel(props: Props): React.JSX.Element {
       </View>
 
       {/* Tracks */}
-      <View style={[styles.tracks, t.table]}>
+      <View style={[styles.tracks, t.table]} {...closeNamingOnPress}>
         <View style={[styles.trackRow, t.header]}>
           <Text style={[styles.colNum, t.headerText]}>#</Text>
           <Text style={[styles.colName, t.headerText]}>
@@ -1102,29 +1138,23 @@ function NameField(props: {
   t: Styles;
   left: number;
   value: string;
-  onDone: (name?: string) => void;
+  onChange: (text: string) => void;
+  /** Close it, keeping the text (or not, for Esc). */
+  onDone: (keep?: boolean) => void;
 }) {
-  const [text, setText] = useState(props.value);
-  const done = useRef(false);
-  const finish = (name?: string) => {
-    if (!done.current) {
-      done.current = true;
-      props.onDone(name);
-    }
-  };
   return (
     <View style={[styles.nameField, { left: props.left }]}>
       <TextInput
         testID="editor-splice-name"
         autoFocus
         selectTextOnFocus
-        value={text}
-        onChangeText={setText}
-        onSubmitEditing={() => finish(text)}
-        onBlur={() => finish(text)}
+        value={props.value}
+        onChangeText={props.onChange}
+        onSubmitEditing={() => props.onDone()}
+        onBlur={() => props.onDone()}
         onKeyPress={e => {
           if (e.nativeEvent.key === 'Escape') {
-            finish(undefined);
+            props.onDone(false);
           }
         }}
         style={[styles.nameInput, props.t.input, styles.nameFieldInput]}
