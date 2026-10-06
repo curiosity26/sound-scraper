@@ -8,32 +8,16 @@ import {
   safeRecover,
   safeState,
 } from './appHelpers';
+import { SILENT } from './levels';
 import {
   type AudioApp,
   recorder,
   type RecorderState,
 } from './native/SoundScraper';
+import { playback } from './playback';
 import { selection } from './selection';
 
 export type Message = { text: string; isError: boolean };
-
-/** Linear 0..1: overall peak/RMS and each channel's peak and RMS. */
-export type Levels = {
-  peak: number;
-  rms: number;
-  left: number;
-  right: number;
-  rmsLeft: number;
-  rmsRight: number;
-};
-export const SILENT: Levels = {
-  peak: 0,
-  rms: 0,
-  left: 0,
-  right: 0,
-  rmsLeft: 0,
-  rmsRight: 0,
-};
 
 /**
  * Recorder state and actions for the skinned main panel: the capture
@@ -117,11 +101,15 @@ export function useRecorder() {
   }, [apps, selectedPid]);
 
   const stop = useCallback(async () => {
+    let path: string;
     try {
-      await recorder.stop();
+      path = await recorder.stop();
     } catch (e) {
+      // Includes a recording of only silence, which leaves no file.
       setMessage({ text: `Couldn't save: ${errorText(e)}`, isError: true });
+      return;
     }
+    await playback.recorded(path);
   }, []);
 
   const sourceName =

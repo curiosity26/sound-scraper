@@ -5,12 +5,14 @@ import { useEffect, useState } from 'react';
 
 import { errorText } from './appHelpers';
 import {
+  library,
   player,
   type PlayerState,
   recorder,
   type Recording,
 } from './native/SoundScraper';
-import { type Levels, SILENT } from './useRecorder';
+import { selection } from './selection';
+import { type Levels, SILENT } from './levels';
 
 export type Playback = {
   state: PlayerState;
@@ -111,6 +113,33 @@ export const playback = {
       update(EMPTY);
       reportError(`Couldn't load ${recording.fileName}: ${errorText(e)}`);
     }
+  },
+
+  /**
+   * Loads and selects a recording that just finished (`path` is the final
+   * .mp3, after the recorder went idle).
+   */
+  recorded: async (path: string) => {
+    const fileName = path.split(/[\\/]/).pop() ?? path;
+    let recording: Recording | undefined;
+    try {
+      recording = (await library.list()).find(r => r.fileName === fileName);
+    } catch {
+      // Fall back to what the path tells us; the player reports the length.
+    }
+    selection.set([fileName]);
+    await playback.select(
+      recording ?? {
+        fileName,
+        path,
+        title: fileName.replace(/\.mp3$/i, ''),
+        artist: null,
+        album: null,
+        durationMs: 0,
+        sizeBytes: 0,
+        recordedAtMs: Date.now(),
+      },
+    );
   },
 
   /** Unloads, e.g. when the file went away. */
