@@ -10,6 +10,7 @@
 #include <cmath>
 
 #include "Shared.h"
+#include "resource.h"
 #include "sound_scraper.h"
 
 #pragma comment(lib, "comctl32.lib")
@@ -197,6 +198,10 @@ void WindowManager::Style(Panel &panel) {
   presenter.IsMaximizable(false); // also turns off Snap Layouts
   presenter.IsMinimizable(panel.id == kMain);
   panel.window.SetPresenter(presenter);
+  // The zombie in the taskbar preview and Alt+Tab (AppWindow otherwise shows
+  // a generic icon).
+  static HICON icon = LoadIconW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDI_ICON1));
+  panel.window.SetIcon(winrt::Microsoft::UI::GetIconIdFromIcon(icon));
   // Pixel-art skins: square corners, no system border.
   DWM_WINDOW_CORNER_PREFERENCE corners = DWMWCP_DONOTROUND;
   DwmSetWindowAttribute(panel.hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, &corners, sizeof(corners));
