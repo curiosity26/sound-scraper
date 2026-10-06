@@ -10,7 +10,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 
@@ -19,25 +18,12 @@ import type { DetectOptions, TrackInfo } from '../native/editor';
 import WaveformNative from '../skin/WaveformNative';
 import { Segmented, Stepper, ToolButton } from './controls';
 import { type EditorTheme, trackColor, withAlpha } from './theme';
+import { TextField } from '../TextField';
 
 // SSWaveformView.mm on macOS, WaveformView.h on Windows.
 export const SSWaveformView = WaveformNative;
 
 export const OVERVIEW = 30;
-
-/**
- * React Native Windows mis-centres a single-line text box's text (it lands
- * in the bottom half and is clipped), but top-aligns a multiline one: there,
- * the name fields are multiline boxes that still submit on Enter.
- */
-const SINGLE_LINE =
-  Platform.OS === 'windows'
-    ? {
-        multiline: true,
-        numberOfLines: 1,
-        submitBehavior: 'blurAndSubmit' as const,
-      }
-    : {};
 
 /** "1.5 s", "10 s", "2 min", "300 ms". */
 export function formatStep(ms: number): string {
@@ -280,8 +266,7 @@ function TrackName(props: {
     }
   };
   return (
-    <TextInput
-      {...SINGLE_LINE}
+    <TextField
       style={[styles.colName, styles.nameInput, { color: props.th.text }]}
       value={text}
       onChangeText={setText}
@@ -403,8 +388,7 @@ export function NameField(props: {
   const { th } = props;
   return (
     <View style={[styles.nameField, { left: props.left, top: props.top }]}>
-      <TextInput
-        {...SINGLE_LINE}
+      <TextField
         testID="editor-slice-name"
         autoFocus
         selectTextOnFocus

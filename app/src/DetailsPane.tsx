@@ -9,7 +9,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 
@@ -37,6 +36,7 @@ import {
   validate,
 } from './tagModel';
 import { colors } from './theme';
+import { TextField } from './TextField';
 
 const isWindows = Platform.OS === 'windows';
 const REVEAL_LABEL = isWindows ? 'Show in Explorer' : 'Show in Finder';
@@ -426,7 +426,7 @@ export function InlineField(props: {
     <View style={styles.field}>
       <Text style={[styles.label, props.textStyle, t.cell]}>{props.label}</Text>
       {editing !== undefined ? (
-        <TextInput
+        <TextField
           testID={`${props.testID}-input`}
           autoFocus
           selectTextOnFocus

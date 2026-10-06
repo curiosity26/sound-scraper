@@ -1,12 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import {
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
   DEFAULT_SORT,
@@ -24,6 +17,7 @@ import type { Recording } from './native/SoundScraper';
 import { usePanelStyles, usePanelTheme } from './panelTheme';
 import { SkinScrollbar } from './skin/SkinScrollbar';
 import { colors } from './theme';
+import { TextField } from './TextField';
 
 type Props = {
   recordings: Recording[];
@@ -121,7 +115,7 @@ export function LibraryTable(props: Props): React.JSX.Element {
             </Text>
           </Pressable>
         )}
-        <TextInput
+        <TextField
           testID="library-search"
           style={[
             styles.search,

@@ -5,7 +5,6 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 
@@ -23,6 +22,7 @@ import {
   skinStore,
 } from './skins';
 import type { SkinInspection, SkinSummary } from './types';
+import { TextField } from '../TextField';
 
 const CARD_W = 196;
 
@@ -235,7 +235,7 @@ export function SkinChooser(props: { textStyle: object }): React.JSX.Element {
       </View>
       {naming !== undefined && (
         <View style={styles.nameRow}>
-          <TextInput
+          <TextField
             value={naming}
             onChangeText={setNaming}
             onSubmitEditing={() => naming.trim() && create(naming.trim())}
