@@ -375,6 +375,11 @@ export function EditorPanel(props: Props): React.JSX.Element {
     }
   }, [loaded, pb.state, pb.positionMs, edits, durationMs]);
 
+  // Clicks don't move keyboard focus to a focusable view on macOS, so the
+  // editor takes it when its timeline is clicked (for Delete, Space, M…).
+  const rootRef = useRef<View>(null);
+  const takeKeys = () => rootRef.current?.focus();
+
   // ------------------------------------------------------------ transport
   const ensureLoaded = async () => {
     if (!loaded) {
@@ -445,10 +450,14 @@ export function EditorPanel(props: Props): React.JSX.Element {
     last: 0,
   });
   const [scrubMs, setScrubMs] = useState<number | null>(null);
-  const scrubGrant = async (e: GestureResponderEvent) => {
+  // Clicking the ruler (or the playhead's handle) moves the playhead there
+  // and dragging scrubs.
+  const scrubGrant = async (e: GestureResponderEvent, atMs?: number) => {
     finishNaming();
+    takeKeys();
     cancelPauseTimer();
-    const from = loaded ? pb.positionMs : 0;
+    setSelectedSplice(null);
+    const from = atMs ?? (loaded ? pb.positionMs : 0);
     scrub.current = {
       active: true,
       wasPlaying: loaded && pb.state === 'playing',
@@ -458,6 +467,9 @@ export function EditorPanel(props: Props): React.JSX.Element {
     };
     setScrubMs(from);
     await ensureLoaded();
+    if (atMs !== undefined) {
+      playback.seek(from);
+    }
   };
   const scrubMove = async (e: GestureResponderEvent) => {
     const sc = scrub.current;
@@ -639,21 +651,8 @@ export function EditorPanel(props: Props): React.JSX.Element {
   const msAt = (contentX: number) => contentX * scale;
 
   // The ruler: press to add a splice and drag it into place.
-  const rulerGrant = (e: GestureResponderEvent) => {
-    const at = snapMs(msAt(e.nativeEvent.locationX));
-    const { edits: next, id } = addSplice(finishNaming(), at);
-    setHist(h => history.push(h, next));
-    setSelectedSplice(id);
-    setSelectedRegion(null);
-    setDrag({
-      kind: 'splice',
-      id,
-      atMs: at,
-      fromMs: at,
-      x0: e.nativeEvent.pageX,
-      isNew: true,
-    });
-  };
+  const rulerGrant = (e: GestureResponderEvent) =>
+    scrubGrant(e, snapMs(msAt(e.nativeEvent.locationX)));
   // A flag: press to select it and drag to move it; double-click to rename.
   const lastFlagPress = useRef({ id: 0, at: 0 });
   const flagGrant =
@@ -669,6 +668,7 @@ export function EditorPanel(props: Props): React.JSX.Element {
       }
       lastFlagPress.current = { id, at: now };
       finishNaming();
+      takeKeys();
       setSelectedSplice(id);
       setSelectedRegion(null);
       setSelection(null);
@@ -683,6 +683,7 @@ export function EditorPanel(props: Props): React.JSX.Element {
     };
   const waveGrant = (e: GestureResponderEvent) => {
     finishNaming();
+    takeKeys();
     const ms = Math.max(0, Math.min(durationMs, msAt(e.nativeEvent.locationX)));
     setDrag({ kind: 'select', anchorMs: ms, ms, x0: e.nativeEvent.pageX });
   };
@@ -801,7 +802,7 @@ export function EditorPanel(props: Props): React.JSX.Element {
   const reencoded = hasMaster ? 0 : tracks.filter(tr => tr.reencode).length;
 
   return (
-    <View style={styles.root} focusable {...macKeys(onKeyDown)}>
+    <View ref={rootRef} style={styles.root} focusable {...macKeys(onKeyDown)}>
       {/* Toolbar */}
       <View style={styles.toolbar} {...closeNamingOnPress}>
         <Btn
@@ -832,7 +833,9 @@ export function EditorPanel(props: Props): React.JSX.Element {
           onPress={() => addSpliceAt(playheadMs)}
           disabled={!ready}
         />
-        {selectedRegion !== null && !selection ? (
+        {selectedSplice !== null && !selection ? (
+          <Btn t={t} label="Delete Splice" onPress={deleteSelected} />
+        ) : selectedRegion !== null && !selection ? (
           <Btn t={t} label="Restore Region" onPress={restoreSelected} />
         ) : (
           <Btn
@@ -955,7 +958,12 @@ export function EditorPanel(props: Props): React.JSX.Element {
                 styles.ruler,
                 { width: contentWidth, backgroundColor: c('ruler', '#221d1a') },
               ]}
-              {...responder(rulerGrant)}
+              onStartShouldSetResponder={() => ready && !modal}
+              onResponderGrant={rulerGrant}
+              onResponderMove={scrubMove}
+              onResponderRelease={scrubRelease}
+              onResponderTerminate={scrubRelease}
+              onResponderTerminationRequest={() => false}
             >
               {ticks.map(tick => (
                 <View
@@ -1347,7 +1355,7 @@ export function EditorPanel(props: Props): React.JSX.Element {
               reencoded === 1 ? 'it' : 'them'
             }. Everything else is cut without re-encoding.`
           : (hasMaster ? 'Lossless master: every cut is exact. ' : '') +
-            'Click the ruler to add a splice, drag in the waveform to select, drag the red handle to scrub. Space plays, M splices at the playhead, P previews a splice, Delete removes. Unsaved edits are kept until you save.'}
+            'Click the ruler to move the playhead (drag it to scrub), drag in the waveform to select. Add Splice (or M) splices at the playhead; click a splice to select it, Delete removes it. Space plays, P previews a splice. Unsaved edits are kept until you save.'}
       </Text>
 
       {modal?.kind === 'save' && (
