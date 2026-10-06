@@ -1,6 +1,7 @@
 //! Draws "Hi-Fi '74", a 1970s stereo receiver skin with nothing digital on
-//! it (walnut cheeks, brushed aluminum, a chrome script badge, a flip-card
-//! clock, pilot lamps, label tape, a phosphor scope and needle VU meters),
+//! it (brushed aluminum, screwed-on black modules, an enamel nameplate, a
+//! flip-card clock, pilot lamps, label tape, a phosphor scope, needle VU
+//! meters and engraving-machine lettering),
 //! into `skins/hifi74/`
 //! at the repo root. It isn't built in: it's the skin for trying out
 //! installing a `.sskin`.
@@ -32,7 +33,6 @@ const fn rgba(hex: u32, a: u8) -> Color {
 const INK: Color = rgb(0x17120e);
 const ENGRAVE: Color = rgb(0x2b2622);
 const ENGRAVE_LIGHT: Color = rgba(0xffffff, 150);
-const GLASS: Color = rgb(0x0b0a09);
 const AMBER: Color = rgb(0xffb24a);
 const AMBER_HOT: Color = rgb(0xffd98a);
 const RED: Color = rgb(0xe0402a);
@@ -202,20 +202,6 @@ fn shade(c: Color, k: f32) -> Color {
     [m(0), m(1), m(2), c[3]]
 }
 
-/// Walnut veneer; `vertical` grain runs top to bottom.
-fn walnut(x: f32, y: f32, vertical: bool) -> Color {
-    let (u, v) = if vertical { (x, y) } else { (y, x) };
-    let warp = fbm(u * 0.06, v * 0.010, 11, 3) * 9.0;
-    let rings = ((u + warp) * 0.95).sin() * 0.5 + 0.5;
-    let fine = fbm(u * 1.4, v * 0.05, 23, 2);
-    let t = (0.55 * rings + 0.45 * fine).powf(1.4);
-    let mut c = mix(rgb(0x2e180b), rgb(0x7a4824), t);
-    if noise(u * 3.0, v * 0.5, 37) > 0.86 {
-        c = shade(c, 0.7);
-    }
-    c
-}
-
 /// Brushed aluminum: fine horizontal streaks over a soft vertical sheen.
 fn aluminum(x: f32, y: f32) -> Color {
     let streak = fbm(x * 0.012, y * 2.4, 51, 3);
@@ -225,16 +211,43 @@ fn aluminum(x: f32, y: f32) -> Color {
     [c as u8, c as u8, (c * 0.975) as u8, 255]
 }
 
-/// Lacquered wood cheek with a highlight down its left side.
+/// Dark molded plastic, lit from above (the scope's housing).
+fn plastic(y: f32, top: f32, h: f32) -> Color {
+    mix(rgb(0x3a3632), rgb(0x1a1816), ((y - top) / h).clamp(0.0, 1.0))
+}
+
+/// A slotted chrome screw head.
+fn screw(c: &mut Canvas, x: f32, y: f32, r: f32) {
+    c.circle(x, y + 0.3, r + 0.4, rgba(0x000000, 90));
+    c.circle(x, y, r, rgb(0x8a8680));
+    c.circle(x - r * 0.25, y - r * 0.3, r * 0.45, rgba(0xffffff, 70));
+    c.line(x - r * 0.7, y + r * 0.2, x + r * 0.7, y - r * 0.2, (r * 0.32).max(0.35), rgb(0x2a2622));
+}
+
+/// A molded end cap in place of a wood cheek, screwed on top and bottom.
 fn cheek(c: &mut Canvas, x: f32, y: f32, w: f32, h: f32) {
     c.paint(x, y, x + w, y + h, |fx, fy| {
-        let mut col = walnut(fx, fy, true);
         let t = (fx - x) / w;
-        col = shade(col, 0.8 + 0.35 * (1.0 - (t - 0.3).abs() * 1.6).max(0.0));
-        Some(col)
+        Some(shade(plastic(fy, y, h.max(60.0)), 0.85 + 0.3 * (1.0 - (t - 0.35).abs() * 1.6).max(0.0)))
     });
-    c.rect(x, y, 1.0, h, rgba(0xffffff, 30));
-    c.rect(x + w - 1.0, y, 1.0, h, rgba(0x000000, 90));
+    c.rect(x, y, 1.0, h, rgba(0xffffff, 40));
+    c.rect(x + w - 1.0, y, 1.0, h, rgba(0x000000, 120));
+    if h > 30.0 {
+        for sy in [y + 8.0, y + h - 8.0] {
+            screw(c, x + w / 2.0, sy, 1.6);
+        }
+    }
+}
+
+/// A dark housing like the scope's: molded plastic with a lit top edge
+/// and a screw in each corner.
+fn housing(c: &mut Canvas, x: f32, y: f32, w: f32, h: f32) {
+    c.round_rect(x - 0.5, y + 0.5, w + 1.0, h + 1.0, 3.5, rgba(0x000000, 80));
+    c.paint(x, y, x + w, y + h, |px, py| in_round_rect(px, py, x, y, w, h, 3.0).then(|| plastic(py, y, h)));
+    c.rect(x + 2.0, y, w - 4.0, 0.8, rgba(0xffffff, 50));
+    for (px, py) in [(x + 3.0, y + 3.0), (x + w - 3.0, y + 3.0), (x + 3.0, y + h - 3.0), (x + w - 3.0, y + h - 3.0)] {
+        screw(c, px, py, 1.3);
+    }
 }
 
 fn faceplate(c: &mut Canvas, x: f32, y: f32, w: f32, h: f32) {
@@ -257,19 +270,6 @@ fn bezel(c: &mut Canvas, x: f32, y: f32, w: f32, h: f32, r: f32) {
     });
 }
 
-/// Black glass with a faint diagonal reflection.
-fn glass(c: &mut Canvas, x: f32, y: f32, w: f32, h: f32, r: f32) {
-    bezel(c, x, y, w, h, r);
-    c.paint(x, y, x + w, y + h, |fx, fy| {
-        in_round_rect(fx, fy, x, y, w, h, r).then(|| {
-            let d = (fx - x) * 0.35 + (fy - y);
-            let sheen = (1.0 - (d - h * 0.35).abs() / (h * 0.5)).max(0.0) * 10.0;
-            let l = sheen as u8;
-            [GLASS[0] + l, GLASS[1] + l, GLASS[2] + l, 255]
-        })
-    });
-}
-
 // ----------------------------------------------------------------- text
 
 include!("common/glyphs.rs");
@@ -283,15 +283,125 @@ fn text_width(s: &str, size: f32) -> f32 {
 }
 
 /// Solid block lettering (the 5×7 cells filled edge to edge).
+/// Strokes of an engraving-machine capital (like the Gorton lettering on
+/// 1970s equipment panels) in the 5×7 cell, y down; None for glyphs that
+/// keep their block form (filled symbols).
+fn stroke_glyph(ch: char) -> Option<Vec<Vec<(f32, f32)>>> {
+    let l = |pts: &[(f32, f32)]| pts.to_vec();
+    let sp = |pts: &[(f32, f32)]| -> Vec<(f32, f32)> {
+        spline(&pts.iter().map(|&(x, y)| (x, y, 1.0)).collect::<Vec<_>>(), 8).into_iter().map(|p| (p.0, p.1)).collect()
+    };
+    let cat = |mut a: Vec<(f32, f32)>, b: Vec<(f32, f32)>| {
+        a.extend(b);
+        a
+    };
+    let dot = |x: f32, y: f32| vec![(x, y), (x, y + 0.01)];
+    let mirror = |v: Vec<Vec<(f32, f32)>>| v.into_iter().map(|p| p.into_iter().map(|(x, y)| (5.0 - x, y)).collect()).collect::<Vec<_>>();
+    let rotate = |v: Vec<Vec<(f32, f32)>>| v.into_iter().map(|p| p.into_iter().map(|(x, y)| (5.0 - x, 7.0 - y)).collect()).collect::<Vec<_>>();
+    let p_bowl = || cat(l(&[(0.0, 7.0), (0.0, 0.0), (3.1, 0.0)]), cat(arc(3.1, 1.8, 1.9, 1.8, -90.0, 90.0), l(&[(0.0, 3.6)])));
+    let six = || vec![sp(&[(4.5, 0.5), (2.8, 0.0), (0.9, 1.2), (0.1, 4.4)]), arc(2.5, 4.85, 2.4, 2.15, 0.0, 360.0)];
+    let o = || arc(2.5, 3.5, 2.5, 3.5, 0.0, 360.0);
+    let g = match ch.to_ascii_uppercase() {
+        ' ' => vec![],
+        'A' => vec![l(&[(0.0, 7.0), (2.5, 0.0), (5.0, 7.0)]), l(&[(0.9, 4.6), (4.1, 4.6)])],
+        'B' => vec![
+            l(&[(0.0, 0.0), (0.0, 7.0)]),
+            cat(cat(l(&[(0.0, 0.0), (3.1, 0.0)]), arc(3.1, 1.75, 1.75, 1.75, -90.0, 90.0)), l(&[(0.0, 3.5)])),
+            cat(cat(l(&[(0.0, 3.5), (3.3, 3.5)]), arc(3.3, 5.25, 1.7, 1.75, -90.0, 90.0)), l(&[(0.0, 7.0)])),
+        ],
+        'C' => vec![arc(2.6, 3.5, 2.5, 3.5, 320.0, 40.0)],
+        'D' => vec![cat(cat(l(&[(0.0, 7.0), (0.0, 0.0), (2.0, 0.0)]), arc(2.0, 3.5, 3.0, 3.5, -90.0, 90.0)), l(&[(0.0, 7.0)]))],
+        'E' => vec![l(&[(4.8, 0.0), (0.0, 0.0), (0.0, 7.0), (4.8, 7.0)]), l(&[(0.0, 3.5), (3.6, 3.5)])],
+        'F' => vec![l(&[(4.8, 0.0), (0.0, 0.0), (0.0, 7.0)]), l(&[(0.0, 3.5), (3.6, 3.5)])],
+        'G' => vec![cat(arc(2.6, 3.5, 2.5, 3.5, 320.0, 0.0), l(&[(5.1, 5.0)])), l(&[(2.8, 3.8), (5.1, 3.8)])],
+        'H' => vec![l(&[(0.0, 0.0), (0.0, 7.0)]), l(&[(5.0, 0.0), (5.0, 7.0)]), l(&[(0.0, 3.5), (5.0, 3.5)])],
+        'I' => vec![l(&[(2.5, 0.0), (2.5, 7.0)]), l(&[(1.2, 0.0), (3.8, 0.0)]), l(&[(1.2, 7.0), (3.8, 7.0)])],
+        'J' => vec![cat(l(&[(4.2, 0.0), (4.2, 5.1)]), arc(2.35, 5.1, 1.85, 1.9, 0.0, 180.0))],
+        'K' => vec![l(&[(0.0, 0.0), (0.0, 7.0)]), l(&[(5.0, 0.0), (0.0, 4.6)]), l(&[(1.7, 3.1), (5.0, 7.0)])],
+        'L' => vec![l(&[(0.0, 0.0), (0.0, 7.0), (4.6, 7.0)])],
+        'M' => vec![l(&[(0.0, 7.0), (0.0, 0.0), (2.5, 4.6), (5.0, 0.0), (5.0, 7.0)])],
+        'N' => vec![l(&[(0.0, 7.0), (0.0, 0.0), (5.0, 7.0), (5.0, 0.0)])],
+        'O' => vec![o()],
+        'P' => vec![p_bowl()],
+        'Q' => vec![o(), l(&[(3.1, 5.0), (5.1, 7.4)])],
+        'R' => vec![p_bowl(), l(&[(2.4, 3.6), (5.0, 7.0)])],
+        'S' => vec![sp(&[(4.7, 1.0), (3.6, 0.0), (1.4, 0.0), (0.2, 1.1), (0.6, 2.8), (2.5, 3.5), (4.4, 4.2), (4.8, 5.8), (3.6, 7.0), (1.3, 7.0), (0.1, 6.0)])],
+        'T' => vec![l(&[(0.0, 0.0), (5.0, 0.0)]), l(&[(2.5, 0.0), (2.5, 7.0)])],
+        'U' => vec![cat(cat(l(&[(0.0, 0.0), (0.0, 4.7)]), arc(2.5, 4.7, 2.5, 2.3, 180.0, 0.0)), l(&[(5.0, 0.0)]))],
+        'V' => vec![l(&[(0.0, 0.0), (2.5, 7.0), (5.0, 0.0)])],
+        'W' => vec![l(&[(0.0, 0.0), (1.2, 7.0), (2.5, 2.2), (3.8, 7.0), (5.0, 0.0)])],
+        'X' => vec![l(&[(0.0, 0.0), (5.0, 7.0)]), l(&[(5.0, 0.0), (0.0, 7.0)])],
+        'Y' => vec![l(&[(0.0, 0.0), (2.5, 3.6), (5.0, 0.0)]), l(&[(2.5, 3.6), (2.5, 7.0)])],
+        'Z' => vec![l(&[(0.2, 0.0), (5.0, 0.0), (0.0, 7.0), (5.0, 7.0)])],
+        '0' => vec![arc(2.5, 3.5, 2.3, 3.5, 0.0, 360.0)],
+        '1' => vec![l(&[(1.1, 1.5), (2.9, 0.0), (2.9, 7.0)])],
+        '2' => vec![cat(arc(2.5, 1.95, 2.3, 1.95, 200.0, 375.0), l(&[(0.0, 7.0), (5.0, 7.0)]))],
+        '3' => vec![cat(arc(2.5, 1.75, 2.2, 1.75, 210.0, 450.0), arc(2.5, 5.25, 2.4, 1.75, 270.0, 510.0))],
+        '4' => vec![l(&[(3.8, 7.0), (3.8, 0.0), (0.0, 4.9), (5.0, 4.9)])],
+        '5' => vec![cat(l(&[(4.6, 0.0), (0.7, 0.0), (0.4, 3.2)]), arc(2.5, 4.8, 2.4, 2.2, 222.0, 500.0))],
+        '6' => six(),
+        '7' => vec![l(&[(0.0, 0.0), (5.0, 0.0), (1.8, 7.0)])],
+        '8' => vec![arc(2.5, 1.7, 2.1, 1.7, 0.0, 360.0), arc(2.5, 5.25, 2.4, 1.75, 0.0, 360.0)],
+        '9' => rotate(six()),
+        '.' => vec![dot(2.5, 6.8)],
+        ',' => vec![l(&[(2.7, 6.4), (2.0, 8.0)])],
+        ':' => vec![dot(2.5, 2.2), dot(2.5, 6.8)],
+        ';' => vec![dot(2.5, 2.2), l(&[(2.7, 6.4), (2.0, 8.0)])],
+        '!' => vec![l(&[(2.5, 0.0), (2.5, 4.8)]), dot(2.5, 6.8)],
+        '?' => vec![sp(&[(0.3, 1.4), (1.4, 0.0), (3.6, 0.0), (4.7, 1.4), (3.9, 2.8), (2.5, 3.7), (2.5, 4.8)]), dot(2.5, 6.8)],
+        '\'' => vec![l(&[(2.5, 0.0), (2.5, 2.0)])],
+        '"' => vec![l(&[(1.6, 0.0), (1.6, 2.0)]), l(&[(3.4, 0.0), (3.4, 2.0)])],
+        '-' => vec![l(&[(1.0, 3.5), (4.0, 3.5)])],
+        '+' => vec![l(&[(2.5, 1.5), (2.5, 5.5)]), l(&[(0.5, 3.5), (4.5, 3.5)])],
+        '/' => vec![l(&[(4.6, 0.0), (0.4, 7.0)])],
+        '(' => vec![arc(4.6, 3.5, 2.6, 4.0, 240.0, 120.0)],
+        ')' => mirror(vec![arc(4.6, 3.5, 2.6, 4.0, 240.0, 120.0)]),
+        '[' => vec![l(&[(3.6, 0.0), (1.6, 0.0), (1.6, 7.0), (3.6, 7.0)])],
+        ']' => mirror(vec![l(&[(3.6, 0.0), (1.6, 0.0), (1.6, 7.0), (3.6, 7.0)])]),
+        '_' => vec![l(&[(0.0, 7.0), (5.0, 7.0)])],
+        '=' => vec![l(&[(0.5, 2.5), (4.5, 2.5)]), l(&[(0.5, 4.5), (4.5, 4.5)])],
+        '<' => vec![l(&[(4.5, 1.0), (0.5, 3.5), (4.5, 6.0)])],
+        '>' => mirror(vec![l(&[(4.5, 1.0), (0.5, 3.5), (4.5, 6.0)])]),
+        '|' => vec![l(&[(2.5, 0.0), (2.5, 7.0)])],
+        '*' => vec![l(&[(2.5, 1.0), (2.5, 6.0)]), l(&[(0.4, 2.3), (4.6, 4.7)]), l(&[(0.4, 4.7), (4.6, 2.3)])],
+        '#' => vec![l(&[(1.8, 0.5), (1.2, 6.5)]), l(&[(3.8, 0.5), (3.2, 6.5)]), l(&[(0.3, 2.4), (4.9, 2.4)]), l(&[(0.1, 4.6), (4.7, 4.6)])],
+        '%' => vec![arc(1.2, 1.3, 1.0, 1.1, 0.0, 360.0), arc(3.8, 5.7, 1.0, 1.1, 0.0, 360.0), l(&[(4.6, 0.0), (0.4, 7.0)])],
+        '~' => vec![sp(&[(0.3, 4.0), (1.4, 3.0), (3.6, 4.0), (4.7, 3.0)])],
+        _ => return None,
+    };
+    Some(g)
+}
+
+/// Monoline engraved lettering in the 6-unit-per-character grid the
+/// layouts use; symbols without strokes keep their 5×7 block form.
 fn blocks(c: &mut Canvas, x: f32, y: f32, s: &str, size: f32, color: Color) {
+    let half = (0.46 * size).max(0.32);
+    let mut segs = Vec::new();
     for (i, ch) in s.chars().enumerate() {
-        let rows = glyph(ch);
         let ox = x + i as f32 * 6.0 * size;
-        c.paint(ox, y, ox + 5.0 * size, y + 7.0 * size, |fx, fy| {
-            let (col, row) = (((fx - ox) / size) as usize, ((fy - y) / size) as usize);
-            (row < 7 && col < 5 && rows[row] & (0b10000 >> col) != 0).then_some(color)
-        });
+        match stroke_glyph(ch) {
+            Some(paths) => {
+                for p in paths {
+                    for w in p.windows(2) {
+                        segs.push([ox + w[0].0 * size, y + w[0].1 * size, ox + w[1].0 * size, y + w[1].1 * size, half, half]);
+                    }
+                }
+            }
+            None => {
+                let rows = glyph(ch);
+                c.paint(ox, y, ox + 5.0 * size, y + 7.0 * size, |fx, fy| {
+                    let (col, row) = (((fx - ox) / size) as usize, ((fy - y) / size) as usize);
+                    (row < 7 && col < 5 && rows[row] & (0b10000 >> col) != 0).then_some(color)
+                });
+            }
+        }
     }
+    if segs.is_empty() {
+        return;
+    }
+    let ink = Ink::new(segs);
+    let (x0, y0, x1, y1) = ink.bounds();
+    c.paint(x0, y0, x1, y1, |fx, fy| (ink.distance(fx, fy, 0.0) <= 0.0).then_some(color));
 }
 
 /// Lettering engraved into metal: a light edge below the dark letters.
@@ -722,104 +832,221 @@ impl Ink {
     }
 }
 
-// --------------------------------------------------------------- script
+// ---------------------------------------------------------------- badge
 
-/// "Sound Scraper" as a chrome appliance script, like the badge on a
-/// vintage refrigerator door: slanted connected lettering drawn with a
-/// broad nib, the S of Sound trailing into an underline swash. Units:
-/// baseline 0, x-height 10, capitals 20, y up.
-fn script_paths() -> Vec<Pen> {
-    let p = |pts: &[(f32, f32)]| -> Pen { pts.iter().map(|&(x, y)| (x, y, 1.0)).collect() };
-    let mut sound_s = p(&[
-        (13.2, 16.8), (13.0, 19.0), (10.5, 20.4), (6.5, 20.2), (3.8, 18.2), (3.6, 15.0), (6.0, 12.4), (9.8, 10.0),
-        (12.4, 7.0), (12.6, 3.6), (10.4, 0.8), (6.6, -0.4), (2.8, 0.2), (0.8, 2.0), (1.4, 3.8), (3.2, 3.2),
-        (4.8, 0.6), (7.0, -1.8), (11.0, -3.2), (20.0, -3.9), (34.0, -4.0), (46.0, -3.4), (55.0, -2.4),
-    ]);
-    // Taper the swash.
-    let n = sound_s.len();
-    for (i, pt) in sound_s.iter_mut().enumerate().skip(n - 5) {
-        pt.2 = 1.0 - (i + 5 - n) as f32 * 0.19;
-    }
-    let ound = p(&[
-        (19.6, 9.4), (17.6, 10.1), (15.6, 8.6), (15.0, 5.0), (15.9, 1.5), (18.0, 0.0), (20.3, 0.7), (21.6, 3.6),
-        (21.7, 7.0), (20.8, 9.5), (19.2, 10.0), (20.6, 9.2), (22.6, 9.5), (24.4, 10.2), (24.4, 7.0), (24.0, 3.0),
-        (25.2, 0.3), (27.6, 0.4), (29.4, 3.0), (30.4, 6.8), (31.0, 10.0), (30.6, 6.0), (30.3, 2.0), (31.2, 0.1),
-        (33.0, 0.6), (34.6, 4.6), (35.6, 10.0), (35.3, 5.0), (35.0, 0.0), (35.4, 4.2), (36.8, 8.2), (38.8, 10.0),
-        (40.6, 9.2), (41.2, 6.0), (41.0, 2.0), (42.0, 0.0), (44.0, 0.6), (47.0, 6.4), (50.2, 9.6), (48.0, 10.1),
-        (46.0, 8.5), (45.3, 5.0), (46.0, 1.5), (48.0, 0.0), (50.3, 0.8), (51.5, 4.0), (52.4, 9.0), (53.6, 15.0),
-        (54.6, 20.0), (53.8, 15.0), (52.8, 8.0), (52.4, 2.5), (53.3, 0.2), (55.4, 0.8), (57.0, 2.6),
-    ]);
-    let scraper_s = p(&[
-        (76.2, 16.8), (76.0, 19.0), (73.5, 20.4), (69.5, 20.2), (66.8, 18.2), (66.6, 15.0), (69.0, 12.4), (72.8, 10.0),
-        (75.4, 7.0), (75.6, 3.6), (73.4, 0.8), (69.6, -0.4), (65.8, 0.2), (63.8, 2.0), (64.4, 3.8), (66.2, 3.2),
-    ]);
-    let craper = p(&[
-        (83.6, 8.3), (83.4, 9.7), (81.6, 10.1), (79.6, 8.6), (78.8, 5.0), (79.5, 1.5), (81.6, 0.0), (83.8, 0.4),
-        (85.8, 2.0), (87.4, 6.5), (88.5, 10.0), (89.3, 9.0), (90.7, 9.7), (91.0, 6.0), (91.0, 2.0), (91.4, 0.2),
-        (93.2, 0.5), (94.8, 2.2), (96.8, 6.6), (99.6, 9.6), (97.5, 10.1), (95.6, 8.5), (95.0, 5.0), (95.7, 1.5),
-        (97.6, 0.0), (99.8, 0.8), (100.8, 4.0), (101.4, 10.0), (101.0, 5.0), (100.8, 2.0), (101.8, 0.0), (103.6, 0.6),
-        (104.9, 5.0), (105.6, 10.0), (105.2, 2.0), (104.8, -4.5), (104.5, -9.0), (104.8, -4.0), (105.1, 2.0),
-        (105.8, 6.4), (107.0, 8.8), (108.8, 10.0), (110.7, 9.0), (111.4, 5.5), (110.7, 2.0), (108.7, 0.0),
-        (106.4, 0.5), (105.4, 2.2), (106.6, 0.3), (109.0, 0.0), (111.4, 0.8), (113.2, 2.6), (115.6, 5.0),
-        (116.6, 7.8), (115.7, 9.8), (113.8, 9.8), (112.6, 7.0), (112.5, 3.0), (113.8, 0.5), (116.0, 0.0),
-        (118.0, 1.2), (119.5, 6.0), (120.5, 10.0), (121.3, 9.0), (122.7, 9.7), (123.0, 6.0), (123.0, 2.0),
-        (123.4, 0.2), (125.3, 0.8), (127.4, 3.2),
-    ]);
-    vec![sound_s, ound, scraper_s, craper]
+/// Pieces of the badge lettering, in units of a 10-unit cap height (y
+/// down from the cap line).
+enum Part {
+    Rect(f32, f32, f32, f32),
+    /// A convex polygon.
+    Poly(Vec<(f32, f32)>),
+    /// Part of an elliptical ring: center, outer radii, thickness at the
+    /// sides and at the top and bottom, angles (degrees, 0 = right,
+    /// 90 = down) from a0 increasing to a1.
+    Ring(f32, f32, f32, f32, f32, f32, f32, f32),
 }
 
-/// Lays the script out at (x, top) `k` points per unit: returns the ink
-/// and the baseline y.
-fn script_ink(x: f32, top: f32, k: f32) -> (Ink, f32) {
-    const SLANT: f32 = 0.24;
-    const NIB: f32 = 0.52; // radians: hairlines run up and to the right
-    let baseline = top + 20.6 * k;
-    let mut segs = Vec::new();
-    for path in script_paths() {
-        let pts = spline(&path, 10);
-        for w in pts.windows(2) {
-            let (a, b) = (w[0], w[1]);
-            let ang = (b.1 - a.1).atan2(b.0 - a.0);
-            let width = (0.62 + 1.05 * (ang - NIB).sin().abs()) * k;
-            let to = |p: (f32, f32, f32)| (x + (p.0 + SLANT * p.1) * k, baseline - p.1 * k);
-            let (pa, pb) = (to(a), to(b));
-            segs.push([pa.0, pa.1, pb.0, pb.1, width * a.2, width * b.2]);
+impl Part {
+    fn contains(&self, x: f32, y: f32) -> bool {
+        match *self {
+            Part::Rect(x0, y0, x1, y1) => x >= x0 && x < x1 && y >= y0 && y < y1,
+            Part::Poly(ref pts) => {
+                let n = pts.len();
+                let mut sign = 0.0f32;
+                for i in 0..n {
+                    let (a, b) = (pts[i], pts[(i + 1) % n]);
+                    let cross = (b.0 - a.0) * (y - a.1) - (b.1 - a.1) * (x - a.0);
+                    if cross.abs() < 1e-6 {
+                        continue;
+                    }
+                    if sign == 0.0 {
+                        sign = cross.signum();
+                    } else if cross.signum() != sign {
+                        return false;
+                    }
+                }
+                true
+            }
+            Part::Ring(cx, cy, rx, ry, tx, ty, a0, a1) => {
+                let (u, v) = ((x - cx) / rx, (y - cy) / ry);
+                if u * u + v * v > 1.0 {
+                    return false;
+                }
+                let (iu, iv) = ((x - cx) / (rx - tx), (y - cy) / (ry - ty));
+                if iu * iu + iv * iv < 1.0 {
+                    return false;
+                }
+                let mut a = v.atan2(u).to_degrees();
+                while a < a0 {
+                    a += 360.0;
+                }
+                a <= a1
+            }
         }
     }
-    (Ink::new(segs), baseline)
 }
 
-/// Polished chrome lettering with a dark rim and a shadow on the metal.
-fn chrome_script(c: &mut Canvas, x: f32, top: f32, k: f32) {
-    let (ink, baseline) = script_ink(x, top, k);
-    let (bx0, by0, bx1, by1) = ink.bounds();
-    let rim = 0.45 * k.max(0.6);
-    // Shadow, then the rim, then the chrome face.
-    let (sx, sy) = (0.6 * k, 0.9 * k);
-    c.paint(bx0 - 2.0, by0 - 2.0, bx1 + 3.0, by1 + 3.0, |fx, fy| {
-        let d = ink.distance(fx - sx, fy - sy, rim + 0.3);
-        (d < 0.6).then(|| rgba(0x000000, (90.0 * (1.0 - d.max(0.0) / 0.6)) as u8))
-    });
-    c.paint(bx0 - 2.0, by0 - 2.0, bx1 + 2.0, by1 + 2.0, |fx, fy| (ink.distance(fx, fy, rim) <= 0.0).then_some(rgb(0x221c17)));
-    c.paint(bx0, by0, bx1, by1, |fx, fy| {
-        let d = ink.distance(fx, fy, 0.0);
-        if d > 0.0 {
-            return None;
+const STEM: f32 = 1.9;
+const HAIR: f32 = 1.15;
+
+/// Wide slab-serif capitals in the manner of Frigidaire's 1961–76
+/// wordmark: the letter's parts and its advance.
+fn slab_letter(ch: char) -> (Vec<Part>, f32) {
+    use Part::*;
+    let serif = |x0: f32, x1: f32, top: bool| if top { Rect(x0, 0.0, x1, HAIR) } else { Rect(x0, 10.0 - HAIR, x1, 10.0) };
+    match ch {
+        'S' => (
+            vec![
+                Ring(4.9, 2.75, 4.9, 2.75, STEM, 1.35, 90.0, 335.0),
+                Ring(4.9, 7.25, 4.9, 2.75, STEM, 1.35, 270.0, 515.0),
+                Rect(8.6, 0.6, 9.8, 3.0),
+                Rect(0.0, 7.0, 1.2, 9.4),
+            ],
+            9.8,
+        ),
+        'O' => (vec![Ring(6.0, 5.0, 6.0, 5.0, 2.1, 1.25, 0.0, 360.0)], 12.0),
+        'U' => (
+            vec![
+                Rect(1.0, 0.0, 1.0 + STEM, 6.0),
+                Rect(8.7, 0.0, 8.7 + STEM * 0.7, 6.0),
+                Ring(5.6, 5.6, 4.6, 4.4, STEM, HAIR, 0.0, 180.0),
+                serif(0.0, 4.0, true),
+                serif(7.6, 11.4, true),
+            ],
+            11.4,
+        ),
+        'N' => (
+            vec![
+                Rect(1.0, 0.0, 1.0 + HAIR, 10.0),
+                Rect(9.0, 0.0, 9.0 + HAIR, 10.0),
+                Poly(vec![(1.0, 0.0), (1.0 + STEM * 1.3, 0.0), (9.0 + HAIR, 10.0), (9.0 + HAIR - STEM * 1.3, 10.0)]),
+                serif(0.0, 3.4, true),
+                serif(0.0, 3.4, false),
+                serif(7.6, 11.2, true),
+            ],
+            11.2,
+        ),
+        'D' => (
+            vec![
+                Rect(1.0, 0.0, 1.0 + STEM, 10.0),
+                Rect(0.0, 0.0, 5.4, HAIR),
+                Rect(0.0, 10.0 - HAIR, 5.4, 10.0),
+                Ring(5.4, 5.0, 5.6, 5.0, STEM + 0.2, HAIR, 270.0, 450.0),
+            ],
+            11.0,
+        ),
+        'C' => (
+            vec![Ring(5.9, 5.0, 5.9, 5.0, 2.1, 1.25, 38.0, 322.0), Rect(9.9, 0.7, 11.1, 3.3), Rect(9.9, 6.7, 11.1, 9.3)],
+            11.1,
+        ),
+        'R' | 'P' => {
+            let ry = if ch == 'R' { 2.8 } else { 3.0 };
+            let mut v = vec![
+                Rect(1.0, 0.0, 1.0 + STEM, 10.0),
+                Rect(0.0, 0.0, 6.0, HAIR),
+                Rect(1.0, 2.0 * ry - HAIR, 6.0, 2.0 * ry),
+                Ring(6.0, ry, 4.4, ry, STEM, HAIR, 270.0, 450.0),
+                serif(0.0, 4.4, false),
+            ];
+            if ch == 'R' {
+                v.push(Poly(vec![(5.2, 2.0 * ry - 0.4), (5.2 + STEM * 1.1, 2.0 * ry - 0.4), (10.0, 10.0), (10.0 - STEM * 1.1, 10.0)]));
+                v.push(serif(8.2, 11.2, false));
+            }
+            (v, if ch == 'R' { 11.2 } else { 10.6 })
         }
-        // Height in units: sky above, a dark horizon below the middle of
-        // the x-height, warm ground reflected below it.
-        let u = (baseline - fy) / k;
-        let col = if u > 5.2 {
-            mix(rgb(0x8f979e), rgb(0xffffff), ((u - 5.2) / 7.0).min(1.0))
-        } else if u > 3.6 {
-            mix(rgb(0x3b3f44), rgb(0x8f979e), (u - 3.6) / 1.6)
-        } else {
-            mix(rgb(0xf0e6d6), rgb(0x6e655a), ((u + 4.0) / 7.6).clamp(0.0, 1.0))
-        };
-        // A bright bevel just inside the edge on the upper side.
-        let up = ink.distance(fx, fy - 0.5 * k, 0.0) > 0.0;
-        Some(if up { mix(col, rgb(0xffffff), 0.55) } else { col })
+        'A' => (
+            vec![
+                Poly(vec![(5.6, 0.0), (5.6 + HAIR, 0.0), (1.6 + HAIR, 10.0), (1.6, 10.0)]),
+                Poly(vec![(5.4, 0.0), (5.4 + STEM * 1.1, 0.0), (10.6 + STEM * 0.4, 10.0), (10.6 - STEM * 0.7, 10.0)]),
+                Rect(3.4, 6.2, 8.8, 6.2 + HAIR),
+                Rect(4.6, 0.0, 7.4, HAIR * 0.8),
+                serif(0.0, 3.8, false),
+                serif(8.6, 12.4, false),
+            ],
+            12.4,
+        ),
+        'E' => (
+            vec![
+                Rect(1.0, 0.0, 1.0 + STEM, 10.0),
+                Rect(0.0, 0.0, 9.6, HAIR),
+                Rect(0.0, 10.0 - HAIR, 10.0, 10.0),
+                Rect(1.0, 4.45, 7.4, 4.45 + HAIR),
+                Rect(8.5, 0.0, 9.6, 2.7),
+                Rect(8.9, 7.3, 10.0, 10.0),
+                Rect(6.6, 3.6, 7.4, 6.4),
+            ],
+            10.0,
+        ),
+        _ => (vec![], 5.0),
+    }
+}
+
+/// Lays out `text` from x at cap line y, `k` points per unit: the parts
+/// in point coordinates as (letter origin x, parts) and the width.
+fn slab_layout(text: &str, x: f32, k: f32, tracking: f32) -> (Vec<(f32, Vec<Part>)>, f32) {
+    let mut out = Vec::new();
+    let mut pen = 0.0;
+    for ch in text.chars() {
+        if ch == ' ' {
+            pen += 4.5;
+            continue;
+        }
+        let (parts, adv) = slab_letter(ch);
+        out.push((x + pen * k, parts));
+        pen += adv + tracking;
+    }
+    (out, (pen - tracking) * k)
+}
+
+/// The nameplate, after Frigidaire's 1961–76 logo: a black square emblem
+/// (a crown of level bars over an S) beside a cream enamel bar with the
+/// name in wide slab capitals. Returns its width.
+fn badge(c: &mut Canvas, x: f32, y: f32, h: f32) -> f32 {
+    let ink = rgb(0x1c1814);
+    let cream = rgb(0xefe7d4);
+    let cap = h * 0.5;
+    let k = cap / 10.0;
+    let (letters, text_w) = slab_layout("SOUND SCRAPER", 0.0, k, 1.5);
+    let em = h;
+    let bar_w = text_w + h * 0.9;
+    let w = em + bar_w;
+    // Shadow and a thin chrome rim around the whole plate.
+    c.round_rect(x - 0.5, y + 0.6, w + 1.4, h + 1.2, 1.2, rgba(0x000000, 70));
+    c.paint(x - 0.8, y - 0.8, x + w + 0.8, y + h + 0.8, |_, py| Some(mix(rgb(0xf6f6f2), rgb(0x76766f), (py - y) / h)));
+    // Emblem.
+    c.rect(x, y, em, h, ink);
+    let (ex, ey) = (x + em * 0.12, y + em * 0.12);
+    let ew = em * 0.76;
+    c.rect(ex, ey, ew, em * 0.76, cream);
+    c.rect(ex + em * 0.05, ey + em * 0.05, ew - em * 0.1, em * 0.66, ink);
+    // Crown: five level bars, tallest in the middle.
+    let bars = [0.45, 0.75, 1.0, 0.75, 0.45];
+    let bw = ew * 0.1;
+    let base = ey + em * 0.33;
+    for (i, t) in bars.iter().enumerate() {
+        let bx = ex + ew * 0.17 + i as f32 * bw * 1.45;
+        let bh = em * 0.2 * t;
+        c.rect(bx, base - bh, bw, bh, cream);
+    }
+    c.rect(ex + ew * 0.12, base + em * 0.035, ew * 0.76, (em * 0.035).max(0.35), cream);
+    // The S under it.
+    let sk = em * 0.26 / 10.0;
+    let (sx, sy) = (x + em / 2.0 - 4.9 * sk, base + em * 0.1);
+    let s_parts = slab_letter('S').0;
+    c.paint(sx, sy, sx + 10.0 * sk, sy + 10.0 * sk, |px, py| {
+        s_parts.iter().any(|p| p.contains((px - sx) / sk, (py - sy) / sk)).then_some(cream)
     });
+    // Enamel bar and lettering.
+    let bx = x + em;
+    c.paint(bx, y, bx + bar_w, y + h, |_, py| Some(mix(rgb(0xfaf4e6), rgb(0xe2d8c2), (py - y) / h)));
+    c.rect(bx, y, bar_w, 0.5, rgba(0xffffff, 160));
+    let tx = bx + (bar_w - text_w) / 2.0;
+    let ty = y + (h - cap) / 2.0;
+    c.paint(tx, ty, tx + text_w + 1.0, ty + cap, |px, py| {
+        let u = (py - ty) / k;
+        letters.iter().any(|(lx, parts)| parts.iter().any(|p| p.contains((px - tx - lx) / k, u))).then_some(ink)
+    });
+    w
 }
 
 // ----------------------------------------------------------- flip cards
@@ -932,23 +1159,21 @@ fn card_housing(c: &mut Canvas, x: f32, y: f32, w: f32, h: f32) {
 /// Embossed label-maker lettering: the raised plastic goes white where
 /// it was stretched, lit from above.
 fn dymo_glyph(c: &mut Canvas, x: f32, y: f32, ch: char) {
-    let rows = glyph(ch);
     let size = 1.12;
-    let inside = |fx: f32, fy: f32| -> bool {
-        let (gx, gy) = ((fx - x) / size, (fy - y) / size);
-        let mut best = f32::MAX;
-        for (row, bits) in rows.iter().enumerate() {
-            for col in 0..5 {
-                if bits & (0b10000 >> col) == 0 {
-                    continue;
-                }
-                let dx = (col as f32 - gx).max(gx - (col as f32 + 1.0)).max(0.0);
-                let dy = (row as f32 - gy).max(gy - (row as f32 + 1.0)).max(0.0);
-                best = best.min((dx * dx + dy * dy).sqrt());
-            }
-        }
-        best <= 0.08
+    let Some(paths) = stroke_glyph(ch) else {
+        blocks(c, x, y, &ch.to_string(), size, rgba(0xf0ebe4, 240));
+        return;
     };
+    let half = 0.62 * size;
+    let segs: Vec<[f32; 6]> = paths
+        .iter()
+        .flat_map(|p| p.windows(2).map(|w| [x + w[0].0 * size, y + w[0].1 * size, x + w[1].0 * size, y + w[1].1 * size, half, half]))
+        .collect();
+    if segs.is_empty() {
+        return;
+    }
+    let ink = Ink::new(segs);
+    let inside = |fx: f32, fy: f32| ink.distance(fx, fy, 0.0) <= 0.0;
     c.paint(x - 1.0, y - 1.0, x + 6.0 * size + 1.0, y + 8.0 * size + 1.0, |fx, fy| {
         if !inside(fx, fy) {
             return inside(fx - 0.4, fy - 0.6).then_some(rgba(0x000000, 70));
@@ -1020,18 +1245,6 @@ fn lamp_lit(c: &mut Canvas, cx: f32, cy: f32, r: f32, l: Lamp) {
     c.circle(cx - r * 0.35, cy - r * 0.4, r * 0.28, rgb(0xfff4e8));
 }
 
-/// Black crinkle-finish panel.
-fn crinkle(c: &mut Canvas, x: f32, y: f32, w: f32, h: f32) {
-    c.paint(x, y, x + w, y + h, |px, py| {
-        let n = noise(px * 2.2, py * 2.2, 103) * 0.5 + noise(px * 5.0, py * 5.0, 107) * 0.5;
-        let l = 0.09 + 0.05 * n;
-        let v = (l * 255.0) as u8;
-        Some([v, (v as f32 * 0.95) as u8, (v as f32 * 0.9) as u8, 255])
-    });
-    c.rect(x, y, w, 1.0, rgba(0x000000, 160));
-    c.rect(x, y, 1.0, h, rgba(0x000000, 110));
-}
-
 /// Cream print on a dark panel.
 fn printed(c: &mut Canvas, cx: f32, y: f32, s: &str, size: f32) {
     blocks(c, cx - text_width(s, size) / 2.0, y, s, size, rgb(0xe8dcc0));
@@ -1059,20 +1272,13 @@ fn status_lamp(state: &str) -> Option<usize> {
 // ----------------------------------------------------------- oscilloscope
 
 const SCOPE_RECT: [i32; 4] = [158, 33, 88, 62];
+const SCOPE_HOUSING: [f32; 4] = [152.0, 22.0, 100.0, 84.0];
 
 /// A small oscilloscope: a dark green phosphor screen with a graticule in
 /// a black bezel; the visualizer draws the trace.
 fn scope(c: &mut Canvas) {
     let [sx, sy, sw, sh] = SCOPE_RECT.map(|v| v as f32);
-    let (hx, hy, hw, hh) = (sx - 6.0, sy - 5.0, sw + 12.0, sh + 10.0);
-    c.paint(hx, hy, hx + hw, hy + hh, |px, py| {
-        in_round_rect(px, py, hx, hy, hw, hh, 3.0).then(|| mix(rgb(0x3a3632), rgb(0x1a1816), (py - hy) / hh))
-    });
-    c.rect(hx + 2.0, hy, hw - 4.0, 0.8, rgba(0xffffff, 50));
-    for (px, py) in [(hx + 3.0, hy + 3.0), (hx + hw - 3.0, hy + 3.0), (hx + 3.0, hy + hh - 3.0), (hx + hw - 3.0, hy + hh - 3.0)] {
-        c.circle(px, py, 1.3, rgb(0x8a8680));
-        c.line(px - 0.9, py, px + 0.9, py, 0.4, rgb(0x2a2622));
-    }
+    housing(c, SCOPE_HOUSING[0], SCOPE_HOUSING[1], SCOPE_HOUSING[2], SCOPE_HOUSING[3]);
     let r = 7.0;
     c.round_rect(sx - 1.0, sy - 1.0, sw + 2.0, sh + 2.0, r + 1.0, rgb(0x050505));
     c.paint(sx, sy, sx + sw, sy + sh, |px, py| {
@@ -1103,9 +1309,9 @@ fn scope(c: &mut Canvas) {
 
 // --------------------------------------------------- edgewise meters
 
-const EDGE_RECT: [i32; 4] = [210, 3, 100, 12];
-const EDGE_GAP: f32 = 6.0;
-const EDGE_PIVOT: (f32, f32) = (23.5, 58.0);
+const EDGE_RECT: [i32; 4] = [230, 3, 80, 12];
+const EDGE_GAP: f32 = 4.0;
+const EDGE_PIVOT: (f32, f32) = (19.0, 58.0);
 const EDGE_LENGTH: f32 = 57.0;
 const EDGE_SWEEP: f32 = 40.0;
 
@@ -1147,12 +1353,12 @@ fn main_background(c: &mut Canvas) {
     cheek(c, w - CHEEK, 0.0, CHEEK, h);
     faceplate(c, CHEEK, 0.0, w - 2.0 * CHEEK, h);
     // Title: a chrome script badge.
-    chrome_script(c, LOGO.0, LOGO.1, LOGO.2);
-    engraved(c, 150.0, 8.5, "STEREO MASTER RECORDER  SS-74", 0.75);
+    badge(c, LOGO.0, LOGO.1, LOGO.2);
+    engraved(c, 176.0, 8.5, "STEREO MASTER RECORDER  SS-74", 0.75);
     // The glass band: the clock panel, the scope and the meters.
-    glass(c, 20.0, 22.0, 420.0, 84.0, 2.0);
-    bezel(c, 26.0, 28.0, 122.0, 72.0, 1.5);
-    crinkle(c, 26.0, 28.0, 122.0, 72.0);
+    // Three modules on the faceplate: clock, scope and meters.
+    housing(c, 20.0, 22.0, 130.0, 84.0);
+    housing(c, 254.0, 22.0, 186.0, 84.0);
     let [ex, ey, ew, eh] = ELAPSED_RECT.map(|v| v as f32);
     card_housing(c, ex - 4.0, ey - 2.0, ew + 8.0, eh + 4.0);
     for (i, (label, lamp)) in STATUS_LAMPS.iter().enumerate() {
@@ -1232,7 +1438,7 @@ fn shade_background(c: &mut Canvas) {
     cheek(c, 0.0, 0.0, CHEEK, h);
     cheek(c, w - CHEEK, 0.0, CHEEK, h);
     faceplate(c, CHEEK, 0.0, w - 2.0 * CHEEK, h);
-    chrome_script(c, SHADE_LOGO.0, SHADE_LOGO.1, SHADE_LOGO.2);
+    badge(c, SHADE_LOGO.0, SHADE_LOGO.1, SHADE_LOGO.2);
     let [ex, ey, ew, eh] = SHADE_ELAPSED_RECT.map(|v| v as f32);
     card_housing(c, ex - 2.0, ey - 1.0, ew + 4.0, eh + 2.0);
     let face_w = (EDGE_RECT[2] as f32 - EDGE_GAP) / 2.0;
@@ -1259,26 +1465,27 @@ fn shade_status(c: &mut Canvas, x: f32, y: f32, state: &str) {
     engraved(c, x + 11.0, y + 3.0, word, 0.85);
 }
 
-const LOGO: (f32, f32, f32) = (23.0, 2.0, 0.62);
-const SHADE_LOGO: (f32, f32, f32) = (19.0, 1.0, 0.56);
+const LOGO: (f32, f32, f32) = (22.0, 4.0, 14.0);
+const SHADE_LOGO: (f32, f32, f32) = (20.0, 4.0, 10.0);
 const ELAPSED_RECT: [i32; 4] = [33, 34, 108, 30];
-const SHADE_STATUS_RECT: [i32; 4] = [100, 3, 50, 12];
-const SHADE_ELAPSED_RECT: [i32; 4] = [154, 3, 48, 12];
+const SHADE_STATUS_RECT: [i32; 4] = [122, 3, 50, 12];
+const SHADE_ELAPSED_RECT: [i32; 4] = [176, 3, 48, 12];
 const STATUS_STATES: [&str; 6] = ["idle", "recording", "paused", "finalizing", "playing", "stopped"];
 
 /// Nine-slice frame for the library, details and settings panels: walnut
 /// sides and bottom, a brushed aluminum title strip.
 fn frame_image(c: &mut Canvas) {
     let (w, h) = (48.0, 48.0);
-    c.paint(0.0, 0.0, w, h, |fx, fy| Some(walnut(fx, fy, true)));
-    // Bottom edge: grain running along it (it stretches sideways).
-    c.paint(8.0, h - 8.0, w - 8.0, h, |fx, fy| Some(walnut(fx, fy + 40.0, false)));
+    c.paint(0.0, 0.0, w, h, |_, fy| Some(plastic(fy, 0.0, h * 3.0)));
     c.rect(0.0, 0.0, w, 1.0, rgba(0xffffff, 40));
     c.rect(0.0, h - 1.0, w, 1.0, rgba(0x000000, 120));
     faceplate(c, 8.0, 0.0, w - 16.0, 24.0);
     c.rect(8.0, 24.0, w - 16.0, h - 32.0, rgb(0x1b1511));
     c.rect(8.0, 24.0, w - 16.0, 1.0, rgba(0x000000, 160));
     c.rect(8.0, 24.0, 1.0, h - 32.0, rgba(0x000000, 100));
+    for x in [4.0, w - 4.0] {
+        screw(c, x, h - 4.0, 1.3);
+    }
 }
 
 fn scrollbar_image(c: &mut Canvas) {
@@ -1464,8 +1671,8 @@ fn main() {
         "id": "com.alexboyce.soundscraper.hifi74",
         "name": "Hi-Fi '74",
         "author": "Sound Scraper",
-        "version": "1.1",
-        "description": "A 1970s stereo receiver: walnut cheeks, brushed aluminum, a chrome script badge, a flip-card clock, pilot lamps, label tape, a phosphor scope and needle VU meters.",
+        "version": "1.2",
+        "description": "A 1970s stereo receiver: brushed aluminum, screwed-on black modules, an enamel nameplate, a flip-card clock, pilot lamps, label tape, a phosphor scope and needle VU meters.",
         "colors": {
             "background": "#c9c8c2",
             "aluminum": "#c9c8c2",

@@ -239,7 +239,9 @@ function Needle(props: {
       toValue: props.angle,
       duration: rising ? 120 : 240,
       easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
+      // The JS driver: native-driven transforms don't update on macOS
+      // (the needles sat still).
+      useNativeDriver: false,
     }).start();
   }, [angle, props.angle]);
   const { length, width } = props;

@@ -143,7 +143,7 @@ function FlipCell(props: { font: SpriteFont; at: [number, number] }) {
       toValue: 1,
       duration: FLIP_MS,
       easing: Easing.in(Easing.quad),
-      useNativeDriver: true,
+      useNativeDriver: false, // see Needle in LevelMeter
     });
     run.start(({ finished }) => finished && setFrom(at));
     return () => {

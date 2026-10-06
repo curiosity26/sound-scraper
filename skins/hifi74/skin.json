@@ -17,7 +17,7 @@
     "text": "#1e1a16",
     "walnut": "#4a2b17"
   },
-  "description": "A 1970s stereo receiver: walnut cheeks, brushed aluminum, a chrome script badge, a flip-card clock, pilot lamps, label tape, a phosphor scope and needle VU meters.",
+  "description": "A 1970s stereo receiver: brushed aluminum, screwed-on black modules, an enamel nameplate, a flip-card clock, pilot lamps, label tape, a phosphor scope and needle VU meters.",
   "fonts": {
     "dymo": {
       "cell": [
@@ -657,7 +657,7 @@
             "align": "right",
             "font": "flipSmall",
             "rect": [
-              154,
+              176,
               3,
               48,
               12
@@ -669,19 +669,19 @@
           },
           "levels": {
             "rect": [
-              210,
+              230,
               3,
-              100,
+              80,
               12
             ],
             "style": {
               "faces": 2,
-              "gap": 6.0,
+              "gap": 4.0,
               "kind": "needle",
               "length": 57.0,
               "needle": "#1a120a",
               "pivot": [
-                23.5,
+                19.0,
                 58.0
               ],
               "range": [
@@ -820,7 +820,7 @@
           },
           "status": {
             "rect": [
-              100,
+              122,
               3,
               50,
               12
@@ -951,7 +951,7 @@
       }
     }
   },
-  "version": "1.1",
+  "version": "1.2",
   "visualizer": {
     "presets": [
       {
