@@ -163,8 +163,8 @@
         ]
       },
       "minSize": [
-        520,
-        260
+        640,
+        430
       ],
       "resizable": true,
       "table": {

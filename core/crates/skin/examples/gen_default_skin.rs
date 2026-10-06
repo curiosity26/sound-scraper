@@ -934,7 +934,7 @@ fn main() {
                 }
             },
             "editor": {
-                "minSize": [520, 260],
+                "minSize": [640, 430],
                 "resizable": true,
                 "frame": { "image": "frame.png", "slice": [22, 6, 6, 6] },
                 "title": { "font": "tiny", "offset": [12, 8] },

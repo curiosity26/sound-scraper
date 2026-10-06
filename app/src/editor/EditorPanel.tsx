@@ -1346,7 +1346,7 @@ export function EditorPanel(props: Props): React.JSX.Element {
             label="Vertical zoom"
             low="zoomOutV"
             high="zoomInV"
-            length={viewHeight - RULER - LANE - 34}
+            length={Math.max(20, viewHeight - RULER - LANE - 34)}
             value={vZoom}
             onChange={setVZoom}
             disabled={!ready}
@@ -1374,7 +1374,7 @@ export function EditorPanel(props: Props): React.JSX.Element {
         />
       </View>
 
-      <View {...closeNamingOnPress}>
+      <View style={styles.trackListBox} {...closeNamingOnPress}>
         <TrackList
           th={th}
           rows={rows}
@@ -1458,7 +1458,7 @@ const KEYS = [
 ];
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  root: { flex: 1, overflow: 'hidden' },
   flex: { flex: 1 },
   toolbar: {
     flexDirection: 'row',
@@ -1476,7 +1476,8 @@ const styles = StyleSheet.create({
     height: 30,
     marginRight: 4,
   },
-  timelineRow: { flex: 1, flexDirection: 'row' },
+  // The timeline keeps its height; the track list gives way first.
+  timelineRow: { flex: 1, flexDirection: 'row', minHeight: 150 },
   vstrip: { width: VSTRIP, alignItems: 'center' },
   zoomBar: {
     flexDirection: 'row',
@@ -1485,9 +1486,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   range: { fontSize: 10, fontVariant: ['tabular-nums'] },
+  trackListBox: { flexShrink: 1, minHeight: 60 },
   timeline: {
     flex: 1,
-    minHeight: 140,
     overflow: 'hidden',
     borderRadius: 4,
     borderWidth: 1,

@@ -509,6 +509,8 @@ const styles = StyleSheet.create({
   autoFound: { fontSize: 11 },
   tracks: {
     height: 112,
+    flexShrink: 1,
+    minHeight: 54,
     marginTop: 6,
     borderRadius: 4,
     borderWidth: 1,
