@@ -121,6 +121,83 @@
         ]
       }
     },
+    "editor": {
+      "close": {
+        "offset": [
+          10,
+          7
+        ],
+        "size": [
+          12,
+          10
+        ],
+        "sprite": {
+          "image": "buttons.png",
+          "states": {
+            "normal": [
+              270,
+              36
+            ],
+            "pressed": [
+              282,
+              36
+            ]
+          }
+        }
+      },
+      "controls": {
+        "accent": "@accent",
+        "background": "@panel",
+        "border": "#4a423c",
+        "button": "@background",
+        "buttonText": "@text",
+        "text": "@cream"
+      },
+      "frame": {
+        "image": "frame.png",
+        "slice": [
+          22,
+          6,
+          6,
+          6
+        ]
+      },
+      "minSize": [
+        520,
+        260
+      ],
+      "resizable": true,
+      "table": {
+        "alternate": "#2a2421",
+        "background": "#221d1a",
+        "grid": "#3a3430",
+        "header": "@background",
+        "headerText": "@text",
+        "selection": "@accent",
+        "selectionText": "#10180a",
+        "text": "@cream"
+      },
+      "title": {
+        "font": "tiny",
+        "offset": [
+          12,
+          8
+        ]
+      },
+      "waveform": {
+        "background": "#141210",
+        "center": "#3a3430",
+        "deleted": "#00000099",
+        "playhead": "@record",
+        "rms": "@lcdLit",
+        "ruler": "#221d1a",
+        "rulerText": "@cream",
+        "selection": "#ffffff30",
+        "splice": "@accent",
+        "spliceSelected": "#fff0a0",
+        "wave": "#5f8a24"
+      }
+    },
     "library": {
       "close": {
         "offset": [

@@ -933,6 +933,27 @@ fn main() {
                     "accent": "@accent", "button": "@background", "buttonText": "@text"
                 }
             },
+            "editor": {
+                "minSize": [520, 260],
+                "resizable": true,
+                "frame": { "image": "frame.png", "slice": [22, 6, 6, 6] },
+                "title": { "font": "tiny", "offset": [12, 8] },
+                "close": { "offset": [10, 7], "size": [12, 10], "sprite": sprite(&close) },
+                "table": {
+                    "background": "#221d1a", "alternate": "#2a2421", "text": "@cream",
+                    "selection": "@accent", "selectionText": "#10180a",
+                    "header": "@background", "headerText": "@text", "grid": "#3a3430"
+                },
+                "controls": {
+                    "background": "@panel", "text": "@cream", "border": "#4a423c",
+                    "accent": "@accent", "button": "@background", "buttonText": "@text"
+                },
+                "waveform": {
+                    "background": "#141210", "wave": "#5f8a24", "rms": "@lcdLit", "center": "#3a3430",
+                    "ruler": "#221d1a", "rulerText": "@cream", "splice": "@accent", "spliceSelected": "#fff0a0",
+                    "selection": "#ffffff30", "deleted": "#00000099", "playhead": "@record"
+                }
+            },
             "settings": {
                 "minSize": [360, 340],
                 "resizable": true,

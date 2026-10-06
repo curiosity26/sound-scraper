@@ -65,6 +65,10 @@
         "details": {
           "$ref": "#/$defs/framePanel",
           "description": "The details panel for the selected recording(s): cover art and inline tag editing."
+        },
+        "editor": {
+          "$ref": "#/$defs/framePanel",
+          "description": "The track editor: the waveform, time ruler, splice marks and regions. Its colors are in `waveform`."
         }
       }
     },
@@ -579,6 +583,28 @@
               "accent",
               "button",
               "buttonText"
+            ]
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/color"
+          }
+        },
+        "waveform": {
+          "type": "object",
+          "description": "Track editor colors (editor panel only).",
+          "propertyNames": {
+            "enum": [
+              "background",
+              "wave",
+              "rms",
+              "center",
+              "ruler",
+              "rulerText",
+              "splice",
+              "spliceSelected",
+              "selection",
+              "deleted",
+              "playhead"
             ]
           },
           "additionalProperties": {

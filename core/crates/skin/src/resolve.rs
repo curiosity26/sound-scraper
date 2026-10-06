@@ -70,6 +70,7 @@ pub struct ResolvedPanels {
     pub library: ResolvedFramePanel,
     pub settings: ResolvedFramePanel,
     pub details: ResolvedFramePanel,
+    pub editor: ResolvedFramePanel,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -141,6 +142,7 @@ pub struct ResolvedFramePanel {
     pub table: BTreeMap<String, String>,
     pub scrollbar: Option<ResolvedScrollbar>,
     pub controls: BTreeMap<String, String>,
+    pub waveform: BTreeMap<String, String>,
     pub title: Option<ResolvedTitle>,
     pub close: Option<ResolvedClose>,
     pub menu: Option<ResolvedClose>,
@@ -612,6 +614,10 @@ impl Resolver<'_> {
             Some(c) => self.colors_map(c, manifest::CONTROL_COLORS, &format!("{at}.controls"), warnings)?,
             None => BTreeMap::new(),
         };
+        let waveform = match &p.waveform {
+            Some(c) => self.colors_map(c, manifest::WAVEFORM_COLORS, &format!("{at}.waveform"), warnings)?,
+            None => BTreeMap::new(),
+        };
         let title = match &p.title {
             Some(t) => {
                 if let Some(font) = &t.font
@@ -659,6 +665,7 @@ impl Resolver<'_> {
             table,
             scrollbar,
             controls,
+            waveform,
             title,
             close,
             menu,
@@ -749,13 +756,15 @@ pub fn load_dir(dir: &Path, base: Option<&ResolvedSkin>) -> Result<ResolvedSkin,
     let library = r.frame_panel(m.panels.library.as_ref().unwrap_or(&empty), "panels.library", &mut warnings)?;
     let settings = r.frame_panel(m.panels.settings.as_ref().unwrap_or(&empty), "panels.settings", &mut warnings)?;
     let details = r.frame_panel(m.panels.details.as_ref().unwrap_or(&empty), "panels.details", &mut warnings)?;
-    let (library, settings, details) = match base {
+    let editor = r.frame_panel(m.panels.editor.as_ref().unwrap_or(&empty), "panels.editor", &mut warnings)?;
+    let (library, settings, details, editor) = match base {
         Some(base) => (
             merge_frame(library, m.panels.library.as_ref(), &base.panels.library),
             merge_frame(settings, m.panels.settings.as_ref(), &base.panels.settings),
             merge_frame(details, m.panels.details.as_ref(), &base.panels.details),
+            merge_frame(editor, m.panels.editor.as_ref(), &base.panels.editor),
         ),
-        None => (library, settings, details),
+        None => (library, settings, details, editor),
     };
 
     let mut presets = Vec::new();
@@ -780,7 +789,7 @@ pub fn load_dir(dir: &Path, base: Option<&ResolvedSkin>) -> Result<ResolvedSkin,
         revision,
         colors,
         fonts,
-        panels: ResolvedPanels { main, library, settings, details },
+        panels: ResolvedPanels { main, library, settings, details, editor },
         visualizer: ResolvedVisualizer { presets },
         warnings,
     })
@@ -855,6 +864,9 @@ fn merge_frame(mut p: ResolvedFramePanel, raw: Option<&FramePanel>, base: &Resol
     }
     for (key, value) in &base.controls {
         p.controls.entry(key.clone()).or_insert_with(|| value.clone());
+    }
+    for (key, value) in &base.waveform {
+        p.waveform.entry(key.clone()).or_insert_with(|| value.clone());
     }
     p
 }

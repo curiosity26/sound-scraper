@@ -61,6 +61,9 @@ pub struct Panels {
     /// The details panel for the selected recording(s).
     #[serde(default)]
     pub details: Option<FramePanel>,
+    /// The track editor (waveform, splices, regions).
+    #[serde(default)]
+    pub editor: Option<FramePanel>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -201,6 +204,9 @@ pub struct FramePanel {
     /// Control colors: background, text, border, accent, button, buttonText.
     #[serde(default)]
     pub controls: Option<BTreeMap<String, String>>,
+    /// Track editor colors (see `WAVEFORM_COLORS`).
+    #[serde(default)]
+    pub waveform: Option<BTreeMap<String, String>>,
     /// The window title, drawn in the frame's top strip.
     #[serde(default)]
     pub title: Option<TitleDef>,
@@ -308,3 +314,16 @@ pub fn required_states(element: &str) -> &'static [&'static str] {
 pub const TABLE_COLORS: &[&str] =
     &["background", "alternate", "text", "selection", "selectionText", "header", "headerText", "grid"];
 pub const CONTROL_COLORS: &[&str] = &["background", "text", "border", "accent", "button", "buttonText"];
+pub const WAVEFORM_COLORS: &[&str] = &[
+    "background",
+    "wave",
+    "rms",
+    "center",
+    "ruler",
+    "rulerText",
+    "splice",
+    "spliceSelected",
+    "selection",
+    "deleted",
+    "playhead",
+];

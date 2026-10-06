@@ -37,7 +37,7 @@ as you type.
   "description": "One line for the skin picker.",
   "colors": { "accent": "#ffb24a" },
   "fonts": {},
-  "panels": { "main": {}, "library": {}, "details": {}, "settings": {} },
+  "panels": { "main": {}, "library": {}, "details": {}, "settings": {}, "editor": {} },
   "visualizer": { "presets": [] }
 }
 ```
@@ -208,7 +208,7 @@ through; the first is the default. `style` is one of `bars`, `scope`,
 fits the style. `grid` and `line` give the idle look. On the visualizer
 element, `style.pixelated: false` draws smooth curves for non-pixel skins.
 
-## Library, details and settings
+## Library, details, settings and editor
 
 These are resizable panels drawn with a **nine-slice frame**: `slice`
 (`[top, right, bottom, left]`) marks the corners that stay fixed while the
@@ -224,6 +224,7 @@ edges and middle stretch. Put the title strip in the top slice.
 | `table` | Library colors: background, alternate, text, selection, selectionText, header, headerText, grid |
 | `scrollbar` | `{ "image", "track", "thumb", "thumbSlice" }` |
 | `controls` | Form colors: background, text, border, accent, button, buttonText |
+| `waveform` | Track editor colors (`editor` only): background, wave, rms, center, ruler, rulerText, splice, spliceSelected, selection, deleted, playhead |
 
 ## Limits and safety
 
