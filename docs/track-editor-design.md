@@ -1,23 +1,31 @@
-# Sound Scraper: Track Editor Design v0.1
+# Sound Scraper: Track Editor Design v0.2
 
-Status: proposal, waiting for Alex's answers to the questions in §10.
+Status: proposal built on Alex's brief (2026-10-06). Waiting for answers to the questions in §10.
 
 ## 1. Goal
 
 A recording often holds more than one thing: an album streamed end to end, a
-radio show, a DJ set, a playlist. The track editor turns one recording into
-the tracks it contains:
+radio show, a playlist. The track editor turns one recording into the tracks
+it contains. Alex's brief:
 
-1. Open a recording and see its waveform.
-2. Find the track boundaries: automatically (silence between songs), by
-   hand (click, or tap a key while listening), or both.
-3. Name each track and fill its tags.
-4. Split: write one MP3 per track into the library, tagged and numbered.
+1. **Edit Track…** in the details panel's gear menu opens an **editor
+   panel** showing the recording's waveform.
+2. A **time ruler** across the top: drag in it to place **splice marks**.
+3. **Name each splice mark.** The name is the title *and* the file name of
+   the track that starts there.
+4. **Select regions and delete them** (an ad, a DJ talking, dead air).
+5. A **Find Tracks** button places splice marks automatically where tracks
+   begin.
+6. **Zoom** in and out for more or less precision, and a **snap to ruler**
+   toggle that snaps to an interval that follows the zoom.
+7. **Playback and scrubbing** while editing.
+8. Nothing changes until **Save**. Save asks, in an in-window modal (not a
+   system dialog), whether to keep the original: **Yes, keep it**, **No,
+   delete it**, **Cancel**.
+9. New tracks **inherit the original's ID3 tags except the title**.
 
-It is not a general audio editor. No effects rack, no multitrack mixing, no
-spectral repair. Removing a stretch (an ad, a DJ talking) and fades are
-in scope as later phases because they come up constantly when ripping
-streams.
+It is not a general audio editor: no effects rack, no multitrack mixing.
+Fades are a possible later addition.
 
 ## 2. What other editors do
 
@@ -69,98 +77,172 @@ Patterns worth copying:
 
 ### 4.1 Opening it
 
-- **Edit Tracks…** in the details panel's actions menu, and a double-click
-  on a recording with ⌥ (Alt). It opens a new docking panel, `editor`,
-  wide and resizable, snapped under the main panel by default.
+- **Edit Track…** in the details panel's gear menu (enabled when exactly
+  one recording is selected and nothing is recording). It opens a new
+  docking, resizable panel, `editor`, snapped under the main panel by
+  default.
 - One recording at a time. Opening the editor loads that recording into the
   player, so the main panel's Play, Stop and seek bar drive the editor's
-  playhead too. Pressing Record closes the editor (same rule as unloading
-  the player today).
+  playhead too. Pressing Record while the editor has unsaved changes shows
+  the same in-window modal style: "Discard edits and record?"
+- Closing the editor with unsaved changes asks **Save**, **Discard**,
+  **Cancel** in the same modal style. Unsaved edits are also kept as a
+  draft (§7.1), so a crash loses nothing.
 
 ### 4.2 Layout
 
 ```
 ┌ Editor: Spotify 2026-10-03 14-05 ─────────────────────────────── × ┐
 │ ▁▂▃▅▆▅▃▁▁▂▅▆▇▆▅▃▂▁   [===viewport===]   ▁▂▅▆▅▃▁▂▃▅▆▅▃▁    overview │
-│ 0:00      1:00      2:00      3:00      4:00      5:00       ruler │
-│    ▼1           ▼2                    ▼3                   markers │
-│ ▂▃▅▇█▇▅▃▂▃▅▇▇▅▃▂▁  ▂▅▇█▇▅▃▂▃▅▇▇▅▃▂▁▁ │  ▂▅▇█▇▅▃▂▃▅▇▇▅▃  waveform │
-│ ░░░ gap ░░░                   playhead ┘                           │
+│ ▼So What          ▼Freddie Freeloader       ▼Blue in Green          │
+│ 0:00 ╷ ╷ ╷ ╷ 1:00 ╷ ╷ ╷ ╷ 2:00 ╷ ╷ ╷ ╷ 3:00 ╷ ╷ ╷ ╷ 4:00      ruler │
+│ ▂▃▅▇█▇▅▃▂▃▅▇▇▅▃▂▁  ▂▅▇█▓▓▓▓▓▓▓▂▁▁ │  ▂▅▇█▇▅▃▂▃▅▇▇▅▃  waveform │
+│                    selection ┘     playhead ┘                      │
 ├────────────────────────────────────────────────────────────────────┤
-│ #  Title                 Artist            Start     Length        │
-│ 1  So What               Miles Davis       0:00.00   9:22.10       │
-│ 2  Freddie Freeloader    Miles Davis       9:24.03   9:46.50       │
-│ …                                                                  │
+│ #  Title (file name)         Start     Length                      │
+│ 1  So What                   0:00.00   9:22.10                     │
+│ 2  Freddie Freeloader        9:24.03   9:46.50                     │
 ├────────────────────────────────────────────────────────────────────┤
-│ [Find Tracks…]  [+ Marker]   Zoom − +  Fit      [Split into 9 ▸]  │
+│ ▶ ■  [Find Tracks…]  [Delete Region]  Snap ☑  Zoom − + Fit  [Save] │
 └────────────────────────────────────────────────────────────────────┘
 ```
 
 - **Overview strip:** the whole recording, always fitted, with the visible
-  window as a box you drag. Detected gaps are shaded.
-- **Ruler:** time labels that adapt to zoom (minutes down to milliseconds).
-  Dragging in the ruler scrubs (§4.5).
-- **Marker lane:** one flag per split, numbered, with the track title on
-  hover. Drag to move, double-click to rename the track that starts there,
-  select and press Delete to remove.
+  window as a box you drag. Deleted regions are hatched.
+- **Ruler:** time labels and ticks that adapt to zoom (minutes down to
+  milliseconds). This is where splices are made (§4.4). Splice flags sit
+  on the ruler with their names.
 - **Waveform:** min/max peaks per pixel column, with RMS drawn inside in a
   second shade (Audacity's look, readable for loud masters). Stereo is
-  drawn as one combined lane; a toggle shows L/R. Silence below the
-  detection threshold is tinted so gaps are visible at any zoom.
-- **Track list:** one row per track (the stretch between two markers),
-  editable title and artist, read-only start and length. Selecting a row
-  selects that stretch and zooms to it. Album, year, genre and cover come
-  from the recording's tags and apply to all tracks; they're edited in the
-  details panel as today.
+  one combined lane, with a toggle for L/R. Clicking moves the playhead;
+  dragging selects a region. Each splice continues as a thin line down
+  through the waveform.
+- **Track list:** one row per track (the stretch from one splice mark to
+  the next), with an editable title and read-only start and length. It's
+  a second place to name splices; selecting a row selects that track and
+  zooms to it.
+- **Save** is enabled once something has changed (§4.7).
 
 ### 4.3 Zoom and scroll
 
-- Zoom range: whole recording to about 1 pixel per 20 samples; past that
-  there is nothing useful to see in an MP3 edit (cuts are frame-sized,
-  §6).
+- Zoom range: the whole recording down to about 20 samples per pixel. Past
+  that there's nothing useful to see, since cuts are frame-sized (§6).
 - ⌘/Ctrl + scroll wheel or trackpad pinch zooms around the pointer; plain
-  scroll pans; ⌘/Ctrl+1 fits the recording, ⌘/Ctrl+E zooms to the selected
-  track or selection; + and − step.
-- While playing, the view pages to follow the playhead unless the user has
-  just scrolled away (resume following on the next play).
+  scroll pans; ⌘/Ctrl+0 fits the whole recording, ⌘/Ctrl+E zooms to the
+  selection or selected track; the − and + buttons and keys step by 2×.
+- While playing, the view pages to follow the playhead unless you've just
+  scrolled away; following resumes on the next play.
 
-### 4.4 Markers and snapping
+### 4.4 Splice marks
 
-- **Add:** M (or ⌘T / Ctrl+T, Fission's key) at the playhead, while stopped or playing. The
-  **+ Marker** button does the same. Clicking in the marker lane adds one
-  at the pointer.
-- **Move:** drag the flag; ← / → nudge the selected marker by one MP3 frame,
-  with Shift by one second.
-- **Delete:** select and press Delete/Backspace.
+- **Add:** click in the ruler, or drag in it and let go where you want it
+  (the flag follows the pointer, with a time readout). M (or ⌘T / Ctrl+T,
+  Fission's key) adds one at the playhead, also while playing, so you can
+  tap along while listening.
+- **Name:** a new splice opens its name field right away (Return to
+  accept, Esc to leave the default). Double-click a flag, or edit the row
+  in the track list, to rename later. The default name is "Track 2",
+  "Track 3", …; the start of the recording is an implicit first splice,
+  named after the original's title.
+- **The name is the track's title tag and its file name.** File names are
+  sanitized and de-duplicated with the library's existing rules
+  (" (2)").
+- **Move:** drag the flag. ← / → nudge the selected splice by one ruler
+  snap step (or one MP3 frame with snapping off); Shift for one second.
+- **Delete:** select the flag and press Delete/Backspace, or right-click ›
+  Remove.
 - **Jump:** Tab / Shift+Tab move the playhead to the next or previous
-  marker; Space plays and pauses; P plays two seconds either side of the
-  selected marker to check the cut.
-- **Snap targets, in order:** the middle (or end, see §5) of a detected
-  silence gap, the playhead, other markers. Snap distance is about 8
-  pixels. Hold ⌥/Alt while dragging to turn snapping off.
-- **Every marker lands on an MP3 frame boundary** (§6), so the flag snaps
-  in steps of 24 to 26 ms at deep zoom. That is shown, not hidden: at deep
-  zoom faint frame ticks appear in the ruler.
-- **Undo/redo** (⌘/Ctrl+Z, ⇧⌘Z / Ctrl+Y) for every marker, title and
-  detection change. Edits are plain data, so undo is a snapshot stack.
+  splice. P plays two seconds either side of the selected splice to check
+  the cut.
 
-### 4.5 Scrubbing
+### 4.5 Snap to ruler
 
-Two modes in other editors: *seek-scrub* (Audacity's Seek: play normally
-from wherever the pointer is) and *varispeed scrub* (tape-style, speed and
-direction follow the mouse). Phase 1 does neither; phase 2 adds
-seek-scrub: while dragging in the ruler, the player plays short snippets
-(about 80 ms) from the pointer position, restarting as it moves. This
-needs a "play snippet" command in the player but no varispeed resampling.
-Varispeed is not planned.
+- A **Snap** toggle in the toolbar (and the S key). When on, splices,
+  selection edges and the playhead snap to the ruler's current minor tick,
+  so the interval follows the zoom: e.g. 10 s when the whole hour is
+  visible, 1 s, 100 ms, 10 ms as you zoom in. The tick interval is shown
+  next to the toggle ("Snap 1 s").
+- Holding ⌥/Alt while dragging inverts snapping for that drag.
+- With snap on, things also snap to other splices, region edges and the
+  playhead within about 8 px (Audacity shows a guide line when that
+  happens; we do the same).
+- Underneath, every cut still lands on an MP3 frame (24 to 26 ms, §6).
+  That's finer than any ruler interval except the deepest zoom, where
+  faint frame ticks appear.
+
+### 4.6 Regions
+
+- Drag in the waveform to select a region; Shift-click extends it. The
+  selection shows its start, end and length, editable as text.
+- **Delete Region** (or Delete/Backspace with a region selected) removes
+  it. Nothing is cut yet: the region is hatched and skipped during
+  playback, and the ruler keeps the original timeline so splice positions
+  don't jump. Click a deleted region and choose **Restore** to undo it.
+- A deleted region that touches a splice or either end of the recording
+  just trims a track's start or end. One in the middle of a track joins
+  the audio either side (see §6 for what that means for MP3).
+- Space plays the selection when there is one, otherwise from the
+  playhead.
+
+### 4.7 Saving
+
+Edits are non-destructive until **Save** (⌘/Ctrl+S). Save:
+
+1. Shows the in-window modal (a sheet drawn inside the editor panel in the
+   skin's style, dimming the panel; keyboard: Return = the default,
+   Esc = Cancel):
+
+   ```
+   ┌─────────────────────────────────────────────┐
+   │ Keep the original recording?                │
+   │                                             │
+   │ Saving creates 9 tracks from                │
+   │ "Spotify 2026-10-03 14-05".                 │
+   │                                             │
+   │ [Cancel]  [No, delete it]  [Yes, keep it]   │
+   └─────────────────────────────────────────────┘
+   ```
+
+   **Yes, keep it** is the default button. "Delete" moves the original to
+   the Trash / Recycle Bin, the same as deleting from the library today,
+   so it can still be recovered.
+2. Writes every new track (progress shown in the editor), then trashes the
+   original if asked. If anything fails, the finished pieces are removed
+   and the original is left alone.
+3. Closes the editor and selects the new tracks in the library.
+
+With no splices and only deleted regions, Save produces one edited track
+(with the same title) and the modal asks the same question.
+
+**Tags.** Every new track gets a copy of the original's ID3 tags (artist,
+album, album artist, year, genre, comment, cover art, and any others)
+with the **title replaced by its splice name**. One question (§10): the
+track number. Copying it unchanged gives every track the same number;
+setting it to 1/N … N/N is probably what people expect for an album.
+
+### 4.8 Scrubbing and playback
+
+- Play/Pause (Space), Stop, and click-to-move-playhead, shared with the
+  main panel's transport.
+- **Scrubbing:** drag the playhead (its handle in the ruler) or hold ⌥/Alt
+  and drag in the waveform. Two kinds exist in other editors:
+  *seek-scrub*, which plays short snippets (about 80 ms) from wherever the
+  pointer is, and *tape-style scrub*, where speed and direction follow the
+  mouse (Audition, Audacity's newer Scrub). Seek-scrub is straightforward
+  with the current player (a "play snippet" command). Tape-style needs
+  variable-rate resampling and reverse playback in the player, which is a
+  bigger job. Plan: seek-scrub first, tape-style later if wanted (§10).
+- **Undo/redo** (⌘/Ctrl+Z, ⇧⌘Z / Ctrl+Y) covers splices, names, regions
+  and Find Tracks. Edits are plain data, so undo is a snapshot stack.
 
 ## 5. Finding tracks automatically
 
-**Find Tracks…** analyses the whole recording and proposes markers. It
-opens a small popover with a preset (Digital, Vinyl/Radio) and three sliders, with a live preview: proposed
-markers appear dashed and the gaps shaded as the sliders move, and
-**Apply** turns them into real markers (merging with existing ones; a
-proposal within 2 s of an existing marker is dropped).
+**Find Tracks…** analyses the whole recording and proposes splice marks,
+named "Track 2", "Track 3", … for you to rename. It opens a small popover
+with a preset (Digital, Vinyl/Radio) and three sliders, with a live
+preview: proposed splices appear dashed and the gaps shaded as the sliders
+move, and **Apply** turns them into real splices (merging with existing
+ones; a proposal within 2 s of an existing splice is dropped).
 
 | Setting | Default | Range | Why |
 |---|---|---|---|
@@ -187,7 +269,7 @@ How it works (Rust, `edit/detect.rs`):
 5. Analysis of an hour of audio should take a few seconds; it runs on a
    worker thread with progress in the popover.
 
-Later (phase 4), two smarter sources of boundaries:
+Later (phase 3), two smarter sources of boundaries:
 
 - **Album lookup:** search MusicBrainz by the recording's album and artist
   tags, fetch the track list with lengths, then place markers by fitting
@@ -251,11 +333,13 @@ details make it imperfect:
   runs at very roughly 50 to 100× real time, so an hour takes about a
   minute.
 
-**Recommendation: A by default, B only when the edit needs it.** Splitting
-and trimming the ends of tracks (everything in phases 1 and 2) uses lossless
-cuts. Fades, region deletion and normalising (phase 3) re-encode only the
-tracks they touch, and the UI says so ("Fades re-encode this track at 192
-kbps"). The **Split** sheet shows which method each track will use.
+**Recommendation: A by default, B only for the tracks that need it.**
+Splices, and deleted regions at a track's start or end, are lossless
+cuts. A region deleted from the *middle* of a track joins two stretches
+of audio; a lossless join risks a click at the seam (the bit reservoir
+again), so that one track is re-encoded at the recording's quality and the
+rest stay lossless. The editor marks such tracks in the track list ("re-encodes")
+so it's never a surprise. Fades, if they come later, work the same way.
 
 **Option C, worth deciding now:** keep a lossless copy while recording.
 The recorder could write FLAC beside the MP3 (about 450 MB per hour for
@@ -263,16 +347,7 @@ The recorder could write FLAC beside the MP3 (about 450 MB per hour for
 cut from it and encode each track once, sample-exact with no generation
 loss, then delete the FLAC after the split (or keep it, as a setting).
 It doubles the encoding work during recording and costs disk, but it
-makes every later edit perfect. See question 3.
-
-## Sources
-
-- Audacity: [keyboard shortcuts](https://support.audacityteam.org/basics/keyboard-shortcuts), [Label Sounds](https://manual.audacityteam.org/man/label_sounds.html), [Silence Finder](https://manual.audacityteam.org/man/silence_finder_setting_parameters.html), [boundary snap guides](https://manual.audacityteam.org/man/boundary_snap_guides.html), [splitting a recording into tracks](https://support.audacityteam.org/audio-editing/splitting-a-recording-into-separate-tracks)
-- Ocenaudio: [features](https://www.ocenaudio.com/features)
-- Audition: [markers](https://helpx.adobe.com/audition/using/markers.html), [Mark Audio discussion](https://community.adobe.com/t5/audition-discussions/placing-markers-at-specified-lengths-of-silence/m-p/10879546)
-- Fission: [manual](https://rogueamoeba.com/support/manuals/fission?print=true), [Macworld on Smart Split](https://www.macworld.com/article/182665/fission11.html), [TidBITS on lossless editing](https://tidbits.com/2006/09/25/fission-manipulates-audio-tracks-of-all-stripes/)
-- WaveLab [Auto Split](https://archive.steinberg.help/wavelab_pro/v12/en/wavelab/topics/auto_split/auto_split_dialog_audio_files_r.html); Sound Forge [Auto Region](https://cdn.borisfx.com/borisfx/Documentation/soundforge/2026/en/content/proonly/auto_region.htm); [mp3DirectCut](https://en.wikipedia.org/wiki/Mp3DirectCut)
-- MP3 cutting: Hydrogenaudio on [frame cuts](https://hydrogenaudio.org/index.php?msg=571374), [the bit reservoir](https://hydrogenaudio.org/index.php/topic,126893.0.html), [LAME delay and padding](https://hydrogenaudio.org/index.php/topic,61917.0.html)
+makes every later edit perfect. See question 4.
 
 ## 7. Architecture
 
@@ -294,8 +369,8 @@ New module tree in `crates/core/src/edit/`:
   *not* drawn here; React Native draws them on top so they are
   interactive and cheap to move.
 - **`detect.rs`:** §5.
-- **`edits.rs`: the edit list.** Markers (sample positions), per-track
-  title/artist, detection settings, gap handling. Plain data with serde;
+- **`edits.rs`: the edit list.** Splice marks (sample positions and
+  names), deleted regions, detection settings. Plain data with serde;
   JSON across the C ABI like the layout and skin APIs. Saved as a draft
   in the app's data folder, keyed by the recording's file name and
   renamed with it, so closing the editor never loses work and the MP3
@@ -303,12 +378,12 @@ New module tree in `crates/core/src/edit/`:
 - **`mp3cut.rs`:** frame-index the file with `mp3::scan` (extended to
   return per-frame offsets), map sample positions to frames, copy ranges,
   write the new LAME/Info tag (frame count, bytes, TOC, delay, padding).
-- **`split.rs`:** runs a split: for each track, cut (A) or encode (B),
-  write tags (album, album artist, year, genre and cover copied from the
-  source; title, artist, track n/N per track), write to `.part` then
-  rename, add to the library. All tracks are written before the original
-  is touched; on any error the finished pieces are removed and the
-  original is untouched.
+- **`split.rs`:** runs a save: for each track, cut (A) or encode (B),
+  copy the original's ID3 tag and replace the title (and the track number,
+  per §10), write to `.part` then rename, add to the library. All tracks
+  are written before the original is touched; on any error the finished
+  pieces are removed and the original is untouched. Then, if asked, the
+  original goes to the trash through the library's existing `trash`.
 
 C ABI additions, following the existing style (opaque handle, JSON in and
 out, callback for events): `ss_editor_open(recorder, path)` returning a
@@ -327,8 +402,10 @@ handle, `ss_editor_peaks_progress`, `ss_editor_render`,
   and interpolated.
 - Panel registered with the layout crate like library/details/settings,
   so it docks and snaps.
-- Native menu items: Edit › Add Marker, Find Tracks…, Split…; the usual
-  Undo/Redo.
+- `EditorModal.tsx`: the in-window modal (keep original, unsaved
+  changes), skinned, reusable by other panels later.
+- Native menu items: Edit › Add Splice, Delete Region, Find Tracks…,
+  Snap to Ruler, Save; the usual Undo/Redo.
 
 ### 7.3 Skins
 
@@ -342,12 +419,12 @@ skin, so existing skins (including Hi-Fi '74) work unchanged.
 
 - **No gaps** (gapless albums, crossfading players, DJ mixes): detection
   finds nothing and says so; markers are placed by hand. Album lookup
-  (phase 4) helps for albums.
+  (phase 3) helps for albums.
 - **Quiet passages inside songs:** the minimum track length guards
   against them; the dashed preview makes mistakes visible before Apply.
 - **Recordings with pauses:** the paused gap isn't in the file, so a pause
-  between songs leaves no silence. Live markers (phase 3) solve it: the
-  recorder can drop a marker at every resume.
+  between songs leaves no silence. A Mark button while recording (phase 3) solves it: the
+  recorder can drop a splice at every resume.
 - **VBR files:** the frame index handles them; the LAME tag's TOC is
   rebuilt per piece.
 - **Very long recordings** (several hours): peaks are about 1.5 MB per
@@ -360,49 +437,54 @@ skin, so existing skins (including Hi-Fi '74) work unchanged.
 
 ## 9. Phased plan
 
-**Phase 1: split by hand (the core loop).**
-- `peaks`, `waveform`, `edits`, `mp3cut`, `split` in Rust with unit tests
+**Phase 1: edit by hand, save (the core loop).** macOS.
+- Rust: `peaks`, `waveform`, `edits`, `mp3cut`, `split`, with unit tests
   (cut points, LAME tag fields, reservoir handling decoded back through
-  Symphonia and compared with the source samples).
-- Editor panel on macOS: waveform, ruler, zoom/scroll, playhead linked to
-  the player, markers (add at playhead, drag, delete, nudge, jump), track
-  list with titles, undo, lossless Split into tracks with tags.
-- Default skin `editor` panel.
+  Symphonia and compared with the source samples, tags copied except
+  title).
+- Editor panel from the gear menu: waveform, ruler, zoom and scroll, snap
+  to ruler, playhead linked to the player, splice marks (add in the
+  ruler or at the playhead, name, drag, delete, nudge, jump), track list,
+  undo.
+- Region select and delete, including middle-of-track deletion with
+  re-encode of that track.
+- Save with the keep-original modal; Default skin `editor` panel.
 
-**Phase 2: find tracks, comfort.**
-- Find Tracks with the three settings, dashed preview, Remove gaps.
-- Overview strip, snapping to gaps, seek-scrub, P to preview a cut,
-  frame ticks at deep zoom.
+**Phase 2: Find Tracks and scrubbing.**
+- Find Tracks with presets, the three settings and a dashed preview,
+  plus a **Remove gaps** option.
+- Seek-scrub, P to preview a cut, overview strip, frame ticks at deep
+  zoom.
 - Windows: the native waveform view and panel parity.
 
-**Phase 3: live markers and real edits.**
-- **Mark** button and key while recording (and optionally a marker at
-  every resume after a pause): markers recorded with the file and shown
-  when it's opened in the editor.
-- Auto-split while recording (Audio Hijack style): optional, using the
-  same detector live.
-- Delete a stretch (an ad, talk), fade in/out per track, all with
-  re-encode for the affected tracks; export as a single file with ID3
-  chapters as an alternative to separate files.
-
-**Phase 4: smarter boundaries (optional).**
-- MusicBrainz album lookup to place and name tracks.
-- Windows Now Playing track-change markers.
-- Lossless sidecar while recording, if chosen in question 3.
+**Phase 3: optional extras.**
+- Tape-style scrubbing (if wanted, §10).
+- A Mark button while recording that drops splices into the new
+  recording; optional split-on-silence during recording (Audio Hijack
+  style).
+- Fades in/out per track.
+- Album lookup (MusicBrainz) or fingerprinting (AcoustID) to name tracks;
+  Windows Now Playing track changes as splices.
+- A lossless FLAC copy while recording, if chosen in §10.
 
 ## 10. Questions for Alex
 
-1. **The original after splitting:** keep it in the library (recommended,
-   so a bad split costs nothing), or move it to the trash?
-2. **Cutting method:** lossless frame cuts with re-encode only for fades
-   and deletions (recommended), or always re-encode for sample-exact cuts
-   everywhere?
-3. **Lossless copy while recording (§6, option C):** no (recommended for
-   now, revisit in phase 4), or yes, record FLAC beside the MP3 so every
-   edit is perfect?
-4. **Where the editor lives:** its own docking panel (recommended), or
-   inside the library panel?
-5. **Split file names:** "Artist - Title" (recommended), "NN Title", or
-   "Recording name NN"?
-6. **Live Mark button while recording:** phase 3 as planned (recommended),
-   or pull it into phase 1 since it's small and useful for radio?
+1. **Middle-of-track region deletes:** re-encode just that track
+   (recommended, no click at the seam), or keep everything lossless and
+   accept a possible tiny click?
+2. **Track numbers on new tracks:** set them to 1/N … N/N (recommended),
+   or copy the original's unchanged like the other tags?
+3. **Scrubbing:** seek-scrub first and tape-style later (recommended), or
+   tape-style from the start?
+4. **Lossless copy while recording (§6, option C):** no for now
+   (recommended), or record FLAC beside the MP3 so every edit is perfect
+   (about 450 MB per hour)?
+
+## Sources
+
+- Audacity: [keyboard shortcuts](https://support.audacityteam.org/basics/keyboard-shortcuts), [Label Sounds](https://manual.audacityteam.org/man/label_sounds.html), [Silence Finder](https://manual.audacityteam.org/man/silence_finder_setting_parameters.html), [boundary snap guides](https://manual.audacityteam.org/man/boundary_snap_guides.html), [splitting a recording into tracks](https://support.audacityteam.org/audio-editing/splitting-a-recording-into-separate-tracks)
+- Ocenaudio: [features](https://www.ocenaudio.com/features)
+- Audition: [markers](https://helpx.adobe.com/audition/using/markers.html), [Mark Audio discussion](https://community.adobe.com/t5/audition-discussions/placing-markers-at-specified-lengths-of-silence/m-p/10879546)
+- Fission: [manual](https://rogueamoeba.com/support/manuals/fission?print=true), [Macworld on Smart Split](https://www.macworld.com/article/182665/fission11.html), [TidBITS on lossless editing](https://tidbits.com/2006/09/25/fission-manipulates-audio-tracks-of-all-stripes/)
+- WaveLab [Auto Split](https://archive.steinberg.help/wavelab_pro/v12/en/wavelab/topics/auto_split/auto_split_dialog_audio_files_r.html); Sound Forge [Auto Region](https://cdn.borisfx.com/borisfx/Documentation/soundforge/2026/en/content/proonly/auto_region.htm); [mp3DirectCut](https://en.wikipedia.org/wiki/Mp3DirectCut)
+- MP3 cutting: Hydrogenaudio on [frame cuts](https://hydrogenaudio.org/index.php?msg=571374), [the bit reservoir](https://hydrogenaudio.org/index.php/topic,126893.0.html), [LAME delay and padding](https://hydrogenaudio.org/index.php/topic,61917.0.html)
