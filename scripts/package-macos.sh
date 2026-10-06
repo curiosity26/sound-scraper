@@ -96,7 +96,7 @@ NOTE="signed by $IDENTITY"
 if [ "$DISTRIBUTION" = 1 ] && [ "${NOTARIZE:-1}" != 0 ]; then
   echo "Notarizing $DMG (usually a few minutes)..."
   OUT=$(xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait 2>&1) || true
-  echo "$OUT" | grep -E "^\s*(id|status):"
+  echo "$OUT" | grep -E "^\s*(id|status):" | awk '!seen[$0]++'
   if ! echo "$OUT" | grep -q "status: Accepted"; then
     ID=$(echo "$OUT" | awk '/^ *id:/{print $2; exit}')
     [ -n "$ID" ] && xcrun notarytool log "$ID" --keychain-profile "$NOTARY_PROFILE" >&2
