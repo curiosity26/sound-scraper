@@ -38,6 +38,9 @@ pub struct Region {
 #[derive(Debug, Clone, PartialEq)]
 pub struct TrackPlan {
     pub name: String,
+    /// Where the track starts in the original (its splice, or 0), before
+    /// any deleted stretch at its start.
+    pub start: u64,
     pub segments: Vec<(u64, u64)>,
 }
 
@@ -99,6 +102,7 @@ impl EditList {
             if !segments.is_empty() {
                 let name = name.trim();
                 tracks.push(TrackPlan {
+                    start,
                     name: if name.is_empty() { format!("Track {}", tracks.len() + 1) } else { name.to_string() },
                     segments,
                 });

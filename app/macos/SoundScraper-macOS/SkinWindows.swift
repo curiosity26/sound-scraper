@@ -123,6 +123,7 @@ final class WindowController: NSObject, NSWindowDelegate {
     "library": ("SoundScraperLibrary", "Library", NSSize(width: 840, height: 420)),
     "settings": ("SoundScraperSettings", "Settings", NSSize(width: 460, height: 560)),
     "details": ("SoundScraperDetails", "Details", NSSize(width: 300, height: 480)),
+    "editor": ("SoundScraperEditor", "Editor", NSSize(width: 860, height: 340)),
   ]
 
   // MARK: Skin files
@@ -172,8 +173,10 @@ final class WindowController: NSObject, NSWindowDelegate {
     }
     window.makeKeyAndOrderFront(nil)
     main = window
-    // Details shows the selection, which isn't kept between launches.
-    for name in Self.panelSpecs.keys.sorted() where name != "details" && (saved[name]?["visible"] as? Bool) == true {
+    // Details shows the selection and the editor a recording, neither kept
+    // between launches.
+    for name in Self.panelSpecs.keys.sorted()
+    where name != "details" && name != "editor" && (saved[name]?["visible"] as? Bool) == true {
       setPanel(name, visible: true)
     }
     constrainToScreens()
@@ -322,7 +325,8 @@ final class WindowController: NSObject, NSWindowDelegate {
       window.setFrame(toAppKit(NSRect(x: x, y: y, width: w, height: h)), display: false)
     } else {
       // First time: the library below the main panel, settings beside it,
-      // details beside the library (as tall as it).
+      // details beside the library (as tall as it), the editor below the
+      // library (or the main panel).
       let m = toTopLeft(main.frame)
       var frame = NSRect(origin: NSPoint(x: m.maxX, y: m.minY), size: spec.size)
       if name == "library" {
@@ -332,6 +336,9 @@ final class WindowController: NSObject, NSWindowDelegate {
           let l = toTopLeft(library.frame)
           frame = NSRect(x: l.maxX, y: l.minY, width: spec.size.width, height: l.height)
         }
+      } else if name == "editor" {
+        let above = panels["library"].flatMap { $0.isVisible ? toTopLeft($0.frame) : nil } ?? m
+        frame.origin = NSPoint(x: above.minX, y: above.maxY)
       }
       window.setFrame(toAppKit(frame), display: false)
     }

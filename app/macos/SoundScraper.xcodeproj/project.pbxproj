@@ -13,6 +13,8 @@
 		75E71F02484E2771737FCBC9 /* SSVisualizerView.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1D96829639D2D0C6BDE6B2E9 /* SSVisualizerView.mm */; };
 		7DA2F8BAA33E2107FB6F3B2F /* libmp3lame.0.dylib in Embed LAME (LGPL) */ = {isa = PBXBuildFile; fileRef = 7CE960E07A17729A1088F365 /* libmp3lame.0.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		947FFCBE3A77FD0F31586C1A /* RCTSoundScraperSkins.mm in Sources */ = {isa = PBXBuildFile; fileRef = 56FA495BE7C653BE46B56DAF /* RCTSoundScraperSkins.mm */; };
+		A1E0000000000000000000B1 /* RCTSoundScraperEditor.mm in Sources */ = {isa = PBXBuildFile; fileRef = A1E0000000000000000000F1 /* RCTSoundScraperEditor.mm */; };
+		A1E0000000000000000000B2 /* SSWaveformView.mm in Sources */ = {isa = PBXBuildFile; fileRef = A1E0000000000000000000F2 /* SSWaveformView.mm */; };
 		D57C0543DCA2748EE47094F0 /* SkinWindows.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD7DFE5FE4ACD6635EC0DC59 /* SkinWindows.swift */; };
 		F6AC4F5485CDFD084586FDC1 /* libPods-SoundScraper-macOS.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 0611457090C7612CA6A5F3B2 /* libPods-SoundScraper-macOS.a */; };
 		FA7DD333D6844B22CA71C689 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 79E74B956427CCFF212B2D96 /* PrivacyInfo.xcprivacy */; };
@@ -49,6 +51,9 @@
 		79E74B956427CCFF212B2D96 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		7CE960E07A17729A1088F365 /* libmp3lame.0.dylib */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = "compiled.mach-o.dylib"; name = libmp3lame.0.dylib; path = ../../core/target/apple/libmp3lame.0.dylib; sourceTree = SOURCE_ROOT; };
 		9C815E70E28E16317FD7C541 /* Pods-SoundScraper-macOS.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SoundScraper-macOS.debug.xcconfig"; path = "Target Support Files/Pods-SoundScraper-macOS/Pods-SoundScraper-macOS.debug.xcconfig"; sourceTree = "<group>"; };
+		A1E0000000000000000000F1 /* RCTSoundScraperEditor.mm */ = {isa = PBXFileReference; includeInIndex = 1; path = RCTSoundScraperEditor.mm; sourceTree = "<group>"; };
+		A1E0000000000000000000F2 /* SSWaveformView.mm */ = {isa = PBXFileReference; includeInIndex = 1; path = SSWaveformView.mm; sourceTree = "<group>"; };
+		A1E0000000000000000000F3 /* RCTSoundScraperEditor.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = RCTSoundScraperEditor.h; sourceTree = "<group>"; };
 		AF2788C4B7C1A4DEEEE2FC8D /* RCTSoundScraper.mm */ = {isa = PBXFileReference; includeInIndex = 1; path = RCTSoundScraper.mm; sourceTree = "<group>"; };
 		CD7DFE5FE4ACD6635EC0DC59 /* SkinWindows.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SkinWindows.swift; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
@@ -105,6 +110,9 @@
 				CD7DFE5FE4ACD6635EC0DC59 /* SkinWindows.swift */,
 				63681DA7C2EB0E182AE69100 /* RCTSoundScraperSkins.h */,
 				56FA495BE7C653BE46B56DAF /* RCTSoundScraperSkins.mm */,
+				A1E0000000000000000000F3 /* RCTSoundScraperEditor.h */,
+				A1E0000000000000000000F1 /* RCTSoundScraperEditor.mm */,
+				A1E0000000000000000000F2 /* SSWaveformView.mm */,
 				1D96829639D2D0C6BDE6B2E9 /* SSVisualizerView.mm */,
 				0E525FD5619867D2EEFF91BA /* SoundScraper-Bridging-Header.h */,
 			);
@@ -378,6 +386,8 @@
 				23A745E82D93E140EF816F07 /* RCTSoundScraper.mm in Sources */,
 				D57C0543DCA2748EE47094F0 /* SkinWindows.swift in Sources */,
 				947FFCBE3A77FD0F31586C1A /* RCTSoundScraperSkins.mm in Sources */,
+				A1E0000000000000000000B1 /* RCTSoundScraperEditor.mm in Sources */,
+				A1E0000000000000000000B2 /* SSWaveformView.mm in Sources */,
 				75E71F02484E2771737FCBC9 /* SSVisualizerView.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

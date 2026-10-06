@@ -1004,8 +1004,9 @@ bool ss_editor_render(uint64_t id,
 /*
  The tracks an edit list (JSON, see `crate::edit::edits::EditList`) makes
  of the editor's recording: `[{"name","startMs","durationMs","reencode"}]`,
- where `startMs` is in the original's timeline and `reencode` means the
- track has a deleted stretch inside it. NULL until the waveform is ready.
+ where `startMs` is where the track starts in the original (its splice,
+ or 0), `durationMs` what's left of it, and `reencode` means the track has
+ a deleted stretch inside it. NULL until the waveform is ready.
  Free with `ss_string_free`.
 
  # Safety

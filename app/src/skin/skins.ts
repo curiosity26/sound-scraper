@@ -83,6 +83,14 @@ function shared<T>(initial: T) {
 /** The last note or error in Settings › Skin. */
 export const skinMessages = shared<{ note?: string; error?: string }>({});
 
+/** The recording open in the track editor (its window shows it). */
+export const editorTarget = shared<{
+  fileName: string;
+  path: string;
+  title: string;
+  durationMs: number;
+} | null>(null);
+
 /** The settings window's tab. */
 export const settingsTab = shared<'settings' | 'skin' | 'about'>('settings');
 
@@ -130,7 +138,7 @@ export async function openSkinFiles(paths: string[]): Promise<void> {
 const flat = (rects: Rect[]) => rects.flatMap(r => r);
 
 /** The side panels (the main panel is "main"). */
-export type PanelName = 'library' | 'settings' | 'details';
+export type PanelName = 'library' | 'settings' | 'details' | 'editor';
 
 export const windows = {
   setMainLayout: (

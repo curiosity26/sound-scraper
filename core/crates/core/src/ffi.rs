@@ -1598,8 +1598,9 @@ pub unsafe extern "C" fn ss_editor_render(
 
 /// The tracks an edit list (JSON, see `crate::edit::edits::EditList`) makes
 /// of the editor's recording: `[{"name","startMs","durationMs","reencode"}]`,
-/// where `startMs` is in the original's timeline and `reencode` means the
-/// track has a deleted stretch inside it. NULL until the waveform is ready.
+/// where `startMs` is where the track starts in the original (its splice,
+/// or 0), `durationMs` what's left of it, and `reencode` means the track has
+/// a deleted stretch inside it. NULL until the waveform is ready.
 /// Free with `ss_string_free`.
 ///
 /// # Safety
@@ -1618,7 +1619,7 @@ pub unsafe extern "C" fn ss_editor_tracks(id: u64, edits_json: *const c_char) ->
             .map(|t| {
                 serde_json::json!({
                     "name": t.name,
-                    "startMs": ms(t.segments[0].0),
+                    "startMs": ms(t.start),
                     "durationMs": ms(t.frames()),
                     "reencode": t.segments.len() > 1,
                 })

@@ -58,7 +58,8 @@
     "ios": {
       "modulesProvider": {
         "SoundScraper": "RCTSoundScraper",
-        "SoundScraperSkins": "RCTSoundScraperSkins"
+        "SoundScraperSkins": "RCTSoundScraperSkins",
+        "SoundScraperEditor": "RCTSoundScraperEditor"
       }
     },
     "windows": {

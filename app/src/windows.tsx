@@ -6,6 +6,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AboutPanel } from './AboutPanel';
 import { safeSettings } from './appHelpers';
 import { DetailsPane } from './DetailsPane';
+import { EditorPanel } from './EditorPanel';
 import { LibraryScreen, refreshLibraryViews } from './LibraryScreen';
 import { SettingsPanel } from './SettingsPanel';
 import { playback } from './playback';
@@ -16,6 +17,7 @@ import { SkinProvider, useSkin } from './skin/SkinProvider';
 import { SkinScale } from './skin/SkinImage';
 import {
   doubleSizeStore,
+  editorTarget,
   isFolderSkin,
   openSkinFiles,
   settingsTab,
@@ -126,7 +128,7 @@ function chosenFolder(): string | null {
 }
 
 /** Text color and whether the panel is dark, from the skin's controls. */
-function usePanelText(panel: 'library' | 'settings' | 'details') {
+function usePanelText(panel: 'library' | 'settings' | 'details' | 'editor') {
   const skin = useSkin();
   const c = skin.panels[panel].controls;
   return {
@@ -281,6 +283,68 @@ export function DetailsApp(): React.JSX.Element {
         onMenu={count > 0 ? (x, y) => menuRef.current?.(x, y) : undefined}
       >
         <DetailsContent menuRef={menuRef} />
+      </SkinPanelFrame>
+    </Skinned>
+  );
+}
+
+function EditorContent() {
+  const { fg } = usePanelText('editor');
+  const skin = useSkin();
+  const [target, setTarget] = useState(editorTarget.get);
+  useEffect(() => editorTarget.subscribe(setTarget), []);
+  if (!target) {
+    return (
+      <View style={styles.content}>
+        <Text style={[styles.message, fg]}>
+          Choose Edit Track… in a recording's details to edit it here.
+        </Text>
+      </View>
+    );
+  }
+  return (
+    <View style={styles.content}>
+      <EditorPanel
+        key={target.path}
+        target={target}
+        colors={skin.panels.editor.waveform}
+        onSaved={(files, keptOriginal) => {
+          if (!keptOriginal && playback.get().path === target.path) {
+            playback.clear();
+          }
+          refreshLibraryViews();
+          selection.set(files.slice(0, 1));
+          windows.setPanelVisible('editor', false);
+          editorTarget.set(null);
+        }}
+      />
+    </View>
+  );
+}
+
+/** The track editor window: the recording chosen with Edit Track…. */
+export function EditorApp(): React.JSX.Element {
+  const [title, setTitle] = useState(editorTarget.get()?.title);
+  useEffect(() => {
+    const unsubscribe = editorTarget.subscribe(t => setTitle(t?.title));
+    const subscription = windows.onEvent(e => {
+      // Closing the window closes the recording (its edits stay a draft).
+      if (e.window === 'editor' && e.event === 'hidden') {
+        editorTarget.set(null);
+      }
+    });
+    return () => {
+      unsubscribe();
+      subscription.remove();
+    };
+  }, []);
+  return (
+    <Skinned>
+      <SkinPanelFrame
+        panel="editor"
+        title={title ? `Editor: ${title}` : 'Editor'}
+      >
+        <EditorContent />
       </SkinPanelFrame>
     </Skinned>
   );

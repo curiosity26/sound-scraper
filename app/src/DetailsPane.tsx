@@ -20,7 +20,9 @@ import {
   formatDuration,
   formatSize,
 } from './libraryModel';
+import { editorAvailable } from './native/editor';
 import { library, type Recording, type Tags } from './native/SoundScraper';
+import { editorTarget, skinsAvailable, windows } from './skin/skins';
 import { usePanelStyles } from './panelTheme';
 import {
   buildEdit,
@@ -207,7 +209,24 @@ export function DetailsPane(props: Props): React.JSX.Element {
     );
   };
 
+  const editTrack = () => {
+    const r = recordings[0];
+    if (!r) {
+      return;
+    }
+    editorTarget.set({
+      fileName: r.fileName,
+      path: r.path,
+      title: displayName(r),
+      durationMs: r.durationMs,
+    });
+    windows.setPanelVisible('editor', true);
+  };
+
   const actions: Array<{ label: string; run: () => void }> = [
+    ...(single && editorAvailable && skinsAvailable && recordings[0]
+      ? [{ label: 'Edit Track…', run: editTrack }]
+      : []),
     ...(single
       ? [{ label: REVEAL_LABEL, run: () => library.reveal(fileNames[0]) }]
       : []),

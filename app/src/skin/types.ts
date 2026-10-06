@@ -97,6 +97,8 @@ export type FramePanel = {
     thumbSlice: [number, number, number, number] | null;
   } | null;
   controls: Record<string, string>;
+  /** Track editor colors (the editor panel). */
+  waveform: Record<string, string>;
   title: {
     font: string | null;
     offset: [number, number];
@@ -137,6 +139,7 @@ export type Skin = {
     library: FramePanel;
     settings: FramePanel;
     details: FramePanel;
+    editor: FramePanel;
   };
   visualizer: { presets: Array<Record<string, unknown>> };
   warnings: string[];
