@@ -1524,10 +1524,11 @@ fn main() {
     // Label tape has capitals only (lowercase text maps onto them).
     let dymo_chars: String = chars.chars().filter(|c| !c.is_lowercase()).collect();
     font_sheet(&dir, "font-dymo", &dymo_chars, (8, 12), 16, |c, x, y, ch| dymo_glyph(c, x + 1.0, y + 2.0, ch));
-    font_sheet(&dir, "font-label", &chars, (6, 8), 16, |c, x, y, ch| {
+    // Cells padded so strokes never spill into the next glyph's cell.
+    font_sheet(&dir, "font-label", &chars, (8, 12), 16, |c, x, y, ch| {
         let s = ch.to_string();
-        blocks(c, x, y + 0.5, &s, 1.0, ENGRAVE_LIGHT);
-        blocks(c, x, y, &s, 1.0, ENGRAVE);
+        blocks(c, x + 1.0, y + 2.4, &s, 1.15, ENGRAVE_LIGHT);
+        blocks(c, x + 1.0, y + 2.0, &s, 1.15, ENGRAVE);
     });
     let flip_chars = "0123456789:.- ";
     font_sheet(&dir, "flip", flip_chars, (18, 30), 14, |c, x, y, ch| flip_card(c, x, y, 18.0, 30.0, ch));
@@ -1647,7 +1648,7 @@ fn main() {
             "minSize": min,
             "resizable": true,
             "frame": { "image": "frame.png", "slice": [24, 8, 8, 8] },
-            "title": { "font": "label", "offset": [14, 9], "background": "#0000" },
+            "title": { "font": "label", "offset": [14, 6], "background": "#0000" },
             "close": { "offset": [12, 7], "size": [14, 10], "sprite": sprite(&close) },
             "grip": [14, 14],
             "controls": controls.clone()
@@ -1671,7 +1672,7 @@ fn main() {
         "id": "com.alexboyce.soundscraper.hifi74",
         "name": "Hi-Fi '74",
         "author": "Sound Scraper",
-        "version": "1.2",
+        "version": "1.3",
         "description": "A 1970s stereo receiver: brushed aluminum, screwed-on black modules, an enamel nameplate, a flip-card clock, pilot lamps, label tape, a phosphor scope and needle VU meters.",
         "colors": {
             "background": "#c9c8c2",
@@ -1691,7 +1692,7 @@ fn main() {
         },
         "fonts": {
             "dymo": { "sprite": "font-dymo.png", "glyphs": dymo_chars, "cell": [8, 12] },
-            "label": { "sprite": "font-label.png", "glyphs": chars.clone(), "cell": [6, 8] },
+            "label": { "sprite": "font-label.png", "glyphs": chars.clone(), "cell": [8, 12] },
             "flip": { "sprite": "flip.png", "glyphs": flip_chars, "cell": [18, 30] },
             "flipSmall": { "sprite": "flip-small.png", "glyphs": flip_chars, "cell": [8, 12] }
         },

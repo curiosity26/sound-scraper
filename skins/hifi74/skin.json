@@ -45,8 +45,8 @@
     },
     "label": {
       "cell": [
-        6,
-        8
+        8,
+        12
       ],
       "glyphs": " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,:;!?'\"-+/()[]&#%@*_<>=$~|●▶■⏸♪▼",
       "sprite": "font-label.png"
@@ -134,7 +134,7 @@
         "font": "label",
         "offset": [
           14,
-          9
+          6
         ]
       }
     },
@@ -224,7 +224,7 @@
         "font": "label",
         "offset": [
           14,
-          9
+          6
         ]
       }
     },
@@ -946,12 +946,12 @@
         "font": "label",
         "offset": [
           14,
-          9
+          6
         ]
       }
     }
   },
-  "version": "1.2",
+  "version": "1.3",
   "visualizer": {
     "presets": [
       {
