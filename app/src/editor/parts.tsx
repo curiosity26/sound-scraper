@@ -5,6 +5,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   type GestureResponderEvent,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -23,6 +24,20 @@ import { type EditorTheme, trackColor, withAlpha } from './theme';
 export const SSWaveformView = WaveformNative;
 
 export const OVERVIEW = 30;
+
+/**
+ * React Native Windows mis-centres a single-line text box's text (it lands
+ * in the bottom half and is clipped), but top-aligns a multiline one: there,
+ * the name fields are multiline boxes that still submit on Enter.
+ */
+const SINGLE_LINE =
+  Platform.OS === 'windows'
+    ? {
+        multiline: true,
+        numberOfLines: 1,
+        submitBehavior: 'blurAndSubmit' as const,
+      }
+    : {};
 
 /** "1.5 s", "10 s", "2 min", "300 ms". */
 export function formatStep(ms: number): string {
@@ -266,6 +281,7 @@ function TrackName(props: {
   };
   return (
     <TextInput
+      {...SINGLE_LINE}
       style={[styles.colName, styles.nameInput, { color: props.th.text }]}
       value={text}
       onChangeText={setText}
@@ -388,6 +404,7 @@ export function NameField(props: {
   return (
     <View style={[styles.nameField, { left: props.left, top: props.top }]}>
       <TextInput
+        {...SINGLE_LINE}
         testID="editor-slice-name"
         autoFocus
         selectTextOnFocus
@@ -548,7 +565,7 @@ const styles = StyleSheet.create({
   // adds its own and clips the text in these short rows.
   nameInput: {
     height: 20,
-    paddingTop: 0,
+    paddingTop: Platform.OS === 'windows' ? 2 : 0,
     paddingBottom: 0,
     paddingHorizontal: 2,
     fontSize: 12,
@@ -560,7 +577,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 4,
     fontSize: 12,
-    paddingTop: 0,
+    paddingTop: Platform.OS === 'windows' ? 2 : 0,
     paddingBottom: 0,
     paddingHorizontal: 5,
     textAlignVertical: 'center',
