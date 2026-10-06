@@ -114,6 +114,8 @@ export type Settings = {
   skin?: string | null;
   /** Draw the skinned main panel at twice its size. */
   doubleSize?: boolean;
+  /** Drop silence before the first and after the last sound (default on). */
+  trimSilence?: boolean;
 };
 
 export const settings = {
@@ -130,6 +132,7 @@ export const settings = {
         lastSource: value.lastSource,
         skin: value.skin ?? null,
         doubleSize: value.doubleSize ?? false,
+        trimSilence: value.trimSilence ?? true,
       }),
     ),
   pickFolder: (): Promise<string | null> => NativeSoundScraper.pickFolder(),

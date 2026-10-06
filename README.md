@@ -46,6 +46,7 @@ The app's RecordBar records the selected source to MP3 (192 kbps CBR, at the dev
 - **Record** creates `~/Music/Sound Scraper/<Source> YYYY-MM-DD HH-MM.mp3.part` and starts encoding on its own thread. A bounded queue sits between capture and the encoder, so a slow disk drops audio instead of blocking the audio callback.
 - **Pause** keeps the capture, encoder and file open and drops incoming audio. Resuming continues the same file, so the gap is simply absent, and elapsed time excludes paused time.
 - **Stop** flushes LAME, writes the Xing/LAME header (correct duration and seeking), writes ID3v2.4 tags (title = file name, recording date, encoder; "Recorded from <App>" as the comment for app sources) and renames `.part` to `.mp3`.
+- **Trim silence** (on by default): silence below -60 dBFS before the first and after the last sound is left out, keeping 100 ms on each end. Quiet stretches in the middle are kept. A recording that is only silence leaves no file.
 - **Crash recovery:** on launch, leftover `.part` files have any truncated final frame trimmed, get an "Info" duration header and tags, and are renamed to `.mp3`.
 - If no audio arrives within 3 s (on macOS, usually a missing permission), the recorder emits a warning event.
 
@@ -86,6 +87,7 @@ C API: `ss_library_read_tags`/`ss_tags_free` and `ss_library_write_tags` (an `Ss
 
 - **Recordings folder:** a native folder picker, or "Use default" for `~/Music/Sound Scraper`. The library switches to the new folder right away (its index is reset).
 - **MP3 quality:** CBR 128/192/256/320 kbps or LAME VBR V0/V2 (Xing header, correct duration). It applies from the next recording.
+- **Trim silence:** on or off; applies from the next recording.
 - **Default ID3 version:** 2.4 or 2.3, the tag editor's starting choice.
 - **Last capture source:** remembered by bundle ID or executable path and re-selected at launch if that app has audio.
 

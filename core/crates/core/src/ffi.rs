@@ -323,7 +323,7 @@ pub unsafe extern "C" fn ss_recorder_start(recorder: *mut SsRecorder, app_pid: u
         let mut player = handle.player.lock().unwrap_or_else(|e| e.into_inner());
         player.unload();
         let s = settings::load();
-        r.set_options(recorder::RecorderOptions { dir: s.recordings_dir(), quality: s.quality, tag_version: s.tag_version() });
+        r.set_options(recorder::RecorderOptions { dir: s.recordings_dir(), quality: s.quality, tag_version: s.tag_version(), trim_silence: s.trim_silence });
         r.start(sources::source_for_pid((app_pid != 0).then_some(app_pid)))
     })
 }
@@ -1065,7 +1065,8 @@ pub unsafe extern "C" fn ss_library_write_tags(
 /// The settings as JSON (see core/crates/core/src/settings.rs):
 /// `{"recordingsDir": string|null, "quality": "cbr128"|"cbr192"|"cbr256"|
 /// "cbr320"|"vbr0"|"vbr2", "id3Version": "2.4"|"2.3", "lastSource":
-/// null|{"kind":"system"}|{"kind":"app","id":string|null,"name":string}}`,
+/// null|{"kind":"system"}|{"kind":"app","id":string|null,"name":string},
+/// "trimSilence": bool}` (and the skin settings),
 /// plus `"effectiveRecordingsDir"`. Free with `ss_string_free`.
 #[unsafe(no_mangle)]
 pub extern "C" fn ss_settings_get() -> *mut c_char {

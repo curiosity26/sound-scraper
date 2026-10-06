@@ -12,6 +12,7 @@ pub mod settings;
 pub mod skins;
 pub mod sources;
 pub mod tags;
+pub mod trim;
 
 pub use recorder::{Recorder, RecorderEvent, RecorderState};
 

@@ -26,6 +26,11 @@
 #define SS_TAG_COMMENT (1 << 7)
 
 /*
+ Samples at or below this level (-60 dBFS) count as silence.
+ */
+#define THRESHOLD 0.001
+
+/*
  Recorder state as seen from C.
  */
 typedef enum SsRecorderState {
@@ -672,7 +677,8 @@ enum SsStatus ss_library_write_tags(struct SsLibrary *library,
  The settings as JSON (see core/crates/core/src/settings.rs):
  `{"recordingsDir": string|null, "quality": "cbr128"|"cbr192"|"cbr256"|
  "cbr320"|"vbr0"|"vbr2", "id3Version": "2.4"|"2.3", "lastSource":
- null|{"kind":"system"}|{"kind":"app","id":string|null,"name":string}}`,
+ null|{"kind":"system"}|{"kind":"app","id":string|null,"name":string},
+ "trimSilence": bool}` (and the skin settings),
  plus `"effectiveRecordingsDir"`. Free with `ss_string_free`.
  */
 char *ss_settings_get(void);

@@ -97,6 +97,22 @@ export function SettingsPanel(props: Props): React.JSX.Element {
           />
         ))}
 
+        <Text style={[styles.section, textStyle]}>Silence</Text>
+        <Pressable
+          onPress={() => save({ trimSilence: current.trimSilence === false })}
+          style={styles.choice}
+          testID="trim-silence"
+        >
+          <Text style={[styles.choiceLabel, textStyle]}>
+            {current.trimSilence !== false ? '☑ ' : '☐ '}
+            Trim silence
+          </Text>
+          <Text style={[styles.choiceDetail, textStyle]}>
+            Cuts the quiet before the first and after the last sound of a
+            recording · default
+          </Text>
+        </Pressable>
+
         <Text style={[styles.section, textStyle]}>Tags</Text>
         <Choice
           selected={current.id3Version === '2.4'}

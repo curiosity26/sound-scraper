@@ -34,6 +34,7 @@ use crate::{
     settings::Quality,
     sources,
     tags::TagVersion,
+    trim::SilenceTrimmer,
 };
 
 pub const PART_EXT: &str = ".mp3.part";
@@ -87,11 +88,13 @@ pub struct RecorderOptions {
     pub quality: Quality,
     /// ID3 version for the initial tags.
     pub tag_version: TagVersion,
+    /// Drop silence before the first and after the last sound.
+    pub trim_silence: bool,
 }
 
 impl Default for RecorderOptions {
     fn default() -> Self {
-        Self { dir: paths::recordings_dir(), quality: Quality::default(), tag_version: TagVersion::V24 }
+        Self { dir: paths::recordings_dir(), quality: Quality::default(), tag_version: TagVersion::V24, trim_silence: true }
     }
 }
 
@@ -201,6 +204,7 @@ impl Recorder {
             },
             quality: self.options.quality,
             tag_version: self.options.tag_version,
+            trim_silence: self.options.trim_silence,
             paused: paused.clone(),
             status: self.status.clone(),
             events: self.events.clone(),
@@ -292,6 +296,7 @@ struct EncodeJob {
     comment: Option<String>,
     quality: Quality,
     tag_version: TagVersion,
+    trim_silence: bool,
     paused: Arc<AtomicBool>,
     status: Arc<Status>,
     events: Option<EventSink>,
@@ -311,6 +316,10 @@ impl EncodeJob {
     fn encode_until_disconnected(&mut self) -> Result<Option<mp3::Mp3Encoder>, String> {
         let mut encoder: Option<mp3::Mp3Encoder> = None;
         let mut stereo = Vec::new();
+        // With trimming, what's left of each chunk to encode now.
+        let mut kept = Vec::new();
+        let mut trimmer: Option<SilenceTrimmer> = None;
+        let mut encoded_frames = 0u64;
         // Started with the first audio (it needs the sample rate); stops,
         // clearing the visualizer, when this job ends.
         let mut analysis: Option<(Analyzer, Tap)> = None;
@@ -333,17 +342,33 @@ impl EncodeJob {
             }
             match received {
                 Ok(chunk) if !self.paused.load(Ordering::Acquire) => {
-                    if encoder.is_none() {
-                        encoder = Some(mp3::Mp3Encoder::new(chunk.sample_rate, self.quality)?);
-                        self.status.sample_rate.store(chunk.sample_rate, Ordering::Release);
-                    }
-                    let bytes = encoder.as_mut().unwrap().encode(&stereo)?;
-                    self.file.write_all(bytes).map_err(|e| format!("writing {}: {e}", self.part.display()))?;
-                    self.status.frames.fetch_add((stereo.len() / 2) as u64, Ordering::AcqRel);
+                    let audio = if self.trim_silence {
+                        kept.clear();
+                        trimmer.get_or_insert_with(|| SilenceTrimmer::new(chunk.sample_rate)).push(&stereo, &mut kept);
+                        &kept
+                    } else {
+                        &stereo
+                    };
+                    encoded_frames += self.encode(&mut encoder, chunk.sample_rate, audio)?;
+                    // Held-back silence counts: it's kept if audio resumes.
+                    let held = trimmer.as_ref().map_or(0, SilenceTrimmer::held_frames);
+                    self.status.frames.store(encoded_frames + held, Ordering::Release);
                 }
                 Ok(_paused_chunk) => {}
                 Err(RecvTimeoutError::Timeout) => {}
-                Err(RecvTimeoutError::Disconnected) => return Ok(encoder),
+                Err(RecvTimeoutError::Disconnected) => {
+                    if let Some(mut trimmer) = trimmer {
+                        if !trimmer.heard_audio() {
+                            return Err("only silence was recorded".into());
+                        }
+                        kept.clear();
+                        trimmer.finish(&mut kept);
+                        let rate = self.status.sample_rate.load(Ordering::Acquire);
+                        encoded_frames += self.encode(&mut encoder, rate, &kept)?;
+                        self.status.frames.store(encoded_frames, Ordering::Release);
+                    }
+                    return Ok(encoder);
+                }
             }
             if last_progress.elapsed() >= PROGRESS_INTERVAL {
                 last_progress = Instant::now();
@@ -353,6 +378,23 @@ impl EncodeJob {
                 }
             }
         }
+    }
+}
+
+impl EncodeJob {
+    /// Encodes stereo audio, starting the encoder on first use; returns
+    /// the frames written.
+    fn encode(&mut self, encoder: &mut Option<mp3::Mp3Encoder>, sample_rate: u32, stereo: &[f32]) -> Result<u64, String> {
+        if stereo.is_empty() {
+            return Ok(0);
+        }
+        if encoder.is_none() {
+            *encoder = Some(mp3::Mp3Encoder::new(sample_rate, self.quality)?);
+            self.status.sample_rate.store(sample_rate, Ordering::Release);
+        }
+        let bytes = encoder.as_mut().unwrap().encode(stereo)?;
+        self.file.write_all(bytes).map_err(|e| format!("writing {}: {e}", self.part.display()))?;
+        Ok((stereo.len() / 2) as u64)
     }
 }
 
@@ -506,18 +548,25 @@ mod tests {
         fn stop(&mut self, _: Session) {}
     }
 
-    /// Plays a 440 Hz tone in real time, 10 ms per chunk.
+    /// Plays a 440 Hz tone in real time, 10 ms per chunk; chunks for which
+    /// `audible(n)` is false are silent.
     struct ToneBackend {
         rate: u32,
         channels: u16,
+        audible: fn(u32) -> bool,
         stop: Arc<AtomicBool>,
         thread: Option<JoinHandle<()>>,
     }
 
     impl ToneBackend {
         fn factory(rate: u32, channels: u16) -> BackendFactory {
+            Self::pattern(rate, channels, |_| true)
+        }
+
+        fn pattern(rate: u32, channels: u16, audible: fn(u32) -> bool) -> BackendFactory {
             Box::new(move || {
-                Box::new(ToneBackend { rate, channels, stop: Arc::default(), thread: None }) as Box<dyn CaptureBackend>
+                Box::new(ToneBackend { rate, channels, audible, stop: Arc::default(), thread: None })
+                    as Box<dyn CaptureBackend>
             })
         }
     }
@@ -530,7 +579,7 @@ mod tests {
             Vec::new()
         }
         fn start(&mut self, _: CaptureSource, sink: SyncSender<AudioChunk>) -> Result<Session, CaptureError> {
-            let (rate, channels, stop) = (self.rate, self.channels, self.stop.clone());
+            let (rate, channels, audible, stop) = (self.rate, self.channels, self.audible, self.stop.clone());
             self.thread = Some(std::thread::spawn(move || {
                 let tone = sine(0.01, rate);
                 let samples: Vec<f32> = match channels {
@@ -543,7 +592,8 @@ mod tests {
                     if stop.load(Ordering::Acquire) {
                         break;
                     }
-                    let _ = sink.try_send(AudioChunk { samples: samples.clone(), sample_rate: rate, channels });
+                    let samples = if audible(n) { samples.clone() } else { vec![0.0; samples.len()] };
+                    let _ = sink.try_send(AudioChunk { samples, sample_rate: rate, channels });
                     let next = start + Duration::from_millis(10) * n;
                     std::thread::sleep(next.saturating_duration_since(Instant::now()));
                 }
@@ -560,7 +610,7 @@ mod tests {
 
     fn recorder(dir: &Path) -> (Recorder, Arc<Mutex<Vec<RecorderEvent>>>) {
         let mut r = Recorder::with_backend(
-            RecorderOptions { dir: dir.to_owned(), quality: Quality::Cbr192, tag_version: TagVersion::V24 },
+            RecorderOptions { dir: dir.to_owned(), quality: Quality::Cbr192, tag_version: TagVersion::V24, trim_silence: false },
             ToneBackend::factory(48000, 2),
         );
         let events = Arc::new(Mutex::new(Vec::new()));
@@ -620,6 +670,40 @@ mod tests {
     }
 
     #[test]
+    fn trims_leading_and_trailing_silence() {
+        let dir = crate::paths::tempdir();
+        let options = |trim_silence| RecorderOptions {
+            dir: dir.clone(),
+            quality: Quality::Cbr192,
+            tag_version: TagVersion::V24,
+            trim_silence,
+        };
+        // 0.5 s of silence, then 0.6 s of tone, then silence.
+        let audible: fn(u32) -> bool = |n| (51..=110).contains(&n);
+        let record = |trim| {
+            let mut r = Recorder::with_backend(options(trim), ToneBackend::pattern(48000, 2, audible));
+            r.start(system()).unwrap();
+            std::thread::sleep(Duration::from_millis(1600));
+            mp3::scan(&r.stop().unwrap()).unwrap().duration_secs()
+        };
+        let trimmed = record(true);
+        assert!((0.7..=0.95).contains(&trimmed), "trimmed duration {trimmed:.2}s should be the tone plus margins");
+        let full = record(false);
+        assert!(full >= 1.5, "untrimmed duration {full:.2}s");
+    }
+
+    #[test]
+    fn only_silence_leaves_no_file_when_trimming() {
+        let dir = crate::paths::tempdir();
+        let options = RecorderOptions { dir: dir.clone(), quality: Quality::Cbr192, tag_version: TagVersion::V24, trim_silence: true };
+        let mut r = Recorder::with_backend(options, ToneBackend::pattern(48000, 2, |_| false));
+        r.start(system()).unwrap();
+        std::thread::sleep(Duration::from_millis(300));
+        assert_eq!(r.stop().unwrap_err(), "only silence was recorded");
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 0);
+    }
+
+    #[test]
     fn rejects_invalid_transitions() {
         let dir = crate::paths::tempdir();
         let (mut r, _) = recorder(&dir);
@@ -638,7 +722,7 @@ mod tests {
     fn stopping_before_any_audio_leaves_no_file() {
         let dir = crate::paths::tempdir();
         let mut r = Recorder::with_backend(
-            RecorderOptions { dir: dir.clone(), quality: Quality::Cbr192, tag_version: TagVersion::V24 },
+            RecorderOptions { dir: dir.clone(), quality: Quality::Cbr192, tag_version: TagVersion::V24, trim_silence: false },
             ToneBackend::factory(48000, 2),
         );
         r.start(system()).unwrap();
@@ -652,7 +736,7 @@ mod tests {
     fn warns_when_no_audio_arrives() {
         let dir = crate::paths::tempdir();
         let mut r = Recorder::with_backend(
-            RecorderOptions { dir, quality: Quality::Cbr192, tag_version: TagVersion::V24 },
+            RecorderOptions { dir, quality: Quality::Cbr192, tag_version: TagVersion::V24, trim_silence: false },
             Box::new(|| Box::new(SilentBackend) as Box<dyn CaptureBackend>),
         );
         let (tx, rx) = mpsc::channel();

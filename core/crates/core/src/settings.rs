@@ -51,6 +51,8 @@ pub struct Settings {
     pub skin: Option<String>,
     /// Draw the skinned main panel at twice its size.
     pub double_size: bool,
+    /// Drop silence before the first and after the last sound of a recording.
+    pub trim_silence: bool,
 }
 
 impl Default for Settings {
@@ -63,6 +65,7 @@ impl Default for Settings {
             last_source: None,
             skin: None,
             double_size: false,
+            trim_silence: true,
         }
     }
 }
@@ -163,6 +166,7 @@ mod tests {
             last_source: Some(SourceRef::App { id: Some("com.spotify.client".into()), name: "Spotify".into() }),
             skin: Some("com.example.green".into()),
             double_size: true,
+            trim_silence: false,
         };
         save_to(&path, &s).unwrap();
         assert_eq!(load_from(&path), s);
@@ -191,6 +195,7 @@ mod tests {
         let path = dir.join("settings.json");
         std::fs::write(&path, r#"{"quality":"cbr320"}"#).unwrap();
         assert_eq!(load_from(&path).quality, Quality::Cbr320);
+        assert!(load_from(&path).trim_silence, "trimming is on unless turned off");
         assert_eq!(load_from(&path).id3_version, default_id3_version());
         std::fs::write(&path, "not json").unwrap();
         assert_eq!(load_from(&path), Settings::default());
