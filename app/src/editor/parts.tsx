@@ -544,14 +544,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     overflow: 'hidden',
   },
-  nameInput: { paddingVertical: 0, paddingHorizontal: 2, fontSize: 12 },
+  // Explicit heights and no vertical padding: Windows' text box otherwise
+  // adds its own and clips the text in these short rows.
+  nameInput: {
+    height: 20,
+    paddingTop: 0,
+    paddingBottom: 0,
+    paddingHorizontal: 2,
+    fontSize: 12,
+    textAlignVertical: 'center',
+  },
   nameField: { position: 'absolute', width: 200 },
   nameFieldInput: {
+    height: 20,
     borderWidth: 1,
     borderRadius: 4,
     fontSize: 12,
-    paddingVertical: 2,
+    paddingTop: 0,
+    paddingBottom: 0,
     paddingHorizontal: 5,
+    textAlignVertical: 'center',
   },
   modalBackdrop: {
     ...StyleSheet.absoluteFillObject,
