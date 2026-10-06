@@ -52,6 +52,8 @@ struct Style {
     wave: [u8; 4],
     rms: [u8; 4],
     center: [u8; 4],
+    /// Vertical zoom: amplitude is multiplied by this (clipped at the edges).
+    gain: f32,
 }
 
 impl Default for Style {
@@ -61,6 +63,7 @@ impl Default for Style {
             wave: [0x7f, 0xd8, 0x5a, 0xff],
             rms: [0xb8, 0xf0, 0x9a, 0xff],
             center: [0x3a, 0x34, 0x30, 0xff],
+            gain: 1.0,
         }
     }
 }
@@ -72,6 +75,7 @@ struct StyleJson {
     wave: Option<String>,
     rms: Option<String>,
     center: Option<String>,
+    gain: Option<f32>,
 }
 
 fn parse_color(s: &str) -> Option<[u8; 4]> {
@@ -154,7 +158,8 @@ impl Editor {
         Status::Loading(f32::from_bits(self.shared.progress.load(Ordering::Relaxed)))
     }
 
-    /// Sets the colors (JSON: background, wave, rms, center as #rrggbb[aa]).
+    /// Sets the colors (JSON: background, wave, rms, center as #rrggbb[aa])
+    /// and the vertical zoom (`gain`, default 1).
     fn apply_style(&self, json: &str) -> Style {
         let mut cached = self.style.lock().unwrap();
         if cached.0 != json {
@@ -166,6 +171,7 @@ impl Editor {
                 wave: pick(&parsed.wave, d.wave),
                 rms: pick(&parsed.rms, d.rms),
                 center: pick(&parsed.center, d.center),
+                gain: parsed.gain.filter(|g| g.is_finite() && *g > 0.0).unwrap_or(1.0),
             };
             cached.0 = json.to_string();
         }
@@ -198,7 +204,8 @@ impl Editor {
         }
         let detail = self.detail.lock().unwrap();
         let half = (h as f64 - 1.0) / 2.0;
-        let y = |v: f32| (half - f64::from(v.clamp(-1.0, 1.0)) * half).round().clamp(0.0, h as f64 - 1.0) as usize;
+        let gain = style.gain;
+        let y = |v: f32| (half - f64::from((v * gain).clamp(-1.0, 1.0)) * half).round().clamp(0.0, h as f64 - 1.0) as usize;
         let (wave, rms) = (premultiply(style.wave), premultiply(style.rms));
         for x in 0..w {
             let a = start + x as f64 * fpp;

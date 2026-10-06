@@ -1590,8 +1590,9 @@ pub extern "C" fn ss_editor_status(id: u64) -> *mut c_char {
 /// Draws the waveform from `start_ms` at `ms_per_px` milliseconds per
 /// pixel into `rgba` (`width`×`height` premultiplied RGBA, `len` bytes),
 /// with colors from `style_json` (`background`, `wave`, `rms`, `center` as
-/// "#rrggbb[aa]"). Returns false while the waveform is still loading (the
-/// background is drawn) or on bad arguments.
+/// "#rrggbb[aa]") and its `gain` (vertical zoom, default 1). Returns false
+/// while the waveform is still loading (the background is drawn) or on bad
+/// arguments.
 ///
 /// # Safety
 /// `rgba` must point to `len` writable bytes; `style_json` must be NULL or

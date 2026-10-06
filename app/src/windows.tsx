@@ -6,7 +6,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AboutPanel } from './AboutPanel';
 import { safeSettings } from './appHelpers';
 import { DetailsPane } from './DetailsPane';
-import { EditorPanel } from './EditorPanel';
+import { EditorPanel } from './editor/EditorPanel';
 import { LibraryScreen, refreshLibraryViews } from './LibraryScreen';
 import { SettingsPanel } from './SettingsPanel';
 import { playback } from './playback';
