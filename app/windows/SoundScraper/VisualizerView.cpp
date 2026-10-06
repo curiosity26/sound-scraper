@@ -54,10 +54,9 @@ struct VisualizerProps : winrt::implements<VisualizerProps, rn::IComponentProps>
   const rn::ViewProps ViewProps;
 };
 
-namespace {
-
-/// One Direct2D device and composition graphics device for all views.
-comp::CompositionGraphicsDevice GraphicsDevice(comp::Compositor const &compositor) {
+/// One Direct2D device and composition graphics device for all views (the
+/// visualizer and the editor's waveform).
+comp::CompositionGraphicsDevice SharedGraphicsDevice(comp::Compositor const &compositor) {
   static comp::CompositionGraphicsDevice device{nullptr};
   if (device) {
     return device;
@@ -79,8 +78,6 @@ comp::CompositionGraphicsDevice GraphicsDevice(comp::Compositor const &composito
   return device;
 }
 
-} // namespace
-
 struct VisualizerState : winrt::implements<VisualizerState, winrt::Windows::Foundation::IInspectable> {
   ~VisualizerState() {
     Stop();
@@ -89,7 +86,7 @@ struct VisualizerState : winrt::implements<VisualizerState, winrt::Windows::Foun
   comp::Visual CreateVisual(comp::Compositor const &compositor) {
     m_visual = compositor.CreateSpriteVisual();
     try {
-      m_surface = GraphicsDevice(compositor).CreateDrawingSurface(
+      m_surface = SharedGraphicsDevice(compositor).CreateDrawingSurface(
           {1, 1}, winrt::Microsoft::Graphics::DirectX::DirectXPixelFormat::B8G8R8A8UIntNormalized,
           winrt::Microsoft::Graphics::DirectX::DirectXAlphaMode::Premultiplied);
       m_brush = compositor.CreateSurfaceBrush(m_surface);

@@ -20,13 +20,11 @@ import {
   type GestureResponderEvent,
   type LayoutChangeEvent,
   Pressable,
-  requireNativeComponent,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
-  type ViewProps,
 } from 'react-native';
 
 import { errorText } from './appHelpers';
@@ -64,15 +62,10 @@ import {
 } from './native/editor';
 import { usePanelStyles } from './panelTheme';
 import { playback, usePlayback } from './playback';
+import WaveformNative from './skin/WaveformNative';
 
-type WaveformProps = ViewProps & {
-  editorId: number;
-  startMs: number;
-  msPerPoint: number;
-  colors: string;
-};
-
-const SSWaveformView = requireNativeComponent<WaveformProps>('SSWaveformView');
+// SSWaveformView.mm on macOS, WaveformView.h on Windows.
+const SSWaveformView = WaveformNative;
 
 export type EditorTarget = {
   fileName: string;

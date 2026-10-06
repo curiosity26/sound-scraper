@@ -105,8 +105,10 @@
     <ClInclude Include="SoundScraperModule.h" />
     <ClInclude Include="Shared.h" />
     <ClInclude Include="FileImageProvider.h" />
+    <ClInclude Include="EditorModule.h" />
     <ClInclude Include="SkinsModule.h" />
     <ClInclude Include="VisualizerView.h" />
+    <ClInclude Include="WaveformView.h" />
     <ClInclude Include="WindowManager.h" />
     <ClInclude Include="codegen\NativeSkinsDataTypes.g.h" />
     <ClInclude Include="codegen\NativeSkinsSpec.g.h" />
@@ -120,8 +122,10 @@
   <ItemGroup>
     <ClCompile Include="SoundScraper.cpp" />
     <ClCompile Include="SoundScraperModule.cpp" />
+    <ClCompile Include="EditorModule.cpp" />
     <ClCompile Include="SkinsModule.cpp" />
     <ClCompile Include="VisualizerView.cpp" />
+    <ClCompile Include="WaveformView.cpp" />
     <ClCompile Include="WindowManager.cpp" />
     <ClCompile Include="AutolinkedNativeModules.g.cpp" />
     <ClCompile Include="pch.cpp">

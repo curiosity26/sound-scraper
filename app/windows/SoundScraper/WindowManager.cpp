@@ -39,6 +39,7 @@ const std::map<std::string, PanelSpec> &Specs() {
       {"library", {L"SoundScraperLibrary", L"Library", 840, 420}},
       {"settings", {L"SoundScraperSettings", L"Settings", 460, 560}},
       {"details", {L"SoundScraperDetails", L"Details", 300, 480}},
+      {"editor", {L"SoundScraperEditor", L"Editor", 860, 340}},
   };
   return specs;
 }
@@ -120,12 +121,13 @@ void WindowManager::Init(winrt::Microsoft::ReactNative::ReactNativeWin32App cons
   m_ui = winrt::Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
   HookKeys(m.rnWindow, m.hwnd);
 
-  // Details shows the selection, which isn't kept between launches.
+  // Details shows the selection and the editor a recording, neither kept
+  // between launches.
   auto dispatcher = winrt::Microsoft::UI::Dispatching::DispatcherQueue::GetForCurrentThread();
   dispatcher.TryEnqueue([this]() {
     Guarded("restore panels", [&] {
       for (auto const &[name, spec] : Specs()) {
-        if (name != "details" && m_saved.count(name) && m_saved[name]["visible"] == 1) {
+        if (name != "details" && name != "editor" && m_saved.count(name) && m_saved[name]["visible"] == 1) {
           SetPanel(name, true);
         }
       }
@@ -249,6 +251,13 @@ WindowManager::Panel *WindowManager::EnsurePanel(std::string const &name) {
         RECT l = Frame(*library);
         r = {l.right, l.top, w, l.bottom - l.top};
       }
+    } else if (name == "editor") {
+      // Below the library, or the main panel.
+      RECT above = m;
+      if (auto library = Find("library"); library && Visible(*library)) {
+        above = Frame(*library);
+      }
+      r = {above.left, above.bottom, w, h};
     }
     panel.window.MoveAndResize(r);
   }

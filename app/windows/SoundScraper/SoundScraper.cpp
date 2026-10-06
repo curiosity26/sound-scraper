@@ -11,6 +11,7 @@
 #include "FileImageProvider.h"
 #include "Shared.h"
 #include "VisualizerView.h"
+#include "WaveformView.h"
 #include "WindowManager.h"
 
 #include <shellapi.h>
@@ -63,6 +64,7 @@ struct CompReactPackageProvider
   void CreatePackage(winrt::Microsoft::ReactNative::IReactPackageBuilder const &packageBuilder) noexcept {
     AddAttributedModules(packageBuilder, true);
     SoundScraper::RegisterVisualizerView(packageBuilder);
+    SoundScraper::RegisterWaveformView(packageBuilder);
     SoundScraper::RegisterFileImageProvider(packageBuilder);
   }
 };
