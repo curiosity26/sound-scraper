@@ -43,6 +43,9 @@ struct SoundScraperSpec_RecorderEvent {
     std::optional<double> rmsRight;
     std::optional<std::string> path;
     std::optional<std::string> message;
+    std::string playerState;
+    double positionMs;
+    double durationMs;
 };
 
 struct SoundScraperSpec_Recording {

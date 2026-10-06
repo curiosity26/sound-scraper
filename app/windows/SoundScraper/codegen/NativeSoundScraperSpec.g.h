@@ -49,6 +49,9 @@ inline winrt::Microsoft::ReactNative::FieldMap GetStructInfo(SoundScraperSpec_Re
         {L"rmsRight", &SoundScraperSpec_RecorderEvent::rmsRight},
         {L"path", &SoundScraperSpec_RecorderEvent::path},
         {L"message", &SoundScraperSpec_RecorderEvent::message},
+        {L"playerState", &SoundScraperSpec_RecorderEvent::playerState},
+        {L"positionMs", &SoundScraperSpec_RecorderEvent::positionMs},
+        {L"durationMs", &SoundScraperSpec_RecorderEvent::durationMs},
     };
     return fieldMap;
 }
@@ -111,18 +114,25 @@ struct SoundScraperSpec : winrt::Microsoft::ReactNative::TurboModuleSpec {
       Method<void(Promise<std::string>) noexcept>{6, L"recorderStop"},
       SyncMethod<std::string() noexcept>{7, L"recorderState"},
       SyncMethod<double() noexcept>{8, L"recoverPartialRecordings"},
-      Method<void(Promise<std::vector<SoundScraperSpec_Recording>>) noexcept>{9, L"listRecordings"},
-      Method<void(std::string, std::string, Promise<std::string>) noexcept>{10, L"renameRecording"},
-      Method<void(std::string, Promise<void>) noexcept>{11, L"trashRecording"},
-      Method<void(std::string) noexcept>{12, L"revealRecording"},
-      Method<void(std::string, Promise<SoundScraperSpec_Tags>) noexcept>{13, L"readTags"},
-      Method<void(std::vector<std::string>, SoundScraperSpec_TagEdit, Promise<void>) noexcept>{14, L"writeTags"},
-      Method<void(Promise<std::optional<std::string>>) noexcept>{15, L"pickImage"},
-      SyncMethod<std::string() noexcept>{16, L"getSettings"},
-      Method<void(std::string, Promise<void>) noexcept>{17, L"setSettings"},
-      Method<void(Promise<std::optional<std::string>>) noexcept>{18, L"pickFolder"},
-      EventEmitter<void(SoundScraperSpec_RecorderEvent)>{19, L"onRecorderEvent"},
-      EventEmitter<void(std::string)>{20, L"onLibraryChanged"},
+      Method<void(std::string, Promise<void>) noexcept>{9, L"playerLoad"},
+      Method<void() noexcept>{10, L"playerUnload"},
+      Method<void(Promise<void>) noexcept>{11, L"playerPlay"},
+      Method<void() noexcept>{12, L"playerPause"},
+      Method<void() noexcept>{13, L"playerStop"},
+      Method<void(double) noexcept>{14, L"playerSeek"},
+      SyncMethod<std::string() noexcept>{15, L"playerState"},
+      Method<void(Promise<std::vector<SoundScraperSpec_Recording>>) noexcept>{16, L"listRecordings"},
+      Method<void(std::string, std::string, Promise<std::string>) noexcept>{17, L"renameRecording"},
+      Method<void(std::string, Promise<void>) noexcept>{18, L"trashRecording"},
+      Method<void(std::string) noexcept>{19, L"revealRecording"},
+      Method<void(std::string, Promise<SoundScraperSpec_Tags>) noexcept>{20, L"readTags"},
+      Method<void(std::vector<std::string>, SoundScraperSpec_TagEdit, Promise<void>) noexcept>{21, L"writeTags"},
+      Method<void(Promise<std::optional<std::string>>) noexcept>{22, L"pickImage"},
+      SyncMethod<std::string() noexcept>{23, L"getSettings"},
+      Method<void(std::string, Promise<void>) noexcept>{24, L"setSettings"},
+      Method<void(Promise<std::optional<std::string>>) noexcept>{25, L"pickFolder"},
+      EventEmitter<void(SoundScraperSpec_RecorderEvent)>{26, L"onRecorderEvent"},
+      EventEmitter<void(std::string)>{27, L"onLibraryChanged"},
   };
 
   template <class TModule>
@@ -176,60 +186,95 @@ struct SoundScraperSpec : winrt::Microsoft::ReactNative::TurboModuleSpec {
           "    REACT_SYNC_METHOD(recoverPartialRecordings) static double recoverPartialRecordings() noexcept { /* implementation */ }\n");
     REACT_SHOW_METHOD_SPEC_ERRORS(
           9,
+          "playerLoad",
+          "    REACT_METHOD(playerLoad) void playerLoad(std::string path, ::React::ReactPromise<void> &&result) noexcept { /* implementation */ }\n"
+          "    REACT_METHOD(playerLoad) static void playerLoad(std::string path, ::React::ReactPromise<void> &&result) noexcept { /* implementation */ }\n");
+    REACT_SHOW_METHOD_SPEC_ERRORS(
+          10,
+          "playerUnload",
+          "    REACT_METHOD(playerUnload) void playerUnload() noexcept { /* implementation */ }\n"
+          "    REACT_METHOD(playerUnload) static void playerUnload() noexcept { /* implementation */ }\n");
+    REACT_SHOW_METHOD_SPEC_ERRORS(
+          11,
+          "playerPlay",
+          "    REACT_METHOD(playerPlay) void playerPlay(::React::ReactPromise<void> &&result) noexcept { /* implementation */ }\n"
+          "    REACT_METHOD(playerPlay) static void playerPlay(::React::ReactPromise<void> &&result) noexcept { /* implementation */ }\n");
+    REACT_SHOW_METHOD_SPEC_ERRORS(
+          12,
+          "playerPause",
+          "    REACT_METHOD(playerPause) void playerPause() noexcept { /* implementation */ }\n"
+          "    REACT_METHOD(playerPause) static void playerPause() noexcept { /* implementation */ }\n");
+    REACT_SHOW_METHOD_SPEC_ERRORS(
+          13,
+          "playerStop",
+          "    REACT_METHOD(playerStop) void playerStop() noexcept { /* implementation */ }\n"
+          "    REACT_METHOD(playerStop) static void playerStop() noexcept { /* implementation */ }\n");
+    REACT_SHOW_METHOD_SPEC_ERRORS(
+          14,
+          "playerSeek",
+          "    REACT_METHOD(playerSeek) void playerSeek(double positionMs) noexcept { /* implementation */ }\n"
+          "    REACT_METHOD(playerSeek) static void playerSeek(double positionMs) noexcept { /* implementation */ }\n");
+    REACT_SHOW_METHOD_SPEC_ERRORS(
+          15,
+          "playerState",
+          "    REACT_SYNC_METHOD(playerState) std::string playerState() noexcept { /* implementation */ }\n"
+          "    REACT_SYNC_METHOD(playerState) static std::string playerState() noexcept { /* implementation */ }\n");
+    REACT_SHOW_METHOD_SPEC_ERRORS(
+          16,
           "listRecordings",
           "    REACT_METHOD(listRecordings) void listRecordings(::React::ReactPromise<std::vector<SoundScraperSpec_Recording>> &&result) noexcept { /* implementation */ }\n"
           "    REACT_METHOD(listRecordings) static void listRecordings(::React::ReactPromise<std::vector<SoundScraperSpec_Recording>> &&result) noexcept { /* implementation */ }\n");
     REACT_SHOW_METHOD_SPEC_ERRORS(
-          10,
+          17,
           "renameRecording",
           "    REACT_METHOD(renameRecording) void renameRecording(std::string fileName, std::string newName, ::React::ReactPromise<std::string> &&result) noexcept { /* implementation */ }\n"
           "    REACT_METHOD(renameRecording) static void renameRecording(std::string fileName, std::string newName, ::React::ReactPromise<std::string> &&result) noexcept { /* implementation */ }\n");
     REACT_SHOW_METHOD_SPEC_ERRORS(
-          11,
+          18,
           "trashRecording",
           "    REACT_METHOD(trashRecording) void trashRecording(std::string fileName, ::React::ReactPromise<void> &&result) noexcept { /* implementation */ }\n"
           "    REACT_METHOD(trashRecording) static void trashRecording(std::string fileName, ::React::ReactPromise<void> &&result) noexcept { /* implementation */ }\n");
     REACT_SHOW_METHOD_SPEC_ERRORS(
-          12,
+          19,
           "revealRecording",
           "    REACT_METHOD(revealRecording) void revealRecording(std::string fileName) noexcept { /* implementation */ }\n"
           "    REACT_METHOD(revealRecording) static void revealRecording(std::string fileName) noexcept { /* implementation */ }\n");
     REACT_SHOW_METHOD_SPEC_ERRORS(
-          13,
+          20,
           "readTags",
           "    REACT_METHOD(readTags) void readTags(std::string fileName, ::React::ReactPromise<SoundScraperSpec_Tags> &&result) noexcept { /* implementation */ }\n"
           "    REACT_METHOD(readTags) static void readTags(std::string fileName, ::React::ReactPromise<SoundScraperSpec_Tags> &&result) noexcept { /* implementation */ }\n");
     REACT_SHOW_METHOD_SPEC_ERRORS(
-          14,
+          21,
           "writeTags",
           "    REACT_METHOD(writeTags) void writeTags(std::vector<std::string> const & fileNames, SoundScraperSpec_TagEdit && edit, ::React::ReactPromise<void> &&result) noexcept { /* implementation */ }\n"
           "    REACT_METHOD(writeTags) static void writeTags(std::vector<std::string> const & fileNames, SoundScraperSpec_TagEdit && edit, ::React::ReactPromise<void> &&result) noexcept { /* implementation */ }\n");
     REACT_SHOW_METHOD_SPEC_ERRORS(
-          15,
+          22,
           "pickImage",
           "    REACT_METHOD(pickImage) void pickImage(::React::ReactPromise<std::optional<std::string>> &&result) noexcept { /* implementation */ }\n"
           "    REACT_METHOD(pickImage) static void pickImage(::React::ReactPromise<std::optional<std::string>> &&result) noexcept { /* implementation */ }\n");
     REACT_SHOW_METHOD_SPEC_ERRORS(
-          16,
+          23,
           "getSettings",
           "    REACT_SYNC_METHOD(getSettings) std::string getSettings() noexcept { /* implementation */ }\n"
           "    REACT_SYNC_METHOD(getSettings) static std::string getSettings() noexcept { /* implementation */ }\n");
     REACT_SHOW_METHOD_SPEC_ERRORS(
-          17,
+          24,
           "setSettings",
           "    REACT_METHOD(setSettings) void setSettings(std::string json, ::React::ReactPromise<void> &&result) noexcept { /* implementation */ }\n"
           "    REACT_METHOD(setSettings) static void setSettings(std::string json, ::React::ReactPromise<void> &&result) noexcept { /* implementation */ }\n");
     REACT_SHOW_METHOD_SPEC_ERRORS(
-          18,
+          25,
           "pickFolder",
           "    REACT_METHOD(pickFolder) void pickFolder(::React::ReactPromise<std::optional<std::string>> &&result) noexcept { /* implementation */ }\n"
           "    REACT_METHOD(pickFolder) static void pickFolder(::React::ReactPromise<std::optional<std::string>> &&result) noexcept { /* implementation */ }\n");
     REACT_SHOW_EVENTEMITTER_SPEC_ERRORS(
-          19,
+          26,
           "onRecorderEvent",
           "    REACT_EVENT(onRecorderEvent) std::function<void(SoundScraperSpec_RecorderEvent)> onRecorderEvent;\n");
     REACT_SHOW_EVENTEMITTER_SPEC_ERRORS(
-          20,
+          27,
           "onLibraryChanged",
           "    REACT_EVENT(onLibraryChanged) std::function<void(std::string)> onLibraryChanged;\n");
   }
