@@ -15,7 +15,9 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 IDENTITY="${SIGN_IDENTITY:-GolfNutz Dev}"
 NOTARY_PROFILE="${NOTARY_PROFILE:-soundscraper-notary}"
 if [ -n "${NOTARY_KEY:-}" ]; then
-  NOTARY_AUTH=(--key "$NOTARY_KEY" --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER")
+  NOTARY_AUTH=(--key "$NOTARY_KEY" --key-id "$NOTARY_KEY_ID")
+  # Individual API keys have no issuer; team keys need it.
+  if [ -n "${NOTARY_ISSUER:-}" ]; then NOTARY_AUTH+=(--issuer "$NOTARY_ISSUER"); fi
 else
   NOTARY_AUTH=(--keychain-profile "$NOTARY_PROFILE")
 fi
@@ -32,9 +34,14 @@ if [[ "$IDENTITY" == "Developer ID Application"* ]]; then
   # rejects the embedded frameworks otherwise (hence off for self-signed builds).
   SIGN_FLAGS+=(--timestamp --options runtime)
   BUILD_FLAGS+=(ENABLE_HARDENED_RUNTIME=YES OTHER_CODE_SIGN_FLAGS=--timestamp)
-  if [ "${NOTARIZE:-1}" != 0 ] && ! xcrun notarytool history "${NOTARY_AUTH[@]}" >/dev/null 2>&1; then
-    echo "error: notarytool can't sign in (${NOTARY_AUTH[*]}); create the keychain profile with" >&2
-    echo "  xcrun notarytool store-credentials $NOTARY_PROFILE --apple-id <email> --team-id <TEAMID>" >&2
+  if [ "${NOTARIZE:-1}" != 0 ] && ! NOTARY_CHECK=$(xcrun notarytool history "${NOTARY_AUTH[@]}" 2>&1); then
+    echo "$NOTARY_CHECK" | tail -5 >&2
+    if [ -n "${NOTARY_KEY:-}" ]; then
+      echo "error: notarytool can't sign in with the API key (check NOTARY_KEY, NOTARY_KEY_ID, NOTARY_ISSUER)" >&2
+    else
+      echo "error: notarytool can't sign in with keychain profile \"$NOTARY_PROFILE\"; create it with" >&2
+      echo "  xcrun notarytool store-credentials $NOTARY_PROFILE --apple-id <email> --team-id <TEAMID>" >&2
+    fi
     exit 1
   fi
 else
