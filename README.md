@@ -2,7 +2,7 @@
 
 Desktop app that records what your computer is playing (all system audio, or a single app) to MP3, with a library for renaming recordings and editing ID3 tags. macOS and Windows first, Linux later.
 
-Design: [docs/design.md](docs/design.md).
+Design: [docs/design.md](docs/design.md). Releasing (tag `v*` builds the signed .dmg and .msix): [docs/release.md](docs/release.md).
 
 ## Layout
 

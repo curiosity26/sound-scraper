@@ -1,0 +1,203 @@
+# Builds the signed, notarized Mac .dmg and the signed Windows ARM64 and x64
+# .msix for a version tag, then publishes them as a GitHub Release.
+#   git tag v1.2.0 && git push origin v1.2.0           # release
+#   git tag v1.2.0-beta.1 && git push origin v1.2.0-beta.1   # pre-release
+# The tag must match the version in every project file (scripts/version.py
+# set 1.2.0 and commit before tagging). One-time setup: docs/release.md.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      prerelease: ${{ steps.v.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          scripts/version.py check "$TAG"
+          [[ "$TAG" == *-* ]] && prerelease=true || prerelease=false
+          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
+
+  macos:
+    needs: version
+    runs-on: macos-26
+    environment: release
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: app/.nvmrc
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          working-directory: app
+          bundler-cache: true
+      - run: rustup target add aarch64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+          key: macos-arm64
+      - name: Install JS dependencies and pods
+        run: |
+          npm ci --prefix app
+          cd app/macos && BUNDLE_GEMFILE=../Gemfile bundle exec pod install
+
+      - name: Import the Developer ID certificate
+        env:
+          P12: ${{ secrets.MACOS_DEVELOPER_ID_P12 }}
+          P12_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_P12_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD=$(openssl rand -hex 16)
+          echo "$P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" >/dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/cert.p12"
+          security find-identity -v -p codesigning "$KEYCHAIN"
+
+      - name: Build, sign and notarize the .dmg
+        env:
+          SIGN_IDENTITY: "Developer ID Application: Alex Boyce (B53W8TX3Q9)"
+          APP_BUILD: ${{ github.run_number }}
+          NOTARY_KEY_P8: ${{ secrets.APPLE_NOTARY_KEY_P8 }}
+          NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          NOTARY_ISSUER: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+        run: |
+          export NOTARY_KEY="$RUNNER_TEMP/AuthKey.p8"
+          printf '%s\n' "$NOTARY_KEY_P8" > "$NOTARY_KEY"
+          scripts/package-macos.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: dist/*.dmg
+          if-no-files-found: error
+
+      - name: Remove the signing keychain
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2>/dev/null || true
+          rm -f "$RUNNER_TEMP/AuthKey.p8"
+
+  windows:
+    needs: version
+    runs-on: windows-2025
+    environment: release
+    permissions:
+      contents: read
+      id-token: write   # Azure sign-in through OIDC
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ARM64
+            rust-target: aarch64-pc-windows-msvc
+          - platform: x64
+            rust-target: x86_64-pc-windows-msvc
+    steps:
+      - run: git config --system core.longpaths true
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: app/.nvmrc
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: rustup target add ${{ matrix.rust-target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+          key: windows-${{ matrix.platform }}
+      - run: npm ci --prefix app
+      # react-native-windows defaults to SDK 10.0.22621.0, which the runner
+      # doesn't have; build against the newest one it does.
+      - name: Pick the Windows SDK
+        shell: pwsh
+        run: |
+          $sdk = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\Include" -Directory |
+            Where-Object { Test-Path "$($_.FullName)\um\windows.h" } |
+            Sort-Object { [version]$_.Name } -Descending | Select-Object -First 1
+          "Windows SDK $($sdk.Name)"
+          "WINDOWS_SDK=$($sdk.Name)" >> $env:GITHUB_ENV
+
+      - name: Install the Artifact Signing plugin
+        shell: pwsh
+        run: |
+          nuget install Microsoft.ArtifactSigning.Client -x -NonInteractive -OutputDirectory "$env:RUNNER_TEMP\asc"
+          $dlib = Get-ChildItem -Recurse -Filter Azure.CodeSigning.Dlib.dll "$env:RUNNER_TEMP\asc" |
+            Where-Object { $_.FullName -match '\\x64\\' } | Select-Object -First 1
+          if (-not $dlib) { throw "x64 Azure.CodeSigning.Dlib.dll not found in the NuGet package" }
+          "SS_SIGNING_DLIB=$($dlib.FullName)" >> $env:GITHUB_ENV
+          # Not a secret: account and profile names. Authentication is the az login below.
+          @{
+            Endpoint = "https://eus.codesigning.azure.net"
+            CodeSigningAccountName = "soundscraperalex"
+            CertificateProfileName = "SoundScraperPublic"
+            ExcludeCredentials = @("ManagedIdentityCredential", "WorkloadIdentityCredential", "SharedTokenCacheCredential",
+              "VisualStudioCredential", "VisualStudioCodeCredential", "AzurePowerShellCredential",
+              "AzureDeveloperCliCredential", "InteractiveBrowserCredential", "EnvironmentCredential")
+          } | ConvertTo-Json | Set-Content "$env:RUNNER_TEMP\metadata.json"
+
+      # Build first, then sign in to Azure and run the script again (an
+      # incremental build) to sign: the Azure sign-in is short-lived and a cold
+      # build can outlast it.
+      - name: Build the .msix
+        shell: powershell
+        run: .\scripts\package-windows.ps1 -Platform ${{ matrix.platform }} -WindowsSdk $env:WINDOWS_SDK
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true   # signing needs only the role on the signing account
+      - name: Sign the .msix
+        shell: powershell
+        run: .\scripts\package-windows.ps1 -Platform ${{ matrix.platform }} -WindowsSdk $env:WINDOWS_SDK -ArtifactSigning -Metadata "$env:RUNNER_TEMP\metadata.json"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-${{ matrix.platform }}
+          path: dist/*.msix
+          if-no-files-found: error
+
+  release:
+    needs: [version, macos, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ needs.version.outputs.prerelease }}
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+          flags=()
+          [ "$PRERELEASE" = true ] && flags+=(--prerelease)
+          gh release create "$TAG" * --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --title "Sound Scraper ${TAG#v}" --generate-notes "${flags[@]}"

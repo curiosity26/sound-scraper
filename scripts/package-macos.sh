@@ -5,27 +5,43 @@
 # A Developer ID build gets the hardened runtime and a secure timestamp, and the
 # .dmg is notarized and stapled with the notarytool keychain profile
 # NOTARY_PROFILE (default "soundscraper-notary"; create it with
-# `xcrun notarytool store-credentials`). NOTARIZE=0 skips notarization.
+# `xcrun notarytool store-credentials`), or with an App Store Connect API key
+# when NOTARY_KEY (path to the .p8), NOTARY_KEY_ID and NOTARY_ISSUER are set
+# (CI). NOTARIZE=0 skips notarization. APP_BUILD overrides the project's
+# CURRENT_PROJECT_VERSION (the build number); scripts/version.py sets the version.
 # Self-signed builds aren't notarizable; Gatekeeper asks the user to confirm the first launch.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 IDENTITY="${SIGN_IDENTITY:-GolfNutz Dev}"
 NOTARY_PROFILE="${NOTARY_PROFILE:-soundscraper-notary}"
+if [ -n "${NOTARY_KEY:-}" ]; then
+  NOTARY_AUTH=(--key "$NOTARY_KEY" --key-id "$NOTARY_KEY_ID")
+  # Individual API keys have no issuer; team keys need it.
+  if [ -n "${NOTARY_ISSUER:-}" ]; then NOTARY_AUTH+=(--issuer "$NOTARY_ISSUER"); fi
+else
+  NOTARY_AUTH=(--keychain-profile "$NOTARY_PROFILE")
+fi
 export LANG=en_US.UTF-8
 
 SIGN_FLAGS=(--force --sign "$IDENTITY")
 # The project signs automatically with the team's Apple Development cert; a
 # release build names its identity explicitly instead.
 BUILD_FLAGS=(CODE_SIGN_STYLE=Manual)
+[ -n "${APP_BUILD:-}" ] && BUILD_FLAGS+=(CURRENT_PROJECT_VERSION="$APP_BUILD")
 if [[ "$IDENTITY" == "Developer ID Application"* ]]; then
   DISTRIBUTION=1
   # Hardened runtime needs a certificate with a Team ID: its library validation
   # rejects the embedded frameworks otherwise (hence off for self-signed builds).
   SIGN_FLAGS+=(--timestamp --options runtime)
   BUILD_FLAGS+=(ENABLE_HARDENED_RUNTIME=YES OTHER_CODE_SIGN_FLAGS=--timestamp)
-  if [ "${NOTARIZE:-1}" != 0 ] && ! xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null 2>&1; then
-    echo "error: no notarytool keychain profile \"$NOTARY_PROFILE\"; create it with" >&2
-    echo "  xcrun notarytool store-credentials $NOTARY_PROFILE --apple-id <email> --team-id <TEAMID>" >&2
+  if [ "${NOTARIZE:-1}" != 0 ] && ! NOTARY_CHECK=$(xcrun notarytool history "${NOTARY_AUTH[@]}" 2>&1); then
+    echo "$NOTARY_CHECK" | tail -5 >&2
+    if [ -n "${NOTARY_KEY:-}" ]; then
+      echo "error: notarytool can't sign in with the API key (check NOTARY_KEY, NOTARY_KEY_ID, NOTARY_ISSUER)" >&2
+    else
+      echo "error: notarytool can't sign in with keychain profile \"$NOTARY_PROFILE\"; create it with" >&2
+      echo "  xcrun notarytool store-credentials $NOTARY_PROFILE --apple-id <email> --team-id <TEAMID>" >&2
+    fi
     exit 1
   fi
 else
@@ -97,11 +113,11 @@ codesign "${SIGN_FLAGS[@]}" "$DMG"
 NOTE="signed by $IDENTITY"
 if [ "$DISTRIBUTION" = 1 ] && [ "${NOTARIZE:-1}" != 0 ]; then
   echo "Notarizing $DMG (usually a few minutes)..."
-  OUT=$(xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait 2>&1) || true
+  OUT=$(xcrun notarytool submit "$DMG" "${NOTARY_AUTH[@]}" --wait 2>&1) || true
   echo "$OUT" | grep -E "^\s*(id|status):" | awk '!seen[$0]++'
   if ! echo "$OUT" | grep -q "status: Accepted"; then
     ID=$(echo "$OUT" | awk '/^ *id:/{print $2; exit}')
-    [ -n "$ID" ] && xcrun notarytool log "$ID" --keychain-profile "$NOTARY_PROFILE" >&2
+    [ -n "$ID" ] && xcrun notarytool log "$ID" "${NOTARY_AUTH[@]}" >&2
     echo "error: notarization failed" >&2; exit 1
   fi
   xcrun stapler staple -q "$DMG"
