@@ -19,12 +19,15 @@
 # -Publisher overrides the manifest's Publisher for this build only (the file is
 # restored afterwards). It must equal the signing certificate's subject exactly,
 # e.g. "CN=Jane Doe, O=Jane Doe, L=Springfield, S=Illinois, C=US".
+# -WindowsSdk builds against that Windows SDK (e.g. 10.0.26100.0) instead of
+# react-native-windows' default, 10.0.22621.0 (CI runners only have newer ones).
 param(
   [ValidateSet("ARM64", "x64")] [string]$Platform = "ARM64",
   [string]$Thumbprint = "",
   [switch]$ArtifactSigning,
   [string]$Metadata = $(if ($env:SS_SIGNING_METADATA) { $env:SS_SIGNING_METADATA } else { "$env:LOCALAPPDATA\SoundScraper\signing\metadata.json" }),
-  [string]$Publisher = ""
+  [string]$Publisher = "",
+  [string]$WindowsSdk = ""
 )
 $ErrorActionPreference = "Stop"
 if ($Thumbprint -and $ArtifactSigning) { throw "Use -Thumbprint or -ArtifactSigning, not both" }
@@ -80,8 +83,9 @@ try {
   # Artifact Signing signs after the build: MSBuild can only sign with a local certificate.
   # @() keeps a one-item result an array; splatting a bare string passes it character by character.
   $signing = @(if ($Thumbprint) { "/p:AppxPackageSigningEnabled=true", "/p:PackageCertificateThumbprint=$Thumbprint" } else { "/p:AppxPackageSigningEnabled=false" })
+  $sdk = @(if ($WindowsSdk) { "/p:WindowsTargetPlatformVersion=$WindowsSdk", "/p:TargetPlatformVersion=$WindowsSdk" })
   & $msbuild "$root\app\windows\SoundScraper.sln" /restore /m /nologo /v:minimal /p:Configuration=Release "/p:Platform=$Platform" `
-    /p:AppxBundle=Never /p:UapAppxPackageBuildMode=SideloadOnly @signing
+    /p:AppxBundle=Never /p:UapAppxPackageBuildMode=SideloadOnly @signing @sdk
   if ($LASTEXITCODE -ne 0) { throw "MSBuild failed" }
 } finally {
   if ($patched) { [IO.File]::WriteAllText($manifestPath, $manifestText, [Text.UTF8Encoding]::new($true)) }

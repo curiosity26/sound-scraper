@@ -128,6 +128,16 @@ jobs:
           workspaces: core
           key: windows-${{ matrix.platform }}
       - run: npm ci --prefix app
+      # react-native-windows defaults to SDK 10.0.22621.0, which the runner
+      # doesn't have; build against the newest one it does.
+      - name: Pick the Windows SDK
+        shell: pwsh
+        run: |
+          $sdk = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\Include" -Directory |
+            Where-Object { Test-Path "$($_.FullName)\um\windows.h" } |
+            Sort-Object { [version]$_.Name } -Descending | Select-Object -First 1
+          "Windows SDK $($sdk.Name)"
+          "WINDOWS_SDK=$($sdk.Name)" >> $env:GITHUB_ENV
 
       - name: Install the Artifact Signing plugin
         shell: pwsh
@@ -152,7 +162,7 @@ jobs:
       # build can outlast it.
       - name: Build the .msix
         shell: powershell
-        run: .\scripts\package-windows.ps1 -Platform ${{ matrix.platform }}
+        run: .\scripts\package-windows.ps1 -Platform ${{ matrix.platform }} -WindowsSdk $env:WINDOWS_SDK
       - uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -160,7 +170,7 @@ jobs:
           allow-no-subscriptions: true   # signing needs only the role on the signing account
       - name: Sign the .msix
         shell: powershell
-        run: .\scripts\package-windows.ps1 -Platform ${{ matrix.platform }} -ArtifactSigning -Metadata "$env:RUNNER_TEMP\metadata.json"
+        run: .\scripts\package-windows.ps1 -Platform ${{ matrix.platform }} -WindowsSdk $env:WINDOWS_SDK -ArtifactSigning -Metadata "$env:RUNNER_TEMP\metadata.json"
 
       - uses: actions/upload-artifact@v4
         with:
