@@ -51,7 +51,7 @@ Keep the `.p8` somewhere safe (a password manager) or delete it; a new key can a
 GitHub signs in to Azure with a short-lived OIDC token; nothing long-lived is stored.
 
 1. Microsoft Entra ID › App registrations › **New registration**, name `sound-scraper-github-release`, single tenant, no redirect URI. Note the **Application (client) ID** and **Directory (tenant) ID** on its Overview.
-2. In that app: Certificates & secrets › **Federated credentials** › Add credential › *GitHub Actions deploying Azure resources*: organization `curiosity26`, repository `sound-scraper`, entity type **Environment**, environment `release`, name `github-release`. (Subject: `repo:curiosity26/sound-scraper:environment:release`.)
+2. In that app: Certificates & secrets › **Federated credentials** › Add credential › *GitHub Actions deploying Azure resources*: organization `curiosity26`, repository `sound-scraper` (repository ID `1403706095`, owner ID `4050934`), entity type **Environment**, environment `release`, name `github-release`. The repo uses GitHub's immutable OIDC subjects, so the subject must be `repo:curiosity26@4050934/sound-scraper@1403706095:environment:release` (check with `gh api repos/curiosity26/sound-scraper/actions/oidc/customization/sub`).
 3. The Artifact Signing account `soundscraperalex` (resource group `soundscraper-signing`) › Access control (IAM) › Add role assignment › **Artifact Signing Certificate Profile Signer** › Members: *User, group, or service principal* › select `sound-scraper-github-release`.
 4. Secrets:
 
