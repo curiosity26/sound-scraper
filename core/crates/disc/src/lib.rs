@@ -10,11 +10,15 @@ use std::{
     sync::atomic::AtomicBool,
 };
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 pub mod cue;
 pub mod image;
+#[cfg(target_os = "macos")]
+pub mod macos;
 pub mod sim;
+#[cfg(target_os = "windows")]
+pub mod windows;
 
 /// One sector of CD audio: 588 stereo frames of 16-bit little-endian PCM.
 pub const SECTOR_BYTES: usize = 2352;
@@ -207,7 +211,7 @@ fn read_full(file: &mut File, buf: &mut [u8]) -> io::Result<()> {
 // ------------------------------------------------------------ burners
 
 /// What a destination can do and what's in it.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Device {
     /// "image", "sim", or the OS's id for a drive.
@@ -225,7 +229,7 @@ pub struct Device {
     pub cd_text: bool,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Media {
     /// "none" | "blank" | "erasable" (a CD-RW with something on it) |
@@ -251,6 +255,29 @@ pub struct WriteOptions {
     pub eject: bool,
     /// Erase a CD-RW that has something on it first.
     pub erase: bool,
+}
+
+/// The CD writers attached now (macOS and Windows; none elsewhere yet).
+pub fn drives() -> Vec<Device> {
+    #[cfg(target_os = "macos")]
+    return macos::devices();
+    #[cfg(target_os = "windows")]
+    return windows::devices();
+    #[allow(unreachable_code)]
+    Vec::new()
+}
+
+/// The OS burner for a drive from `drives()`.
+pub fn drive_burner(id: &str) -> Option<Box<dyn Burner>> {
+    #[cfg(target_os = "macos")]
+    return Some(Box::new(macos::DiscRecordingBurner { device_id: id.to_string() }));
+    #[cfg(target_os = "windows")]
+    return Some(Box::new(windows::ImapiBurner { device_id: id.to_string() }));
+    #[allow(unreachable_code)]
+    {
+        let _ = id;
+        None
+    }
 }
 
 /// What a burner reports while writing.

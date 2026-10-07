@@ -1947,8 +1947,11 @@ dependencies = [
 name = "sound_scraper_disc"
 version = "0.1.2-beta.1"
 dependencies = [
+ "cc",
  "serde",
  "serde_json",
+ "windows",
+ "windows-core",
 ]
 
 [[package]]

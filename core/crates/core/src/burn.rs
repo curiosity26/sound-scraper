@@ -160,12 +160,60 @@ fn work_dir() -> PathBuf {
 /// What can be burned to: CD writers the OS reports (phase 3), the
 /// simulated recorder when enabled, and a disc image (always, last).
 pub fn devices() -> Vec<Device> {
-    let mut list = Vec::new();
+    let mut list = cached_drives();
     if simulator_enabled() {
         list.push(disc::sim::device());
     }
     list.push(disc::image::device());
     list
+}
+
+/// The drives, as last seen by a background thread that looks every two
+/// seconds while the UI keeps asking (asking a drive about its disc can
+/// take a while, and the UI asks from its own thread).
+fn cached_drives() -> Vec<Device> {
+    use std::time::Duration;
+    struct Cache {
+        drives: Option<Vec<Device>>,
+        asked: Instant,
+        running: bool,
+    }
+    static CACHE: Mutex<Option<Cache>> = Mutex::new(None);
+    let mut guard = CACHE.lock().unwrap_or_else(|e| e.into_inner());
+    let cache = guard.get_or_insert_with(|| Cache { drives: None, asked: Instant::now(), running: false });
+    cache.asked = Instant::now();
+    if !cache.running {
+        cache.running = true;
+        let _ = std::thread::Builder::new().name("cd drives".into()).spawn(|| {
+            loop {
+                let drives = disc::drives();
+                let mut guard = CACHE.lock().unwrap_or_else(|e| e.into_inner());
+                let cache = guard.as_mut().unwrap();
+                cache.drives = Some(drives);
+                // Stop when nobody has asked for a while.
+                if cache.asked.elapsed() > Duration::from_secs(20) {
+                    cache.running = false;
+                    return;
+                }
+                drop(guard);
+                std::thread::sleep(Duration::from_secs(2));
+            }
+        });
+    }
+    match &cache.drives {
+        Some(d) => d.clone(),
+        None => {
+            drop(guard);
+            // The first time: wait for the first look (briefly).
+            for _ in 0..30 {
+                std::thread::sleep(std::time::Duration::from_millis(50));
+                if let Some(d) = CACHE.lock().unwrap_or_else(|e| e.into_inner()).as_ref().and_then(|c| c.drives.clone()) {
+                    return d;
+                }
+            }
+            Vec::new()
+        }
+    }
 }
 
 fn burner_for(device_id: &str) -> Result<(Box<dyn Burner>, Device), String> {
@@ -177,7 +225,14 @@ fn burner_for(device_id: &str) -> Result<(Box<dyn Burner>, Device), String> {
             }),
             disc::sim::device(),
         )),
-        _ => Err("That CD recorder isn't available any more.".into()),
+        id => {
+            let device = disc::drives()
+                .into_iter()
+                .find(|d| d.id == id)
+                .ok_or("That CD recorder isn't connected any more.")?;
+            let burner = disc::drive_burner(id).ok_or("CD burning isn't available on this system.")?;
+            Ok((burner, device))
+        }
     }
 }
 
@@ -330,6 +385,20 @@ fn run(
 ) -> Result<String, String> {
     let n = request.tracks.len();
     job.log(format!(
+        "Sound Scraper {} on {} {}",
+        crate::VERSION,
+        std::env::consts::OS,
+        std::env::consts::ARCH
+    ));
+    job.log(format!(
+        "Options: gaps {} s, CD-Text {}, speed {}, test write {}, eject {}",
+        request.gap_seconds,
+        if request.cd_text { "on" } else { "off" },
+        if request.speed == 0 { "maximum".to_string() } else { format!("{}x", request.speed) },
+        if request.test_write { "on" } else { "off" },
+        if request.eject { "on" } else { "off" },
+    ));
+    job.log(format!(
         "Preparing {} for {}",
         if n == 1 {
             "1 track".to_string()
@@ -464,7 +533,47 @@ fn run(
             });
         }
     };
+    let _awake = (device.kind == "drive").then(StayAwake::new);
     burner.write(&prepared, &options, &events, &job.cancel)
+}
+
+/// Keeps the Mac from sleeping during a burn (Windows does this in its
+/// burner): `caffeinate -i` until dropped.
+struct StayAwake(Option<std::process::Child>);
+
+impl StayAwake {
+    fn new() -> Self {
+        #[cfg(target_os = "macos")]
+        return Self(std::process::Command::new("/usr/bin/caffeinate").arg("-i").spawn().ok());
+        #[allow(unreachable_code)]
+        Self(None)
+    }
+}
+
+impl Drop for StayAwake {
+    fn drop(&mut self) {
+        if let Some(child) = self.0.as_mut() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+    }
+}
+
+/// Writes a job's log as text (to send to someone helping).
+pub fn save_log(id: u64, path: &Path) -> Result<(), String> {
+    let s = status(id)?;
+    let mut text = format!("Sound Scraper burn log: {} ({})\n", s.destination, s.state);
+    for l in &s.log {
+        let t = l.at_ms / 1000;
+        text.push_str(&format!("[{:02}:{:02}.{:01}] {}\n", t / 60, t % 60, (l.at_ms % 1000) / 100, l.text));
+    }
+    if let Some(m) = &s.message {
+        text.push_str(&format!("Error: {m}\n"));
+    }
+    for (i, t) in s.tracks.iter().enumerate() {
+        text.push_str(&format!("Track {}: {} ({} ms) {}\n", i + 1, t.title, t.duration_ms, t.state));
+    }
+    std::fs::write(path, text).map_err(|e| format!("writing {}: {e}", path.display()))
 }
 
 /// Decodes `src` to 44.1 kHz 16-bit stereo little-endian PCM at `out`
@@ -563,6 +672,8 @@ pub enum Request {
     SetSimSettings { settings: SimSettings },
     /// Shows a burned image in Finder / Explorer.
     Reveal { path: String },
+    /// Writes a job's log to a text file.
+    SaveLog { id: u64, path: String },
 }
 
 pub fn handle(request: Request) -> Result<serde_json::Value, String> {
@@ -582,6 +693,7 @@ pub fn handle(request: Request) -> Result<serde_json::Value, String> {
             disc::sim::set_settings(settings);
             Ok(Value::Null)
         }
+        Request::SaveLog { id, path } => save_log(id, Path::new(&path)).map(|()| Value::Null),
         Request::Reveal { path } => crate::library::reveal_in_file_manager(Path::new(&path)).map(|()| Value::Null),
     }
 }
