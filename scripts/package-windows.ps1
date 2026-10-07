@@ -78,7 +78,8 @@ try {
     $manifest.Save($manifestPath)
   }
   # Artifact Signing signs after the build: MSBuild can only sign with a local certificate.
-  $signing = if ($Thumbprint) { @("/p:AppxPackageSigningEnabled=true", "/p:PackageCertificateThumbprint=$Thumbprint") } else { @("/p:AppxPackageSigningEnabled=false") }
+  # @() keeps a one-item result an array; splatting a bare string passes it character by character.
+  $signing = @(if ($Thumbprint) { "/p:AppxPackageSigningEnabled=true", "/p:PackageCertificateThumbprint=$Thumbprint" } else { "/p:AppxPackageSigningEnabled=false" })
   & $msbuild "$root\app\windows\SoundScraper.sln" /restore /m /nologo /v:minimal /p:Configuration=Release "/p:Platform=$Platform" `
     /p:AppxBundle=Never /p:UapAppxPackageBuildMode=SideloadOnly @signing
   if ($LASTEXITCODE -ne 0) { throw "MSBuild failed" }
