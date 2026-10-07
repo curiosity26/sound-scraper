@@ -416,6 +416,14 @@ struct SoundScraperModule {
     return out;
   }
 
+  REACT_SYNC_METHOD(burn)
+  std::string burn(std::string requestJson) noexcept {
+    char *json = ss_burn(requestJson.c_str());
+    std::string out = json ? json : R"({"error":"no answer"})";
+    ss_string_free(json);
+    return out;
+  }
+
   /// A Save dialog for one file type; resolves with the path or null.
   REACT_METHOD(pickSaveFile)
   void pickSaveFile(std::string title, std::string defaultName, std::string extension,

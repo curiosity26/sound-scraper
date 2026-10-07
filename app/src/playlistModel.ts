@@ -190,13 +190,10 @@ export function discCapacity(rows: PlaylistRow[], gapSeconds = 2): Capacity {
   };
 }
 
-/** m:ss for a sector count. */
+/** m:ss for a sector count (minutes, as CDs are measured: 79:57). */
 export function formatSectors(sectors: number): string {
   const seconds = Math.round(Math.abs(sectors) / SECTORS_PER_SECOND);
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor(seconds / 60) % 60;
-  const s = String(seconds % 60).padStart(2, '0');
-  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
 /** The sentence under the capacity bar. */

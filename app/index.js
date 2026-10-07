@@ -7,6 +7,7 @@ import App from './App';
 import { name as appName } from './app.json';
 import { skinsAvailable } from './src/skin/skins';
 import {
+  BurnApp,
   DetailsApp,
   EditorApp,
   LibraryApp,
@@ -23,6 +24,7 @@ if (skinsAvailable) {
   AppRegistry.registerComponent('SoundScraperSettings', () => SettingsApp);
   AppRegistry.registerComponent('SoundScraperDetails', () => DetailsApp);
   AppRegistry.registerComponent('SoundScraperEditor', () => EditorApp);
+  AppRegistry.registerComponent('SoundScraperBurn', () => BurnApp);
 } else {
   // No native skin support: the plain single-window UI.
   AppRegistry.registerComponent(appName, () => App);

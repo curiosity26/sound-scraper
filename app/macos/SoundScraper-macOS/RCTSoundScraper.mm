@@ -590,6 +590,14 @@ RCT_EXPORT_MODULE(SoundScraper)
   return result;
 }
 
+- (NSString *)burn:(NSString *)requestJson
+{
+  char *json = ss_burn(requestJson.UTF8String);
+  NSString *result = SSString(json) ?: @"{\"error\":\"no answer\"}";
+  ss_string_free(json);
+  return result;
+}
+
 - (void)pickSaveFile:(NSString *)title
          defaultName:(NSString *)defaultName
            extension:(NSString *)extension

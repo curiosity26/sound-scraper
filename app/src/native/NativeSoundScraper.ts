@@ -159,6 +159,11 @@ export interface Spec extends TurboModule {
    * sound_scraper.h); returns `{"ok": answer}` or `{"error": message}`.
    */
   playlists(requestJson: string): string;
+  /**
+   * Runs a CD burning request (JSON with an "op", see ss_burn in
+   * sound_scraper.h); returns `{"ok": answer}` or `{"error": message}`.
+   */
+  burn(requestJson: string): string;
   /** Native save dialog; resolves with the chosen path, or null if cancelled. */
   pickSaveFile(
     title: string,

@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AboutPanel } from './AboutPanel';
+import { BurnPanel, openBurnPanel } from './BurnPanel';
 import { safeSettings } from './appHelpers';
 import { DetailsPane } from './DetailsPane';
 import { EditorPanel } from './editor/EditorPanel';
@@ -16,6 +17,7 @@ import { SkinPanelFrame } from './skin/SkinPanelFrame';
 import { SkinProvider, useSkin } from './skin/SkinProvider';
 import { SkinScale } from './skin/SkinImage';
 import {
+  burnTarget,
   doubleSizeStore,
   editorTarget,
   isFolderSkin,
@@ -128,7 +130,9 @@ function chosenFolder(): string | null {
 }
 
 /** Text color and whether the panel is dark, from the skin's controls. */
-function usePanelText(panel: 'library' | 'settings' | 'details' | 'editor') {
+function usePanelText(
+  panel: 'library' | 'settings' | 'details' | 'editor' | 'burn',
+) {
   const skin = useSkin();
   const c = skin.panels[panel].controls;
   return {
@@ -160,6 +164,9 @@ function LibraryContent(props: {
         openDetails={() => windows.setPanelVisible('details', true)}
         showLibraryMenu={(items, checked, x, y) =>
           windows.showMenu(items, checked, x, y, 'library')
+        }
+        onBurn={target =>
+          openBurnPanel(target, () => windows.setPanelVisible('burn', true))
         }
       />
       {message && (
@@ -351,6 +358,21 @@ export function EditorApp(): React.JSX.Element {
         title={title ? `Editor: ${title}` : 'Editor'}
       >
         <EditorContent />
+      </SkinPanelFrame>
+    </Skinned>
+  );
+}
+
+/** The burn window: a playlist to CD or a disc image. */
+export function BurnApp(): React.JSX.Element {
+  const [name, setName] = useState(burnTarget.get()?.name);
+  useEffect(() => burnTarget.subscribe(t => setName(t?.name)), []);
+  return (
+    <Skinned>
+      <SkinPanelFrame panel="burn" title={name ? `Burn: ${name}` : 'Burn CD'}>
+        <View style={styles.content}>
+          <BurnPanel />
+        </View>
       </SkinPanelFrame>
     </Skinned>
   );

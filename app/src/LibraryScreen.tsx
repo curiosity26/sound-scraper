@@ -6,8 +6,10 @@ import { DetailsPane, type ShowMenu } from './DetailsPane';
 import { LibraryTable, type PlaylistView } from './LibraryTable';
 import { library, type Recording } from './native/SoundScraper';
 import { playback, usePlayback } from './playback';
+import type { BurnTrackInput } from './burnModel';
 import {
   AddToButton,
+  BurnButton,
   CapacityBar,
   PlaylistPicker,
   PlaylistPrompt,
@@ -38,6 +40,12 @@ type Props = {
    * and "Add to ▾" are shown.
    */
   showLibraryMenu?: ShowPlaylistMenu;
+  /** Burn CD… / Save CD Image… for the playlist showing. */
+  onBurn?: (target: {
+    playlistId: number;
+    name: string;
+    tracks: BurnTrackInput[];
+  }) => void;
 };
 
 // Every mounted library view, so a change elsewhere (e.g. the recordings
@@ -245,7 +253,31 @@ export function LibraryScreen(props: Props): React.JSX.Element {
         }
         footer={
           showing ? (
-            <CapacityBar capacity={capacity} textStyle={textStyle} />
+            <CapacityBar
+              capacity={capacity}
+              textStyle={textStyle}
+              action={
+                props.onBurn ? (
+                  <BurnButton
+                    capacity={capacity}
+                    onPress={() =>
+                      props.onBurn!({
+                        playlistId: pl.activeId!,
+                        name: activeName ?? 'Playlist',
+                        tracks: rows
+                          .filter(r => r.recording)
+                          .map(r => ({
+                            path: r.recording!.path,
+                            title: r.recording!.title,
+                            performer: r.recording!.artist,
+                            durationMs: r.recording!.durationMs,
+                          })),
+                      })
+                    }
+                  />
+                ) : undefined
+              }
+            />
           ) : undefined
         }
       />

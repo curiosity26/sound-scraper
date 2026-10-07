@@ -69,6 +69,10 @@
         "editor": {
           "$ref": "#/$defs/framePanel",
           "description": "The track editor: the waveform, time ruler, splice marks and regions. Its colors are in `waveform`."
+        },
+        "burn": {
+          "$ref": "#/$defs/framePanel",
+          "description": "Burning a playlist to CD: the setup page and the per-track progress. Its colors are in `progress`."
         }
       }
     },
@@ -589,6 +593,28 @@
               "accent",
               "button",
               "buttonText"
+            ]
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/color"
+          }
+        },
+        "progress": {
+          "type": "object",
+          "description": "Burn progress colors (burn panel only): bar over track, the drive buffer bar, status lamps (waiting, preparing, writing, done, failed), glow (the lamps' halo; transparent for none), and the log (log behind logText).",
+          "propertyNames": {
+            "enum": [
+              "bar",
+              "track",
+              "buffer",
+              "waiting",
+              "preparing",
+              "writing",
+              "done",
+              "failed",
+              "glow",
+              "log",
+              "logText"
             ]
           },
           "additionalProperties": {

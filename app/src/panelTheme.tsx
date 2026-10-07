@@ -17,6 +17,8 @@ export type PanelTheme = {
   scrollbar: FramePanel['scrollbar'];
   /** Playlist colors (library panel). */
   playlist?: Record<string, string | undefined>;
+  /** Burn progress colors (burn panel). */
+  progress?: Record<string, string | undefined>;
   /** Smaller text and tighter rows, for the small (1x) panels. */
   compact?: boolean;
 };
@@ -37,6 +39,7 @@ export function themeFromPanel(panel: FramePanel): PanelTheme {
     table: panel.table,
     scrollbar: panel.scrollbar,
     playlist: panel.playlist,
+    progress: panel.progress,
   };
 }
 

@@ -393,7 +393,7 @@ fn move_to_trash(path: &Path) -> Result<(), String> {
     trash.delete(path).map_err(|e| format!("moving {} to the Trash: {e}", path.display()))
 }
 
-fn reveal_in_file_manager(path: &Path) -> Result<(), String> {
+pub(crate) fn reveal_in_file_manager(path: &Path) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     let status = std::process::Command::new("open").arg("-R").arg(path).status();
     #[cfg(target_os = "windows")]

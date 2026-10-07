@@ -124,6 +124,7 @@ final class WindowController: NSObject, NSWindowDelegate {
     "settings": ("SoundScraperSettings", "Settings", NSSize(width: 460, height: 560)),
     "details": ("SoundScraperDetails", "Details", NSSize(width: 300, height: 480)),
     "editor": ("SoundScraperEditor", "Editor", NSSize(width: 860, height: 340)),
+    "burn": ("SoundScraperBurn", "Burn CD", NSSize(width: 520, height: 480)),
   ]
 
   // MARK: Skin files
@@ -173,10 +174,10 @@ final class WindowController: NSObject, NSWindowDelegate {
     }
     window.makeKeyAndOrderFront(nil)
     main = window
-    // Details shows the selection and the editor a recording, neither kept
-    // between launches.
+    // Details shows the selection, the editor a recording and the burn panel
+    // a playlist, none kept between launches.
     for name in Self.panelSpecs.keys.sorted()
-    where name != "details" && name != "editor" && (saved[name]?["visible"] as? Bool) == true {
+    where !["details", "editor", "burn"].contains(name) && (saved[name]?["visible"] as? Bool) == true {
       setPanel(name, visible: true)
     }
     constrainToScreens()
@@ -339,6 +340,10 @@ final class WindowController: NSObject, NSWindowDelegate {
       } else if name == "editor" {
         let above = panels["library"].flatMap { $0.isVisible ? toTopLeft($0.frame) : nil } ?? m
         frame.origin = NSPoint(x: above.minX, y: above.maxY)
+      } else if name == "burn" {
+        // Beside the library, or the main panel.
+        let left = panels["library"].flatMap { $0.isVisible ? toTopLeft($0.frame) : nil } ?? m
+        frame.origin = NSPoint(x: left.maxX, y: left.minY)
       }
       window.setFrame(toAppKit(frame), display: false)
     }

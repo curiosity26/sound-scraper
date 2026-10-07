@@ -561,6 +561,8 @@ pub enum Request {
     Close { id: u64 },
     SimSettings,
     SetSimSettings { settings: SimSettings },
+    /// Shows a burned image in Finder / Explorer.
+    Reveal { path: String },
 }
 
 pub fn handle(request: Request) -> Result<serde_json::Value, String> {
@@ -580,6 +582,7 @@ pub fn handle(request: Request) -> Result<serde_json::Value, String> {
             disc::sim::set_settings(settings);
             Ok(Value::Null)
         }
+        Request::Reveal { path } => crate::library::reveal_in_file_manager(Path::new(&path)).map(|()| Value::Null),
     }
 }
 

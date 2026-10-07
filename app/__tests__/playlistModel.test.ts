@@ -99,7 +99,7 @@ test('capacity counts the pregap and the gaps between tracks', () => {
   expect(c.gapSectors).toBe(300);
   expect(c.fit).toBe('fits74');
   expect(capacityText(c)).toBe('Fits a 74-minute CD with 13:56 to spare');
-  expect(capacitySummary(c)).toBe('2 tracks · 1:00:00 (+0:04 gaps)');
+  expect(capacitySummary(c)).toBe('2 tracks · 60:00 (+0:04 gaps)');
   expect(discCapacity(rows, 0).totalSectors).toBe(150 + 270_000);
 });
 

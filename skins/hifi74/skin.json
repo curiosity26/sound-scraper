@@ -56,6 +56,88 @@
   "id": "com.alexboyce.soundscraper.hifi74",
   "name": "Hi-Fi '74",
   "panels": {
+    "burn": {
+      "close": {
+        "offset": [
+          12,
+          7
+        ],
+        "size": [
+          14,
+          10
+        ],
+        "sprite": {
+          "image": "buttons.png",
+          "states": {
+            "normal": [
+              704,
+              60
+            ],
+            "pressed": [
+              718,
+              60
+            ]
+          }
+        }
+      },
+      "controls": {
+        "accent": "@amber",
+        "background": "#241b15",
+        "border": "#4a3a2c",
+        "button": "@aluminum",
+        "buttonText": "@text",
+        "text": "@cream"
+      },
+      "frame": {
+        "image": "frame.png",
+        "slice": [
+          24,
+          8,
+          8,
+          8
+        ]
+      },
+      "grip": [
+        14,
+        14
+      ],
+      "minSize": [
+        480,
+        360
+      ],
+      "progress": {
+        "bar": "@phosphor",
+        "buffer": "@amber",
+        "done": "@phosphor",
+        "failed": "@record",
+        "glow": "#ffb24a55",
+        "log": "#0b0806",
+        "logText": "@phosphor",
+        "preparing": "#8a6a3a",
+        "track": "#0f0b08",
+        "waiting": "#3a2d22",
+        "writing": "@amber"
+      },
+      "resizable": true,
+      "table": {
+        "alternate": "#221a14",
+        "background": "#1b1511",
+        "grid": "#3a2d22",
+        "header": "@aluminum",
+        "headerText": "@text",
+        "selection": "@amber",
+        "selectionText": "#1b1108",
+        "text": "@cream"
+      },
+      "title": {
+        "background": "#0000",
+        "font": "label",
+        "offset": [
+          14,
+          6
+        ]
+      }
+    },
     "details": {
       "close": {
         "offset": [
@@ -269,6 +351,17 @@
         400,
         240
       ],
+      "playlist": {
+        "fill": "@phosphor",
+        "fill80": "@amber",
+        "handle": "#7a6a58",
+        "insert": "@amber",
+        "mark": "@cream",
+        "missing": "#6d5f50",
+        "over": "@record",
+        "text": "@cream",
+        "track": "#0f0b08"
+      },
       "resizable": true,
       "scrollbar": {
         "image": "scrollbar.png",
@@ -308,17 +401,6 @@
           14,
           6
         ]
-      },
-      "playlist": {
-        "fill": "@phosphor",
-        "fill80": "@amber",
-        "over": "@record",
-        "track": "#0f0b08",
-        "mark": "@cream",
-        "text": "@cream",
-        "handle": "#7a6a58",
-        "insert": "@amber",
-        "missing": "#6d5f50"
       }
     },
     "main": {

@@ -1,10 +1,11 @@
 // The library's playlist picker, its menu actions and in-panel prompts, the
 // "Add to ▾" action for checked rows, and the CD capacity bar
 // (docs/playlists-and-cd-burning-design.md §5).
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { errorText } from './appHelpers';
+import { burnApi } from './burnModel';
 import { pickSaveFile, playlistsApi } from './native/SoundScraper';
 import { usePanelStyles, usePanelTheme } from './panelTheme';
 import {
@@ -327,6 +328,8 @@ export function AddToButton(props: {
 export function CapacityBar(props: {
   capacity: Capacity;
   textStyle: object;
+  /** Beside the summary (Burn CD…). */
+  action?: React.ReactNode;
 }): React.JSX.Element {
   const theme = usePanelTheme();
   const t = usePanelStyles();
@@ -344,11 +347,20 @@ export function CapacityBar(props: {
   const pct = (sectors: number) => `${Math.min(100, (sectors / scale) * 100)}%`;
   return (
     <View style={styles.capacity} testID="cd-capacity">
-      <Text
-        style={[styles.capacityLine, props.textStyle, { color: text }, t.cell]}
-      >
-        {capacitySummary(c)}
-      </Text>
+      <View style={styles.capacityTop}>
+        <Text
+          style={[
+            styles.capacityLine,
+            styles.capacitySummary,
+            props.textStyle,
+            { color: text },
+            t.cell,
+          ]}
+        >
+          {capacitySummary(c)}
+        </Text>
+        {props.action}
+      </View>
       <View
         style={[styles.bar, { backgroundColor: pc.track ?? '#0004' }]}
         accessibilityLabel={capacityText(c)}
@@ -404,6 +416,52 @@ export function CapacityBar(props: {
         {capacityText(c)}
       </Text>
     </View>
+  );
+}
+
+/** Burn CD… (a CD writer is there) or Save CD Image… (none is). */
+export function BurnButton(props: {
+  capacity: Capacity;
+  onPress: () => void;
+}): React.JSX.Element {
+  const t = usePanelStyles();
+  const theme = usePanelTheme();
+  const [hasBurner, setHasBurner] = useState(false);
+  useEffect(() => {
+    const check = () => {
+      try {
+        setHasBurner(burnApi.devices().devices.some(d => d.kind !== 'image'));
+      } catch {
+        setHasBurner(false);
+      }
+    };
+    check();
+    // Burners can be plugged in at any time.
+    const timer = setInterval(check, 3000);
+    return () => clearInterval(timer);
+  }, []);
+  const c = props.capacity;
+  const disabled =
+    c.fit === 'empty' || c.fit === 'tooMany' || c.fit === 'tooLong';
+  return (
+    <Pressable
+      testID="burn-cd"
+      disabled={disabled}
+      accessibilityHint={disabled ? capacityText(c) : undefined}
+      onPress={props.onPress}
+      style={({ pressed }) => [
+        styles.button,
+        {
+          borderColor: theme?.border ?? colors.border,
+          backgroundColor: theme?.accent ?? colors.accent,
+          opacity: disabled ? 0.35 : pressed ? 0.7 : 1,
+        },
+      ]}
+    >
+      <Text style={[styles.buttonText, styles.accentText, t.cell]}>
+        {hasBurner ? 'Burn CD…' : 'Save CD Image…'}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -573,6 +631,8 @@ const styles = StyleSheet.create({
   link: { color: colors.accent, fontSize: 13 },
   capacity: { marginTop: 6, gap: 3 },
   capacityLine: { fontSize: 12 },
+  capacityTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  capacitySummary: { flex: 1 },
   bar: { height: 8, borderRadius: 2, overflow: 'hidden' },
   barFill: { position: 'absolute', left: 0, top: 0, bottom: 0 },
   mark: { position: 'absolute', top: 0, bottom: 0, width: 1 },
