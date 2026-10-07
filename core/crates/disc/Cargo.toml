@@ -1,0 +1,11 @@
+[package]
+name = "sound_scraper_disc"
+description = "Sound Scraper audio CDs: Red Book layout, cue/bin images and disc burners"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

@@ -973,6 +973,18 @@ char *ss_skin_folder_stamp(const char *dir);
 char *ss_playlists(const char *request_json);
 
 /*
+ Runs one burning request (docs/playlists-and-cd-burning-design.md §6):
+ JSON with an `"op"` of `devices`, `start` (a `burn::BurnRequest`;
+ answers the job id), `status`, `cancel`, `close` (with `"id"`),
+ `simSettings` or `setSimSettings`. Always returns JSON: `{"ok": answer}`
+ or `{"error": message}`. Free with `ss_string_free`.
+
+ # Safety
+ `request_json` must be NUL-terminated UTF-8.
+ */
+char *ss_burn(const char *request_json);
+
+/*
  Opens a recording in the track editor and starts building its waveform
  in the background (see `ss_editor_status`). Returns the editor's id, or
  0 on failure. Close with `ss_editor_close`.

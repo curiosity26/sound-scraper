@@ -1,6 +1,7 @@
 //! Sound Scraper core. All app logic lives here; the UI reaches it only
 //! through the C ABI in [`ffi`].
 
+pub mod burn;
 pub mod capture_test;
 pub mod edit;
 pub mod ffi;

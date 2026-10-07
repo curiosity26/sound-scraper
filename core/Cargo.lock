@@ -1934,12 +1934,21 @@ dependencies = [
  "serde",
  "serde_json",
  "sound_scraper_capture",
+ "sound_scraper_disc",
  "sound_scraper_layout",
  "sound_scraper_skin",
  "sound_scraper_vis",
  "symphonia",
  "trash",
  "windows",
+]
+
+[[package]]
+name = "sound_scraper_disc"
+version = "0.1.2-beta.1"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
