@@ -1,6 +1,6 @@
 # Windows signing
 
-Today the MSIX is signed with a self-signed `CN=alexboyce` certificate, so it only installs on machines where that certificate was added to Trusted People. For anyone else to double-click the `.msix` and install it, the package has to be signed by a certificate that chains to a root Windows already trusts, or be distributed through the Microsoft Store (which signs it for us).
+Test builds used to be signed with a self-signed `CN=alexboyce` certificate, which only installs on machines where that certificate was added to Trusted People. For anyone else to double-click the `.msix` and install it, the package has to be signed by a certificate that chains to a root Windows already trusts, or be distributed through the Microsoft Store (which signs it for us).
 
 One rule applies to every route: the manifest's `Publisher` must be exactly the signing certificate's subject. Changing the Publisher changes the package family name, so a package signed for real installs as a different app from the test builds (separate settings and AppData). Uninstall "Sound Scraper" test builds before installing the first real one.
 
@@ -55,7 +55,7 @@ New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\SoundScraper\signing"
 
 `metadata.json` holds no secret (authentication comes from `az login`), but it lives outside the repo anyway. The script builds unsigned, then signs the `.msix` with the x64 SignTool and the Artifact Signing plugin (the plugin has no ARM64 build, so on ARM64 Windows it runs under x64 emulation), timestamps it, and checks that the signer's subject equals the Publisher.
 
-Once the subject is known, commit it as the `Publisher` in `Package.appxmanifest` (and `PublisherDisplayName`), so `-Publisher` is no longer needed. For local test builds after that, make a self-signed certificate with the same subject:
+The manifest's Publisher is now that subject, `CN=Alex Boyce, O=Alex Boyce, L=Williamsport, S=pa, C=US` (account `soundscraperalex`, profile `SoundScraper`, East US), so `-Publisher` is only needed if it ever changes. For local test builds after that, make a self-signed certificate with the same subject:
 
 ```powershell
 New-SelfSignedCertificate -Type Custom -Subject "<same subject>" -KeyUsage DigitalSignature `
