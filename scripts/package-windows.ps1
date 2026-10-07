@@ -19,14 +19,12 @@
 # -Publisher overrides the manifest's Publisher for this build only (the file is
 # restored afterwards). It must equal the signing certificate's subject exactly,
 # e.g. "CN=Jane Doe, O=Jane Doe, L=Springfield, S=Illinois, C=US".
-# -Version (e.g. 1.2.3 or 1.2.3.0) overrides the manifest's Version the same way.
 param(
   [ValidateSet("ARM64", "x64")] [string]$Platform = "ARM64",
   [string]$Thumbprint = "",
   [switch]$ArtifactSigning,
   [string]$Metadata = $(if ($env:SS_SIGNING_METADATA) { $env:SS_SIGNING_METADATA } else { "$env:LOCALAPPDATA\SoundScraper\signing\metadata.json" }),
-  [string]$Publisher = "",
-  [string]$Version = ""
+  [string]$Publisher = ""
 )
 $ErrorActionPreference = "Stop"
 if ($Thumbprint -and $ArtifactSigning) { throw "Use -Thumbprint or -ArtifactSigning, not both" }
@@ -70,17 +68,13 @@ if ($ArtifactSigning) {
 $manifestPath = "$root\app\windows\SoundScraper.Package\Package.appxmanifest"
 $manifestText = [IO.File]::ReadAllText($manifestPath)
 $manifest = [xml]$manifestText
-if ($Version) {
-  if ($Version -notmatch '^\d+\.\d+\.\d+(\.\d+)?$') { throw "Version must be 3 or 4 numbers, e.g. 1.2.3: '$Version'" }
-  if ($Version.Split('.').Count -eq 3) { $Version += ".0" }
-} else { $Version = $manifest.Package.Identity.Version }
+$version = $manifest.Package.Identity.Version
 if (-not $Publisher) { $Publisher = $manifest.Package.Identity.Publisher }
 
-$patched = ($Publisher -ne $manifest.Package.Identity.Publisher) -or ($Version -ne $manifest.Package.Identity.Version)
+$patched = $Publisher -ne $manifest.Package.Identity.Publisher
 try {
   if ($patched) {
     $manifest.Package.Identity.Publisher = $Publisher
-    $manifest.Package.Identity.Version = $Version
     $manifest.Save($manifestPath)
   }
   # Artifact Signing signs after the build: MSBuild can only sign with a local certificate.

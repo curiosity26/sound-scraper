@@ -7,8 +7,8 @@
 # NOTARY_PROFILE (default "soundscraper-notary"; create it with
 # `xcrun notarytool store-credentials`), or with an App Store Connect API key
 # when NOTARY_KEY (path to the .p8), NOTARY_KEY_ID and NOTARY_ISSUER are set
-# (CI). NOTARIZE=0 skips notarization. APP_VERSION and APP_BUILD override the
-# project's MARKETING_VERSION and CURRENT_PROJECT_VERSION.
+# (CI). NOTARIZE=0 skips notarization. APP_BUILD overrides the project's
+# CURRENT_PROJECT_VERSION (the build number); scripts/version.py sets the version.
 # Self-signed builds aren't notarizable; Gatekeeper asks the user to confirm the first launch.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -25,7 +25,6 @@ SIGN_FLAGS=(--force --sign "$IDENTITY")
 # The project signs automatically with the team's Apple Development cert; a
 # release build names its identity explicitly instead.
 BUILD_FLAGS=(CODE_SIGN_STYLE=Manual)
-[ -n "${APP_VERSION:-}" ] && BUILD_FLAGS+=(MARKETING_VERSION="$APP_VERSION")
 [ -n "${APP_BUILD:-}" ] && BUILD_FLAGS+=(CURRENT_PROJECT_VERSION="$APP_BUILD")
 if [[ "$IDENTITY" == "Developer ID Application"* ]]; then
   DISTRIBUTION=1

@@ -2,8 +2,8 @@
 # .msix for a version tag, then publishes them as a GitHub Release.
 #   git tag v1.2.0 && git push origin v1.2.0           # release
 #   git tag v1.2.0-beta.1 && git push origin v1.2.0-beta.1   # pre-release
-# The app version comes from the tag (1.2.0; anything after "-" only names the
-# release). One-time setup: docs/release.md.
+# The tag must match the version in every project file (scripts/version.py
+# set 1.2.0 and commit before tagging). One-time setup: docs/release.md.
 name: Release
 
 on:
@@ -21,18 +21,14 @@ jobs:
   version:
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.v.outputs.version }}
       prerelease: ${{ steps.v.outputs.prerelease }}
     steps:
+      - uses: actions/checkout@v4
       - id: v
         env:
           TAG: ${{ github.ref_name }}
         run: |
-          version="${TAG#v}"; version="${version%%-*}"
-          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Tag $TAG isn't v<major>.<minor>.<patch>[-label]"; exit 1
-          fi
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+          scripts/version.py check "$TAG"
           [[ "$TAG" == *-* ]] && prerelease=true || prerelease=false
           echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
 
@@ -82,7 +78,6 @@ jobs:
       - name: Build, sign and notarize the .dmg
         env:
           SIGN_IDENTITY: "Developer ID Application: Alex Boyce (B53W8TX3Q9)"
-          APP_VERSION: ${{ needs.version.outputs.version }}
           APP_BUILD: ${{ github.run_number }}
           NOTARY_KEY_P8: ${{ secrets.APPLE_NOTARY_KEY_P8 }}
           NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
@@ -119,8 +114,6 @@ jobs:
             rust-target: aarch64-pc-windows-msvc
           - platform: x64
             rust-target: x86_64-pc-windows-msvc
-    env:
-      VERSION: ${{ needs.version.outputs.version }}
     steps:
       - run: git config --system core.longpaths true
       - uses: actions/checkout@v4
@@ -159,7 +152,7 @@ jobs:
       # build can outlast it.
       - name: Build the .msix
         shell: powershell
-        run: .\scripts\package-windows.ps1 -Platform ${{ matrix.platform }} -Version $env:VERSION
+        run: .\scripts\package-windows.ps1 -Platform ${{ matrix.platform }}
       - uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -167,7 +160,7 @@ jobs:
           allow-no-subscriptions: true   # signing needs only the role on the signing account
       - name: Sign the .msix
         shell: powershell
-        run: .\scripts\package-windows.ps1 -Platform ${{ matrix.platform }} -Version $env:VERSION -ArtifactSigning -Metadata "$env:RUNNER_TEMP\metadata.json"
+        run: .\scripts\package-windows.ps1 -Platform ${{ matrix.platform }} -ArtifactSigning -Metadata "$env:RUNNER_TEMP\metadata.json"
 
       - uses: actions/upload-artifact@v4
         with:

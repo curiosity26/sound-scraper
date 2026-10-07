@@ -3,8 +3,9 @@
 Pushing a version tag runs [.github/workflows/release.yml](../.github/workflows/release.yml):
 
 ```sh
-git tag v0.2.0 && git push origin v0.2.0                 # release
-git tag v0.2.0-beta.1 && git push origin v0.2.0-beta.1   # pre-release
+scripts/version.py set 0.2.0            # or 0.2.0-beta.1 for a pre-release
+git commit -am "Version 0.2.0"
+git tag v0.2.0 && git push origin HEAD v0.2.0
 ```
 
 It builds, on GitHub-hosted runners:
@@ -14,7 +15,7 @@ It builds, on GitHub-hosted runners:
 
 and publishes them, with a `SHA256SUMS.txt`, as a GitHub Release with generated notes. A tag with a `-label` becomes a pre-release.
 
-The app version comes from the tag: `v0.2.0-beta.1` builds version 0.2.0 (`CFBundleShortVersionString`, MSIX `0.2.0.0`); the run number becomes the Mac build number. The project files aren't changed, so they can lag behind the released version.
+The tag must match the version in every project file, or the run stops before building: `app/package.json` (and its lock) and the Cargo workspace (and `Cargo.lock`) hold the full version, e.g. `0.2.0-beta.1`; Xcode's `MARKETING_VERSION` and the MSIX manifest only take numbers, so they hold `0.2.0` and `0.2.0.0`. `scripts/version.py set` writes all of them, and `scripts/version.py` with no arguments lists them. The run number becomes the Mac build number (`CFBundleVersion`).
 
 No secret is in the repo. Everything below lives in GitHub secrets, the Apple Developer account and Azure.
 
