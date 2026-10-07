@@ -214,8 +214,8 @@ with marks at 74 and 80 minutes. It's the accent colour while it fits a
 line under it says what's true ("Fits a 74-minute CD with 21:22 to
 spare", "Needs an 80-minute CD", "4:12 too long for a CD: remove a track
 or two"), and past 80 minutes the rows that don't fit get a red edge,
-where the disc ends, as WMP's "next disc" line does. **Burn CD…** is
-disabled with a tooltip saying why when it doesn't fit, has more than 99
+where the disc ends, as WMP's "next disc" line does. **Burn CD…** (or **Save CD Image…**
+when no CD writer is detected, §6.1) is disabled with a tooltip saying why when it doesn't fit, has more than 99
 tracks, or is empty.
 
 ## 6. Burning
