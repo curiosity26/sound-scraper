@@ -205,7 +205,7 @@ For distribution, get an Apple **Developer ID Application** certificate, then:
 2. Run `SIGN_IDENTITY="Developer ID Application: …" scripts/package-macos.sh`.
 3. Notarize and staple: `xcrun notarytool submit dist/SoundScraper-<v>.dmg --keychain-profile <profile> --wait && xcrun stapler staple dist/SoundScraper-<v>.dmg`.
 
-**Windows:** `.\scripts\package-windows.ps1 -Platform ARM64 -ArtifactSigning` builds a Release MSIX into `dist\` and signs it with Azure Artifact Signing (account `soundscraperalex`, profile `SoundScraper`, East US); setup is in [docs/windows-signing.md](docs/windows-signing.md). The package identity is `com.alexboyce.soundscraper` with publisher `CN=Alex Boyce, O=Alex Boyce, L=Williamsport, S=pa, C=US`, the certificate's subject. For local test builds, `-Thumbprint <SHA1>` signs with a self-signed certificate that has that same subject (see the doc); it has to be trusted on that machine (Local Machine › Trusted People).
+**Windows:** `.\scripts\package-windows.ps1 -Platform ARM64 -ArtifactSigning` builds a Release MSIX into `dist\` and signs it with Azure Artifact Signing (account `soundscraperalex`, profile `SoundScraperPublic`, East US); setup is in [docs/windows-signing.md](docs/windows-signing.md). The package identity is `com.alexboyce.soundscraper` with publisher `CN=Alex Boyce, O=Alex Boyce, L=Williamsport, S=pa, C=US`, the certificate's subject. For local test builds, `-Thumbprint <SHA1>` signs with a self-signed certificate that has that same subject (see the doc); it has to be trusted on that machine (Local Machine › Trusted People).
 
 ## Licensing
 

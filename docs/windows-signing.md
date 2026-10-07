@@ -55,7 +55,7 @@ New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\SoundScraper\signing"
 
 `metadata.json` holds no secret (authentication comes from `az login`), but it lives outside the repo anyway. The script builds unsigned, then signs the `.msix` with the x64 SignTool and the Artifact Signing plugin (the plugin has no ARM64 build, so on ARM64 Windows it runs under x64 emulation), timestamps it, and checks that the signer's subject equals the Publisher.
 
-The manifest's Publisher is now that subject, `CN=Alex Boyce, O=Alex Boyce, L=Williamsport, S=pa, C=US` (account `soundscraperalex`, profile `SoundScraper`, East US), so `-Publisher` is only needed if it ever changes. For local test builds after that, make a self-signed certificate with the same subject:
+The manifest's Publisher is now that subject, `CN=Alex Boyce, O=Alex Boyce, L=Williamsport, S=pa, C=US` (account `soundscraperalex`, profile `SoundScraperPublic`, East US), so `-Publisher` is only needed if it ever changes. For local test builds after that, make a self-signed certificate with the same subject:
 
 ```powershell
 New-SelfSignedCertificate -Type Custom -Subject "<same subject>" -KeyUsage DigitalSignature `
