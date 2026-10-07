@@ -1,6 +1,6 @@
-# Sound Scraper: Playlists and CD Burning Design v0.1
+# Sound Scraper: Playlists and CD Burning Design v0.2
 
-Status: draft for Alex (2026-10-07); open decisions in §11.
+Status: agreed with Alex (2026-10-07); decisions in §11.
 
 ## 1. Goal
 
@@ -72,6 +72,13 @@ propose it as a later extra (§10, phase 4), not part of this work.
 | **Apple Music** (`File › Burn Playlist to Disc`) | Burns a playlist; tells you after the fact if it needs several discs and offers to split. | A status line in the window header ("Burning track 4 of 12"). | Gap between songs: none, 1 to 5 s; "Include CD Text"; "Use Sound Check". |
 | **Windows Media Player** (Burn tab) | A burn list with a **capacity meter** ("23 min remaining") and a "Next disc" divider where the list overflows. | Per-row status in the burn list ("Writing to disc 54%", then "Complete"). | Gaps: none (when the drive allows), 2 s default; volume leveling. |
 | **ImgBurn / CDBurnerXP** | Cue-sheet-driven / an audio compilation with a capacity bar. | Log window, buffer bars, per-track lines. | Pregap from the cue sheet; CD-Text from the cue sheet. |
+
+**Closest analog (Alex): ImgBurn and CDBurnerXP.** Their feature set is
+the one we're building: an audio compilation with a capacity bar
+(CDBurnerXP), cue/bin images in and out (ImgBurn), and a write window
+with a timestamped log, device and system buffer bars, speed and
+per-track lines (ImgBurn). Nero's look is the same family. §6.2 follows
+ImgBurn's write window, with the per-track rows Alex asked for on top.
 
 Patterns worth copying:
 
@@ -173,11 +180,10 @@ The library panel's toolbar gets a **playlist dropdown** at the left
   appended to it. The record bar shows **"Recording into Road Trip"** so
   it's never a surprise; switching the dropdown while recording changes
   where it goes.
-- Track editor saves: the new tracks take the original's place, in
-  order, in every playlist that held the original, when the original is
-  deleted (**No, delete it**). When it's kept (**Yes, keep it**), the
-  original stays where it is and the new tracks are added after it only
-  in the playlist that's showing (§11, question 4).
+- Track editor saves never touch playlists: the new tracks go into the
+  library only, and add them to playlists by hand. If the original is
+  deleted (**No, delete it**), it simply leaves every playlist, the same
+  as trashing it from the library (§11, question 4).
 
 ### 5.5 Files that change underneath
 
@@ -239,7 +245,17 @@ the library by default, starting on the setup page:
   ("no disc", "CD-R 80 min, blank", "CD-RW, not blank: erase first",
   "DVD: needs a CD"), then **Disc image (.cue/.bin)…** (asks where to
   save; default the recordings folder), and **Simulated CD Recorder** in
-  Debug builds or when turned on in Settings › Advanced (§9.2).
+  test builds (§9.2).
+- **Burn to CD is driven by what's detected, not a setting.** Both OS
+  APIs enumerate recorders and report hot-plugging (DiscRecording device
+  notifications; IMAPI2's recorder list, re-checked on Windows device
+  arrival/removal messages). With a CD writer present, the library
+  footer's button reads **Burn CD…** and the panel defaults to the drive;
+  with none it reads **Save CD Image…** and the panel shows only the
+  image (and the simulator in test builds). Plug a USB burner in and the
+  button changes without a restart. Drives that only read CDs, or only
+  write DVDs, aren't listed (both APIs report each drive's write
+  capabilities).
 - The panel watches the drive: inserting a disc, ejecting it or plugging
   in a USB burner updates the list and the fit line at once, using the
   disc's real free space. With no recorder at all, it says "No CD burner
@@ -432,9 +448,10 @@ Default skin's, so nothing breaks.
 A `Burner` backend that behaves like a drive, so the whole flow,
 including the Nero-style panel, runs for real:
 
-- Appears in **Write to** as "Simulated CD Recorder" in Debug builds, or
-  in Release when **Settings › Advanced › Show simulated CD recorder** is
-  on, so Alex can try it in the installed app.
+- Appears in **Write to** as "Simulated CD Recorder" in Debug builds,
+  and in a Release build launched with `SS_SIMULATED_BURNER=1` (how I'll
+  launch test builds for Alex). It never shows in a normal install, and
+  there's no user setting for it.
 - **Pretend disc** chooser on the setup page: blank 74 min, blank 80 min,
   CD-RW with data, no disc, a DVD. Inserting and ejecting are buttons, so
   the device-change paths get exercised.
@@ -456,19 +473,20 @@ drive, but the only real proof is a disc. A USB external DVD/CD writer
 costs about $25 to $35, works on the Mac with no driver, and Parallels
 can pass it through to the Windows VM (Devices › USB). A few CD-RW discs
 make repeated tests free. Phase 3 is written so everything up to it ships
-and works without one; I'd hold the "Burn to CD" button behind the
-Settings switch until a real burn has been seen on each OS (§11,
-question 6).
+and works without one; since burning only appears when a writer is
+detected, a build without real-disc testing simply never shows it to
+people without a burner, and Alex can test on hardware whenever a drive
+is around (§11, question 6).
 
 ## 10. Phased plan
 
 **Phase 1: playlists** (macOS and Windows, both skins).
 - Storage and C ABI; dropdown; add (toolbar, gear, right-click); remove;
   drag and keyboard reorder; # column; renames followed; missing rows;
-  new recordings into the showing playlist; track editor interplay;
-  `.m3u8` export; capacity footer with the fit text (the plan code from
+  new recordings into the showing playlist; trashed recordings leave
+  playlists; `.m3u8` export; capacity footer with the fit text (the plan code from
   `crates/disc` arrives here, since the footer needs it).
-- Playlist continuous play (if agreed, §11).
+- Playlist continuous play.
 
 **Phase 2: burn engine, image and simulator** (both OSes, both skins).
 - Prepare step, BIN/CUE writer, simulated recorder with fault injection.
@@ -491,22 +509,23 @@ question 6).
 - Import `.m3u8` playlists; drag rows from the library onto the
   dropdown.
 
-## 11. Decisions for Alex
+## 11. Decisions (Alex, 2026-10-07)
 
-My recommendation is first in each.
-
-1. **Image format:** BIN/CUE for audio CDs, with the MP3-data-CD `.iso`
-   as a later extra. *(Alternative: ISO only for an MP3 data disc now.)*
+1. **Image format:** BIN/CUE for audio CDs; the MP3-data-CD `.iso` is a
+   later extra.
 2. **Gaps:** 2 s by default with "None (gapless)" as the choice.
 3. **"Reorder in the library"** means reordering a playlist; the full
    library keeps sorting by column.
-4. **Track editor splits:** with *No, delete it*, the new tracks replace
-   the original in every playlist; with *Yes, keep it*, they're added
-   after it only in the playlist showing.
+4. **Track editor splits don't touch playlists.** A deleted original just
+   leaves them; new tracks are added by hand. No assumptions about what
+   goes on a playlist.
 5. **Continuous play in a playlist:** yes, Play moves on to the next track.
-6. **Real burner check:** get a cheap USB burner for phase 3, and keep
-   **Burn to CD** behind a Settings switch until a disc has been burned on
-   each OS (images and the simulator are always on).
+6. **No settings switch for burning:** detect CD writers and show Burn CD
+   only when one is present (Save CD Image otherwise), following
+   hot-plugging (§6.1).
+7. **Closest analog: ImgBurn / CDBurnerXP** (§3): CDBurnerXP's audio
+   compilation for the playlist and capacity side, ImgBurn's write window
+   (log, buffer bars, per-track lines) for the progress side.
 
 ## Sources
 
