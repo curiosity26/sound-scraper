@@ -15,6 +15,7 @@ import {
   type RecorderState,
 } from './native/SoundScraper';
 import { playback } from './playback';
+import { playlists } from './playlists';
 import { selection } from './selection';
 
 export type Message = { text: string; isError: boolean };
@@ -108,6 +109,15 @@ export function useRecorder() {
       // Includes a recording of only silence, which leaves no file.
       setMessage({ text: `Couldn't save: ${errorText(e)}`, isError: true });
       return;
+    }
+    // Into the playlist showing in the library, if any.
+    try {
+      playlists.recorded(baseName(path));
+    } catch (e) {
+      setMessage({
+        text: `Saved, but couldn't add it to the playlist: ${errorText(e)}`,
+        isError: true,
+      });
     }
     await playback.recorded(path);
   }, []);

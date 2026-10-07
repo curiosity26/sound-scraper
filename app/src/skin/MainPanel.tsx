@@ -6,6 +6,7 @@ import { Pressable, View } from 'react-native';
 import { formatElapsed } from '../RecordBar';
 import type { PlayerState, RecorderState } from '../native/SoundScraper';
 import { playback, usePlayback } from '../playback';
+import { usePlaylists } from '../playlists';
 import { type Message, useRecorder } from '../useRecorder';
 import { DragSurface } from './DragSurface';
 import { LevelMeter } from './LevelMeter';
@@ -68,6 +69,7 @@ export function MainPanel(): React.JSX.Element {
   const s = useSkinScale();
   const r = useRecorder();
   const p = usePlayback();
+  const pl = usePlaylists();
   const [scrubMs, setScrubMs] = useState<number>();
   const [shaded, setShaded] = useState(false);
   const [panels, setPanels] = useState(() => ({
@@ -296,8 +298,18 @@ export function MainPanel(): React.JSX.Element {
   const status = loaded
     ? playbackStatusText(p.state)
     : statusText(r.state, r.starting);
+  // While recording with a playlist showing, the recording goes into it.
+  const into =
+    (r.state === 'recording' || r.state === 'paused') && pl.activeId !== null
+      ? pl.playlists.find(x => x.id === pl.activeId)?.name
+      : undefined;
   const sourceText =
-    shownMessage?.text ?? (loaded && p.title ? `♪ ${p.title}` : r.sourceName);
+    shownMessage?.text ??
+    (loaded && p.title
+      ? `♪ ${p.title}`
+      : into
+      ? `${r.sourceName} → ${into}`
+      : r.sourceName);
   const levels = loaded ? p.levels : r.levels;
   const elapsedMs = loaded ? scrubMs ?? p.positionMs : r.elapsedMs;
 
@@ -358,10 +370,7 @@ export function MainPanel(): React.JSX.Element {
           testID="elapsed"
           element={els.elapsed}
           fonts={skin.fonts}
-          text={formatElapsed(
-            elapsedMs,
-            els.elapsed.style?.tenths !== false,
-          )}
+          text={formatElapsed(elapsedMs, els.elapsed.style?.tenths !== false)}
         />
       )}
       {els.status && (

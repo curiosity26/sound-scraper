@@ -285,6 +285,17 @@
           12,
           8
         ]
+      },
+      "playlist": {
+        "fill": "@accent",
+        "fill80": "@lcdHot",
+        "over": "@record",
+        "track": "#1a1613",
+        "mark": "@cream",
+        "text": "@cream",
+        "handle": "#8a7f74",
+        "insert": "@accent",
+        "missing": "#7a6f66"
       }
     },
     "main": {

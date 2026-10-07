@@ -308,6 +308,17 @@
           14,
           6
         ]
+      },
+      "playlist": {
+        "fill": "@phosphor",
+        "fill80": "@amber",
+        "over": "@record",
+        "track": "#0f0b08",
+        "mark": "@cream",
+        "text": "@cream",
+        "handle": "#7a6a58",
+        "insert": "@amber",
+        "missing": "#6d5f50"
       }
     },
     "main": {

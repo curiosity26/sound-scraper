@@ -960,6 +960,19 @@ char *ss_skin_create(const char *parent, const char *name);
 char *ss_skin_folder_stamp(const char *dir);
 
 /*
+ Runs one playlists request (docs/playlists-and-cd-burning-design.md §5):
+ JSON with an `"op"` of `list`, `items`, `create`, `rename`, `duplicate`,
+ `delete`, `add`, `remove`, `setOrder`, `active`, `setActive` or
+ `exportM3u8` and its fields (see `playlists::Request`). Always returns
+ JSON: `{"ok": answer}` or `{"error": message}`. Free with
+ `ss_string_free`.
+
+ # Safety
+ `request_json` must be NUL-terminated UTF-8.
+ */
+char *ss_playlists(const char *request_json);
+
+/*
  Opens a recording in the track editor and starts building its waveform
  in the background (see `ss_editor_status`). Returns the editor's id, or
  0 on failure. Close with `ss_editor_close`.

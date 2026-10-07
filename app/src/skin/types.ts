@@ -99,6 +99,8 @@ export type FramePanel = {
   controls: Record<string, string>;
   /** Track editor colors (the editor panel). */
   waveform: Record<string, string>;
+  /** Playlist colors (the library panel): capacity bar, handles, missing rows. */
+  playlist: Record<string, string>;
   title: {
     font: string | null;
     offset: [number, number];

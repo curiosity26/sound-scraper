@@ -9,6 +9,7 @@ pub mod masters;
 pub mod mp3;
 pub mod paths;
 pub mod player;
+pub mod playlists;
 pub mod recorder;
 pub mod settings;
 pub mod skins;

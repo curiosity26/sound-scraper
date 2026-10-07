@@ -595,6 +595,26 @@
             "$ref": "#/$defs/color"
           }
         },
+        "playlist": {
+          "type": "object",
+          "description": "Playlist colors (library panel only): the CD capacity bar (fill fits 74 min, fill80 needs 80 min, over is too long, track, mark for the 74/80 lines, text), the reorder handle, the drop insert line and missing rows.",
+          "propertyNames": {
+            "enum": [
+              "fill",
+              "fill80",
+              "over",
+              "track",
+              "mark",
+              "text",
+              "handle",
+              "insert",
+              "missing"
+            ]
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/color"
+          }
+        },
         "waveform": {
           "type": "object",
           "description": "Track editor colors (editor panel only).",

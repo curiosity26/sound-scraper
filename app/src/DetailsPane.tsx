@@ -22,6 +22,7 @@ import {
 import { editorAvailable } from './native/editor';
 import { library, type Recording, type Tags } from './native/SoundScraper';
 import { editorTarget, skinsAvailable, windows } from './skin/skins';
+import { playlists } from './playlists';
 import { usePanelStyles } from './panelTheme';
 import {
   buildEdit,
@@ -80,6 +81,7 @@ export function DetailsPane(props: Props): React.JSX.Element {
   const [tags, setTags] = useState<Tags[]>();
   const [recordings, setRecordings] = useState<Recording[]>([]);
   const [error, setError] = useState<string>();
+  const [notice, setNotice] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [area, setArea] = useState({ width: 0, height: 0 });
   const single = fileNames.length === 1;
@@ -102,6 +104,7 @@ export function DetailsPane(props: Props): React.JSX.Element {
   useEffect(() => {
     setTags(undefined);
     setError(undefined);
+    setNotice(undefined);
     load();
   }, [load]);
 
@@ -223,19 +226,59 @@ export function DetailsPane(props: Props): React.JSX.Element {
     windows.setPanelVisible('editor', true);
   };
 
-  const actions: Array<{ label: string; run: () => void }> = [
-    ...(single && editorAvailable && skinsAvailable && recordings[0]
-      ? [{ label: 'Edit Track…', run: editTrack }]
-      : []),
-    ...(single
-      ? [{ label: REVEAL_LABEL, run: () => library.reveal(fileNames[0]) }]
-      : []),
-    { label: 'Change cover…', run: chooseCover },
-    ...(cover.kind !== 'none'
-      ? [{ label: 'Remove cover', run: () => write({}, { kind: 'remove' }) }]
-      : []),
-    { label: `${TRASH_LABEL}…`, run: trash },
-  ];
+  /** Add to Playlist…: a second menu of the playlists, where the first was. */
+  const addToPlaylist = async (x: number, y: number) => {
+    const all = playlists.get().playlists;
+    if (!props.showMenu || all.length === 0) {
+      return;
+    }
+    const chosen = await props.showMenu(
+      all.map(p => p.name),
+      x,
+      y,
+    );
+    const target = all[chosen];
+    if (!target) {
+      return;
+    }
+    try {
+      const there = playlists.fileNamesIn(target.id);
+      const adding = fileNames.filter(n => !there.has(n));
+      if (adding.length > 0) {
+        playlists.add(target.id, adding);
+      }
+      setError(undefined);
+      setNotice(
+        adding.length === 0
+          ? `Already in ${target.name}.`
+          : adding.length < fileNames.length
+          ? `Added to ${target.name} (${
+              fileNames.length - adding.length
+            } already there).`
+          : `Added to ${target.name}.`,
+      );
+    } catch (e) {
+      setError(`Couldn't add to the playlist: ${errorText(e)}`);
+    }
+  };
+
+  const actions: Array<{ label: string; run: (x: number, y: number) => void }> =
+    [
+      ...(single && editorAvailable && skinsAvailable && recordings[0]
+        ? [{ label: 'Edit Track…', run: editTrack }]
+        : []),
+      ...(props.showMenu && playlists.get().playlists.length > 0
+        ? [{ label: 'Add to Playlist…', run: addToPlaylist }]
+        : []),
+      ...(single
+        ? [{ label: REVEAL_LABEL, run: () => library.reveal(fileNames[0]) }]
+        : []),
+      { label: 'Change cover…', run: chooseCover },
+      ...(cover.kind !== 'none'
+        ? [{ label: 'Remove cover', run: () => write({}, { kind: 'remove' }) }]
+        : []),
+      { label: `${TRASH_LABEL}…`, run: trash },
+    ];
 
   const openMenu = async (x: number, y: number) => {
     if (!props.showMenu) {
@@ -247,9 +290,9 @@ export function DetailsPane(props: Props): React.JSX.Element {
     const items = [...labels.slice(0, last), '-', labels[last]];
     const chosen = await props.showMenu(items, x, y);
     if (chosen >= 0 && chosen < last) {
-      actions[chosen].run();
+      actions[chosen].run(x, y);
     } else if (chosen === items.length - 1) {
-      actions[last].run();
+      actions[last].run(x, y);
     }
   };
 
@@ -310,6 +353,9 @@ export function DetailsPane(props: Props): React.JSX.Element {
         <Text selectable style={styles.error}>
           {error}
         </Text>
+      )}
+      {!error && notice && (
+        <Text style={[styles.notice, textStyle, t.text]}>{notice}</Text>
       )}
 
       {!merged ? (
@@ -372,7 +418,7 @@ export function DetailsPane(props: Props): React.JSX.Element {
           {!props.showMenu && (
             <View style={styles.links}>
               {actions.map(a => (
-                <Pressable key={a.label} onPress={a.run}>
+                <Pressable key={a.label} onPress={() => a.run(0, 0)}>
                   <Text style={[styles.link, t.link]}>{a.label}</Text>
                 </Pressable>
               ))}
@@ -505,6 +551,7 @@ const styles = StyleSheet.create({
   },
   busy: { marginTop: 6 },
   error: { color: colors.error, fontSize: 12, marginTop: 6 },
+  notice: { fontSize: 12, marginTop: 6, opacity: 0.8 },
   fields: { marginTop: 10 },
   bulk: { fontSize: 15, fontWeight: '600', marginBottom: 6 },
   field: { marginBottom: 6 },

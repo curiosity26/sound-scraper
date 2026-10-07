@@ -143,6 +143,7 @@ pub struct ResolvedFramePanel {
     pub scrollbar: Option<ResolvedScrollbar>,
     pub controls: BTreeMap<String, String>,
     pub waveform: BTreeMap<String, String>,
+    pub playlist: BTreeMap<String, String>,
     pub title: Option<ResolvedTitle>,
     pub close: Option<ResolvedClose>,
     pub menu: Option<ResolvedClose>,
@@ -618,6 +619,10 @@ impl Resolver<'_> {
             Some(c) => self.colors_map(c, manifest::WAVEFORM_COLORS, &format!("{at}.waveform"), warnings)?,
             None => BTreeMap::new(),
         };
+        let playlist = match &p.playlist {
+            Some(c) => self.colors_map(c, manifest::PLAYLIST_COLORS, &format!("{at}.playlist"), warnings)?,
+            None => BTreeMap::new(),
+        };
         let title = match &p.title {
             Some(t) => {
                 if let Some(font) = &t.font
@@ -666,6 +671,7 @@ impl Resolver<'_> {
             scrollbar,
             controls,
             waveform,
+            playlist,
             title,
             close,
             menu,
@@ -867,6 +873,9 @@ fn merge_frame(mut p: ResolvedFramePanel, raw: Option<&FramePanel>, base: &Resol
     }
     for (key, value) in &base.waveform {
         p.waveform.entry(key.clone()).or_insert_with(|| value.clone());
+    }
+    for (key, value) in &base.playlist {
+        p.playlist.entry(key.clone()).or_insert_with(|| value.clone());
     }
     p
 }

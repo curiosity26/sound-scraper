@@ -582,6 +582,37 @@ RCT_EXPORT_MODULE(SoundScraper)
   });
 }
 
+- (NSString *)playlists:(NSString *)requestJson
+{
+  char *json = ss_playlists(requestJson.UTF8String);
+  NSString *result = SSString(json) ?: @"{\"error\":\"no answer\"}";
+  ss_string_free(json);
+  return result;
+}
+
+- (void)pickSaveFile:(NSString *)title
+         defaultName:(NSString *)defaultName
+           extension:(NSString *)extension
+             resolve:(RCTPromiseResolveBlock)resolve
+              reject:(RCTPromiseRejectBlock)reject
+{
+  dispatch_async(dispatch_get_main_queue(), ^{
+    NSSavePanel *panel = [NSSavePanel savePanel];
+    panel.title = title;
+    panel.nameFieldStringValue = defaultName;
+    panel.canCreateDirectories = YES;
+    UTType *type = [UTType typeWithFilenameExtension:extension];
+    if (type) {
+      panel.allowedContentTypes = @[ type ];
+    }
+    if ([panel runModal] == NSModalResponseOK && panel.URL) {
+      resolve(panel.URL.path);
+    } else {
+      resolve([NSNull null]);
+    }
+  });
+}
+
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
     (const facebook::react::ObjCTurboModule::InitParams &)params
 {

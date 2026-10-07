@@ -153,6 +153,18 @@ export interface Spec extends TurboModule {
   setSettings(json: string): Promise<void>;
   /** Native folder chooser; resolves with the path, or null if cancelled. */
   pickFolder(): Promise<string | null>;
+
+  /**
+   * Runs a playlists request (JSON with an "op", see ss_playlists in
+   * sound_scraper.h); returns `{"ok": answer}` or `{"error": message}`.
+   */
+  playlists(requestJson: string): string;
+  /** Native save dialog; resolves with the chosen path, or null if cancelled. */
+  pickSaveFile(
+    title: string,
+    defaultName: string,
+    extension: string,
+  ): Promise<string | null>;
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>('SoundScraper');

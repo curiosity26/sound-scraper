@@ -144,7 +144,9 @@ export function isDarkColor(hex: string): boolean {
   return 0.299 * v(0) + 0.587 * v(1) + 0.114 * v(2) < 128;
 }
 
-function LibraryContent(props: { onCount: (n: number) => void }) {
+function LibraryContent(props: {
+  onCount: (n: number, playlistName?: string) => void;
+}) {
   const { fg, isDark } = usePanelText('library');
   const [message, setMessage] = useState<Message>();
   return (
@@ -156,6 +158,9 @@ function LibraryContent(props: { onCount: (n: number) => void }) {
         compact
         onCount={props.onCount}
         openDetails={() => windows.setPanelVisible('details', true)}
+        showLibraryMenu={(items, checked, x, y) =>
+          windows.showMenu(items, checked, x, y, 'library')
+        }
       />
       {message && (
         <Text
@@ -171,14 +176,15 @@ function LibraryContent(props: { onCount: (n: number) => void }) {
 
 /** The library window. */
 export function LibraryApp(): React.JSX.Element {
-  const [count, setCount] = useState<number>();
+  const [count, setCount] = useState<{ n: number; playlist?: string }>();
+  const name = count?.playlist ? `Library: ${count.playlist}` : 'Library';
   return (
     <Skinned>
       <SkinPanelFrame
         panel="library"
-        title={count === undefined ? 'Library' : `Library (${count})`}
+        title={count === undefined ? name : `${name} (${count.n})`}
       >
-        <LibraryContent onCount={setCount} />
+        <LibraryContent onCount={(n, playlist) => setCount({ n, playlist })} />
       </SkinPanelFrame>
     </Skinned>
   );

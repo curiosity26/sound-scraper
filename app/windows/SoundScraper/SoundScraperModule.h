@@ -408,6 +408,49 @@ struct SoundScraperModule {
     return out;
   }
 
+  REACT_SYNC_METHOD(playlists)
+  std::string playlists(std::string requestJson) noexcept {
+    char *json = ss_playlists(requestJson.c_str());
+    std::string out = json ? json : R"({"error":"no answer"})";
+    ss_string_free(json);
+    return out;
+  }
+
+  /// A Save dialog for one file type; resolves with the path or null.
+  REACT_METHOD(pickSaveFile)
+  void pickSaveFile(std::string title, std::string defaultName, std::string extension,
+                    ::React::ReactPromise<std::optional<std::string>> &&result) noexcept {
+    RunOffThread([result, title, defaultName, extension](auto dispatcher) {
+      CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+      std::optional<std::string> picked;
+      {
+        winrt::com_ptr<IFileSaveDialog> dialog;
+        if (SUCCEEDED(CoCreateInstance(CLSID_FileSaveDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(dialog.put())))) {
+          FILEOPENDIALOGOPTIONS options{};
+          dialog->GetOptions(&options);
+          dialog->SetOptions(options | FOS_OVERWRITEPROMPT | FOS_FORCEFILESYSTEM);
+          dialog->SetTitle(winrt::to_hstring(title).c_str());
+          dialog->SetFileName(winrt::to_hstring(defaultName).c_str());
+          std::wstring ext = winrt::to_hstring(extension).c_str();
+          std::wstring pattern = L"*." + ext;
+          std::wstring label = L"." + ext + L" file";
+          COMDLG_FILTERSPEC filter{label.c_str(), pattern.c_str()};
+          dialog->SetFileTypes(1, &filter);
+          dialog->SetDefaultExtension(ext.c_str());
+          winrt::com_ptr<IShellItem> item;
+          PWSTR path = nullptr;
+          if (SUCCEEDED(dialog->Show(nullptr)) && SUCCEEDED(dialog->GetResult(item.put())) &&
+              SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &path))) {
+            picked = winrt::to_string(path);
+            CoTaskMemFree(path);
+          }
+        }
+      }
+      CoUninitialize();
+      dispatcher.Post([result, picked]() { result.Resolve(picked); });
+    });
+  }
+
   REACT_METHOD(setSettings)
   void setSettings(std::string json, ::React::ReactPromise<void> &&result) noexcept {
     RunOffThread([library = m_library, json, result](auto dispatcher) {
