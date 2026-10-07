@@ -44,11 +44,17 @@ function Find-SignTool {
   if (-not $tool) { throw "x64 signtool.exe not found under $kits (install the Windows SDK)" }
   $tool.FullName
 }
+function Test-X64 ($path) {
+  $b = [IO.File]::ReadAllBytes($path)
+  [BitConverter]::ToUInt16($b, [BitConverter]::ToInt32($b, 0x3c) + 4) -eq 0x8664
+}
 function Find-Dlib {
   if ($env:SS_SIGNING_DLIB) { return $env:SS_SIGNING_DLIB }
+  # The Client Tools installer puts it in %LOCALAPPDATA%\Microsoft\MicrosoftArtifactSigningClientTools;
+  # the NuGet package has x64\ and x86\ folders.
   $dlib = Get-ChildItem -Recurse -Filter "Azure.CodeSigning.Dlib.dll" -ErrorAction SilentlyContinue `
-      "$env:ProgramFiles\Microsoft", "${env:ProgramFiles(x86)}\Microsoft", "$env:LOCALAPPDATA\Microsoft" |
-    Where-Object { $_.FullName -match '\\x64\\' } |
+      "$env:LOCALAPPDATA\Microsoft\MicrosoftArtifactSigningClientTools", "$env:ProgramFiles\Microsoft", "${env:ProgramFiles(x86)}\Microsoft" |
+    Where-Object { Test-X64 $_.FullName } |
     Sort-Object { $_.VersionInfo.FileVersionRaw } -Descending | Select-Object -First 1
   if (-not $dlib) { throw "Azure.CodeSigning.Dlib.dll not found. Install the Artifact Signing Client Tools, or set SS_SIGNING_DLIB to the x64 dll" }
   $dlib.FullName
