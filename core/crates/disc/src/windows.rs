@@ -377,3 +377,16 @@ impl Burner for ImapiBurner {
         Ok(self.device_id.clone())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn lists_cd_writers() {
+        // The VM has no CD writer: an empty list, without crashing.
+        let devices = super::devices();
+        for d in &devices {
+            assert_eq!(d.kind, "drive");
+        }
+        eprintln!("CD writers: {devices:?}");
+    }
+}
