@@ -208,7 +208,7 @@ By default the script signs with the local self-signed "GolfNutz Dev" identity, 
 
 Then run `SIGN_IDENTITY="Developer ID Application: <Name> (<TEAMID>)" scripts/package-macos.sh`. With a Developer ID identity the script turns on the hardened runtime, adds secure timestamps, notarizes the .dmg with the `soundscraper-notary` profile (`NOTARY_PROFILE` to use another, `NOTARIZE=0` to skip), staples the ticket, and checks it with Gatekeeper (`spctl`). If Apple rejects it, the script prints the notary log.
 
-**Windows:** `.\scripts\package-windows.ps1 -Platform ARM64 -Thumbprint <SHA1>` builds a Release MSIX into `dist\`. The package identity is `com.alexboyce.soundscraper` with publisher `CN=alexboyce`, so the signing certificate's subject must be `CN=alexboyce`. To install a test-signed package, the certificate has to be trusted on that machine (Local Machine › Trusted People). For public distribution, use a code-signing certificate from a CA, or the Microsoft Store.
+**Windows:** `.\scripts\package-windows.ps1 -Platform ARM64 -ArtifactSigning` builds a Release MSIX into `dist\` and signs it with Azure Artifact Signing (account `soundscraperalex`, profile `SoundScraperPublic`, East US); setup is in [docs/windows-signing.md](docs/windows-signing.md). The package identity is `com.alexboyce.soundscraper` with publisher `CN=Alex Boyce, O=Alex Boyce, L=Williamsport, S=pa, C=US`, the certificate's subject. For local test builds, `-Thumbprint <SHA1>` signs with a self-signed certificate that has that same subject (see the doc); it has to be trusted on that machine (Local Machine › Trusted People).
 
 ## Licensing
 
