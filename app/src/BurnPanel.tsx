@@ -459,6 +459,20 @@ function Progress(props: { th: Theme }): React.JSX.Element {
     close();
     burnTarget.set({ ...current.target });
   };
+  const saveLog = async () => {
+    try {
+      const path = await pickSaveFile(
+        'Save burn log',
+        `${current.target.name} burn log.txt`,
+        'txt',
+      );
+      if (path) {
+        burnApi.saveLog(current.id, path);
+      }
+    } catch (e) {
+      setError(errorText(e));
+    }
+  };
   const cancel = () => {
     setConfirm(false);
     try {
@@ -643,6 +657,7 @@ function Progress(props: { th: Theme }): React.JSX.Element {
             {(status?.state === 'failed' || status?.state === 'cancelled') && (
               <Button th={th} label="Try Again" onPress={again} />
             )}
+            <Button th={th} label="Save Log…" onPress={saveLog} />
             <Button
               th={th}
               label="Close"

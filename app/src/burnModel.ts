@@ -116,6 +116,8 @@ export const burnApi = {
   setSimSettings: (settings: SimSettings) =>
     call<null>({ op: 'setSimSettings', settings }),
   reveal: (path: string) => call<null>({ op: 'reveal', path }),
+  saveLog: (id: number, path: string) =>
+    call<null>({ op: 'saveLog', id, path }),
 };
 
 /** Whether a burn to `device` can start, and what the button says. */

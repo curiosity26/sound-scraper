@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/core", "crates/capture", "crates/skin", "crates/vis", "crates/layout", "crates/disc"]
 
 [workspace.package]
-version = "0.1.2-beta.1"
+version = "0.2.0-beta.1"
 edition = "2024"
 license = "UNLICENSED"
 publish = false
