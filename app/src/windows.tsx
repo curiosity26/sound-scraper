@@ -1,6 +1,6 @@
 // Roots of the skinned UI's windows (registered in index.js). They share one
 // JS runtime, so the skin and library refreshes are shared between them.
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AboutPanel } from './AboutPanel';
@@ -183,15 +183,18 @@ function LibraryContent(props: {
 
 /** The library window. */
 export function LibraryApp(): React.JSX.Element {
-  const [count, setCount] = useState<{ n: number; playlist?: string }>();
-  const name = count?.playlist ? `Library: ${count.playlist}` : 'Library';
+  // A string, so an unchanged count doesn't re-render (and the callback is
+  // stable: LibraryScreen reports again whenever it changes).
+  const [title, setTitle] = useState('Library');
+  const onCount = useCallback(
+    (n: number, playlist?: string) =>
+      setTitle(`${playlist ? `Library: ${playlist}` : 'Library'} (${n})`),
+    [],
+  );
   return (
     <Skinned>
-      <SkinPanelFrame
-        panel="library"
-        title={count === undefined ? name : `${name} (${count.n})`}
-      >
-        <LibraryContent onCount={(n, playlist) => setCount({ n, playlist })} />
+      <SkinPanelFrame panel="library" title={title}>
+        <LibraryContent onCount={onCount} />
       </SkinPanelFrame>
     </Skinned>
   );

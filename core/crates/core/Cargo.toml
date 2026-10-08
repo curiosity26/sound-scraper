@@ -12,6 +12,11 @@ build = "build.rs"
 # (sound_scraper_core.lib) apps; rlib is for Rust tests and tools.
 crate-type = ["staticlib", "rlib"]
 
+[features]
+# The simulated CD recorder (test builds: Debug, or SS_SIMULATOR=1 when
+# building); never in releases.
+simulator = ["sound_scraper_disc/simulator"]
+
 [dependencies]
 sound_scraper_capture = { path = "../capture" }
 sound_scraper_skin = { path = "../skin" }

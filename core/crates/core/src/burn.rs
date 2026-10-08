@@ -20,7 +20,6 @@ use serde::{Deserialize, Serialize};
 use sound_scraper_disc::{
     self as disc, BurnEvent, Burner, Device, PreparedDisc, SAMPLE_RATE, TrackInfo, WriteOptions,
     image::ImageBurner,
-    sim::{SimBurner, SimSettings},
 };
 
 use crate::player::{Source, Stereo};
@@ -145,10 +144,11 @@ impl Job {
 type Jobs = (u64, HashMap<u64, Arc<Job>>);
 static JOBS: Mutex<Option<Jobs>> = Mutex::new(None);
 
-/// Whether the simulated recorder is offered: Debug builds, or
-/// `SS_SIMULATED_BURNER=1`.
+/// Whether the simulated recorder is offered: only in test builds, made
+/// with the `simulator` feature (core/scripts/build-apple.sh and
+/// SoundScraperCore.props add it for Debug, or with SS_SIMULATOR=1).
 pub fn simulator_enabled() -> bool {
-    cfg!(debug_assertions) || std::env::var("SS_SIMULATED_BURNER").is_ok_and(|v| v == "1")
+    cfg!(feature = "simulator")
 }
 
 /// Where burns are prepared (CD audio, up to ~850 MB) and the simulator's
@@ -161,9 +161,8 @@ fn work_dir() -> PathBuf {
 /// simulated recorder when enabled, and a disc image (always, last).
 pub fn devices() -> Vec<Device> {
     let mut list = cached_drives();
-    if simulator_enabled() {
-        list.push(disc::sim::device());
-    }
+    #[cfg(feature = "simulator")]
+    list.push(disc::sim::device());
     list.push(disc::image::device());
     list
 }
@@ -219,8 +218,9 @@ fn cached_drives() -> Vec<Device> {
 fn burner_for(device_id: &str) -> Result<(Box<dyn Burner>, Device), String> {
     match device_id {
         "image" => Ok((Box::new(ImageBurner), disc::image::device())),
-        "sim" if simulator_enabled() => Ok((
-            Box::new(SimBurner {
+        #[cfg(feature = "simulator")]
+        "sim" => Ok((
+            Box::new(disc::sim::SimBurner {
                 dir: work_dir().join("simulated"),
             }),
             disc::sim::device(),
@@ -668,8 +668,10 @@ pub enum Request {
     Status { id: u64 },
     Cancel { id: u64 },
     Close { id: u64 },
+    #[cfg(feature = "simulator")]
     SimSettings,
-    SetSimSettings { settings: SimSettings },
+    #[cfg(feature = "simulator")]
+    SetSimSettings { settings: disc::sim::SimSettings },
     /// Shows a burned image in Finder / Explorer.
     Reveal { path: String },
     /// Writes a job's log to a text file.
@@ -688,7 +690,9 @@ pub fn handle(request: Request) -> Result<serde_json::Value, String> {
             close(id);
             Ok(Value::Null)
         }
+        #[cfg(feature = "simulator")]
         Request::SimSettings => v(to_value(disc::sim::settings())),
+        #[cfg(feature = "simulator")]
         Request::SetSimSettings { settings } => {
             disc::sim::set_settings(settings);
             Ok(Value::Null)

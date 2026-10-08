@@ -16,6 +16,8 @@ pub mod cue;
 pub mod image;
 #[cfg(target_os = "macos")]
 pub mod macos;
+/// The simulated recorder: test builds only (`--features simulator`).
+#[cfg(any(test, feature = "simulator"))]
 pub mod sim;
 #[cfg(target_os = "windows")]
 pub mod windows;
