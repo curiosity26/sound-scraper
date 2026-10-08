@@ -1,10 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   type LayoutChangeEvent,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -19,10 +17,14 @@ import {
   formatDuration,
   formatSize,
 } from './libraryModel';
-import { editorAvailable } from './native/editor';
 import { library, type Recording, type Tags } from './native/SoundScraper';
-import { editorTarget, skinsAvailable, windows } from './skin/skins';
-import { playlists } from './playlists';
+import {
+  chooseCover as chooseCoverFor,
+  type MenuContext,
+  openRecordingMenu,
+  recordingActions,
+  type ShowMenu,
+} from './recordingMenu';
 import { usePanelStyles } from './panelTheme';
 import {
   buildEdit,
@@ -39,17 +41,7 @@ import {
 import { colors } from './theme';
 import { TextField } from './TextField';
 
-const isWindows = Platform.OS === 'windows';
-const REVEAL_LABEL = isWindows ? 'Show in Explorer' : 'Show in Finder';
-const TRASH_LABEL = isWindows ? 'Move to Recycle Bin' : 'Move to Trash';
-const TRASH_NAME = isWindows ? 'the Recycle Bin' : 'the Trash';
-
-/** A native pop-up menu at (x, y) in the panel; resolves with the index or -1. */
-export type ShowMenu = (
-  items: string[],
-  x: number,
-  y: number,
-) => Promise<number>;
+export type { ShowMenu };
 
 type Props = {
   /** One recording, or several for a bulk edit. */
@@ -160,16 +152,22 @@ export function DetailsPane(props: Props): React.JSX.Element {
     }
   };
 
-  const chooseCover = async () => {
-    try {
-      const path = await library.pickImage();
-      if (path) {
-        await write({}, { kind: 'set', path });
-      }
-    } catch (e) {
-      setError(errorText(e));
-    }
+  const menuContext: MenuContext = {
+    fileNames,
+    recordings,
+    hasCover: cover.kind !== 'none',
+    showMenu: props.showMenu,
+    onChanged: () => {
+      onChanged();
+      load();
+    },
+    onTrashed: props.onClose,
+    report: m => {
+      setError(m.isError ? m.text : undefined);
+      setNotice(m.isError ? undefined : m.text);
+    },
   };
+  const chooseCover = () => chooseCoverFor(menuContext);
 
   const onDrop = (e: {
     nativeEvent: { dataTransfer?: { files?: Array<{ uri?: string }> } };
@@ -183,118 +181,9 @@ export function DetailsPane(props: Props): React.JSX.Element {
     }
   };
 
-  const trash = () => {
-    const what = !single
-      ? `${fileNames.length} recordings`
-      : `"${recordings[0] ? displayName(recordings[0]) : fileNames[0]}"`;
-    Alert.alert(
-      `Move ${what} to ${TRASH_NAME}?`,
-      undefined,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: TRASH_LABEL,
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              for (const name of fileNames) {
-                await library.trash(name);
-              }
-              onChanged();
-              props.onClose();
-            } catch (e) {
-              setError(`Couldn't move to ${TRASH_NAME}: ${errorText(e)}`);
-            }
-          },
-        },
-      ],
-      { cancelable: true },
-    );
-  };
-
-  const editTrack = () => {
-    const r = recordings[0];
-    if (!r) {
-      return;
-    }
-    editorTarget.set({
-      fileName: r.fileName,
-      path: r.path,
-      title: displayName(r),
-      durationMs: r.durationMs,
-    });
-    windows.setPanelVisible('editor', true);
-  };
-
-  /** Add to Playlist…: a second menu of the playlists, where the first was. */
-  const addToPlaylist = async (x: number, y: number) => {
-    const all = playlists.get().playlists;
-    if (!props.showMenu || all.length === 0) {
-      return;
-    }
-    const chosen = await props.showMenu(
-      all.map(p => p.name),
-      x,
-      y,
-    );
-    const target = all[chosen];
-    if (!target) {
-      return;
-    }
-    try {
-      const there = playlists.fileNamesIn(target.id);
-      const adding = fileNames.filter(n => !there.has(n));
-      if (adding.length > 0) {
-        playlists.add(target.id, adding);
-      }
-      setError(undefined);
-      setNotice(
-        adding.length === 0
-          ? `Already in ${target.name}.`
-          : adding.length < fileNames.length
-          ? `Added to ${target.name} (${
-              fileNames.length - adding.length
-            } already there).`
-          : `Added to ${target.name}.`,
-      );
-    } catch (e) {
-      setError(`Couldn't add to the playlist: ${errorText(e)}`);
-    }
-  };
-
-  const actions: Array<{ label: string; run: (x: number, y: number) => void }> =
-    [
-      ...(single && editorAvailable && skinsAvailable && recordings[0]
-        ? [{ label: 'Edit Track…', run: editTrack }]
-        : []),
-      ...(props.showMenu && playlists.get().playlists.length > 0
-        ? [{ label: 'Add to Playlist…', run: addToPlaylist }]
-        : []),
-      ...(single
-        ? [{ label: REVEAL_LABEL, run: () => library.reveal(fileNames[0]) }]
-        : []),
-      { label: 'Change cover…', run: chooseCover },
-      ...(cover.kind !== 'none'
-        ? [{ label: 'Remove cover', run: () => write({}, { kind: 'remove' }) }]
-        : []),
-      { label: `${TRASH_LABEL}…`, run: trash },
-    ];
-
-  const openMenu = async (x: number, y: number) => {
-    if (!props.showMenu) {
-      return;
-    }
-    // A separator before the last (destructive) action.
-    const labels = actions.map(a => a.label);
-    const last = labels.length - 1;
-    const items = [...labels.slice(0, last), '-', labels[last]];
-    const chosen = await props.showMenu(items, x, y);
-    if (chosen >= 0 && chosen < last) {
-      actions[chosen].run(x, y);
-    } else if (chosen === items.length - 1) {
-      actions[last].run(x, y);
-    }
-  };
+  const actions = recordingActions(menuContext);
+  const openMenu = (x: number, y: number) =>
+    openRecordingMenu(menuContext, x, y);
 
   if (props.menuRef) {
     props.menuRef.current = openMenu;

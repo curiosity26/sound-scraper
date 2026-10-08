@@ -70,6 +70,15 @@ type Props = {
   checkedActions?: React.ReactNode;
   /** Under the table (the CD capacity bar). */
   footer?: React.ReactNode;
+  /**
+   * A row was right-clicked at (x, y) in the window: its file name, and its
+   * item id in a playlist.
+   */
+  onContextMenu?: (
+    target: { fileName: string; itemId?: number; key: string },
+    x: number,
+    y: number,
+  ) => void;
 };
 
 /** Columns that fit a table `width` points wide (0 = not measured yet). */
@@ -104,6 +113,9 @@ type Row = {
   /** Index in the playlist's own order. */
   index?: number;
 };
+
+/** What the row needs from a press or pointer event's native event. */
+type MouseLike = { button?: number; pageX?: number; pageY?: number };
 
 const SORT_POSITION: Sort = { key: 'position', ascending: true };
 
@@ -251,6 +263,24 @@ export function LibraryTable(props: Props): React.JSX.Element {
       }
     }
     setDrag(null);
+  };
+
+  // Right-click: the same menu as the details panel's gear. Both the press
+  // and (on Windows) the pointer event may report it; show the menu once.
+  const lastMenu = useRef(0);
+  const rightClick = (row: Row, e: MouseLike) => {
+    if (e.button !== 2 || !props.onContextMenu) {
+      return;
+    }
+    if (Date.now() - lastMenu.current < 600) {
+      return;
+    }
+    lastMenu.current = Date.now();
+    props.onContextMenu(
+      { fileName: row.fileName, itemId: row.itemId, key: rowKey(row) },
+      e.pageX ?? 0,
+      e.pageY ?? 0,
+    );
   };
 
   const columns = COLUMNS.filter(c => shown.includes(c.key));
@@ -454,8 +484,14 @@ export function LibraryTable(props: Props): React.JSX.Element {
                       }
                     : undefined
                 }
+                onPressIn={e => rightClick(row, e.nativeEvent)}
+                {...{
+                  // Windows reports the button on pointer events.
+                  onPointerDown: (e: { nativeEvent: MouseLike }) =>
+                    rightClick(row, e.nativeEvent),
+                }}
                 onPress={() => {
-                  if (!r) {
+                  if (!r || Date.now() - lastMenu.current < 600) {
                     return;
                   }
                   if (playlist) {

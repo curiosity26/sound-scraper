@@ -20,6 +20,7 @@ import {
 } from './PlaylistControls';
 import { discCapacity, type PlaylistRow, playlistRows } from './playlistModel';
 import { playlists, usePlaylists } from './playlists';
+import { openRecordingMenu } from './recordingMenu';
 import { selection } from './selection';
 
 type Props = {
@@ -218,6 +219,87 @@ export function LibraryScreen(props: Props): React.JSX.Element {
       }
     : undefined;
 
+  /** Right-click on a row: the details menu for it (or for every checked row
+   * when it's one of them), plus Remove from Playlist in a playlist. */
+  const contextMenu = async (
+    target: { fileName: string; itemId?: number; key: string },
+    x: number,
+    y: number,
+  ) => {
+    if (!showLibraryMenu) {
+      return;
+    }
+    const many = checked.has(target.key) && checked.size > 1;
+    let fileNames: string[];
+    let itemIds: number[] = [];
+    if (showing) {
+      const picked = many
+        ? rows.filter(r => checked.has(`#${r.item.id}`))
+        : rows.filter(r => r.item.id === target.itemId);
+      itemIds = picked.map(r => r.item.id);
+      fileNames = [
+        ...new Set(picked.filter(r => r.recording).map(r => r.item.fileName)),
+      ];
+    } else {
+      fileNames = many ? [...checked] : [target.fileName];
+    }
+    if (!many && fileNames.length === 1) {
+      selection.set(fileNames);
+    }
+    const showMenu = (items: string[], mx: number, my: number) =>
+      showLibraryMenu(items, -1, mx, my);
+    const remove =
+      itemIds.length > 0
+        ? [
+            {
+              label:
+                itemIds.length > 1
+                  ? `Remove ${itemIds.length} from Playlist`
+                  : 'Remove from Playlist',
+              run: () => {
+                try {
+                  playlists.remove(itemIds);
+                  setChecked(new Set());
+                } catch (e) {
+                  onMessage({ text: errorText(e), isError: true });
+                }
+              },
+            },
+          ]
+        : [];
+    if (fileNames.length === 0) {
+      // Only missing rows: nothing to act on but the playlist.
+      const chosen = await showMenu(
+        remove.map(a => a.label),
+        x,
+        y,
+      );
+      remove[chosen]?.run();
+      return;
+    }
+    let hasCover = false;
+    try {
+      const tags = await Promise.all(fileNames.map(n => library.readTags(n)));
+      hasCover = tags.some(tag => tag.coverPath !== null);
+    } catch {
+      // Offer what doesn't need the tags.
+    }
+    openRecordingMenu(
+      {
+        fileNames,
+        recordings: recordings.filter(r => fileNames.includes(r.fileName)),
+        hasCover,
+        showMenu,
+        onChanged: refreshLibraryViews,
+        onTrashed: () => setChecked(new Set()),
+        report: onMessage,
+        extra: remove,
+      },
+      x,
+      y,
+    );
+  };
+
   // File names behind the checked rows (playlist rows are keyed by item).
   const checkedNames = showing
     ? rows
@@ -242,6 +324,7 @@ export function LibraryScreen(props: Props): React.JSX.Element {
         isDark={isDark}
         compact={props.compact}
         playlist={playlistView}
+        onContextMenu={showLibraryMenu ? contextMenu : undefined}
         toolbarStart={
           showLibraryMenu ? (
             <>
