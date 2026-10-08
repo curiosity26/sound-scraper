@@ -21,6 +21,13 @@ else
   PROFILE_FLAG=; PROFILE_DIR=debug
 fi
 
+# The simulated CD recorder: Debug builds, or test builds made with
+# SS_SIMULATOR=1. Never in a release.
+FEATURES=()
+if [ "$CONFIGURATION" != "Release" ] || [ "${SS_SIMULATOR:-}" = "1" ]; then
+  FEATURES=(--features simulator)
+fi
+
 slices=()
 lame_slices=()
 for arch in $ARCHS; do
@@ -35,7 +42,7 @@ for arch in $ARCHS; do
   # configure needs it to link test programs).
   env -u LIBRARY_PATH SDKROOT="$(xcrun --sdk macosx --show-sdk-path)" \
     cargo build --manifest-path "$CORE_DIR/Cargo.toml" -p sound_scraper_core \
-    --target "$triple" $PROFILE_FLAG
+    --target "$triple" $PROFILE_FLAG ${FEATURES[@]+"${FEATURES[@]}"}
   slices+=("$CORE_DIR/target/$triple/$PROFILE_DIR/$LIB")
   lame_slices+=("$CORE_DIR/target/$triple/$PROFILE_DIR/libmp3lame.0.dylib")
 done

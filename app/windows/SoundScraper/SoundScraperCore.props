@@ -21,9 +21,14 @@
       <AdditionalDependencies>sound_scraper_core.lib;libmp3lame.lib;ws2_32.lib;userenv.lib;ntdll.lib;bcrypt.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
+  <!-- The simulated CD recorder: Debug builds, or test builds made with
+       SS_SIMULATOR=1 in the environment. Never in a release. -->
+  <PropertyGroup>
+    <RustFeatures Condition="'$(Configuration)'=='Debug' Or '$(SS_SIMULATOR)'=='1'">--features simulator</RustFeatures>
+  </PropertyGroup>
   <Target Name="BuildSoundScraperCore" BeforeTargets="ClCompile">
     <Error Condition="'$(RustTarget)'==''" Text="No Rust target mapped for platform '$(Platform)'." />
-    <Exec Command="cargo build --manifest-path &quot;$(SoundScraperCoreDir)Cargo.toml&quot; -p sound_scraper_core --target $(RustTarget) $(RustProfileFlag)" />
+    <Exec Command="cargo build --manifest-path &quot;$(SoundScraperCoreDir)Cargo.toml&quot; -p sound_scraper_core --target $(RustTarget) $(RustProfileFlag) $(RustFeatures)" />
     <!-- Ship LAME's DLL with the app (and in the MSIX package). -->
     <ItemGroup>
       <None Include="$(SoundScraperCoreLibDir)libmp3lame.dll">

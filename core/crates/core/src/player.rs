@@ -738,7 +738,7 @@ impl Job {
 }
 
 /// A stereo resampler over interleaved samples.
-struct Stereo {
+pub(crate) struct Stereo {
     inner: FftFixedIn<f32>,
     input: [Vec<f32>; 2],
     /// Output frames still to drop to undo the resampler's delay.
@@ -746,7 +746,7 @@ struct Stereo {
 }
 
 impl Stereo {
-    fn new(from: u32, to: u32) -> Self {
+    pub(crate) fn new(from: u32, to: u32) -> Self {
         let inner = FftFixedIn::new(from as usize, to as usize, RESAMPLE_CHUNK, 2, 2).expect("valid resampler");
         let skip = inner.output_delay();
         Self { inner, input: [Vec::new(), Vec::new()], skip }
@@ -760,7 +760,7 @@ impl Stereo {
 
     /// Consumes `input` (interleaved) and appends resampled frames to `out`;
     /// `flush` pushes out the remainder at the end of the file.
-    fn process(&mut self, input: &mut Vec<f32>, out: &mut Vec<f32>, flush: bool) {
+    pub(crate) fn process(&mut self, input: &mut Vec<f32>, out: &mut Vec<f32>, flush: bool) {
         for lr in input.chunks_exact(2) {
             self.input[0].push(lr[0]);
             self.input[1].push(lr[1]);

@@ -47,6 +47,8 @@ pub struct Library {
     /// Extracted cover images, for the UI to display.
     covers_dir: PathBuf,
     db: Connection,
+    /// Playlists follow renames and trashing (crate::playlists).
+    playlists_db: PathBuf,
     trasher: Trasher,
     watcher: Option<Debouncer<RecommendedWatcher>>,
 }
@@ -64,7 +66,8 @@ impl Library {
         let db = Connection::open(db_path).map_err(|e| format!("opening {}: {e}", db_path.display()))?;
         migrate(&db).map_err(|e| format!("preparing the library index: {e}"))?;
         let covers_dir = db_path.parent().unwrap_or(Path::new(".")).join("covers");
-        Ok(Self { dir, covers_dir, db, trasher, watcher: None })
+        let playlists_db = crate::playlists::db_path_beside(db_path);
+        Ok(Self { dir, covers_dir, db, playlists_db, trasher, watcher: None })
     }
 
     pub fn dir(&self) -> &Path {
@@ -195,6 +198,8 @@ impl Library {
         let final_stem = stem(&to.file_name().unwrap().to_string_lossy());
         crate::edit::edits::rename_draft(file_name, &to.file_name().unwrap().to_string_lossy());
         crate::masters::rename(file_name, &to.file_name().unwrap().to_string_lossy());
+        let new_name = to.file_name().unwrap().to_string_lossy().into_owned();
+        crate::playlists::follow(&self.playlists_db, |p| p.file_renamed(file_name, &new_name));
         update_title_if_default(&to, &old_stem, &final_stem)?;
         self.db
             .execute("DELETE FROM recordings WHERE file_name = ?1", [file_name])
@@ -208,6 +213,7 @@ impl Library {
         (self.trasher)(&path)?;
         crate::masters::remove(file_name);
         crate::edit::edits::discard_draft(file_name);
+        crate::playlists::follow(&self.playlists_db, |p| p.file_removed(file_name));
         self.db
             .execute("DELETE FROM recordings WHERE file_name = ?1", [file_name])
             .map_err(|e| format!("library index: {e}"))?;
@@ -387,7 +393,7 @@ fn move_to_trash(path: &Path) -> Result<(), String> {
     trash.delete(path).map_err(|e| format!("moving {} to the Trash: {e}", path.display()))
 }
 
-fn reveal_in_file_manager(path: &Path) -> Result<(), String> {
+pub(crate) fn reveal_in_file_manager(path: &Path) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     let status = std::process::Command::new("open").arg("-R").arg(path).status();
     #[cfg(target_os = "windows")]
@@ -630,6 +636,20 @@ mod tests {
         let edit = TagEdit { album: Some(Some("X".into())), ..Default::default() };
         assert!(f.library.write_tags(&["One.mp3".into(), "Missing.mp3".into()], &edit, TagVersion::V24).is_err());
         assert_eq!(f.library.read_tags("One.mp3").unwrap().album, None, "nothing written");
+    }
+
+    #[test]
+    fn playlists_follow_rename_and_trash() {
+        let mut f = fixture();
+        add(&f.dir, "A", 0.3, None);
+        add(&f.dir, "B", 0.3, None);
+        let db = crate::playlists::db_path_beside(&f.dir.parent().unwrap().join("library.db"));
+        let mut playlists = crate::playlists::Playlists::open(&db).unwrap();
+        let id = playlists.create("Mix", &["A.mp3".into(), "B.mp3".into()]).unwrap().id;
+        let renamed = f.library.rename("A.mp3", "Alpha").unwrap();
+        f.library.trash("B.mp3").unwrap();
+        let items: Vec<_> = playlists.items(id).unwrap().into_iter().map(|i| i.file_name).collect();
+        assert_eq!(items, [renamed]);
     }
 
     #[test]

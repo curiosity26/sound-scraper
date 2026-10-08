@@ -44,6 +44,83 @@
   "id": "com.alexboyce.soundscraper.default",
   "name": "Default",
   "panels": {
+    "burn": {
+      "close": {
+        "offset": [
+          10,
+          7
+        ],
+        "size": [
+          12,
+          10
+        ],
+        "sprite": {
+          "image": "buttons.png",
+          "states": {
+            "normal": [
+              270,
+              36
+            ],
+            "pressed": [
+              282,
+              36
+            ]
+          }
+        }
+      },
+      "controls": {
+        "accent": "@accent",
+        "background": "@panel",
+        "border": "#4a423c",
+        "button": "@background",
+        "buttonText": "@text",
+        "text": "@cream"
+      },
+      "frame": {
+        "image": "frame.png",
+        "slice": [
+          22,
+          6,
+          6,
+          6
+        ]
+      },
+      "minSize": [
+        480,
+        360
+      ],
+      "progress": {
+        "bar": "@accent",
+        "buffer": "#6fa0d8",
+        "done": "@accent",
+        "failed": "@record",
+        "glow": "#00000000",
+        "log": "#141210",
+        "logText": "@cream",
+        "preparing": "#a08a6a",
+        "track": "#1a1613",
+        "waiting": "#4a423c",
+        "writing": "@lcdHot"
+      },
+      "resizable": true,
+      "table": {
+        "alternate": "#2a2421",
+        "background": "#221d1a",
+        "grid": "#3a3430",
+        "header": "@background",
+        "headerText": "@text",
+        "selection": "@accent",
+        "selectionText": "#10180a",
+        "text": "@cream"
+      },
+      "title": {
+        "font": "tiny",
+        "offset": [
+          12,
+          8
+        ]
+      }
+    },
     "details": {
       "close": {
         "offset": [
@@ -247,6 +324,17 @@
         400,
         240
       ],
+      "playlist": {
+        "fill": "@accent",
+        "fill80": "@lcdHot",
+        "handle": "#8a7f74",
+        "insert": "@accent",
+        "mark": "@cream",
+        "missing": "#7a6f66",
+        "over": "@record",
+        "text": "@cream",
+        "track": "#1a1613"
+      },
       "resizable": true,
       "scrollbar": {
         "image": "scrollbar.png",

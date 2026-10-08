@@ -1,6 +1,13 @@
 import type { Recording } from './native/SoundScraper';
 
-export type SortKey = 'name' | 'duration' | 'date' | 'size' | 'artist';
+export type SortKey =
+  | 'name'
+  | 'duration'
+  | 'date'
+  | 'size'
+  | 'artist'
+  /** A playlist's own order. */
+  | 'position';
 export type Sort = { key: SortKey; ascending: boolean };
 
 export const DEFAULT_SORT: Sort = { key: 'date', ascending: false };
@@ -22,6 +29,15 @@ export function filterRecordings(
 }
 
 export function sortRecordings(items: Recording[], sort: Sort): Recording[] {
+  return sortBy(items, r => r, sort);
+}
+
+/** Sorts anything holding a recording (`of` returns it); ties by file name. */
+export function sortBy<T>(
+  items: T[],
+  of: (item: T) => Recording,
+  sort: Sort,
+): T[] {
   const value = (r: Recording): string | number => {
     switch (sort.key) {
       case 'name':
@@ -33,11 +49,13 @@ export function sortRecordings(items: Recording[], sort: Sort): Recording[] {
       case 'artist':
         return `${r.artist ?? ''}\u0000${r.album ?? ''}`.toLowerCase();
       case 'date':
+      case 'position':
         return r.recordedAtMs;
     }
   };
   const dir = sort.ascending ? 1 : -1;
-  return [...items].sort((a, b) => {
+  return [...items].sort((x, y) => {
+    const [a, b] = [of(x), of(y)];
     const [va, vb] = [value(a), value(b)];
     if (va < vb) {
       return -dir;
@@ -54,7 +72,10 @@ export function nextSort(current: Sort, key: SortKey): Sort {
   if (current.key === key) {
     return { key, ascending: !current.ascending };
   }
-  return { key, ascending: key === 'name' || key === 'artist' };
+  return {
+    key,
+    ascending: key === 'name' || key === 'artist' || key === 'position',
+  };
 }
 
 /** The file name without `.mp3`; what rename edits. */

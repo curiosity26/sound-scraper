@@ -1,10 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   type LayoutChangeEvent,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -19,9 +17,14 @@ import {
   formatDuration,
   formatSize,
 } from './libraryModel';
-import { editorAvailable } from './native/editor';
 import { library, type Recording, type Tags } from './native/SoundScraper';
-import { editorTarget, skinsAvailable, windows } from './skin/skins';
+import {
+  chooseCover as chooseCoverFor,
+  type MenuContext,
+  openRecordingMenu,
+  recordingActions,
+  type ShowMenu,
+} from './recordingMenu';
 import { usePanelStyles } from './panelTheme';
 import {
   buildEdit,
@@ -38,17 +41,7 @@ import {
 import { colors } from './theme';
 import { TextField } from './TextField';
 
-const isWindows = Platform.OS === 'windows';
-const REVEAL_LABEL = isWindows ? 'Show in Explorer' : 'Show in Finder';
-const TRASH_LABEL = isWindows ? 'Move to Recycle Bin' : 'Move to Trash';
-const TRASH_NAME = isWindows ? 'the Recycle Bin' : 'the Trash';
-
-/** A native pop-up menu at (x, y) in the panel; resolves with the index or -1. */
-export type ShowMenu = (
-  items: string[],
-  x: number,
-  y: number,
-) => Promise<number>;
+export type { ShowMenu };
 
 type Props = {
   /** One recording, or several for a bulk edit. */
@@ -80,6 +73,7 @@ export function DetailsPane(props: Props): React.JSX.Element {
   const [tags, setTags] = useState<Tags[]>();
   const [recordings, setRecordings] = useState<Recording[]>([]);
   const [error, setError] = useState<string>();
+  const [notice, setNotice] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [area, setArea] = useState({ width: 0, height: 0 });
   const single = fileNames.length === 1;
@@ -102,6 +96,7 @@ export function DetailsPane(props: Props): React.JSX.Element {
   useEffect(() => {
     setTags(undefined);
     setError(undefined);
+    setNotice(undefined);
     load();
   }, [load]);
 
@@ -157,16 +152,22 @@ export function DetailsPane(props: Props): React.JSX.Element {
     }
   };
 
-  const chooseCover = async () => {
-    try {
-      const path = await library.pickImage();
-      if (path) {
-        await write({}, { kind: 'set', path });
-      }
-    } catch (e) {
-      setError(errorText(e));
-    }
+  const menuContext: MenuContext = {
+    fileNames,
+    recordings,
+    hasCover: cover.kind !== 'none',
+    showMenu: props.showMenu,
+    onChanged: () => {
+      onChanged();
+      load();
+    },
+    onTrashed: props.onClose,
+    report: m => {
+      setError(m.isError ? m.text : undefined);
+      setNotice(m.isError ? undefined : m.text);
+    },
   };
+  const chooseCover = () => chooseCoverFor(menuContext);
 
   const onDrop = (e: {
     nativeEvent: { dataTransfer?: { files?: Array<{ uri?: string }> } };
@@ -180,78 +181,9 @@ export function DetailsPane(props: Props): React.JSX.Element {
     }
   };
 
-  const trash = () => {
-    const what = !single
-      ? `${fileNames.length} recordings`
-      : `"${recordings[0] ? displayName(recordings[0]) : fileNames[0]}"`;
-    Alert.alert(
-      `Move ${what} to ${TRASH_NAME}?`,
-      undefined,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: TRASH_LABEL,
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              for (const name of fileNames) {
-                await library.trash(name);
-              }
-              onChanged();
-              props.onClose();
-            } catch (e) {
-              setError(`Couldn't move to ${TRASH_NAME}: ${errorText(e)}`);
-            }
-          },
-        },
-      ],
-      { cancelable: true },
-    );
-  };
-
-  const editTrack = () => {
-    const r = recordings[0];
-    if (!r) {
-      return;
-    }
-    editorTarget.set({
-      fileName: r.fileName,
-      path: r.path,
-      title: displayName(r),
-      durationMs: r.durationMs,
-    });
-    windows.setPanelVisible('editor', true);
-  };
-
-  const actions: Array<{ label: string; run: () => void }> = [
-    ...(single && editorAvailable && skinsAvailable && recordings[0]
-      ? [{ label: 'Edit Track…', run: editTrack }]
-      : []),
-    ...(single
-      ? [{ label: REVEAL_LABEL, run: () => library.reveal(fileNames[0]) }]
-      : []),
-    { label: 'Change cover…', run: chooseCover },
-    ...(cover.kind !== 'none'
-      ? [{ label: 'Remove cover', run: () => write({}, { kind: 'remove' }) }]
-      : []),
-    { label: `${TRASH_LABEL}…`, run: trash },
-  ];
-
-  const openMenu = async (x: number, y: number) => {
-    if (!props.showMenu) {
-      return;
-    }
-    // A separator before the last (destructive) action.
-    const labels = actions.map(a => a.label);
-    const last = labels.length - 1;
-    const items = [...labels.slice(0, last), '-', labels[last]];
-    const chosen = await props.showMenu(items, x, y);
-    if (chosen >= 0 && chosen < last) {
-      actions[chosen].run();
-    } else if (chosen === items.length - 1) {
-      actions[last].run();
-    }
-  };
+  const actions = recordingActions(menuContext);
+  const openMenu = (x: number, y: number) =>
+    openRecordingMenu(menuContext, x, y);
 
   if (props.menuRef) {
     props.menuRef.current = openMenu;
@@ -310,6 +242,9 @@ export function DetailsPane(props: Props): React.JSX.Element {
         <Text selectable style={styles.error}>
           {error}
         </Text>
+      )}
+      {!error && notice && (
+        <Text style={[styles.notice, textStyle, t.text]}>{notice}</Text>
       )}
 
       {!merged ? (
@@ -372,7 +307,7 @@ export function DetailsPane(props: Props): React.JSX.Element {
           {!props.showMenu && (
             <View style={styles.links}>
               {actions.map(a => (
-                <Pressable key={a.label} onPress={a.run}>
+                <Pressable key={a.label} onPress={() => a.run(0, 0)}>
                   <Text style={[styles.link, t.link]}>{a.label}</Text>
                 </Pressable>
               ))}
@@ -505,6 +440,7 @@ const styles = StyleSheet.create({
   },
   busy: { marginTop: 6 },
   error: { color: colors.error, fontSize: 12, marginTop: 6 },
+  notice: { fontSize: 12, marginTop: 6, opacity: 0.8 },
   fields: { marginTop: 10 },
   bulk: { fontSize: 15, fontWeight: '600', marginBottom: 6 },
   field: { marginBottom: 6 },

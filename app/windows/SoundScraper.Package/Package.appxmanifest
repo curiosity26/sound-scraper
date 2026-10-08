@@ -9,7 +9,7 @@
   <Identity
     Name="com.alexboyce.soundscraper"
     Publisher="CN=Alex Boyce, O=Alex Boyce, L=Williamsport, S=pa, C=US"
-    Version="0.1.2.0" />
+    Version="0.2.0.0" />
 
   <Properties>
     <DisplayName>Sound Scraper</DisplayName>

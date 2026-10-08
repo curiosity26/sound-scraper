@@ -1901,7 +1901,7 @@ checksum = "f9395f0f0eee849a9b707b2f06bb92a6a422090e2123bb2ef8e87a0e61892a8e"
 
 [[package]]
 name = "sound_scraper_capture"
-version = "0.1.2-beta.1"
+version = "0.2.0-beta.1"
 dependencies = [
  "block2",
  "libc",
@@ -1917,7 +1917,7 @@ dependencies = [
 
 [[package]]
 name = "sound_scraper_core"
-version = "0.1.2-beta.1"
+version = "0.2.0-beta.1"
 dependencies = [
  "cbindgen",
  "chrono",
@@ -1934,6 +1934,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sound_scraper_capture",
+ "sound_scraper_disc",
  "sound_scraper_layout",
  "sound_scraper_skin",
  "sound_scraper_vis",
@@ -1943,8 +1944,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "sound_scraper_disc"
+version = "0.2.0-beta.1"
+dependencies = [
+ "cc",
+ "serde",
+ "serde_json",
+ "windows",
+ "windows-core",
+]
+
+[[package]]
 name = "sound_scraper_layout"
-version = "0.1.2-beta.1"
+version = "0.2.0-beta.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -1952,7 +1964,7 @@ dependencies = [
 
 [[package]]
 name = "sound_scraper_skin"
-version = "0.1.2-beta.1"
+version = "0.2.0-beta.1"
 dependencies = [
  "image",
  "jsonschema",
@@ -1965,7 +1977,7 @@ dependencies = [
 
 [[package]]
 name = "sound_scraper_vis"
-version = "0.1.2-beta.1"
+version = "0.2.0-beta.1"
 dependencies = [
  "realfft",
  "rtrb",

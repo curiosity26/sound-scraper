@@ -64,7 +64,7 @@ export function isSkinArchive(path: string): boolean {
 }
 
 /** A value shared by every window (they run in one JS runtime). */
-function shared<T>(initial: T) {
+export function shared<T>(initial: T) {
   let value = initial;
   const subscribers = new Set<(v: T) => void>();
   return {
@@ -89,6 +89,18 @@ export const editorTarget = shared<{
   path: string;
   title: string;
   durationMs: number;
+} | null>(null);
+
+/** The playlist the burn panel burns (Burn CD… in the library). */
+export const burnTarget = shared<{
+  playlistId: number;
+  name: string;
+  tracks: Array<{
+    path: string;
+    title: string;
+    performer: string | null;
+    durationMs: number;
+  }>;
 } | null>(null);
 
 /** The settings window's tab. */
@@ -138,7 +150,7 @@ export async function openSkinFiles(paths: string[]): Promise<void> {
 const flat = (rects: Rect[]) => rects.flatMap(r => r);
 
 /** The side panels (the main panel is "main"). */
-export type PanelName = 'library' | 'settings' | 'details' | 'editor';
+export type PanelName = 'library' | 'settings' | 'details' | 'editor' | 'burn';
 
 export const windows = {
   setMainLayout: (

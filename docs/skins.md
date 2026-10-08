@@ -37,7 +37,7 @@ as you type.
   "description": "One line for the skin picker.",
   "colors": { "accent": "#ffb24a" },
   "fonts": {},
-  "panels": { "main": {}, "library": {}, "details": {}, "settings": {}, "editor": {} },
+  "panels": { "main": {}, "library": {}, "details": {}, "settings": {}, "editor": {}, "burn": {} },
   "visualizer": { "presets": [] }
 }
 ```
@@ -225,6 +225,8 @@ edges and middle stretch. Put the title strip in the top slice.
 | `scrollbar` | `{ "image", "track", "thumb", "thumbSlice" }` |
 | `controls` | Form colors: background, text, border, accent, button, buttonText |
 | `waveform` | Track editor colors (`editor` only): background, wave, rms, center, ruler, rulerText, splice, spliceSelected, selection, deleted, playhead |
+| `playlist` | Playlist colors (`library` only): the CD capacity bar's fill (fits 74 min), fill80 (needs 80 min), over (too long), track, mark (74/80 lines) and text; the reorder handle, the drop insert line, missing rows |
+| `progress` | Burn panel colors (`burn` only): bar, track, buffer, the status lamps waiting/preparing/writing/done/failed, glow (lamp halo), log and logText |
 
 ## Limits and safety
 

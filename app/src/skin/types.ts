@@ -99,6 +99,10 @@ export type FramePanel = {
   controls: Record<string, string>;
   /** Track editor colors (the editor panel). */
   waveform: Record<string, string>;
+  /** Playlist colors (the library panel): capacity bar, handles, missing rows. */
+  playlist: Record<string, string>;
+  /** Burn progress colors (the burn panel): bars, status lamps, log. */
+  progress: Record<string, string>;
   title: {
     font: string | null;
     offset: [number, number];
@@ -140,6 +144,7 @@ export type Skin = {
     settings: FramePanel;
     details: FramePanel;
     editor: FramePanel;
+    burn: FramePanel;
   };
   visualizer: { presets: Array<Record<string, unknown>> };
   warnings: string[];

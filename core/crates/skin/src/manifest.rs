@@ -64,6 +64,9 @@ pub struct Panels {
     /// The track editor (waveform, splices, regions).
     #[serde(default)]
     pub editor: Option<FramePanel>,
+    /// Burning a playlist to CD: setup and per-track progress.
+    #[serde(default)]
+    pub burn: Option<FramePanel>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -207,6 +210,12 @@ pub struct FramePanel {
     /// Track editor colors (see `WAVEFORM_COLORS`).
     #[serde(default)]
     pub waveform: Option<BTreeMap<String, String>>,
+    /// Playlist colors (see `PLAYLIST_COLORS`; the library panel).
+    #[serde(default)]
+    pub playlist: Option<BTreeMap<String, String>>,
+    /// Burn progress colors (see `PROGRESS_COLORS`; the burn panel).
+    #[serde(default)]
+    pub progress: Option<BTreeMap<String, String>>,
     /// The window title, drawn in the frame's top strip.
     #[serde(default)]
     pub title: Option<TitleDef>,
@@ -314,6 +323,18 @@ pub fn required_states(element: &str) -> &'static [&'static str] {
 pub const TABLE_COLORS: &[&str] =
     &["background", "alternate", "text", "selection", "selectionText", "header", "headerText", "grid"];
 pub const CONTROL_COLORS: &[&str] = &["background", "text", "border", "accent", "button", "buttonText"];
+/// The library's playlist view: the CD capacity bar (`fill` while it fits a
+/// 74-minute disc, `fill80` when it needs an 80, `over` past that, `track`
+/// behind, `mark` for the 74/80 lines, `text` for its caption), the
+/// reorder `handle`, the drop `insert` line and `missing` rows.
+pub const PLAYLIST_COLORS: &[&str] = &["fill", "fill80", "over", "track", "mark", "text", "handle", "insert", "missing"];
+
+/// The burn panel: progress `bar` over `track`, the drive `buffer` bar,
+/// status lamps (`waiting`, `preparing`, `writing`, `done`, `failed`) and
+/// whether they `glow`, and the log (`log` behind `logText`).
+pub const PROGRESS_COLORS: &[&str] =
+    &["bar", "track", "buffer", "waiting", "preparing", "writing", "done", "failed", "glow", "log", "logText"];
+
 pub const WAVEFORM_COLORS: &[&str] = &[
     "background",
     "wave",

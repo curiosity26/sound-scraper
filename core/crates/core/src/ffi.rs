@@ -1509,6 +1509,63 @@ pub unsafe extern "C" fn ss_skin_folder_stamp(dir: *const c_char) -> *mut c_char
     json_or_null(catch("reading the skin folder", || skins::folder_stamp(std::path::Path::new(dir?))))
 }
 
+// ------------------------------------------------------------ playlists
+
+static PLAYLISTS: Mutex<Option<crate::playlists::Playlists>> = Mutex::new(None);
+
+/// Runs one playlists request (docs/playlists-and-cd-burning-design.md §5):
+/// JSON with an `"op"` of `list`, `items`, `create`, `rename`, `duplicate`,
+/// `delete`, `add`, `remove`, `setOrder`, `active`, `setActive` or
+/// `exportM3u8` and its fields (see `playlists::Request`). Always returns
+/// JSON: `{"ok": answer}` or `{"error": message}`. Free with
+/// `ss_string_free`.
+///
+/// # Safety
+/// `request_json` must be NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_playlists(request_json: *const c_char) -> *mut c_char {
+    let text = unsafe { arg_str(request_json, "request_json") };
+    let result = catch("the playlist request", || {
+        let request: crate::playlists::Request =
+            serde_json::from_str(text?).map_err(|e| format!("invalid playlist request: {e}"))?;
+        let mut guard = PLAYLISTS.lock().unwrap_or_else(|e| e.into_inner());
+        if guard.is_none() {
+            *guard = Some(crate::playlists::Playlists::open_default()?);
+        }
+        guard.as_mut().unwrap().handle(request)
+    });
+    let answer = match result {
+        Ok(ok) => serde_json::json!({ "ok": ok }),
+        Err(error) => serde_json::json!({ "error": error }),
+    };
+    c_string(&answer.to_string()).into_raw()
+}
+
+// ------------------------------------------------------------ CD burning
+
+/// Runs one burning request (docs/playlists-and-cd-burning-design.md §6):
+/// JSON with an `"op"` of `devices`, `start` (a `burn::BurnRequest`;
+/// answers the job id), `status`, `cancel`, `close` (with `"id"`),
+/// `simSettings` or `setSimSettings`. Always returns JSON: `{"ok": answer}`
+/// or `{"error": message}`. Free with `ss_string_free`.
+///
+/// # Safety
+/// `request_json` must be NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_burn(request_json: *const c_char) -> *mut c_char {
+    let text = unsafe { arg_str(request_json, "request_json") };
+    let result = catch("the burn request", || {
+        let request: crate::burn::Request =
+            serde_json::from_str(text?).map_err(|e| format!("invalid burn request: {e}"))?;
+        crate::burn::handle(request)
+    });
+    let answer = match result {
+        Ok(ok) => serde_json::json!({ "ok": ok }),
+        Err(error) => serde_json::json!({ "error": error }),
+    };
+    c_string(&answer.to_string()).into_raw()
+}
+
 // ------------------------------------------------------------ track editor
 
 /// Open editors by id, and the next id (ids are never reused).

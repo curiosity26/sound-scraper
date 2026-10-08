@@ -1,9 +1,10 @@
 // Roots of the skinned UI's windows (registered in index.js). They share one
 // JS runtime, so the skin and library refreshes are shared between them.
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AboutPanel } from './AboutPanel';
+import { BurnPanel, openBurnPanel } from './BurnPanel';
 import { safeSettings } from './appHelpers';
 import { DetailsPane } from './DetailsPane';
 import { EditorPanel } from './editor/EditorPanel';
@@ -16,6 +17,7 @@ import { SkinPanelFrame } from './skin/SkinPanelFrame';
 import { SkinProvider, useSkin } from './skin/SkinProvider';
 import { SkinScale } from './skin/SkinImage';
 import {
+  burnTarget,
   doubleSizeStore,
   editorTarget,
   isFolderSkin,
@@ -128,7 +130,9 @@ function chosenFolder(): string | null {
 }
 
 /** Text color and whether the panel is dark, from the skin's controls. */
-function usePanelText(panel: 'library' | 'settings' | 'details' | 'editor') {
+function usePanelText(
+  panel: 'library' | 'settings' | 'details' | 'editor' | 'burn',
+) {
   const skin = useSkin();
   const c = skin.panels[panel].controls;
   return {
@@ -144,7 +148,9 @@ export function isDarkColor(hex: string): boolean {
   return 0.299 * v(0) + 0.587 * v(1) + 0.114 * v(2) < 128;
 }
 
-function LibraryContent(props: { onCount: (n: number) => void }) {
+function LibraryContent(props: {
+  onCount: (n: number, playlistName?: string) => void;
+}) {
   const { fg, isDark } = usePanelText('library');
   const [message, setMessage] = useState<Message>();
   return (
@@ -156,6 +162,12 @@ function LibraryContent(props: { onCount: (n: number) => void }) {
         compact
         onCount={props.onCount}
         openDetails={() => windows.setPanelVisible('details', true)}
+        showLibraryMenu={(items, checked, x, y) =>
+          windows.showMenu(items, checked, x, y, 'library')
+        }
+        onBurn={target =>
+          openBurnPanel(target, () => windows.setPanelVisible('burn', true))
+        }
       />
       {message && (
         <Text
@@ -171,14 +183,18 @@ function LibraryContent(props: { onCount: (n: number) => void }) {
 
 /** The library window. */
 export function LibraryApp(): React.JSX.Element {
-  const [count, setCount] = useState<number>();
+  // A string, so an unchanged count doesn't re-render (and the callback is
+  // stable: LibraryScreen reports again whenever it changes).
+  const [title, setTitle] = useState('Library');
+  const onCount = useCallback(
+    (n: number, playlist?: string) =>
+      setTitle(`${playlist ? `Library: ${playlist}` : 'Library'} (${n})`),
+    [],
+  );
   return (
     <Skinned>
-      <SkinPanelFrame
-        panel="library"
-        title={count === undefined ? 'Library' : `Library (${count})`}
-      >
-        <LibraryContent onCount={setCount} />
+      <SkinPanelFrame panel="library" title={title}>
+        <LibraryContent onCount={onCount} />
       </SkinPanelFrame>
     </Skinned>
   );
@@ -345,6 +361,21 @@ export function EditorApp(): React.JSX.Element {
         title={title ? `Editor: ${title}` : 'Editor'}
       >
         <EditorContent />
+      </SkinPanelFrame>
+    </Skinned>
+  );
+}
+
+/** The burn window: a playlist to CD or a disc image. */
+export function BurnApp(): React.JSX.Element {
+  const [name, setName] = useState(burnTarget.get()?.name);
+  useEffect(() => burnTarget.subscribe(t => setName(t?.name)), []);
+  return (
+    <Skinned>
+      <SkinPanelFrame panel="burn" title={name ? `Burn: ${name}` : 'Burn CD'}>
+        <View style={styles.content}>
+          <BurnPanel />
+        </View>
       </SkinPanelFrame>
     </Skinned>
   );

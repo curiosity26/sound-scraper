@@ -35,7 +35,12 @@ const EMPTY: Playback = {
 let current: Playback = EMPTY;
 const listeners = new Set<(p: Playback) => void>();
 const errorListeners = new Set<(message: string) => void>();
+const endedListeners = new Set<(fileName: string) => void>();
 let subscribed = false;
+// Set while a stop, seek or load we asked for is on its way, so a stop
+// that comes from the end of the file can be told apart from one the user
+// pressed.
+let expectingStop = false;
 
 function update(change: Partial<Playback>) {
   current = { ...current, ...change };
@@ -55,6 +60,9 @@ function subscribeNative() {
     switch (e.kind) {
       case 'playerState': {
         const state = e.playerState as PlayerState;
+        const ended =
+          current.state === 'playing' && state === 'stopped' && !expectingStop;
+        expectingStop = false;
         if (state === 'empty') {
           update(EMPTY);
         } else {
@@ -64,6 +72,10 @@ function subscribeNative() {
             durationMs: e.durationMs || current.durationMs,
             levels: state === 'playing' ? current.levels : SILENT,
           });
+        }
+        if (ended && current.fileName) {
+          const fileName = current.fileName;
+          endedListeners.forEach(l => l(fileName));
         }
         break;
       }
@@ -108,6 +120,7 @@ export const playback = {
       durationMs: recording.durationMs,
     });
     try {
+      expectingStop = true;
       await player.load(recording.path);
     } catch (e) {
       update(EMPTY);
@@ -173,7 +186,10 @@ export const playback = {
     }
   },
   pause: () => player.pause(),
-  stop: () => player.stop(),
+  stop: () => {
+    expectingStop = true;
+    player.stop();
+  },
   seek: (positionMs: number) => {
     update({ positionMs });
     player.seek(positionMs);
@@ -183,6 +199,12 @@ export const playback = {
     subscribeNative();
     listeners.add(listener);
     return () => listeners.delete(listener);
+  },
+  /** The loaded recording played to its end (not stopped by the user). */
+  onEnded: (listener: (fileName: string) => void): (() => void) => {
+    subscribeNative();
+    endedListeners.add(listener);
+    return () => endedListeners.delete(listener);
   },
   onError: (listener: (message: string) => void): (() => void) => {
     errorListeners.add(listener);

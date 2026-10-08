@@ -471,7 +471,7 @@
 					"$(SRCROOT)/../../core/target/apple",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.1.2;
+				MARKETING_VERSION = 0.2.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -479,6 +479,8 @@
 					"-lsound_scraper_core",
 					"-framework",
 					CoreAudio,
+					"-framework",
+					DiscRecording,
 					"-lmp3lame",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.alexboyce.soundscraper;
@@ -522,7 +524,7 @@
 					"$(SRCROOT)/../../core/target/apple",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.1.2;
+				MARKETING_VERSION = 0.2.0;
 				ONLY_ACTIVE_ARCH = NO;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
@@ -531,6 +533,8 @@
 					"-lsound_scraper_core",
 					"-framework",
 					CoreAudio,
+					"-framework",
+					DiscRecording,
 					"-lmp3lame",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.alexboyce.soundscraper;
