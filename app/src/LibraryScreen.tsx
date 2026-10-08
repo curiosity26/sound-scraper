@@ -13,6 +13,7 @@ import {
   AddToButton,
   BurnButton,
   CapacityBar,
+  PlaylistActionsButton,
   PlaylistPicker,
   PlaylistPrompt,
   type ShowMenu as ShowPlaylistMenu,
@@ -329,6 +330,10 @@ export function LibraryScreen(props: Props): React.JSX.Element {
           showLibraryMenu ? (
             <>
               <PlaylistPicker controls={controls} textStyle={textStyle} />
+              <PlaylistActionsButton
+                controls={controls}
+                textStyle={textStyle}
+              />
               {showing && (
                 <Pressable
                   testID="playlist-add-recordings"

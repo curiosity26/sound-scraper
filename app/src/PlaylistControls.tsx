@@ -83,6 +83,7 @@ export function usePlaylistControls(props: {
   const { state, showMenu, onMessage } = props;
   const [prompt, setPrompt] = useState<Prompt | null>(null);
   const picker = useRef<View>(null);
+  const actionsButton = useRef<View>(null);
   const addTo = useRef<View>(null);
   const active = state.playlists.find(p => p.id === state.activeId);
 
@@ -144,69 +145,73 @@ export function usePlaylistControls(props: {
     }
   };
 
+  /** The playlist picker: the library, New Playlist…, then the playlists
+   * (so the fixed items stay at the top however many playlists there are). */
   const openPicker = () =>
     menuPoint(picker.current, async (x, y) => {
       const names = state.playlists.map(p => p.name);
-      const actions: Array<[string, () => void]> = [[NEW, () => newPlaylist()]];
-      if (active) {
-        actions.push(
-          [
-            'Rename Playlist…',
-            () =>
-              setPrompt({
-                kind: 'name',
-                title: 'Rename playlist',
-                value: active.name,
-                onDone: name =>
-                  run('rename the playlist', () =>
-                    playlists.rename(active.id, name),
-                  ),
-              }),
-          ],
-          [
-            'Duplicate Playlist',
-            () =>
-              run('duplicate the playlist', () =>
-                playlists.duplicate(active.id),
-              ),
-          ],
-          ['Export as .m3u8…', () => exportM3u8(active.id, active.name)],
-          [
-            'Delete Playlist…',
-            () =>
-              setPrompt({
-                kind: 'confirm',
-                title: `Delete “${active.name}”?`,
-                body: 'The recordings stay in your library.',
-                action: 'Delete',
-                onDone: () =>
-                  run('delete the playlist', () => playlists.delete(active.id)),
-              }),
-          ],
-        );
-      }
-      const items = [
-        'Library',
-        ...(names.length ? ['-', ...names] : []),
-        '-',
-        ...actions.map(a => a[0]),
-      ];
+      const items = ['Library', NEW, ...(names.length ? ['-', ...names] : [])];
       const checkedIndex =
         state.activeId === null
           ? 0
-          : 2 + state.playlists.findIndex(p => p.id === state.activeId);
+          : 3 + state.playlists.findIndex(p => p.id === state.activeId);
       const chosen = await showMenu(items, checkedIndex, x, y);
-      if (chosen < 0) {
-        return;
-      }
       if (chosen === 0) {
         run('show the library', () => playlists.show(null));
-      } else if (names.length && chosen >= 2 && chosen < 2 + names.length) {
-        const id = state.playlists[chosen - 2].id;
+      } else if (chosen === 1) {
+        newPlaylist();
+      } else if (chosen >= 3 && chosen < 3 + names.length) {
+        const id = state.playlists[chosen - 3].id;
         run('show the playlist', () => playlists.show(id));
-      } else {
-        const label = items[chosen];
-        actions.find(a => a[0] === label)?.[1]();
+      }
+    });
+
+  /** The ⋯ menu beside the picker: what to do with the playlist showing. */
+  const openActions = () =>
+    menuPoint(actionsButton.current, async (x, y) => {
+      if (!active) {
+        return;
+      }
+      const actions: Array<[string, () => void]> = [
+        [
+          'Rename Playlist…',
+          () =>
+            setPrompt({
+              kind: 'name',
+              title: 'Rename playlist',
+              value: active.name,
+              onDone: name =>
+                run('rename the playlist', () =>
+                  playlists.rename(active.id, name),
+                ),
+            }),
+        ],
+        [
+          'Duplicate Playlist',
+          () =>
+            run('duplicate the playlist', () => playlists.duplicate(active.id)),
+        ],
+        ['Export as .m3u8…', () => exportM3u8(active.id, active.name)],
+        [
+          'Delete Playlist…',
+          () =>
+            setPrompt({
+              kind: 'confirm',
+              title: `Delete “${active.name}”?`,
+              body: 'The recordings stay in your library.',
+              action: 'Delete',
+              onDone: () =>
+                run('delete the playlist', () => playlists.delete(active.id)),
+            }),
+        ],
+      ];
+      // A separator before Delete.
+      const items = [...actions.slice(0, 3).map(a => a[0]), '-', actions[3][0]];
+      const chosen = await showMenu(items, -1, x, y);
+      if (chosen >= 0 && chosen < 3) {
+        actions[chosen][1]();
+      } else if (chosen === 4) {
+        actions[3][1]();
       }
     });
 
@@ -259,9 +264,11 @@ export function usePlaylistControls(props: {
     prompt,
     setPrompt,
     picker,
+    actionsButton,
     addTo,
     active,
     openPicker,
+    openActions,
     openAddTo,
     addToPlaylist,
   };
@@ -300,6 +307,40 @@ export function PlaylistPicker(props: {
         {controls.active?.name ?? 'Library'}
       </Text>
       <Text style={[styles.pickerArrow, props.textStyle, t.text]}>▾</Text>
+    </Pressable>
+  );
+}
+
+/** ⋯: rename, duplicate, export or delete the playlist showing. */
+export function PlaylistActionsButton(props: {
+  controls: PlaylistControls;
+  textStyle: object;
+}): React.JSX.Element | null {
+  const t = usePanelStyles();
+  const theme = usePanelTheme();
+  const { controls } = props;
+  if (!controls.active) {
+    return null;
+  }
+  return (
+    <Pressable
+      ref={controls.actionsButton}
+      testID="playlist-actions"
+      accessibilityRole="button"
+      accessibilityLabel="Playlist actions"
+      onPress={controls.openActions}
+      style={({ pressed }) => [
+        styles.picker,
+        {
+          borderColor: theme?.border ?? colors.border,
+          backgroundColor: theme?.background,
+          opacity: pressed ? 0.7 : 1,
+        },
+      ]}
+    >
+      <Text style={[styles.pickerText, props.textStyle, t.text, t.cell]}>
+        ⋯
+      </Text>
     </Pressable>
   );
 }
