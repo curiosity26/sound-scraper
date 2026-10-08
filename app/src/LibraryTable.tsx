@@ -489,6 +489,24 @@ export function LibraryTable(props: Props): React.JSX.Element {
                   // Windows reports the button on pointer events.
                   onPointerDown: (e: { nativeEvent: MouseLike }) =>
                     rightClick(row, e.nativeEvent),
+                  // macOS: a right-click is an "aux click", with the point
+                  // in the row's own coordinates.
+                  onAuxClick: (e: {
+                    nativeEvent: {
+                      button?: number;
+                      clientX?: number;
+                      clientY?: number;
+                    };
+                  }) =>
+                    rightClick(row, {
+                      button: e.nativeEvent.button ?? 2,
+                      pageX: boxAt.current.x + (e.nativeEvent.clientX ?? 0),
+                      pageY:
+                        boxAt.current.y +
+                        index * rowHeight.current -
+                        scroll.offset +
+                        (e.nativeEvent.clientY ?? 0),
+                    }),
                 }}
                 onPress={() => {
                   if (!r || Date.now() - lastMenu.current < 600) {
