@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { AddRecordingsSheet } from './AddRecordingsSheet';
 import { errorText } from './appHelpers';
 import { DetailsPane, type ShowMenu } from './DetailsPane';
 import { LibraryTable, type PlaylistView } from './LibraryTable';
 import { library, type Recording } from './native/SoundScraper';
+import { usePanelStyles } from './panelTheme';
 import { playback, usePlayback } from './playback';
 import type { BurnTrackInput } from './burnModel';
 import {
@@ -68,6 +70,8 @@ export function LibraryScreen(props: Props): React.JSX.Element {
   const [listed, setListed] = useState(false);
   const pl = usePlaylists();
   const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
+  const [adding, setAdding] = useState(false);
+  const t = usePanelStyles();
   const showLibraryMenu = props.showLibraryMenu;
 
   const refreshLibrary = useCallback(async () => {
@@ -240,7 +244,19 @@ export function LibraryScreen(props: Props): React.JSX.Element {
         playlist={playlistView}
         toolbarStart={
           showLibraryMenu ? (
-            <PlaylistPicker controls={controls} textStyle={textStyle} />
+            <>
+              <PlaylistPicker controls={controls} textStyle={textStyle} />
+              {showing && (
+                <Pressable
+                  testID="playlist-add-recordings"
+                  onPress={() => setAdding(true)}
+                >
+                  <Text style={[styles.link, t.link, t.cell]}>
+                    + Add Recordings…
+                  </Text>
+                </Pressable>
+              )}
+            </>
           ) : undefined
         }
         checkedActions={
@@ -304,6 +320,26 @@ export function LibraryScreen(props: Props): React.JSX.Element {
           onMessage={onMessage}
         />
       )}
+      {adding && showing && (
+        <AddRecordingsSheet
+          playlistName={activeName ?? 'Playlist'}
+          recordings={recordings}
+          already={new Set(pl.items.map(i => i.fileName))}
+          textStyle={textStyle}
+          onCancel={() => setAdding(false)}
+          onAdd={names => {
+            setAdding(false);
+            try {
+              playlists.add(pl.activeId!, names);
+            } catch (e) {
+              onMessage({
+                text: `Couldn't add to the playlist: ${errorText(e)}`,
+                isError: true,
+              });
+            }
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -311,4 +347,5 @@ export function LibraryScreen(props: Props): React.JSX.Element {
 const styles = StyleSheet.create({
   libraryRow: { flex: 1, flexDirection: 'row' },
   pane: { width: 300, marginLeft: 16 },
+  link: { fontSize: 13 },
 });

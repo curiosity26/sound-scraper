@@ -364,7 +364,7 @@ export function LibraryTable(props: Props): React.JSX.Element {
             <Text style={[styles.empty, textStyle, t.tableText]}>
               {playlist
                 ? total === 0
-                  ? 'This playlist is empty. Check recordings in the Library and choose Add to, or record while it is showing.'
+                  ? 'This playlist is empty. Choose + Add Recordings… above, or record while it is showing.'
                   : 'Nothing in this playlist matches your search.'
                 : recordings.length === 0
                 ? 'No recordings yet. Press Record to make one.'
