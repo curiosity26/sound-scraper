@@ -107,6 +107,9 @@ type Row = {
 
 const SORT_POSITION: Sort = { key: 'position', ascending: true };
 
+/** Presses this close to the list's left edge grab a row's ≡ handle. */
+const HANDLE_HIT = 28;
+
 /**
  * Recordings with sort, search, inline rename, Show in Finder and Trash; or
  * a playlist's rows, in its order, with drag handles to reorder them.
@@ -181,38 +184,68 @@ export function LibraryTable(props: Props): React.JSX.Element {
     .filter((id): id is number => id !== undefined);
 
   // Dragging a row by its handle: the rows move together (all checked rows,
-  // if the dragged one is checked), landing before `drop.target`.
+  // if the dragged one is checked), landing before `drag.target`. The list
+  // box captures presses in the handle column (before the scroll view and
+  // the row see them), and works out the row from where the press was.
   const rowHeight = useRef(0);
-  const [drag, setDrag] = useState<{
+  const box = useRef<View>(null);
+  const boxAt = useRef({ x: 0, y: 0 });
+  const [drag, setDragState] = useState<{
     ids: number[];
     from: number;
     target: number;
   } | null>(null);
+  const dragRef = useRef(drag);
+  const setDrag = (d: typeof drag) => {
+    dragRef.current = d;
+    setDragState(d);
+  };
   const dragStart = useRef(0);
-  const beginDrag = (row: Row, pageY: number) => {
+  const measureBox = () =>
+    box.current?.measure((_x, _y, _w, _h, pageX, pageY) => {
+      boxAt.current = { x: pageX, y: pageY };
+    });
+  const inHandle = (pageX: number) =>
+    canReorder && pageX - boxAt.current.x < HANDLE_HIT;
+  const rowAt = (pageY: number): Row | undefined => {
+    if (rowHeight.current <= 0) {
+      return undefined;
+    }
+    const i = Math.floor(
+      (pageY - boxAt.current.y + scroll.offset) / rowHeight.current,
+    );
+    return rows[i];
+  };
+  const beginDrag = (pageY: number) => {
+    const row = rowAt(pageY);
+    if (!row || row.itemId === undefined || row.index === undefined) {
+      return;
+    }
     const key = rowKey(row);
     const ids =
       checked.has(key) && checkedItemIds.length > 0
         ? checkedItemIds
-        : [row.itemId!];
+        : [row.itemId];
     dragStart.current = pageY;
-    setDrag({ ids, from: row.index!, target: row.index! });
+    setDrag({ ids, from: row.index, target: row.index });
   };
   const moveDrag = (pageY: number) => {
-    if (!drag || rowHeight.current <= 0) {
+    const d = dragRef.current;
+    if (!d || rowHeight.current <= 0) {
       return;
     }
     const delta = (pageY - dragStart.current) / rowHeight.current;
     // Moving down lands after the row under the pointer.
-    const raw = drag.from + Math.round(delta) + (delta > 0 ? 1 : 0);
+    const raw = d.from + Math.round(delta) + (delta > 0 ? 1 : 0);
     const target = Math.max(0, Math.min(order.length, raw));
-    if (target !== drag.target) {
-      setDrag({ ...drag, target });
+    if (target !== d.target) {
+      setDrag({ ...d, target });
     }
   };
   const endDrag = () => {
-    if (drag && playlist) {
-      const next = moveItems(order, drag.ids, drag.target);
+    const d = dragRef.current;
+    if (d && playlist) {
+      const next = moveItems(order, d.ids, d.target);
       if (next.some((id, i) => id !== order[i])) {
         playlist.onReorder(next);
       }
@@ -339,11 +372,25 @@ export function LibraryTable(props: Props): React.JSX.Element {
       </View>
 
       <View
+        ref={box}
         style={[styles.listBox, t.table]}
         onLayout={e => {
           const viewport = e.nativeEvent.layout.height;
           setScroll(v => ({ ...v, viewport }));
+          measureBox();
         }}
+        onStartShouldSetResponderCapture={e => {
+          measureBox();
+          return (
+            inHandle(e.nativeEvent.pageX) &&
+            rowAt(e.nativeEvent.pageY) !== undefined
+          );
+        }}
+        onResponderTerminationRequest={() => false}
+        onResponderGrant={e => beginDrag(e.nativeEvent.pageY)}
+        onResponderMove={e => moveDrag(e.nativeEvent.pageY)}
+        onResponderRelease={endDrag}
+        onResponderTerminate={endDrag}
       >
         <FlatList
           ref={list}
@@ -437,13 +484,7 @@ export function LibraryTable(props: Props): React.JSX.Element {
                   <View
                     testID={`handle-${key}`}
                     style={styles.handle}
-                    onStartShouldSetResponder={() => canReorder}
-                    onMoveShouldSetResponder={() => canReorder}
-                    onResponderTerminationRequest={() => false}
-                    onResponderGrant={e => beginDrag(row, e.nativeEvent.pageY)}
-                    onResponderMove={e => moveDrag(e.nativeEvent.pageY)}
-                    onResponderRelease={endDrag}
-                    onResponderTerminate={endDrag}
+                    pointerEvents="none"
                   >
                     {canReorder && (
                       <Text
