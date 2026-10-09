@@ -82,7 +82,9 @@ Under a playlist, a bar shows how much of a 74- or 80-minute CD it fills, gaps i
 
 With a playlist showing, click **Burn CD…** to burn it to an audio CD that plays in any CD player. Choose the drive, speed and the gap between tracks (2 seconds by default, or none for gapless albums), and optionally write CD-Text so players show titles and artists. **Test write** runs everything except the laser, to check a disc would burn fine. While burning, the panel shows each track's progress, the drive buffer and a log you can save.
 
-Without a CD writer, the button reads **Save CD Image…** and writes the playlist as a `.cue`/`.bin` disc image instead, which you can burn later with tools such as ImgBurn or CDBurnerXP.
+Without a CD writer, the button reads **Save CD Image…** and writes the playlist as a `.cue`/`.bin` disc image instead, which you can burn later with ImgBurn, CDBurnerXP, cdrdao or Brasero.
+
+<img src="docs/images/burn-panel.png" alt="The Burn panel writing a playlist to a disc image" width="360">
 
 ## Skins
 
