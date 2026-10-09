@@ -12,6 +12,7 @@ It builds, on GitHub-hosted runners:
 
 - `SoundScraper-0.2.0.dmg`: Apple silicon, signed with Developer ID, notarized and stapled (macos-26, `scripts/package-macos.sh`).
 - `SoundScraper-0.2.0.0-ARM64.msix` and `SoundScraper-0.2.0.0-x64.msix`: signed with Azure Artifact Signing (windows-2025, cross-compiled, `scripts/package-windows.ps1 -ArtifactSigning`).
+- `HiFi74.sskin` and any other skin in `skins/` except the built-in Default, packaged by the `package_skin` example.
 
 and publishes them, with a `SHA256SUMS.txt`, as a GitHub Release with generated notes. A tag with a `-label` becomes a pre-release.
 

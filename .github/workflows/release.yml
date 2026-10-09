@@ -184,10 +184,21 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
+      # Every skin in skins/ except the built-in Default, as a .sskin named
+      # after the skin ("Hi-Fi '74" -> HiFi74.sskin).
+      - name: Package the extra skins
+        run: |
+          for dir in skins/*/; do
+            [ "$(basename "$dir")" = default ] && continue
+            name=$(jq -r .name "$dir/skin.json" | tr -cd '[:alnum:]')
+            cargo run -q --manifest-path core/Cargo.toml -p sound_scraper_skin \
+              --example package_skin -- "$dir" "dist/$name.sskin"
+          done
       - name: Create the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}

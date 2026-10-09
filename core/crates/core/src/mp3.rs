@@ -3,7 +3,7 @@
 //!
 //! LAME (LGPL) is currently compiled in statically by `mp3lame-sys`. Before
 //! distribution it has to move to a separately shipped dynamic library (or
-//! ship relinkable objects); see README "Licensing".
+//! ship relinkable objects); see docs/development.md "Licensing".
 
 use std::{
     fs::File,
