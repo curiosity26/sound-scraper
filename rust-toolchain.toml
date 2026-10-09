@@ -1,0 +1,14 @@
+# Pins the Rust toolchain for local builds, CI and releases, so a new stable
+# release (and its new clippy lints) never changes a build by surprise.
+# rustup installs it, with these components and targets, on first use.
+# To upgrade: change the version, run cargo clippy and cargo test, commit.
+[toolchain]
+channel = "1.99.0"
+components = ["clippy", "rustfmt"]
+targets = [
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "aarch64-pc-windows-msvc",
+    "x86_64-pc-windows-msvc",
+]
+profile = "minimal"
