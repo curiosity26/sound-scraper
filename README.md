@@ -96,7 +96,9 @@ The whole player is skinnable. Open **SETTINGS** › **Skin** to switch skins, *
 - Double-click the title bar for the one-line "shade" mode, and use Window › Double Size (⌘D) to draw the player at twice the size.
 - Click the visualizer to cycle its styles.
 
-Skin authors: the format is described in [docs/skins.md](docs/skins.md), and [skins/hifi74](skins/hifi74) is a full example skin you can load with **Use skin folder…**.
+More skins, such as **Hi-Fi '74** (a 1970s stereo receiver with needle VU meters), are attached to each [release](https://github.com/curiosity26/sound-scraper/releases) as `.sskin` files.
+
+Skin authors: the format is described in [docs/skins.md](docs/skins.md), and [skins/hifi74](skins/hifi74) is a full example skin.
 
 ## Settings
 
