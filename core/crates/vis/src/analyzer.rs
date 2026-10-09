@@ -395,11 +395,17 @@ mod tests {
         assert!(!hub.is_active());
         let (analyzer, mut tap) = Analyzer::start(hub.clone(), 48_000);
         assert!(hub.is_active());
-        for i in 0..10 {
+        // Keep feeding until the levels show the tone (or ~2 s pass): a slow
+        // machine may publish late, and levels decay between pushes.
+        let mut peak = [0.0; 2];
+        for i in 0..100 {
             tap.push_stereo(&sine(1000.0, 48_000, 960, 0.5, i * 960));
             std::thread::sleep(Duration::from_millis(20));
+            peak = hub.levels().0;
+            if i >= 10 && peak[0] > 0.4 {
+                break;
+            }
         }
-        let (peak, _) = hub.levels();
         assert!(peak[0] > 0.4, "{peak:?}");
         drop(analyzer);
         assert!(!hub.is_active());
