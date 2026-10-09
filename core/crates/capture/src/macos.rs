@@ -24,9 +24,9 @@ use objc2_app_kit::{NSApplicationActivationPolicy, NSRunningApplication};
 use objc2_core_audio::{
     AudioDeviceCreateIOProcID, AudioDeviceDestroyIOProcID, AudioDeviceIOProcID, AudioDeviceStart,
     AudioDeviceStop, AudioHardwareCreateAggregateDevice, AudioHardwareCreateProcessTap,
-    AudioHardwareDestroyAggregateDevice, AudioHardwareDestroyProcessTap, AudioObjectGetPropertyData,
-    AudioObjectGetPropertyDataSize, AudioObjectID, AudioObjectPropertyAddress,
-    AudioObjectPropertySelector, CATapDescription, CATapMuteBehavior,
+    AudioHardwareDestroyAggregateDevice, AudioHardwareDestroyProcessTap,
+    AudioObjectGetPropertyData, AudioObjectGetPropertyDataSize, AudioObjectID,
+    AudioObjectPropertyAddress, AudioObjectPropertySelector, CATapDescription, CATapMuteBehavior,
     kAudioAggregateDeviceIsPrivateKey, kAudioAggregateDeviceIsStackedKey,
     kAudioAggregateDeviceMainSubDeviceKey, kAudioAggregateDeviceNameKey,
     kAudioAggregateDeviceSubDeviceListKey, kAudioAggregateDeviceTapAutoStartKey,
@@ -44,7 +44,9 @@ use objc2_core_audio_types::{
 use objc2_core_foundation::{CFDictionary, CFRetained, CFString};
 use objc2_foundation::{NSArray, NSCopying, NSDictionary, NSNumber, NSObject, NSString, NSUUID};
 
-use crate::{AppTarget, AudioChunk, CaptureBackend, CaptureError, CaptureSource, OutputDevice, Session};
+use crate::{
+    AppTarget, AudioChunk, CaptureBackend, CaptureError, CaptureSource, OutputDevice, Session,
+};
 
 const SYSTEM_OBJECT: AudioObjectID = kAudioObjectSystemObject as AudioObjectID;
 
@@ -62,7 +64,9 @@ impl MacCapture {
 
 impl std::fmt::Debug for MacCapture {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("MacCapture").field("running", &self.running.len()).finish()
+        f.debug_struct("MacCapture")
+            .field("running", &self.running.len())
+            .finish()
     }
 }
 
@@ -75,7 +79,11 @@ impl CaptureBackend for MacCapture {
         audio_apps().unwrap_or_default()
     }
 
-    fn start(&mut self, source: CaptureSource, sink: SyncSender<AudioChunk>) -> Result<Session, CaptureError> {
+    fn start(
+        &mut self,
+        source: CaptureSource,
+        sink: SyncSender<AudioChunk>,
+    ) -> Result<Session, CaptureError> {
         let running = unsafe { Running::start(&source, sink)? };
         self.next_id += 1;
         self.running.insert(self.next_id, running);
@@ -106,7 +114,8 @@ mod permission {
     use objc2_core_foundation::CFString;
 
     type Preflight = unsafe extern "C" fn(*const CFString, *const c_void) -> c_int;
-    type Request = unsafe extern "C" fn(*const CFString, *const c_void, *const block2::Block<dyn Fn(Bool)>);
+    type Request =
+        unsafe extern "C" fn(*const CFString, *const c_void, *const block2::Block<dyn Fn(Bool)>);
 
     struct Tcc {
         preflight: Preflight,
@@ -166,10 +175,15 @@ fn audio_apps() -> Result<Vec<AppTarget>, CaptureError> {
             .as_ref()
             .is_some_and(|a| a.activationPolicy() == NSApplicationActivationPolicy::Regular);
         if regular {
-            let name = running.as_ref().and_then(|a| a.localizedName()).map(|n| n.to_string());
+            let name = running
+                .as_ref()
+                .and_then(|a| a.localizedName())
+                .map(|n| n.to_string());
             apps.push(AppTarget {
                 pid: p.pid as u32,
-                name: name.or_else(|| p.bundle_id.clone()).unwrap_or_else(|| format!("pid {}", p.pid)),
+                name: name
+                    .or_else(|| p.bundle_id.clone())
+                    .unwrap_or_else(|| format!("pid {}", p.pid)),
                 bundle_id: p.bundle_id.clone(),
                 icon: None,
                 is_playing: p.running_output,
@@ -187,7 +201,9 @@ fn audio_apps() -> Result<Vec<AppTarget>, CaptureError> {
     }
 
     apps.sort_by(|a, b| {
-        b.is_playing.cmp(&a.is_playing).then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+        b.is_playing
+            .cmp(&a.is_playing)
+            .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
     });
     Ok(apps)
 }
@@ -239,7 +255,8 @@ const SILENCE_GAP: Duration = Duration::from_millis(100);
 impl IoContext {
     fn mark_sent(&self, frames: u64) {
         self.frames_sent.fetch_add(frames, Ordering::AcqRel);
-        self.last_sent_ns.store(self.started.elapsed().as_nanos() as u64, Ordering::Release);
+        self.last_sent_ns
+            .store(self.started.elapsed().as_nanos() as u64, Ordering::Release);
     }
 
     /// Called by the watchdog: fills the gap if the tap has been quiet.
@@ -256,12 +273,19 @@ impl IoContext {
         }
         self.mark_sent(missing);
         let samples = vec![0.0; missing as usize * self.channels as usize];
-        let _ = self.sink.try_send(AudioChunk { samples, sample_rate: self.sample_rate, channels: self.channels });
+        let _ = self.sink.try_send(AudioChunk {
+            samples,
+            sample_rate: self.sample_rate,
+            channels: self.channels,
+        });
     }
 }
 
 impl Running {
-    unsafe fn start(source: &CaptureSource, sink: SyncSender<AudioChunk>) -> Result<Self, CaptureError> {
+    unsafe fn start(
+        source: &CaptureSource,
+        sink: SyncSender<AudioChunk>,
+    ) -> Result<Self, CaptureError> {
         // Without the permission the tap is created but never delivers audio,
         // so ask up front (this shows the system prompt the first time).
         if !permission::ensure_audio_capture() {
@@ -276,10 +300,20 @@ impl Running {
         }
 
         let mut tap: AudioObjectID = 0;
-        check(unsafe { AudioHardwareCreateProcessTap(Some(&desc), &mut tap) }, "creating the process tap")?;
-        let mut running = Running { tap, aggregate: 0, io_proc: None, ctx: ptr::null(), watchdog: None };
+        check(
+            unsafe { AudioHardwareCreateProcessTap(Some(&desc), &mut tap) },
+            "creating the process tap",
+        )?;
+        let mut running = Running {
+            tap,
+            aggregate: 0,
+            io_proc: None,
+            ctx: ptr::null(),
+            watchdog: None,
+        };
 
-        let format: AudioStreamBasicDescription = unsafe { get_property(tap, kAudioTapPropertyFormat, None)? };
+        let format: AudioStreamBasicDescription =
+            unsafe { get_property(tap, kAudioTapPropertyFormat, None)? };
         if format.mFormatFlags & kAudioFormatFlagIsFloat == 0 || format.mBitsPerChannel != 32 {
             return Err(CaptureError::Os(format!(
                 "unexpected tap format (flags {:#x}, {} bits)",
@@ -287,14 +321,22 @@ impl Running {
             )));
         }
 
-        let output: AudioObjectID =
-            unsafe { get_property(SYSTEM_OBJECT, kAudioHardwarePropertyDefaultSystemOutputDevice, None)? };
+        let output: AudioObjectID = unsafe {
+            get_property(
+                SYSTEM_OBJECT,
+                kAudioHardwarePropertyDefaultSystemOutputDevice,
+                None,
+            )?
+        };
         let output_uid = unsafe { get_string(output, kAudioDevicePropertyDeviceUID)? };
         let tap_uid = unsafe { desc.UUID() }.UUIDString();
         let aggregate_desc = aggregate_description(&output_uid, &tap_uid);
-        let cf_desc: &CFDictionary = unsafe { &*(Retained::as_ptr(&aggregate_desc) as *const CFDictionary) };
+        let cf_desc: &CFDictionary =
+            unsafe { &*(Retained::as_ptr(&aggregate_desc) as *const CFDictionary) };
         check(
-            unsafe { AudioHardwareCreateAggregateDevice(cf_desc, NonNull::from(&mut running.aggregate)) },
+            unsafe {
+                AudioHardwareCreateAggregateDevice(cf_desc, NonNull::from(&mut running.aggregate))
+            },
             "creating the aggregate device",
         )?;
 
@@ -318,7 +360,10 @@ impl Running {
             },
             "creating the IO proc",
         )?;
-        check(unsafe { AudioDeviceStart(running.aggregate, running.io_proc) }, "starting the aggregate device")?;
+        check(
+            unsafe { AudioDeviceStart(running.aggregate, running.io_proc) },
+            "starting the aggregate device",
+        )?;
 
         let stop = Arc::new(AtomicBool::new(false));
         let watchdog_stop = stop.clone();
@@ -360,17 +405,26 @@ impl Drop for Running {
     }
 }
 
-unsafe fn tap_description(source: &CaptureSource) -> Result<Retained<CATapDescription>, CaptureError> {
+unsafe fn tap_description(
+    source: &CaptureSource,
+) -> Result<Retained<CATapDescription>, CaptureError> {
     match source {
         CaptureSource::System { .. } => Ok(unsafe {
-            CATapDescription::initStereoGlobalTapButExcludeProcesses(CATapDescription::alloc(), &NSArray::new())
+            CATapDescription::initStereoGlobalTapButExcludeProcesses(
+                CATapDescription::alloc(),
+                &NSArray::new(),
+            )
         }),
         CaptureSource::App { app } => {
             let objects = unsafe { app_process_objects(app)? };
             if objects.is_empty() {
-                return Err(CaptureError::Os(format!("{} has no audio processes right now", app.name)));
+                return Err(CaptureError::Os(format!(
+                    "{} has no audio processes right now",
+                    app.name
+                )));
             }
-            let numbers: Vec<Retained<NSNumber>> = objects.iter().map(|&o| NSNumber::new_u32(o)).collect();
+            let numbers: Vec<Retained<NSNumber>> =
+                objects.iter().map(|&o| NSNumber::new_u32(o)).collect();
             Ok(unsafe {
                 CATapDescription::initStereoMixdownOfProcesses(
                     CATapDescription::alloc(),
@@ -392,7 +446,11 @@ unsafe fn app_process_objects(app: &AppTarget) -> Result<Vec<AudioObjectID>, Cap
         let pid = app.pid as i32;
         let pid_bytes = pid.to_ne_bytes();
         let object: AudioObjectID = unsafe {
-            get_property(SYSTEM_OBJECT, kAudioHardwarePropertyTranslatePIDToProcessObject, Some(&pid_bytes))?
+            get_property(
+                SYSTEM_OBJECT,
+                kAudioHardwarePropertyTranslatePIDToProcessObject,
+                Some(&pid_bytes),
+            )?
         };
         if object != 0 {
             objects.push(object);
@@ -402,19 +460,31 @@ unsafe fn app_process_objects(app: &AppTarget) -> Result<Vec<AudioObjectID>, Cap
 }
 
 unsafe fn audio_processes() -> Result<Vec<AudioProcess>, CaptureError> {
-    let objects = unsafe { get_object_list(SYSTEM_OBJECT, kAudioHardwarePropertyProcessObjectList)? };
+    let objects =
+        unsafe { get_object_list(SYSTEM_OBJECT, kAudioHardwarePropertyProcessObjectList)? };
     Ok(objects
         .into_iter()
         .filter_map(|object| {
             let pid: i32 = unsafe { get_property(object, kAudioProcessPropertyPID, None).ok()? };
-            let running: u32 = unsafe { get_property(object, kAudioProcessPropertyIsRunningOutput, None).unwrap_or(0) };
-            let bundle_id = unsafe { get_string(object, kAudioProcessPropertyBundleID).ok() }.filter(|b| !b.is_empty());
-            Some(AudioProcess { object, pid, bundle_id, running_output: running != 0 })
+            let running: u32 = unsafe {
+                get_property(object, kAudioProcessPropertyIsRunningOutput, None).unwrap_or(0)
+            };
+            let bundle_id = unsafe { get_string(object, kAudioProcessPropertyBundleID).ok() }
+                .filter(|b| !b.is_empty());
+            Some(AudioProcess {
+                object,
+                pid,
+                bundle_id,
+                running_output: running != 0,
+            })
         })
         .collect())
 }
 
-fn aggregate_description(output_uid: &str, tap_uid: &NSString) -> Retained<NSDictionary<NSString, NSObject>> {
+fn aggregate_description(
+    output_uid: &str,
+    tap_uid: &NSString,
+) -> Retained<NSDictionary<NSString, NSObject>> {
     fn key(k: &CStr) -> Retained<NSString> {
         NSString::from_str(k.to_str().unwrap())
     }
@@ -433,17 +503,38 @@ fn aggregate_description(output_uid: &str, tap_uid: &NSString) -> Retained<NSDic
     let sub_device = dict(&[(kAudioSubDeviceUIDKey, obj(output_uid.clone()))]);
     let sub_tap = dict(&[
         (kAudioSubTapUIDKey, obj(tap_uid.copy())),
-        (kAudioSubTapDriftCompensationKey, obj(NSNumber::new_bool(true))),
+        (
+            kAudioSubTapDriftCompensationKey,
+            obj(NSNumber::new_bool(true)),
+        ),
     ]);
     dict(&[
-        (kAudioAggregateDeviceNameKey, obj(NSString::from_str("Sound Scraper Tap"))),
+        (
+            kAudioAggregateDeviceNameKey,
+            obj(NSString::from_str("Sound Scraper Tap")),
+        ),
         (kAudioAggregateDeviceUIDKey, obj(NSUUID::new().UUIDString())),
         (kAudioAggregateDeviceMainSubDeviceKey, obj(output_uid)),
-        (kAudioAggregateDeviceIsPrivateKey, obj(NSNumber::new_bool(true))),
-        (kAudioAggregateDeviceIsStackedKey, obj(NSNumber::new_bool(false))),
-        (kAudioAggregateDeviceTapAutoStartKey, obj(NSNumber::new_bool(true))),
-        (kAudioAggregateDeviceSubDeviceListKey, obj(NSArray::from_retained_slice(&[sub_device]))),
-        (kAudioAggregateDeviceTapListKey, obj(NSArray::from_retained_slice(&[sub_tap]))),
+        (
+            kAudioAggregateDeviceIsPrivateKey,
+            obj(NSNumber::new_bool(true)),
+        ),
+        (
+            kAudioAggregateDeviceIsStackedKey,
+            obj(NSNumber::new_bool(false)),
+        ),
+        (
+            kAudioAggregateDeviceTapAutoStartKey,
+            obj(NSNumber::new_bool(true)),
+        ),
+        (
+            kAudioAggregateDeviceSubDeviceListKey,
+            obj(NSArray::from_retained_slice(&[sub_device])),
+        ),
+        (
+            kAudioAggregateDeviceTapListKey,
+            obj(NSArray::from_retained_slice(&[sub_tap])),
+        ),
     ])
 }
 
@@ -465,13 +556,18 @@ unsafe extern "C-unwind" fn io_proc(
         if b.mData.is_null() {
             &[]
         } else {
-            unsafe { std::slice::from_raw_parts(b.mData as *const f32, b.mDataByteSize as usize / 4) }
+            unsafe {
+                std::slice::from_raw_parts(b.mData as *const f32, b.mDataByteSize as usize / 4)
+            }
         }
     };
 
     let (samples, channels) = match buffers {
         [] => return 0,
-        [single] => (as_f32(single).to_vec(), single.mNumberChannels.max(1) as u16),
+        [single] => (
+            as_f32(single).to_vec(),
+            single.mNumberChannels.max(1) as u16,
+        ),
         planes => {
             // Non-interleaved: one mono buffer per channel.
             let planes: Vec<&[f32]> = planes.iter().map(as_f32).collect();
@@ -485,7 +581,11 @@ unsafe extern "C-unwind" fn io_proc(
     };
     ctx.mark_sent((samples.len() / channels.max(1) as usize) as u64);
     // A full queue means the consumer is behind; drop rather than block.
-    let _ = ctx.sink.try_send(AudioChunk { samples, sample_rate: ctx.sample_rate, channels });
+    let _ = ctx.sink.try_send(AudioChunk {
+        samples,
+        sample_rate: ctx.sample_rate,
+        channels,
+    });
     0
 }
 
@@ -505,7 +605,8 @@ unsafe fn get_property<T: Copy>(
     let mut addr = address(selector);
     let mut size = size_of::<T>() as u32;
     let mut out = MaybeUninit::<T>::uninit();
-    let (q_size, q_ptr) = qualifier.map_or((0, ptr::null()), |q| (q.len() as u32, q.as_ptr().cast()));
+    let (q_size, q_ptr) =
+        qualifier.map_or((0, ptr::null()), |q| (q.len() as u32, q.as_ptr().cast()));
     check(
         unsafe {
             AudioObjectGetPropertyData(
@@ -529,7 +630,15 @@ unsafe fn get_object_list(
     let mut addr = address(selector);
     let mut size = 0u32;
     check(
-        unsafe { AudioObjectGetPropertyDataSize(object, NonNull::from(&mut addr), 0, ptr::null(), NonNull::from(&mut size)) },
+        unsafe {
+            AudioObjectGetPropertyDataSize(
+                object,
+                NonNull::from(&mut addr),
+                0,
+                ptr::null(),
+                NonNull::from(&mut size),
+            )
+        },
         "sizing an audio object list",
     )?;
     let mut list = vec![0 as AudioObjectID; size as usize / size_of::<AudioObjectID>()];
@@ -553,7 +662,10 @@ unsafe fn get_object_list(
     Ok(list)
 }
 
-unsafe fn get_string(object: AudioObjectID, selector: AudioObjectPropertySelector) -> Result<String, CaptureError> {
+unsafe fn get_string(
+    object: AudioObjectID,
+    selector: AudioObjectPropertySelector,
+) -> Result<String, CaptureError> {
     let raw: *const CFString = unsafe { get_property(object, selector, None)? };
     let string = NonNull::new(raw as *mut CFString)
         .map(|p| unsafe { CFRetained::from_raw(p) })
@@ -571,7 +683,9 @@ fn check(status: i32, what: &str) -> Result<(), CaptureError> {
     } else {
         status.to_string()
     };
-    Err(CaptureError::Os(format!("{what} failed (OSStatus {detail})")))
+    Err(CaptureError::Os(format!(
+        "{what} failed (OSStatus {detail})"
+    )))
 }
 
 #[cfg(test)]
@@ -597,7 +711,10 @@ mod tests {
         ctx.fill_silence();
         let chunk = rx.try_recv().expect("a silence chunk");
         let frames = chunk.samples.len() / 2;
-        assert!((23_500..=25_500).contains(&frames), "about 0.5 s of frames, got {frames}");
+        assert!(
+            (23_500..=25_500).contains(&frames),
+            "about 0.5 s of frames, got {frames}"
+        );
         assert!(chunk.samples.iter().all(|&s| s == 0.0));
         // Just filled: no second chunk until another gap opens.
         ctx.fill_silence();

@@ -128,13 +128,31 @@ cargo build            # also regenerates include/sound_scraper.h
 
 Commit the regenerated header together with changes to `ffi.rs`.
 
-## macOS
+## Code style
 
-Requirements: Xcode 16+ (tested with 26.6), CocoaPods, Rust via rustup with the Apple targets:
+The Lint workflow runs these on every pull request; run them before pushing.
 
 ```sh
-rustup target add aarch64-apple-darwin x86_64-apple-darwin
+cd app
+npm run lint           # ESLint (@react-native) + Prettier, no semicolons
+npm run format         # fix lint and formatting in place
+npm run typecheck
+
+cd core
+cargo fmt --all
+cargo clippy --workspace --all-targets -- -D warnings
 ```
+
+Clippy runs on Linux (needs `libasound2-dev`), macOS and Windows in CI,
+because the capture backends only compile on their own OS.
+
+The Rust version is pinned in `rust-toolchain.toml` (used locally, in CI
+and for releases). To upgrade, change `channel`, fix any new clippy
+warnings, and commit both together.
+
+## macOS
+
+Requirements: Xcode 16+ (tested with 26.6), CocoaPods, and Rust via rustup. The Rust version and targets are pinned in `rust-toolchain.toml`; rustup installs them on the first cargo build, or up front with `rustup toolchain install` from the repo.
 
 Build and run:
 
@@ -157,7 +175,7 @@ If Xcode can't find Node (nvm), put `export NODE_BINARY=$(command -v node)` in `
 Tested on Windows 11 ARM64 (build 22621) in Parallels. Requirements:
 
 - Visual Studio 2026 (18.6.1 or later, as RN Windows 0.83 requires) with the "Desktop development with C++", ".NET desktop development" and "Universal Windows Platform development" workloads, the ARM64 (or x64) C++ build tools, "Universal Windows Platform support" and the Windows 11 SDK 10.0.22621
-- Node.js 22.14 or later, Git, and Rust via rustup (MSVC toolchain) with your target: `rustup target add aarch64-pc-windows-msvc` (or `x86_64-pc-windows-msvc`)
+- Node.js 22.14 or later, Git, and Rust via rustup (MSVC host). `rust-toolchain.toml` pins the version and the Windows targets; run `rustup toolchain install` in the clone once
 - Developer Mode on (Settings › System › For developers) and long paths enabled (`reg add HKLM\SYSTEM\CurrentControlSet\Control\FileSystem /v LongPathsEnabled /t REG_DWORD /d 1 /f` from an admin terminal)
 
 Keep the clone on a local disk with a short path (e.g. `C:\src\SoundScraper`). Don't build from a shared folder or copy `node_modules` across from macOS; run `npm ci` in Windows.

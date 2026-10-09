@@ -196,7 +196,11 @@ pub struct ResolvedVisualizer {
 pub fn read_manifest(dir: &Path, warnings: &mut Vec<String>) -> Result<Manifest, String> {
     let path = dir.join("skin.json");
     let text = fs::read_to_string(&path).map_err(|e| {
-        if e.kind() == std::io::ErrorKind::NotFound { "skin.json is missing".to_string() } else { format!("skin.json: {e}") }
+        if e.kind() == std::io::ErrorKind::NotFound {
+            "skin.json is missing".to_string()
+        } else {
+            format!("skin.json: {e}")
+        }
     })?;
     let mut de = serde_json::Deserializer::from_str(&text);
     let manifest: Manifest = serde_ignored::deserialize(&mut de, |path| {
@@ -228,7 +232,8 @@ pub fn check_id(id: &str) -> Result<(), String> {
             !p.is_empty()
                 && !p.starts_with('-')
                 && !p.ends_with('-')
-                && p.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+                && p.chars()
+                    .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
         });
     if ok {
         Ok(())
@@ -247,7 +252,10 @@ struct Images<'a> {
 
 impl<'a> Images<'a> {
     fn new(dir: &'a Path) -> Self {
-        Self { dir, cache: HashMap::new() }
+        Self {
+            dir,
+            cache: HashMap::new(),
+        }
     }
 
     fn get(&mut self, rel: &str, used_by: &str) -> Result<ImageRef, String> {
@@ -256,7 +264,9 @@ impl<'a> Images<'a> {
         }
         let clean = files::safe_relative(rel).map_err(|e| format!("skin.json: {used_by}: {e}"))?;
         if !files::is_image(rel) {
-            return Err(format!("skin.json: {used_by}: {rel} is not a PNG, JPEG or WebP image"));
+            return Err(format!(
+                "skin.json: {used_by}: {rel} is not a PNG, JPEG or WebP image"
+            ));
         }
         let path = self.dir.join(&clean);
         if !path.is_file() {
@@ -283,7 +293,13 @@ impl<'a> Images<'a> {
             }
             Ok(Some(path_n))
         };
-        let image = ImageRef { path2x: sibling(2)?, path4x: sibling(4)?, path, width, height };
+        let image = ImageRef {
+            path2x: sibling(2)?,
+            path4x: sibling(4)?,
+            path,
+            width,
+            height,
+        };
         self.cache.insert(rel.to_string(), image.clone());
         Ok(image)
     }
@@ -295,9 +311,14 @@ fn decode_check(path: &Path, rel: &str) -> Result<(u32, u32), String> {
     let reader = image::ImageReader::open(path)
         .and_then(|r| r.with_guessed_format())
         .map_err(|e| format!("{rel}: {e}"))?;
-    let (w, h) = reader.into_dimensions().map_err(|e| format!("{rel}: not a valid image ({e})"))?;
+    let (w, h) = reader
+        .into_dimensions()
+        .map_err(|e| format!("{rel}: not a valid image ({e})"))?;
     if w > files::MAX_IMAGE_SIDE || h > files::MAX_IMAGE_SIDE {
-        return Err(format!("{rel}: {w}×{h} pixels; images can be at most {0}×{0}", files::MAX_IMAGE_SIDE));
+        return Err(format!(
+            "{rel}: {w}×{h} pixels; images can be at most {0}×{0}",
+            files::MAX_IMAGE_SIDE
+        ));
     }
     if w == 0 || h == 0 {
         return Err(format!("{rel}: the image is empty"));
@@ -312,13 +333,18 @@ fn decode_check(path: &Path, rel: &str) -> Result<(u32, u32), String> {
 
 fn check_color(value: &str, colors: &BTreeMap<String, String>, at: &str) -> Result<String, String> {
     if let Some(token) = value.strip_prefix('@') {
-        return colors.get(token).cloned().ok_or_else(|| format!("skin.json: {at}: unknown color token @{token}"));
+        return colors
+            .get(token)
+            .cloned()
+            .ok_or_else(|| format!("skin.json: {at}: unknown color token @{token}"));
     }
     let hex = value.strip_prefix('#').unwrap_or("");
     if matches!(hex.len(), 3 | 4 | 6 | 8) && hex.chars().all(|c| c.is_ascii_hexdigit()) {
         Ok(value.to_string())
     } else {
-        Err(format!("skin.json: {at}: \"{value}\" is not a color (use #rgb, #rrggbb, #rrggbbaa or @token)"))
+        Err(format!(
+            "skin.json: {at}: \"{value}\" is not a color (use #rgb, #rrggbb, #rrggbbaa or @token)"
+        ))
     }
 }
 
@@ -328,14 +354,22 @@ fn fmt_rect(r: &Rect) -> String {
 
 fn check_size(size: [i64; 2], at: &str) -> Result<(), String> {
     if size[0] <= 0 || size[1] <= 0 || size[0] > 4096 || size[1] > 4096 {
-        return Err(format!("skin.json: {at}: size [{}, {}] must be between 1 and 4096", size[0], size[1]));
+        return Err(format!(
+            "skin.json: {at}: size [{}, {}] must be between 1 and 4096",
+            size[0], size[1]
+        ));
     }
     Ok(())
 }
 
 /// Whether `r` lies inside a `size` area.
 fn rect_fits(r: &Rect, size: [i64; 2]) -> bool {
-    r[0] >= 0 && r[1] >= 0 && r[2] > 0 && r[3] > 0 && r[0] + r[2] <= size[0] && r[1] + r[3] <= size[1]
+    r[0] >= 0
+        && r[1] >= 0
+        && r[2] > 0
+        && r[3] > 0
+        && r[0] + r[2] <= size[0]
+        && r[1] + r[3] <= size[1]
 }
 
 /// Whether a `w`×`h` cell at `at` lies inside `image`.
@@ -352,7 +386,13 @@ struct Resolver<'a> {
 }
 
 impl Resolver<'_> {
-    fn element(&mut self, el: &ElementDef, name: &str, size: [i64; 2], at: &str) -> Result<ResolvedElement, String> {
+    fn element(
+        &mut self,
+        el: &ElementDef,
+        name: &str,
+        size: [i64; 2],
+        at: &str,
+    ) -> Result<ResolvedElement, String> {
         if !rect_fits(&el.rect, size) {
             return Err(format!(
                 "skin.json: {at}.rect {} must have a positive size and lie inside the {}×{} panel",
@@ -363,10 +403,14 @@ impl Resolver<'_> {
         }
         let sprite = match &el.sprite {
             Some(sprite) => {
-                let image = self.images.get(&sprite.image, &format!("{at}.sprite.image"))?;
+                let image = self
+                    .images
+                    .get(&sprite.image, &format!("{at}.sprite.image"))?;
                 for state in manifest::required_states(name) {
                     if !sprite.states.contains_key(*state) {
-                        return Err(format!("skin.json: {at}.sprite.states needs a \"{state}\" state"));
+                        return Err(format!(
+                            "skin.json: {at}.sprite.states needs a \"{state}\" state"
+                        ));
                     }
                 }
                 for (state, offset) in &sprite.states {
@@ -381,17 +425,14 @@ impl Resolver<'_> {
                     if !cell_fits(*offset, w, h, &image) {
                         return Err(format!(
                             "skin.json: {at}.sprite.states.{state}: a {}×{} cell at [{}, {}] extends past {} ({}×{})",
-                            w,
-                            h,
-                            offset[0],
-                            offset[1],
-                            sprite.image,
-                            image.width,
-                            image.height
+                            w, h, offset[0], offset[1], sprite.image, image.width, image.height
                         ));
                     }
                 }
-                Some(ResolvedSprite { image, states: sprite.states.clone() })
+                Some(ResolvedSprite {
+                    image,
+                    states: sprite.states.clone(),
+                })
             }
             None => None,
         };
@@ -407,13 +448,23 @@ impl Resolver<'_> {
         if let Some(align) = &el.align
             && !matches!(align.as_str(), "left" | "center" | "right")
         {
-            return Err(format!("skin.json: {at}.align must be \"left\", \"center\" or \"right\""));
+            return Err(format!(
+                "skin.json: {at}.align must be \"left\", \"center\" or \"right\""
+            ));
         }
         let style = match &el.style {
             Some(style) => Some(self.style(style, &format!("{at}.style"))?),
             None => None,
         };
-        Ok(ResolvedElement { rect: el.rect, sprite, font: el.font.clone(), text, align: el.align.clone(), style, fallback: false })
+        Ok(ResolvedElement {
+            rect: el.rect,
+            sprite,
+            font: el.font.clone(),
+            text,
+            align: el.align.clone(),
+            style,
+            fallback: false,
+        })
     }
 
     fn text(&self, t: &TextStyle, at: &str) -> Result<ResolvedText, String> {
@@ -429,7 +480,9 @@ impl Resolver<'_> {
         if let Some(weight) = &t.weight
             && !matches!(weight.as_str(), "normal" | "bold")
         {
-            return Err(format!("skin.json: {at}.weight must be \"normal\" or \"bold\""));
+            return Err(format!(
+                "skin.json: {at}.weight must be \"normal\" or \"bold\""
+            ));
         }
         Ok(ResolvedText {
             color,
@@ -459,7 +512,12 @@ impl Resolver<'_> {
         Ok(out)
     }
 
-    fn layout(&mut self, layout: &Layout, at: &str, warnings: &mut Vec<String>) -> Result<ResolvedLayout, String> {
+    fn layout(
+        &mut self,
+        layout: &Layout,
+        at: &str,
+        warnings: &mut Vec<String>,
+    ) -> Result<ResolvedLayout, String> {
         check_size(layout.size, at)?;
         let background = match &layout.background {
             Some(bg) => Some(self.images.get(bg, &format!("{at}.background"))?),
@@ -467,25 +525,44 @@ impl Resolver<'_> {
         };
         for (i, r) in layout.drag_region.iter().enumerate() {
             if !rect_fits(r, layout.size) {
-                return Err(format!("skin.json: {at}.dragRegion[{i}] {} lies outside the panel", fmt_rect(r)));
+                return Err(format!(
+                    "skin.json: {at}.dragRegion[{i}] {} lies outside the panel",
+                    fmt_rect(r)
+                ));
             }
         }
         let mut elements = BTreeMap::new();
         for (name, el) in &layout.elements {
             if !manifest::MAIN_ELEMENTS.contains(&name.as_str()) {
-                warnings.push(format!("skin.json: {at}.elements.{name}: unknown element (ignored)"));
+                warnings.push(format!(
+                    "skin.json: {at}.elements.{name}: unknown element (ignored)"
+                ));
                 continue;
             }
-            elements.insert(name.clone(), self.element(el, name, layout.size, &format!("{at}.elements.{name}"))?);
+            elements.insert(
+                name.clone(),
+                self.element(el, name, layout.size, &format!("{at}.elements.{name}"))?,
+            );
         }
         let mut animations = Vec::new();
         for (i, a) in layout.animations.iter().enumerate() {
             animations.push(self.animation(a, layout.size, &format!("{at}.animations[{i}]"))?);
         }
-        Ok(ResolvedLayout { size: layout.size, background, drag_regions: layout.drag_region.clone(), elements, animations })
+        Ok(ResolvedLayout {
+            size: layout.size,
+            background,
+            drag_regions: layout.drag_region.clone(),
+            elements,
+            animations,
+        })
     }
 
-    fn animation(&mut self, a: &AnimationDef, size: [i64; 2], at: &str) -> Result<ResolvedAnimation, String> {
+    fn animation(
+        &mut self,
+        a: &AnimationDef,
+        size: [i64; 2],
+        at: &str,
+    ) -> Result<ResolvedAnimation, String> {
         if !rect_fits(&a.rect, size) {
             return Err(format!(
                 "skin.json: {at}.rect {} must have a positive size and lie inside the {}×{} panel",
@@ -495,39 +572,76 @@ impl Resolver<'_> {
             ));
         }
         if a.frames.is_empty() {
-            return Err(format!("skin.json: {at}.frames must list at least one sprite state"));
+            return Err(format!(
+                "skin.json: {at}.frames must list at least one sprite state"
+            ));
         }
         // Reuse the element checks for the sprite cells.
-        let el = ElementDef { rect: a.rect, sprite: Some(a.sprite.clone()), font: None, text: None, align: None, style: None };
-        let sprite = self.element(&el, "visualizer", size, at)?.sprite.expect("sprite given");
+        let el = ElementDef {
+            rect: a.rect,
+            sprite: Some(a.sprite.clone()),
+            font: None,
+            text: None,
+            align: None,
+            style: None,
+        };
+        let sprite = self
+            .element(&el, "visualizer", size, at)?
+            .sprite
+            .expect("sprite given");
         if let Some(frame) = a.frames.iter().find(|f| !sprite.states.contains_key(*f)) {
-            return Err(format!("skin.json: {at}.frames: \"{frame}\" is not a state of the sprite"));
+            return Err(format!(
+                "skin.json: {at}.frames: \"{frame}\" is not a state of the sprite"
+            ));
         }
         let fps = a.fps.unwrap_or(12.0);
         if !(fps > 0.0 && fps <= 60.0) {
-            return Err(format!("skin.json: {at}.fps must be more than 0 and at most 60"));
+            return Err(format!(
+                "skin.json: {at}.fps must be more than 0 and at most 60"
+            ));
         }
         let play = a.play.clone().unwrap_or_else(|| "recording".into());
         if !manifest::ANIMATION_PLAY.contains(&play.as_str()) {
-            return Err(format!("skin.json: {at}.play must be one of {}", manifest::ANIMATION_PLAY.join(", ")));
+            return Err(format!(
+                "skin.json: {at}.play must be one of {}",
+                manifest::ANIMATION_PLAY.join(", ")
+            ));
         }
         let speed = a.speed.clone().unwrap_or_else(|| "constant".into());
         if !manifest::ANIMATION_SPEED.contains(&speed.as_str()) {
-            return Err(format!("skin.json: {at}.speed must be one of {}", manifest::ANIMATION_SPEED.join(", ")));
+            return Err(format!(
+                "skin.json: {at}.speed must be one of {}",
+                manifest::ANIMATION_SPEED.join(", ")
+            ));
         }
-        Ok(ResolvedAnimation { name: a.name.clone(), rect: a.rect, sprite, frames: a.frames.clone(), fps, play, speed })
+        Ok(ResolvedAnimation {
+            name: a.name.clone(),
+            rect: a.rect,
+            sprite,
+            frames: a.frames.clone(),
+            fps,
+            play,
+            speed,
+        })
     }
 
     /// Checks a visualizer preset and resolves its colors.
     fn preset(&self, preset: &Value, at: &str) -> Result<Value, String> {
-        let Value::Object(map) = preset else { return Err(format!("skin.json: {at} must be an object")) };
+        let Value::Object(map) = preset else {
+            return Err(format!("skin.json: {at} must be an object"));
+        };
         if !map.get("name").is_some_and(Value::is_string) {
             return Err(format!("skin.json: {at} needs a \"name\""));
         }
         if let Some(style) = map.get("style")
-            && !style.as_str().is_some_and(|s| manifest::VISUALIZER_STYLES.contains(&s))
+            && !style
+                .as_str()
+                .is_some_and(|s| manifest::VISUALIZER_STYLES.contains(&s))
         {
-            return Err(format!("skin.json: {at}.style must be one of {}", manifest::VISUALIZER_STYLES.join(", ")));
+            return Err(format!(
+                "skin.json: {at}.style must be one of {}",
+                manifest::VISUALIZER_STYLES.join(", ")
+            ));
         }
         if let Some(bands) = map.get("bands")
             && !bands.as_u64().is_some_and(|b| (1..=64).contains(&b))
@@ -536,16 +650,21 @@ impl Resolver<'_> {
         }
         let color = |v: &Value, key: &str| -> Result<Value, String> {
             match v {
-                Value::String(s) if s.starts_with('@') || s.starts_with('#') => {
-                    Ok(Value::String(check_color(s, &self.colors, &format!("{at}.{key}"))?))
-                }
+                Value::String(s) if s.starts_with('@') || s.starts_with('#') => Ok(Value::String(
+                    check_color(s, &self.colors, &format!("{at}.{key}"))?,
+                )),
                 other => Ok(other.clone()),
             }
         };
         let mut out = serde_json::Map::new();
         for (key, value) in map {
             let value = match value {
-                Value::Array(items) => Value::Array(items.iter().map(|v| color(v, key)).collect::<Result<_, _>>()?),
+                Value::Array(items) => Value::Array(
+                    items
+                        .iter()
+                        .map(|v| color(v, key))
+                        .collect::<Result<_, _>>()?,
+                ),
                 v => color(v, key)?,
             };
             out.insert(key.clone(), value);
@@ -566,12 +685,20 @@ impl Resolver<'_> {
                 warnings.push(format!("skin.json: {at}.{key}: unknown color (ignored)"));
                 continue;
             }
-            out.insert(key.clone(), check_color(value, &self.colors, &format!("{at}.{key}"))?);
+            out.insert(
+                key.clone(),
+                check_color(value, &self.colors, &format!("{at}.{key}"))?,
+            );
         }
         Ok(out)
     }
 
-    fn frame_panel(&mut self, p: &FramePanel, at: &str, warnings: &mut Vec<String>) -> Result<ResolvedFramePanel, String> {
+    fn frame_panel(
+        &mut self,
+        p: &FramePanel,
+        at: &str,
+        warnings: &mut Vec<String>,
+    ) -> Result<ResolvedFramePanel, String> {
         if let Some(min) = p.min_size {
             check_size(min, &format!("{at}.minSize"))?;
         }
@@ -579,20 +706,28 @@ impl Resolver<'_> {
             Some(f) => {
                 let image = self.images.get(&f.image, &format!("{at}.frame.image"))?;
                 let [t, r, b, l] = f.slice;
-                if f.slice.iter().any(|v| *v < 0) || t + b >= image.height as i64 || l + r >= image.width as i64 {
+                if f.slice.iter().any(|v| *v < 0)
+                    || t + b >= image.height as i64
+                    || l + r >= image.width as i64
+                {
                     return Err(format!(
                         "skin.json: {at}.frame.slice [{t}, {r}, {b}, {l}] doesn't fit {} ({}×{}); \
                          the insets must leave a middle to stretch",
                         f.image, image.width, image.height
                     ));
                 }
-                Some(ResolvedFrame { image, slice: f.slice })
+                Some(ResolvedFrame {
+                    image,
+                    slice: f.slice,
+                })
             }
             None => None,
         };
         let scrollbar = match &p.scrollbar {
             Some(s) => {
-                let image = self.images.get(&s.image, &format!("{at}.scrollbar.image"))?;
+                let image = self
+                    .images
+                    .get(&s.image, &format!("{at}.scrollbar.image"))?;
                 let size = [image.width as i64, image.height as i64];
                 for (part, r) in [("track", &s.track), ("thumb", &s.thumb)] {
                     if !rect_fits(r, size) {
@@ -605,28 +740,55 @@ impl Resolver<'_> {
                         ));
                     }
                 }
-                Some(ResolvedScrollbar { image, track: s.track, thumb: s.thumb, thumb_slice: s.thumb_slice })
+                Some(ResolvedScrollbar {
+                    image,
+                    track: s.track,
+                    thumb: s.thumb,
+                    thumb_slice: s.thumb_slice,
+                })
             }
             None => None,
         };
         let table = match &p.table {
-            Some(t) => self.colors_map(t, manifest::TABLE_COLORS, &format!("{at}.table"), warnings)?,
+            Some(t) => {
+                self.colors_map(t, manifest::TABLE_COLORS, &format!("{at}.table"), warnings)?
+            }
             None => BTreeMap::new(),
         };
         let controls = match &p.controls {
-            Some(c) => self.colors_map(c, manifest::CONTROL_COLORS, &format!("{at}.controls"), warnings)?,
+            Some(c) => self.colors_map(
+                c,
+                manifest::CONTROL_COLORS,
+                &format!("{at}.controls"),
+                warnings,
+            )?,
             None => BTreeMap::new(),
         };
         let waveform = match &p.waveform {
-            Some(c) => self.colors_map(c, manifest::WAVEFORM_COLORS, &format!("{at}.waveform"), warnings)?,
+            Some(c) => self.colors_map(
+                c,
+                manifest::WAVEFORM_COLORS,
+                &format!("{at}.waveform"),
+                warnings,
+            )?,
             None => BTreeMap::new(),
         };
         let playlist = match &p.playlist {
-            Some(c) => self.colors_map(c, manifest::PLAYLIST_COLORS, &format!("{at}.playlist"), warnings)?,
+            Some(c) => self.colors_map(
+                c,
+                manifest::PLAYLIST_COLORS,
+                &format!("{at}.playlist"),
+                warnings,
+            )?,
             None => BTreeMap::new(),
         };
         let progress = match &p.progress {
-            Some(c) => self.colors_map(c, manifest::PROGRESS_COLORS, &format!("{at}.progress"), warnings)?,
+            Some(c) => self.colors_map(
+                c,
+                manifest::PROGRESS_COLORS,
+                &format!("{at}.progress"),
+                warnings,
+            )?,
             None => BTreeMap::new(),
         };
         let title = match &p.title {
@@ -634,21 +796,34 @@ impl Resolver<'_> {
                 if let Some(font) = &t.font
                     && !self.font_names.contains(font)
                 {
-                    return Err(format!("skin.json: {at}.title.font: no font named \"{font}\""));
+                    return Err(format!(
+                        "skin.json: {at}.title.font: no font named \"{font}\""
+                    ));
                 }
                 let color = match &t.color {
                     Some(c) => Some(check_color(c, &self.colors, &format!("{at}.title.color"))?),
                     None => None,
                 };
                 let background = match &t.background {
-                    Some(c) => Some(check_color(c, &self.colors, &format!("{at}.title.background"))?),
+                    Some(c) => Some(check_color(
+                        c,
+                        &self.colors,
+                        &format!("{at}.title.background"),
+                    )?),
                     None => None,
                 };
-                Some(ResolvedTitle { font: t.font.clone(), offset: t.offset, color, background })
+                Some(ResolvedTitle {
+                    font: t.font.clone(),
+                    offset: t.offset,
+                    color,
+                    background,
+                })
             }
             None => None,
         };
-        let mut title_button = |def: &Option<crate::manifest::CloseDef>, name: &str| -> Result<Option<ResolvedClose>, String> {
+        let mut title_button = |def: &Option<crate::manifest::CloseDef>,
+                                name: &str|
+         -> Result<Option<ResolvedClose>, String> {
             let Some(c) = def else { return Ok(None) };
             let size = [c.size[0], c.size[1]];
             check_size(size, &format!("{at}.{name}"))?;
@@ -660,8 +835,15 @@ impl Resolver<'_> {
                 align: None,
                 style: None,
             };
-            let sprite = self.element(&el, "close", size, &format!("{at}.{name}"))?.sprite.expect("sprite given");
-            Ok(Some(ResolvedClose { offset: c.offset, size, sprite }))
+            let sprite = self
+                .element(&el, "close", size, &format!("{at}.{name}"))?
+                .sprite
+                .expect("sprite given");
+            Ok(Some(ResolvedClose {
+                offset: c.offset,
+                size,
+                sprite,
+            }))
         };
         let close = title_button(&p.close, "close")?;
         let menu = title_button(&p.menu, "menu")?;
@@ -689,15 +871,21 @@ impl Resolver<'_> {
 
 /// `dir` made absolute, without Windows' `\\?\` prefix (which file URLs,
 /// and so the app's images, can't carry).
-fn canonical(dir: &Path) -> Result<PathBuf, String> {
-    let path = dir.canonicalize().map_err(|e| format!("{}: {e}", dir.display()))?;
-    let Some(s) = path.to_str() else { return Ok(path) };
+pub(crate) fn canonical(dir: &Path) -> Result<PathBuf, String> {
+    let path = dir
+        .canonicalize()
+        .map_err(|e| format!("{}: {e}", dir.display()))?;
+    let Some(s) = path.to_str() else {
+        return Ok(path);
+    };
     if let Some(rest) = s.strip_prefix(r"\\?\UNC\") {
         return Ok(PathBuf::from(format!(r"\\{rest}")));
     }
     match s.strip_prefix(r"\\?\") {
         // Only drive paths short enough to be used without it.
-        Some(rest) if rest.as_bytes().get(1) == Some(&b':') && rest.len() < 260 => Ok(PathBuf::from(rest)),
+        Some(rest) if rest.as_bytes().get(1) == Some(&b':') && rest.len() < 260 => {
+            Ok(PathBuf::from(rest))
+        }
         _ => Ok(path),
     }
 }
@@ -725,7 +913,10 @@ pub fn load_dir(dir: &Path, base: Option<&ResolvedSkin>) -> Result<ResolvedSkin,
         let image = images.get(&f.sprite, &format!("{at}.sprite"))?;
         let [w, h] = f.cell;
         if w <= 0 || h <= 0 || w > image.width as i64 || h > image.height as i64 {
-            return Err(format!("skin.json: {at}.cell [{w}, {h}] doesn't fit {} ({}×{})", f.sprite, image.width, image.height));
+            return Err(format!(
+                "skin.json: {at}.cell [{w}, {h}] doesn't fit {} ({}×{})",
+                f.sprite, image.width, image.height
+            ));
         }
         let columns = image.width as i64 / w;
         let capacity = columns * (image.height as i64 / h);
@@ -736,10 +927,22 @@ pub fn load_dir(dir: &Path, base: Option<&ResolvedSkin>) -> Result<ResolvedSkin,
                 f.sprite
             ));
         }
-        fonts.insert(name.clone(), ResolvedFont { image, glyphs: f.glyphs.clone(), cell: f.cell, columns });
+        fonts.insert(
+            name.clone(),
+            ResolvedFont {
+                image,
+                glyphs: f.glyphs.clone(),
+                cell: f.cell,
+                columns,
+            },
+        );
     }
 
-    let mut r = Resolver { images, colors: colors.clone(), font_names: fonts.keys().cloned().collect() };
+    let mut r = Resolver {
+        images,
+        colors: colors.clone(),
+        font_names: fonts.keys().cloned().collect(),
+    };
 
     let main = match (&m.panels.main, base) {
         (Some(main), _) => {
@@ -749,9 +952,16 @@ pub fn load_dir(dir: &Path, base: Option<&ResolvedSkin>) -> Result<ResolvedSkin,
                 None => None,
             };
             if let Some(base) = base {
-                fill_from(&mut layout, &base.panels.main.layout, "panels.main", &mut warnings);
+                fill_from(
+                    &mut layout,
+                    &base.panels.main.layout,
+                    "panels.main",
+                    &mut warnings,
+                );
                 match (&mut shade, &base.panels.main.shade) {
-                    (Some(shade), Some(base_shade)) => fill_from(shade, base_shade, "panels.main.shade", &mut warnings),
+                    (Some(shade), Some(base_shade)) => {
+                        fill_from(shade, base_shade, "panels.main.shade", &mut warnings)
+                    }
                     (None, Some(base_shade)) => shade = Some(as_fallback(base_shade)),
                     _ => {}
                 }
@@ -766,11 +976,31 @@ pub fn load_dir(dir: &Path, base: Option<&ResolvedSkin>) -> Result<ResolvedSkin,
     };
 
     let empty = FramePanel::default();
-    let library = r.frame_panel(m.panels.library.as_ref().unwrap_or(&empty), "panels.library", &mut warnings)?;
-    let settings = r.frame_panel(m.panels.settings.as_ref().unwrap_or(&empty), "panels.settings", &mut warnings)?;
-    let details = r.frame_panel(m.panels.details.as_ref().unwrap_or(&empty), "panels.details", &mut warnings)?;
-    let editor = r.frame_panel(m.panels.editor.as_ref().unwrap_or(&empty), "panels.editor", &mut warnings)?;
-    let burn = r.frame_panel(m.panels.burn.as_ref().unwrap_or(&empty), "panels.burn", &mut warnings)?;
+    let library = r.frame_panel(
+        m.panels.library.as_ref().unwrap_or(&empty),
+        "panels.library",
+        &mut warnings,
+    )?;
+    let settings = r.frame_panel(
+        m.panels.settings.as_ref().unwrap_or(&empty),
+        "panels.settings",
+        &mut warnings,
+    )?;
+    let details = r.frame_panel(
+        m.panels.details.as_ref().unwrap_or(&empty),
+        "panels.details",
+        &mut warnings,
+    )?;
+    let editor = r.frame_panel(
+        m.panels.editor.as_ref().unwrap_or(&empty),
+        "panels.editor",
+        &mut warnings,
+    )?;
+    let burn = r.frame_panel(
+        m.panels.burn.as_ref().unwrap_or(&empty),
+        "panels.burn",
+        &mut warnings,
+    )?;
     let (library, settings, details, editor, burn) = match base {
         Some(base) => (
             merge_frame(library, m.panels.library.as_ref(), &base.panels.library),
@@ -783,7 +1013,14 @@ pub fn load_dir(dir: &Path, base: Option<&ResolvedSkin>) -> Result<ResolvedSkin,
     };
 
     let mut presets = Vec::new();
-    for (i, preset) in m.visualizer.as_ref().map(|v| v.presets.as_slice()).unwrap_or_default().iter().enumerate() {
+    for (i, preset) in m
+        .visualizer
+        .as_ref()
+        .map(|v| v.presets.as_slice())
+        .unwrap_or_default()
+        .iter()
+        .enumerate()
+    {
         presets.push(r.preset(preset, &format!("visualizer.presets[{i}]"))?);
     }
     if presets.is_empty()
@@ -804,7 +1041,14 @@ pub fn load_dir(dir: &Path, base: Option<&ResolvedSkin>) -> Result<ResolvedSkin,
         revision,
         colors,
         fonts,
-        panels: ResolvedPanels { main, library, settings, details, editor, burn },
+        panels: ResolvedPanels {
+            main,
+            library,
+            settings,
+            details,
+            editor,
+            burn,
+        },
         visualizer: ResolvedVisualizer { presets },
         warnings,
     })
@@ -831,13 +1075,24 @@ fn thumb_size(el: &ElementDef) -> Option<[i64; 2]> {
 }
 
 /// Adds the base layout's elements that `layout` lacks, where they fit.
-fn fill_from(layout: &mut ResolvedLayout, base: &ResolvedLayout, at: &str, warnings: &mut Vec<String>) {
+fn fill_from(
+    layout: &mut ResolvedLayout,
+    base: &ResolvedLayout,
+    at: &str,
+    warnings: &mut Vec<String>,
+) {
     for (name, el) in &base.elements {
         if layout.elements.contains_key(name) || manifest::NO_FALLBACK.contains(&name.as_str()) {
             continue;
         }
         if rect_fits(&el.rect, layout.size) {
-            layout.elements.insert(name.clone(), ResolvedElement { fallback: true, ..el.clone() });
+            layout.elements.insert(
+                name.clone(),
+                ResolvedElement {
+                    fallback: true,
+                    ..el.clone()
+                },
+            );
         } else {
             warnings.push(format!(
                 "skin.json: {at}.elements.{name} is not defined, and the Default skin's {} doesn't fit this panel; it is left out",
@@ -848,7 +1103,11 @@ fn fill_from(layout: &mut ResolvedLayout, base: &ResolvedLayout, at: &str, warni
 }
 
 /// Fills a frame panel's unset fields from the base skin's.
-fn merge_frame(mut p: ResolvedFramePanel, raw: Option<&FramePanel>, base: &ResolvedFramePanel) -> ResolvedFramePanel {
+fn merge_frame(
+    mut p: ResolvedFramePanel,
+    raw: Option<&FramePanel>,
+    base: &ResolvedFramePanel,
+) -> ResolvedFramePanel {
     let raw = raw.cloned().unwrap_or_default();
     if raw.min_size.is_none() {
         p.min_size = base.min_size;
@@ -878,16 +1137,24 @@ fn merge_frame(mut p: ResolvedFramePanel, raw: Option<&FramePanel>, base: &Resol
         p.table.entry(key.clone()).or_insert_with(|| value.clone());
     }
     for (key, value) in &base.controls {
-        p.controls.entry(key.clone()).or_insert_with(|| value.clone());
+        p.controls
+            .entry(key.clone())
+            .or_insert_with(|| value.clone());
     }
     for (key, value) in &base.waveform {
-        p.waveform.entry(key.clone()).or_insert_with(|| value.clone());
+        p.waveform
+            .entry(key.clone())
+            .or_insert_with(|| value.clone());
     }
     for (key, value) in &base.playlist {
-        p.playlist.entry(key.clone()).or_insert_with(|| value.clone());
+        p.playlist
+            .entry(key.clone())
+            .or_insert_with(|| value.clone());
     }
     for (key, value) in &base.progress {
-        p.progress.entry(key.clone()).or_insert_with(|| value.clone());
+        p.progress
+            .entry(key.clone())
+            .or_insert_with(|| value.clone());
     }
     p
 }

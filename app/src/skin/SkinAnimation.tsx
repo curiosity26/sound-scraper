@@ -1,9 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react'
 
-import type { RecorderState } from '../native/SoundScraper';
-import { meterScale } from './LevelMeter';
-import { scaleRect, SpriteCell, useSkinScale } from './SkinImage';
-import type { SkinAnimationDef } from './types';
+import type { RecorderState } from '../native/SoundScraper'
+import { meterScale } from './LevelMeter'
+import { scaleRect, SpriteCell, useSkinScale } from './SkinImage'
+import type { SkinAnimationDef } from './types'
 
 /**
  * Whether an animation plays in this state: the recorder's, or during
@@ -17,62 +17,62 @@ export function animationPlays(
 ): boolean {
   switch (play) {
     case 'always':
-      return true;
+      return true
     case 'playing':
-      return playing;
+      return playing
     case 'rolling':
-      return state === 'recording';
+      return state === 'recording'
     case 'recording':
-      return state === 'recording' && !playing;
+      return state === 'recording' && !playing
     case 'active':
-      return state === 'recording' || state === 'paused';
+      return state === 'recording' || state === 'paused'
     default:
-      return state === 'recording';
+      return state === 'recording'
   }
 }
 
 /** Frames per second, scaled by loudness for speed "level". */
 export function animationRate(fps: number, speed: string, level: number) {
-  return speed === 'level' ? fps * (0.3 + 1.7 * meterScale(level)) : fps;
+  return speed === 'level' ? fps * (0.3 + 1.7 * meterScale(level)) : fps
 }
 
-const TICK_MS = 33;
+const TICK_MS = 33
 
 /** A skin's decorative sprite animation (e.g. the spinning tape reels). */
 export function SkinAnimation(props: {
-  animation: SkinAnimationDef;
-  state: RecorderState;
+  animation: SkinAnimationDef
+  state: RecorderState
   /** Playing back (state is then "recording"). */
-  playing?: boolean;
+  playing?: boolean
   /** Linear 0..1, for speed "level". */
-  level: number;
+  level: number
 }): React.JSX.Element {
-  const { animation, state, level } = props;
-  const s = useSkinScale();
-  const [frame, setFrame] = useState(0);
-  const phase = useRef(0);
-  const rate = useRef(0);
-  rate.current = animationRate(animation.fps, animation.speed, level);
-  const playing = animationPlays(animation.play, state, props.playing);
-  const count = animation.frames.length;
+  const { animation, state, level } = props
+  const s = useSkinScale()
+  const [frame, setFrame] = useState(0)
+  const phase = useRef(0)
+  const rate = useRef(0)
+  rate.current = animationRate(animation.fps, animation.speed, level)
+  const playing = animationPlays(animation.play, state, props.playing)
+  const count = animation.frames.length
 
   useEffect(() => {
     if (!playing || count < 2) {
-      return;
+      return
     }
-    let last = Date.now();
+    let last = Date.now()
     const timer = setInterval(() => {
-      const now = Date.now();
+      const now = Date.now()
       phase.current =
-        (phase.current + ((now - last) / 1000) * rate.current) % count;
-      last = now;
-      setFrame(Math.floor(phase.current));
-    }, TICK_MS);
-    return () => clearInterval(timer);
-  }, [playing, count]);
+        (phase.current + ((now - last) / 1000) * rate.current) % count
+      last = now
+      setFrame(Math.floor(phase.current))
+    }, TICK_MS)
+    return () => clearInterval(timer)
+  }, [playing, count])
 
-  const [, , w, h] = animation.rect;
-  const at = animation.sprite.states[animation.frames[frame % count]];
+  const [, , w, h] = animation.rect
+  const at = animation.sprite.states[animation.frames[frame % count]]
   return (
     <SpriteCell
       image={animation.sprite.image}
@@ -80,5 +80,5 @@ export function SkinAnimation(props: {
       size={[w, h]}
       style={scaleRect(animation.rect, s)}
     />
-  );
+  )
 }

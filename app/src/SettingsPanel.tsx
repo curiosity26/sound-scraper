@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from 'react'
 import {
   Platform,
   Pressable,
@@ -6,13 +6,13 @@ import {
   StyleSheet,
   Text,
   View,
-} from 'react-native';
+} from 'react-native'
 
-import { stepIn as step } from './editorModel';
-import { editorAvailable, editorCore } from './native/editor';
-import { type Quality, settings, type Settings } from './native/SoundScraper';
-import { usePanelStyles } from './panelTheme';
-import { colors } from './theme';
+import { stepIn as step } from './editorModel'
+import { editorAvailable, editorCore } from './native/editor'
+import { type Quality, settings, type Settings } from './native/SoundScraper'
+import { usePanelStyles } from './panelTheme'
+import { colors } from './theme'
 
 const QUALITIES: { value: Quality; label: string; detail: string }[] = [
   { value: 'cbr128', label: '128 kbps', detail: 'Constant bitrate · smallest' },
@@ -21,45 +21,45 @@ const QUALITIES: { value: Quality; label: string; detail: string }[] = [
   { value: 'cbr320', label: '320 kbps', detail: 'Constant bitrate · largest' },
   { value: 'vbr0', label: 'VBR V0', detail: 'Variable · about 245 kbps' },
   { value: 'vbr2', label: 'VBR V2', detail: 'Variable · about 190 kbps' },
-];
+]
 
 type Props = {
   /** Shows a heading with Done (the overlay in the plain UI); the skinned
    * window has its own title and close button. */
-  onClose?: () => void;
+  onClose?: () => void
   /** Called after a change that affects the library (folder). */
-  onFolderChanged: () => void;
-  textStyle: object;
-};
+  onFolderChanged: () => void
+  textStyle: object
+}
 
 /** App settings; each change is saved right away by the Rust core. */
 export function SettingsPanel(props: Props): React.JSX.Element {
-  const { textStyle } = props;
-  const t = usePanelStyles();
-  const [current, setCurrent] = useState(() => settings.get());
-  const [error, setError] = useState<string>();
+  const { textStyle } = props
+  const t = usePanelStyles()
+  const [current, setCurrent] = useState(() => settings.get())
+  const [error, setError] = useState<string>()
 
   const save = async (patch: Partial<Settings>) => {
     // Fresh from disk: another window may have changed other settings.
-    const next = { ...settings.get(), ...patch };
-    setError(undefined);
+    const next = { ...settings.get(), ...patch }
+    setError(undefined)
     try {
-      await settings.set(next);
-      setCurrent(settings.get());
+      await settings.set(next)
+      setCurrent(settings.get())
       if ('recordingsDir' in patch) {
-        props.onFolderChanged();
+        props.onFolderChanged()
       }
     } catch (e) {
-      setError(errorText(e));
+      setError(errorText(e))
     }
-  };
+  }
 
   const chooseFolder = async () => {
-    const dir = await settings.pickFolder();
+    const dir = await settings.pickFolder()
     if (dir) {
-      await save({ recordingsDir: dir });
+      await save({ recordingsDir: dir })
     }
-  };
+  }
 
   return (
     <View style={styles.panel}>
@@ -150,18 +150,18 @@ export function SettingsPanel(props: Props): React.JSX.Element {
         {error && <Text style={styles.error}>{error}</Text>}
       </ScrollView>
     </View>
-  );
+  )
 }
 
-const MIN_MINUTES = [0, 5, 10, 15, 20, 30, 45, 60, 90, 120];
-const BUDGETS_GB = [1, 2, 5, 10, 20, 50, 100];
-const AGES_DAYS = [7, 14, 30, 60, 90, 180, 365];
+const MIN_MINUTES = [0, 5, 10, 15, 20, 30, 45, 60, 90, 120]
+const BUDGETS_GB = [1, 2, 5, 10, 20, 50, 100]
+const AGES_DAYS = [7, 14, 30, 60, 90, 180, 365]
 
 function formatBytes(bytes: number): string {
   if (bytes >= 1024 ** 3) {
-    return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+    return `${(bytes / 1024 ** 3).toFixed(1)} GB`
   }
-  return `${Math.round(bytes / 1024 ** 2)} MB`;
+  return `${Math.round(bytes / 1024 ** 2)} MB`
 }
 
 /**
@@ -170,18 +170,18 @@ function formatBytes(bytes: number): string {
  * budget and an age limit.
  */
 function Masters(props: {
-  current: Settings;
-  save: (patch: Partial<Settings>) => Promise<void>;
-  textStyle: object;
+  current: Settings
+  save: (patch: Partial<Settings>) => Promise<void>
+  textStyle: object
 }) {
-  const { current, save, textStyle } = props;
-  const t = usePanelStyles();
-  const [usage, setUsage] = useState(() => editorCore.mastersUsage());
-  const [confirming, setConfirming] = useState(false);
-  const keep = current.keepMasters !== false;
-  const minutes = current.masterMinMinutes ?? 20;
-  const budget = current.masterBudgetGb ?? 10;
-  const age = current.masterMaxAgeDays ?? 30;
+  const { current, save, textStyle } = props
+  const t = usePanelStyles()
+  const [usage, setUsage] = useState(() => editorCore.mastersUsage())
+  const [confirming, setConfirming] = useState(false)
+  const keep = current.keepMasters !== false
+  const minutes = current.masterMinMinutes ?? 20
+  const budget = current.masterBudgetGb ?? 10
+  const age = current.masterMaxAgeDays ?? 30
   const row = (label: string, value: string, onStep: (dir: 1 | -1) => void) => (
     <View style={[styles.row, styles.stepRow]}>
       <Text style={[styles.stepLabel, textStyle]}>{label}</Text>
@@ -195,7 +195,7 @@ function Masters(props: {
         <Text style={[styles.link, t.link, !keep && styles.dim]}>+</Text>
       </Pressable>
     </View>
-  );
+  )
   return (
     <>
       <Text style={[styles.section, textStyle]}>Lossless masters</Text>
@@ -239,9 +239,9 @@ function Masters(props: {
             </Text>
             <Pressable
               onPress={async () => {
-                setConfirming(false);
-                await editorCore.deleteAllMasters();
-                setUsage(editorCore.mastersUsage());
+                setConfirming(false)
+                await editorCore.deleteAllMasters()
+                setUsage(editorCore.mastersUsage())
               }}
             >
               <Text style={[styles.link, t.link]}>Delete</Text>
@@ -256,15 +256,15 @@ function Masters(props: {
           </Pressable>
         ))}
     </>
-  );
+  )
 }
 
 function Choice(props: {
-  selected: boolean;
-  label: string;
-  detail: string;
-  onPress: () => void;
-  textStyle: object;
+  selected: boolean
+  label: string
+  detail: string
+  onPress: () => void
+  textStyle: object
 }) {
   return (
     <Pressable onPress={props.onPress} style={styles.choice}>
@@ -274,17 +274,17 @@ function Choice(props: {
       </Text>
       <Text style={[styles.choiceDetail, props.textStyle]}>{props.detail}</Text>
     </Pressable>
-  );
+  )
 }
 
 function errorText(e: unknown): string {
   if (e instanceof Error) {
-    return e.message;
+    return e.message
   }
   if (e && typeof e === 'object' && 'message' in e) {
-    return String((e as { message: unknown }).message);
+    return String((e as { message: unknown }).message)
   }
-  return String(e);
+  return String(e)
 }
 
 export const panelStyles = StyleSheet.create({
@@ -298,7 +298,7 @@ export const panelStyles = StyleSheet.create({
     borderLeftWidth: StyleSheet.hairlineWidth,
     borderLeftColor: colors.border,
   },
-});
+})
 
 const styles = StyleSheet.create({
   panel: { flex: 1 },
@@ -322,4 +322,4 @@ const styles = StyleSheet.create({
   stepValue: { fontSize: 13, minWidth: 80, textAlign: 'center' },
   dim: { opacity: 0.4 },
   error: { color: colors.error, fontSize: 12, marginTop: 8 },
-});
+})

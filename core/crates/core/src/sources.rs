@@ -13,13 +13,16 @@ pub fn source_for_pid(app_pid: Option<u32>) -> CaptureSource {
     match app_pid {
         None => CaptureSource::System { device: None },
         Some(pid) => CaptureSource::App {
-            app: audio_apps().into_iter().find(|a| a.pid == pid).unwrap_or(AppTarget {
-                pid,
-                bundle_id: None,
-                name: format!("pid {pid}"),
-                icon: None,
-                is_playing: false,
-            }),
+            app: audio_apps()
+                .into_iter()
+                .find(|a| a.pid == pid)
+                .unwrap_or(AppTarget {
+                    pid,
+                    bundle_id: None,
+                    name: format!("pid {pid}"),
+                    icon: None,
+                    is_playing: false,
+                }),
         },
     }
 }

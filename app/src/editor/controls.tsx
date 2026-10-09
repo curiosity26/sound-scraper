@@ -3,16 +3,16 @@
 // stepper, a slider and the LCD time readout.
 
 /* eslint-disable react-native/no-inline-styles */
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState } from 'react'
 import {
   type GestureResponderEvent,
   Pressable,
   StyleSheet,
   Text,
   View,
-} from 'react-native';
+} from 'react-native'
 
-import type { EditorTheme } from './theme';
+import type { EditorTheme } from './theme'
 
 export type IconName =
   | 'play'
@@ -23,16 +23,16 @@ export type IconName =
   | 'zoomOutH'
   | 'zoomInH'
   | 'zoomOutV'
-  | 'zoomInV';
+  | 'zoomInV'
 
 /** Simple shapes, sized `size` points, in `color`. */
 export function Icon(props: {
-  name: IconName;
-  color: string;
-  size?: number;
+  name: IconName
+  color: string
+  size?: number
 }): React.JSX.Element {
-  const s = props.size ?? 12;
-  const c = props.color;
+  const s = props.size ?? 12
+  const c = props.color
   const tri = (dir: 'left' | 'right', h: number) => ({
     width: 0,
     height: 0,
@@ -43,20 +43,20 @@ export function Icon(props: {
     ...(dir === 'right'
       ? { borderLeftWidth: h * 0.85, borderLeftColor: c }
       : { borderRightWidth: h * 0.85, borderRightColor: c }),
-  });
+  })
   const box = {
     width: s,
     height: s,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-  };
+  }
   switch (props.name) {
     case 'play':
       return (
         <View style={box}>
           <View style={[tri('right', s), { marginLeft: s * 0.15 }]} />
         </View>
-      );
+      )
     case 'pause':
       return (
         <View style={[box, { flexDirection: 'row', gap: s * 0.22 }]}>
@@ -67,7 +67,7 @@ export function Icon(props: {
             style={{ width: s * 0.28, height: s * 0.9, backgroundColor: c }}
           />
         </View>
-      );
+      )
     case 'stop':
       return (
         <View style={box}>
@@ -80,7 +80,7 @@ export function Icon(props: {
             }}
           />
         </View>
-      );
+      )
     case 'toStart':
       return (
         <View style={[box, { flexDirection: 'row' }]}>
@@ -89,7 +89,7 @@ export function Icon(props: {
           />
           <View style={tri('left', s * 0.85)} />
         </View>
-      );
+      )
     case 'magnet':
       return (
         <View style={box}>
@@ -105,14 +105,14 @@ export function Icon(props: {
             }}
           />
         </View>
-      );
+      )
     case 'zoomOutH':
     case 'zoomInH':
     case 'zoomOutV':
     case 'zoomInV': {
-      const big = props.name === 'zoomInH' || props.name === 'zoomInV';
-      const horizontal = props.name === 'zoomOutH' || props.name === 'zoomInH';
-      const long = big ? s : s * 0.45;
+      const big = props.name === 'zoomInH' || props.name === 'zoomInV'
+      const horizontal = props.name === 'zoomOutH' || props.name === 'zoomInH'
+      const long = big ? s : s * 0.45
       return (
         <View style={box}>
           <View
@@ -125,23 +125,23 @@ export function Icon(props: {
             }}
           />
         </View>
-      );
+      )
     }
   }
 }
 
 /** A square button with an icon (transport). */
 export function IconButton(props: {
-  th: EditorTheme;
-  icon: IconName;
-  label: string;
-  onPress: () => void;
-  disabled?: boolean;
-  active?: boolean;
-  size?: number;
+  th: EditorTheme
+  icon: IconName
+  label: string
+  onPress: () => void
+  disabled?: boolean
+  active?: boolean
+  size?: number
 }): React.JSX.Element {
-  const { th } = props;
-  const color = props.active ? th.accent : th.text;
+  const { th } = props
+  const color = props.active ? th.accent : th.text
   return (
     <Pressable
       accessibilityRole="button"
@@ -155,7 +155,7 @@ export function IconButton(props: {
     >
       <Icon name={props.icon} color={color} size={props.size ?? 12} />
     </Pressable>
-  );
+  )
 }
 
 /**
@@ -163,22 +163,22 @@ export function IconButton(props: {
  * `active` shows it latched (Snap), `accent` fills it (Save).
  */
 export function ToolButton(props: {
-  th: EditorTheme;
-  label: string;
-  glyph?: string;
-  icon?: IconName;
-  detail?: string;
-  onPress: () => void;
-  disabled?: boolean;
-  active?: boolean;
-  accent?: boolean;
-  testID?: string;
+  th: EditorTheme
+  label: string
+  glyph?: string
+  icon?: IconName
+  detail?: string
+  onPress: () => void
+  disabled?: boolean
+  active?: boolean
+  accent?: boolean
+  testID?: string
   /** For glyph-only tools (empty label). */
-  a11yLabel?: string;
+  a11yLabel?: string
 }): React.JSX.Element {
-  const { th } = props;
-  const [hover, setHover] = useState(false);
-  const fg = props.accent ? th.accentText : props.active ? th.accent : th.text;
+  const { th } = props
+  const [hover, setHover] = useState(false)
+  const fg = props.accent ? th.accentText : props.active ? th.accent : th.text
   return (
     <Pressable
       testID={props.testID}
@@ -215,28 +215,26 @@ export function ToolButton(props: {
         <Text style={[styles.toolDetail, { color: fg }]}>{props.detail}</Text>
       )}
     </Pressable>
-  );
+  )
 }
 
 /** A thin vertical line between groups. */
 export function Divider(props: { th: EditorTheme }): React.JSX.Element {
-  return (
-    <View style={[styles.divider, { backgroundColor: props.th.border }]} />
-  );
+  return <View style={[styles.divider, { backgroundColor: props.th.border }]} />
 }
 
 /** Joined buttons, one selected. */
 export function Segmented<T extends string>(props: {
-  th: EditorTheme;
-  options: Array<{ value: T; label: string }>;
-  value: T | null;
-  onChange: (value: T) => void;
+  th: EditorTheme
+  options: Array<{ value: T; label: string }>
+  value: T | null
+  onChange: (value: T) => void
 }): React.JSX.Element {
-  const { th } = props;
+  const { th } = props
   return (
     <View style={[styles.segmented, { borderColor: th.border }]}>
       {props.options.map((o, i) => {
-        const on = o.value === props.value;
+        const on = o.value === props.value
         return (
           <Pressable
             key={o.value}
@@ -258,20 +256,20 @@ export function Segmented<T extends string>(props: {
               {o.label}
             </Text>
           </Pressable>
-        );
+        )
       })}
     </View>
-  );
+  )
 }
 
 /** A label and a value with ‹ › steppers. */
 export function Stepper(props: {
-  th: EditorTheme;
-  label: string;
-  value: string;
-  onStep: (dir: 1 | -1) => void;
+  th: EditorTheme
+  label: string
+  value: string
+  onStep: (dir: 1 | -1) => void
 }): React.JSX.Element {
-  const { th } = props;
+  const { th } = props
   const arrow = (dir: 1 | -1) => (
     <Pressable
       accessibilityRole="button"
@@ -286,7 +284,7 @@ export function Stepper(props: {
         {dir > 0 ? '›' : '‹'}
       </Text>
     </Pressable>
-  );
+  )
   return (
     <View style={styles.stepper}>
       <Text style={[styles.stepLabel, { color: th.dim }]}>{props.label}</Text>
@@ -303,7 +301,7 @@ export function Stepper(props: {
         {arrow(1)}
       </View>
     </View>
-  );
+  )
 }
 
 /**
@@ -311,31 +309,31 @@ export function Stepper(props: {
  * `vertical` runs bottom (0) to top (1).
  */
 export function Slider(props: {
-  th: EditorTheme;
-  value: number;
-  onChange: (value: number) => void;
-  label: string;
-  low: IconName;
-  high: IconName;
+  th: EditorTheme
+  value: number
+  onChange: (value: number) => void
+  label: string
+  low: IconName
+  high: IconName
   /** The track's length in points. */
-  length?: number;
-  vertical?: boolean;
-  disabled?: boolean;
+  length?: number
+  vertical?: boolean
+  disabled?: boolean
 }): React.JSX.Element {
-  const { th, vertical } = props;
-  const length = Math.max(20, props.length ?? 80);
-  const track = useRef<View>(null);
-  const origin = useRef(0);
+  const { th, vertical } = props
+  const length = Math.max(20, props.length ?? 80)
+  const track = useRef<View>(null)
+  const origin = useRef(0)
   const measure = () =>
     track.current?.measure((_x, _y, _w, _h, pageX, pageY) => {
-      origin.current = vertical ? pageY : pageX;
-    });
+      origin.current = vertical ? pageY : pageX
+    })
   const set = (e: GestureResponderEvent) => {
-    const at = vertical ? e.nativeEvent.pageY : e.nativeEvent.pageX;
-    const t = (at - origin.current) / length;
-    props.onChange(Math.min(1, Math.max(0, vertical ? 1 - t : t)));
-  };
-  const v = Math.min(1, Math.max(0, props.value));
+    const at = vertical ? e.nativeEvent.pageY : e.nativeEvent.pageX
+    const t = (at - origin.current) / length
+    props.onChange(Math.min(1, Math.max(0, vertical ? 1 - t : t)))
+  }
+  const v = Math.min(1, Math.max(0, props.value))
   const end = (which: 'low' | 'high') => (
     <Pressable
       accessibilityLabel={`${props.label}: ${
@@ -351,7 +349,7 @@ export function Slider(props: {
     >
       <Icon name={props[which]} color={th.dim} size={10} />
     </Pressable>
-  );
+  )
   return (
     <View
       style={[
@@ -376,8 +374,8 @@ export function Slider(props: {
         onMoveShouldSetResponder={() => !props.disabled}
         onResponderGrant={e => {
           // Re-measure: the window may have moved since layout.
-          measure();
-          set(e);
+          measure()
+          set(e)
         }}
         onResponderMove={set}
         onResponderTerminationRequest={() => false}
@@ -405,16 +403,16 @@ export function Slider(props: {
       </View>
       {end(vertical ? 'low' : 'high')}
     </View>
-  );
+  )
 }
 
 /** The position readout: a small LCD. */
 export function Lcd(props: {
-  th: EditorTheme;
-  main: string;
-  sub: string;
+  th: EditorTheme
+  main: string
+  sub: string
 }): React.JSX.Element {
-  const { th } = props;
+  const { th } = props
   return (
     <View
       style={[styles.lcd, { backgroundColor: th.lcd, borderColor: th.border }]}
@@ -422,10 +420,10 @@ export function Lcd(props: {
       <Text style={[styles.lcdMain, { color: th.lcdText }]}>{props.main}</Text>
       <Text style={[styles.lcdSub, { color: th.lcdText }]}>{props.sub}</Text>
     </View>
-  );
+  )
 }
 
-const MONO = 'Menlo';
+const MONO = 'Menlo'
 
 const styles = StyleSheet.create({
   iconButton: {
@@ -510,4 +508,4 @@ const styles = StyleSheet.create({
   },
   lcdMain: { fontSize: 15, fontFamily: MONO, letterSpacing: 0.5 },
   lcdSub: { fontSize: 9, fontFamily: MONO, opacity: 0.65, marginTop: -1 },
-});
+})

@@ -179,25 +179,31 @@ fn cached_drives() -> Vec<Device> {
     }
     static CACHE: Mutex<Option<Cache>> = Mutex::new(None);
     let mut guard = CACHE.lock().unwrap_or_else(|e| e.into_inner());
-    let cache = guard.get_or_insert_with(|| Cache { drives: None, asked: Instant::now(), running: false });
+    let cache = guard.get_or_insert_with(|| Cache {
+        drives: None,
+        asked: Instant::now(),
+        running: false,
+    });
     cache.asked = Instant::now();
     if !cache.running {
         cache.running = true;
-        let _ = std::thread::Builder::new().name("cd drives".into()).spawn(|| {
-            loop {
-                let drives = disc::drives();
-                let mut guard = CACHE.lock().unwrap_or_else(|e| e.into_inner());
-                let cache = guard.as_mut().unwrap();
-                cache.drives = Some(drives);
-                // Stop when nobody has asked for a while.
-                if cache.asked.elapsed() > Duration::from_secs(20) {
-                    cache.running = false;
-                    return;
+        let _ = std::thread::Builder::new()
+            .name("cd drives".into())
+            .spawn(|| {
+                loop {
+                    let drives = disc::drives();
+                    let mut guard = CACHE.lock().unwrap_or_else(|e| e.into_inner());
+                    let cache = guard.as_mut().unwrap();
+                    cache.drives = Some(drives);
+                    // Stop when nobody has asked for a while.
+                    if cache.asked.elapsed() > Duration::from_secs(20) {
+                        cache.running = false;
+                        return;
+                    }
+                    drop(guard);
+                    std::thread::sleep(Duration::from_secs(2));
                 }
-                drop(guard);
-                std::thread::sleep(Duration::from_secs(2));
-            }
-        });
+            });
     }
     match &cache.drives {
         Some(d) => d.clone(),
@@ -206,7 +212,12 @@ fn cached_drives() -> Vec<Device> {
             // The first time: wait for the first look (briefly).
             for _ in 0..30 {
                 std::thread::sleep(std::time::Duration::from_millis(50));
-                if let Some(d) = CACHE.lock().unwrap_or_else(|e| e.into_inner()).as_ref().and_then(|c| c.drives.clone()) {
+                if let Some(d) = CACHE
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .as_ref()
+                    .and_then(|c| c.drives.clone())
+                {
                     return d;
                 }
             }
@@ -230,7 +241,8 @@ fn burner_for(device_id: &str) -> Result<(Box<dyn Burner>, Device), String> {
                 .into_iter()
                 .find(|d| d.id == id)
                 .ok_or("That CD recorder isn't connected any more.")?;
-            let burner = disc::drive_burner(id).ok_or("CD burning isn't available on this system.")?;
+            let burner =
+                disc::drive_burner(id).ok_or("CD burning isn't available on this system.")?;
             Ok((burner, device))
         }
     }
@@ -394,7 +406,11 @@ fn run(
         "Options: gaps {} s, CD-Text {}, speed {}, test write {}, eject {}",
         request.gap_seconds,
         if request.cd_text { "on" } else { "off" },
-        if request.speed == 0 { "maximum".to_string() } else { format!("{}x", request.speed) },
+        if request.speed == 0 {
+            "maximum".to_string()
+        } else {
+            format!("{}x", request.speed)
+        },
         if request.test_write { "on" } else { "off" },
         if request.eject { "on" } else { "off" },
     ));
@@ -544,7 +560,12 @@ struct StayAwake(Option<std::process::Child>);
 impl StayAwake {
     fn new() -> Self {
         #[cfg(target_os = "macos")]
-        return Self(std::process::Command::new("/usr/bin/caffeinate").arg("-i").spawn().ok());
+        return Self(
+            std::process::Command::new("/usr/bin/caffeinate")
+                .arg("-i")
+                .spawn()
+                .ok(),
+        );
         #[allow(unreachable_code)]
         Self(None)
     }
@@ -565,13 +586,25 @@ pub fn save_log(id: u64, path: &Path) -> Result<(), String> {
     let mut text = format!("Sound Scraper burn log: {} ({})\n", s.destination, s.state);
     for l in &s.log {
         let t = l.at_ms / 1000;
-        text.push_str(&format!("[{:02}:{:02}.{:01}] {}\n", t / 60, t % 60, (l.at_ms % 1000) / 100, l.text));
+        text.push_str(&format!(
+            "[{:02}:{:02}.{:01}] {}\n",
+            t / 60,
+            t % 60,
+            (l.at_ms % 1000) / 100,
+            l.text
+        ));
     }
     if let Some(m) = &s.message {
         text.push_str(&format!("Error: {m}\n"));
     }
     for (i, t) in s.tracks.iter().enumerate() {
-        text.push_str(&format!("Track {}: {} ({} ms) {}\n", i + 1, t.title, t.duration_ms, t.state));
+        text.push_str(&format!(
+            "Track {}: {} ({} ms) {}\n",
+            i + 1,
+            t.title,
+            t.duration_ms,
+            t.state
+        ));
     }
     std::fs::write(path, text).map_err(|e| format!("writing {}: {e}", path.display()))
 }
@@ -665,17 +698,30 @@ impl Dither {
 pub enum Request {
     Devices,
     Start(BurnRequest),
-    Status { id: u64 },
-    Cancel { id: u64 },
-    Close { id: u64 },
+    Status {
+        id: u64,
+    },
+    Cancel {
+        id: u64,
+    },
+    Close {
+        id: u64,
+    },
     #[cfg(feature = "simulator")]
     SimSettings,
     #[cfg(feature = "simulator")]
-    SetSimSettings { settings: disc::sim::SimSettings },
+    SetSimSettings {
+        settings: disc::sim::SimSettings,
+    },
     /// Shows a burned image in Finder / Explorer.
-    Reveal { path: String },
+    Reveal {
+        path: String,
+    },
     /// Writes a job's log to a text file.
-    SaveLog { id: u64, path: String },
+    SaveLog {
+        id: u64,
+        path: String,
+    },
 }
 
 pub fn handle(request: Request) -> Result<serde_json::Value, String> {
@@ -698,7 +744,9 @@ pub fn handle(request: Request) -> Result<serde_json::Value, String> {
             Ok(Value::Null)
         }
         Request::SaveLog { id, path } => save_log(id, Path::new(&path)).map(|()| Value::Null),
-        Request::Reveal { path } => crate::library::reveal_in_file_manager(Path::new(&path)).map(|()| Value::Null),
+        Request::Reveal { path } => {
+            crate::library::reveal_in_file_manager(Path::new(&path)).map(|()| Value::Null)
+        }
     }
 }
 
@@ -732,8 +780,10 @@ mod tests {
             assert_eq!(bytes.len() as u64, frames * 4);
             // The sine is there: a loud-ish peak somewhere in the middle.
             let peak = bytes[20_000..40_000]
-                .chunks_exact(2)
-                .map(|b| i16::from_le_bytes([b[0], b[1]]).unsigned_abs())
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|&b| i16::from_le_bytes(b).unsigned_abs())
                 .max()
                 .unwrap();
             assert!(peak > 3000, "{rate}: peak {peak}");

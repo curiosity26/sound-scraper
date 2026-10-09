@@ -2,7 +2,7 @@
 // Slice bar, the track list, the name field and the save question.
 
 /* eslint-disable react-native/no-inline-styles */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react'
 import {
   type GestureResponderEvent,
   Platform,
@@ -11,29 +11,29 @@ import {
   StyleSheet,
   Text,
   View,
-} from 'react-native';
+} from 'react-native'
 
-import { type Edits, formatTime, stepIn } from '../editorModel';
-import type { DetectOptions, TrackInfo } from '../native/editor';
-import WaveformNative from '../skin/WaveformNative';
-import { Segmented, Stepper, ToolButton } from './controls';
-import { type EditorTheme, trackColor, withAlpha } from './theme';
-import { TextField } from '../TextField';
+import { type Edits, formatTime, stepIn } from '../editorModel'
+import type { DetectOptions, TrackInfo } from '../native/editor'
+import WaveformNative from '../skin/WaveformNative'
+import { Segmented, Stepper, ToolButton } from './controls'
+import { type EditorTheme, trackColor, withAlpha } from './theme'
+import { TextField } from '../TextField'
 
 // SSWaveformView.mm on macOS, WaveformView.h on Windows.
-export const SSWaveformView = WaveformNative;
+export const SSWaveformView = WaveformNative
 
-export const OVERVIEW = 30;
+export const OVERVIEW = 30
 
 /** "1.5 s", "10 s", "2 min", "300 ms". */
 export function formatStep(ms: number): string {
   if (ms >= 60_000) {
-    return `${ms / 60_000} min`;
+    return `${ms / 60_000} min`
   }
   if (ms >= 1000) {
-    return `${ms / 1000} s`;
+    return `${ms / 1000} s`
   }
-  return `${ms} ms`;
+  return `${ms} ms`
 }
 
 // ------------------------------------------------------------ overview
@@ -43,24 +43,24 @@ export function formatStep(ms: number): string {
  * around what the editor shows. Click or drag to move the view.
  */
 export function OverviewBar(props: {
-  th: EditorTheme;
-  editorId: number;
-  width: number;
-  durationMs: number;
-  colors: string;
-  viewStartMs: number;
-  viewEndMs: number;
-  edits: Edits;
-  tracks: TrackInfo[];
-  onScrollTo: (centerMs: number) => void;
+  th: EditorTheme
+  editorId: number
+  width: number
+  durationMs: number
+  colors: string
+  viewStartMs: number
+  viewEndMs: number
+  edits: Edits
+  tracks: TrackInfo[]
+  onScrollTo: (centerMs: number) => void
 }): React.JSX.Element {
-  const { th, width, durationMs } = props;
-  const per = durationMs / Math.max(1, width);
+  const { th, width, durationMs } = props
+  const per = durationMs / Math.max(1, width)
   const go = (e: GestureResponderEvent) =>
     props.onScrollTo(
       Math.max(0, Math.min(durationMs, e.nativeEvent.locationX * per)),
-    );
-  const starts = props.tracks.map(t => t.startMs);
+    )
+  const starts = props.tracks.map(t => t.startMs)
   return (
     <View style={styles.overviewRow}>
       <View
@@ -134,7 +134,7 @@ export function OverviewBar(props: {
         />
       </View>
     </View>
-  );
+  )
 }
 
 // ------------------------------------------------------------ auto slice
@@ -147,27 +147,27 @@ export const DETECT_PRESETS: Record<
   digital: { thresholdDb: -60, minGapMs: 1500, minTrackMs: 10_000 },
   // Vinyl, tape, radio: noise between songs.
   vinyl: { thresholdDb: -40, minGapMs: 1500, minTrackMs: 10_000 },
-};
+}
 
 const THRESHOLDS = [
   -80, -75, -70, -65, -60, -55, -50, -45, -40, -35, -30, -25, -20,
-];
-const GAPS = [300, 500, 750, 1000, 1500, 2000, 3000, 5000, 10_000];
-const MIN_TRACKS = [0, 5000, 10_000, 20_000, 30_000, 60_000, 120_000, 300_000];
+]
+const GAPS = [300, 500, 750, 1000, 1500, 2000, 3000, 5000, 10_000]
+const MIN_TRACKS = [0, 5000, 10_000, 20_000, 30_000, 60_000, 120_000, 300_000]
 
 /**
  * Auto Slice's settings, in a bar above the waveform so the proposed
  * slices (dashed) stay in view while the settings change.
  */
 export function AutoSliceBar(props: {
-  th: EditorTheme;
-  options: DetectOptions;
-  onChange: (o: DetectOptions) => void;
-  found: number;
-  onApply: () => void;
-  onCancel: () => void;
+  th: EditorTheme
+  options: DetectOptions
+  onChange: (o: DetectOptions) => void
+  found: number
+  onApply: () => void
+  onCancel: () => void
 }): React.JSX.Element {
-  const { th, options: o, onChange } = props;
+  const { th, options: o, onChange } = props
   const preset = (
     Object.keys(DETECT_PRESETS) as Array<'digital' | 'vinyl'>
   ).find(
@@ -175,7 +175,7 @@ export function AutoSliceBar(props: {
       DETECT_PRESETS[k].thresholdDb === o.thresholdDb &&
       DETECT_PRESETS[k].minGapMs === o.minGapMs &&
       DETECT_PRESETS[k].minTrackMs === o.minTrackMs,
-  );
+  )
   return (
     <View
       style={[
@@ -244,27 +244,27 @@ export function AutoSliceBar(props: {
         accent
       />
     </View>
-  );
+  )
 }
 
 // ------------------------------------------------------------ track list
 
 /** A track's name, edited in place (Enter or leaving saves, Esc cancels). */
 function TrackName(props: {
-  th: EditorTheme;
-  value: string;
-  onCommit: (name: string) => void;
+  th: EditorTheme
+  value: string
+  onCommit: (name: string) => void
 }) {
-  const [text, setText] = useState(props.value);
-  useEffect(() => setText(props.value), [props.value]);
+  const [text, setText] = useState(props.value)
+  useEffect(() => setText(props.value), [props.value])
   const commit = () => {
-    const name = text.trim();
+    const name = text.trim()
     if (name && name !== props.value) {
-      props.onCommit(name);
+      props.onCommit(name)
     } else {
-      setText(props.value);
+      setText(props.value)
     }
-  };
+  }
   return (
     <TextField
       style={[styles.colName, styles.nameInput, { color: props.th.text }]}
@@ -274,28 +274,28 @@ function TrackName(props: {
       onBlur={commit}
       onKeyPress={e => {
         if (e.nativeEvent.key === 'Escape') {
-          setText(props.value);
+          setText(props.value)
         }
       }}
     />
-  );
+  )
 }
 
 export type TrackRow = TrackInfo & {
   /** Who names it: a slice id, or the first track. */
-  owner: number | 'first' | null;
-  name: string;
-};
+  owner: number | 'first' | null
+  name: string
+}
 
 export function TrackList(props: {
-  th: EditorTheme;
-  rows: TrackRow[];
-  selected: number | null;
-  showReencode: boolean;
-  onSelect: (index: number) => void;
-  onRename: (owner: number | 'first', name: string) => void;
+  th: EditorTheme
+  rows: TrackRow[]
+  selected: number | null
+  showReencode: boolean
+  onSelect: (index: number) => void
+  onRename: (owner: number | 'first', name: string) => void
 }): React.JSX.Element {
-  const { th } = props;
+  const { th } = props
   return (
     <View style={[styles.tracks, { borderColor: th.border }]}>
       <View
@@ -320,7 +320,7 @@ export function TrackList(props: {
       </View>
       <ScrollView>
         {props.rows.map((tr, i) => {
-          const selected = props.selected === i;
+          const selected = props.selected === i
           return (
             <Pressable
               key={`${i}-${tr.startMs}`}
@@ -366,26 +366,26 @@ export function TrackList(props: {
                 </Text>
               </View>
             </Pressable>
-          );
+          )
         })}
       </ScrollView>
     </View>
-  );
+  )
 }
 
 // ------------------------------------------------------------ naming
 
 /** The name field over a new (or double-clicked) track. */
 export function NameField(props: {
-  th: EditorTheme;
-  left: number;
-  top: number;
-  value: string;
-  onChange: (text: string) => void;
+  th: EditorTheme
+  left: number
+  top: number
+  value: string
+  onChange: (text: string) => void
   /** Close it, keeping the text (or not, for Esc). */
-  onDone: (keep?: boolean) => void;
+  onDone: (keep?: boolean) => void
 }): React.JSX.Element {
-  const { th } = props;
+  const { th } = props
   return (
     <View style={[styles.nameField, { left: props.left, top: props.top }]}>
       <TextField
@@ -398,7 +398,7 @@ export function NameField(props: {
         onBlur={() => props.onDone()}
         onKeyPress={e => {
           if (e.nativeEvent.key === 'Escape') {
-            props.onDone(false);
+            props.onDone(false)
           }
         }}
         style={[
@@ -411,24 +411,24 @@ export function NameField(props: {
         ]}
       />
     </View>
-  );
+  )
 }
 
 // ------------------------------------------------------------ saving
 
 /** Save: the in-window question whether to keep the original. */
 export function SaveModal(props: {
-  th: EditorTheme;
-  title: string;
-  count: number;
-  reencoded: number;
-  fromMaster: boolean;
-  saving: boolean;
-  error?: string;
-  onCancel: () => void;
-  onChoose: (keepOriginal: boolean) => void;
+  th: EditorTheme
+  title: string
+  count: number
+  reencoded: number
+  fromMaster: boolean
+  saving: boolean
+  error?: string
+  onCancel: () => void
+  onChoose: (keepOriginal: boolean) => void
 }): React.JSX.Element {
-  const { th } = props;
+  const { th } = props
   return (
     <View style={styles.modalBackdrop} testID="editor-save-modal">
       <View
@@ -478,7 +478,7 @@ export function SaveModal(props: {
         )}
       </View>
     </View>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -582,4 +582,4 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   error: { color: '#ff6b5a' },
-});
+})

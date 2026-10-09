@@ -63,11 +63,19 @@ struct Canvas {
 
 impl Canvas {
     fn new(w: i32, h: i32, s: u32) -> Self {
-        Self { img: RgbaImage::new(w as u32 * s, h as u32 * s), s }
+        Self {
+            img: RgbaImage::new(w as u32 * s, h as u32 * s),
+            s,
+        }
     }
 
     fn blend(&mut self, x: i64, y: i64, c: Color) {
-        if x < 0 || y < 0 || x >= self.img.width() as i64 || y >= self.img.height() as i64 || c[3] == 0 {
+        if x < 0
+            || y < 0
+            || x >= self.img.width() as i64
+            || y >= self.img.height() as i64
+            || c[3] == 0
+        {
             return;
         }
         let p = self.img.get_pixel_mut(x as u32, y as u32);
@@ -110,8 +118,14 @@ impl Canvas {
     }
 
     fn circle(&mut self, cx: f32, cy: f32, r: f32, c: Color) {
-        let (x, y, d) = ((cx - r).floor() as i32, (cy - r).floor() as i32, (2.0 * r).ceil() as i32 + 2);
-        self.shape(x, y, d, d, |fx, fy| ((fx - cx).powi(2) + (fy - cy).powi(2) <= r * r).then_some(c));
+        let (x, y, d) = (
+            (cx - r).floor() as i32,
+            (cy - r).floor() as i32,
+            (2.0 * r).ceil() as i32 + 2,
+        );
+        self.shape(x, y, d, d, |fx, fy| {
+            ((fx - cx).powi(2) + (fy - cy).powi(2) <= r * r).then_some(c)
+        });
     }
 
     fn round_rect(&mut self, x: i32, y: i32, w: i32, h: i32, r: f32, c: Color) {
@@ -136,7 +150,11 @@ impl Canvas {
     }
 
     fn save(&self, dir: &std::path::Path, name: &str) {
-        let file = if self.s == 1 { format!("{name}.png") } else { format!("{name}@{}x.png", self.s) };
+        let file = if self.s == 1 {
+            format!("{name}.png")
+        } else {
+            format!("{name}@{}x.png", self.s)
+        };
         self.img.save(dir.join(file)).unwrap();
     }
 }
@@ -155,7 +173,11 @@ fn draw_both(dir: &std::path::Path, name: &str, w: i32, h: i32, draw: impl Fn(&m
 include!("common/glyphs.rs");
 
 fn glyph(c: char) -> [u8; 7] {
-    GLYPHS.iter().find(|(g, _)| *g == c).map(|(_, rows)| *rows).unwrap_or([0; 7])
+    GLYPHS
+        .iter()
+        .find(|(g, _)| *g == c)
+        .map(|(_, rows)| *rows)
+        .unwrap_or([0; 7])
 }
 
 /// Draws one 5×7 glyph with `dot`-point dots at (x, y). With `ghost` (the
@@ -164,12 +186,21 @@ fn glyph(c: char) -> [u8; 7] {
 fn dots(c: &mut Canvas, x: i32, y: i32, rows: [u8; 7], dot: i32, lit: Color, ghost: Option<Color>) {
     let s = c.s as i64;
     let size = dot as i64 * s;
-    let fill = if size >= 4 && ghost.is_some() { size - 1 } else { size };
+    let fill = if size >= 4 && ghost.is_some() {
+        size - 1
+    } else {
+        size
+    };
     for (row, bits) in rows.iter().enumerate() {
         for col in 0..5 {
             let on = bits & (0b10000 >> col) != 0;
-            let Some(color) = (if on { Some(lit) } else { ghost }) else { continue };
-            let (px, py) = ((x + col * dot) as i64 * s, (y + row as i32 * dot) as i64 * s);
+            let Some(color) = (if on { Some(lit) } else { ghost }) else {
+                continue;
+            };
+            let (px, py) = (
+                (x + col * dot) as i64 * s,
+                (y + row as i32 * dot) as i64 * s,
+            );
             for dy in 0..fill {
                 for dx in 0..fill {
                     c.blend(px + dx, py + dy, color);
@@ -187,13 +218,28 @@ fn text(c: &mut Canvas, x: i32, y: i32, s: &str, dot: i32, lit: Color) {
 
 /// Text with a 1-point outline (for the dripping title).
 fn outlined_text(c: &mut Canvas, x: i32, y: i32, s: &str, dot: i32, fill: Color, edge: Color) {
-    for (ox, oy) in [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, 1), (-1, 1), (1, -1)] {
+    for (ox, oy) in [
+        (-1, 0),
+        (1, 0),
+        (0, -1),
+        (0, 1),
+        (-1, -1),
+        (1, 1),
+        (-1, 1),
+        (1, -1),
+    ] {
         for (i, ch) in s.chars().enumerate() {
             let rows = glyph(ch);
             for (row, bits) in rows.iter().enumerate() {
                 for col in 0..5 {
                     if bits & (0b10000 >> col) != 0 {
-                        c.rect(x + i as i32 * 6 * dot + col * dot + ox, y + row as i32 * dot + oy, dot, dot, edge);
+                        c.rect(
+                            x + i as i32 * 6 * dot + col * dot + ox,
+                            y + row as i32 * dot + oy,
+                            dot,
+                            dot,
+                            edge,
+                        );
                     }
                 }
             }
@@ -226,13 +272,29 @@ fn drip(c: &mut Canvas, x: i32, y: i32, len: i32) {
 }
 
 /// The sprite font sheet: glyphs in a row-major grid.
-fn font_sheet(dir: &std::path::Path, name: &str, chars: &str, cell: (i32, i32), columns: i32, dot: i32, pad: (i32, i32)) {
+fn font_sheet(
+    dir: &std::path::Path,
+    name: &str,
+    chars: &str,
+    cell: (i32, i32),
+    columns: i32,
+    dot: i32,
+    pad: (i32, i32),
+) {
     let count = chars.chars().count() as i32;
     let rows = (count + columns - 1) / columns;
     draw_both(dir, name, cell.0 * columns, cell.1 * rows, |c| {
         for (i, ch) in chars.chars().enumerate() {
             let (cx, cy) = ((i as i32 % columns) * cell.0, (i as i32 / columns) * cell.1);
-            dots(c, cx + pad.0, cy + pad.1, glyph(ch), dot, LCD_LIT, Some(LCD_GHOST));
+            dots(
+                c,
+                cx + pad.0,
+                cy + pad.1,
+                glyph(ch),
+                dot,
+                LCD_LIT,
+                Some(LCD_GHOST),
+            );
         }
     });
 }
@@ -243,9 +305,12 @@ fn digits_sheet(dir: &std::path::Path, chars: &str, cell: (i32, i32)) {
     let seg = |i: usize, fx: f32, fy: f32| -> bool {
         let t = 1.4; // half thickness
         let (l, r, top, mid, bot) = (3.0, 11.0, 3.0, 13.0, 23.0);
-        let horiz = |y: f32| (fy - y).abs() + ((fx - (l + r) / 2.0).abs() - ((r - l) / 2.0 - t - 0.6)).max(0.0) <= t;
+        let horiz = |y: f32| {
+            (fy - y).abs() + ((fx - (l + r) / 2.0).abs() - ((r - l) / 2.0 - t - 0.6)).max(0.0) <= t
+        };
         let vert = |x: f32, y0: f32, y1: f32| {
-            (fx - x).abs() + ((fy - (y0 + y1) / 2.0).abs() - ((y1 - y0) / 2.0 - t - 0.6)).max(0.0) <= t
+            (fx - x).abs() + ((fy - (y0 + y1) / 2.0).abs() - ((y1 - y0) / 2.0 - t - 0.6)).max(0.0)
+                <= t
         };
         match i {
             0 => horiz(top),
@@ -288,7 +353,11 @@ fn digits_sheet(dir: &std::path::Path, chars: &str, cell: (i32, i32)) {
                     }
                     '.' => ((fx - 7.0).abs() <= 1.5 && (fy - 22.5).abs() <= 1.5).then_some(LCD_LIT),
                     _ if is_segment_char => (0..7).find(|&k| seg(k, fx, fy)).map(|k| {
-                        if bits & (1 << k) != 0 { LCD_LIT } else { LCD_GHOST }
+                        if bits & (1 << k) != 0 {
+                            LCD_LIT
+                        } else {
+                            LCD_GHOST
+                        }
                     }),
                     _ => None,
                 }
@@ -309,7 +378,12 @@ struct Sheet {
 
 impl Sheet {
     fn new(width: i32) -> Self {
-        Self { width, cursor: (0, 0), row_h: 0, cells: Vec::new() }
+        Self {
+            width,
+            cursor: (0, 0),
+            row_h: 0,
+            cells: Vec::new(),
+        }
     }
 
     /// Adds the states of one element in a row; returns their offsets.
@@ -357,9 +431,16 @@ enum Symbol {
 /// A right-pointing triangle about `r` points from its center.
 fn triangle(c: &mut Canvas, cx: f32, cy: f32, r: f32, color: Color) {
     let (left, right) = (cx - r * 0.8, cx + r);
-    c.shape((left - 1.0) as i32, (cy - r - 1.0) as i32, (2.0 * r + 3.0) as i32, (2.0 * r + 3.0) as i32, |fx, fy| {
-        (fx >= left && fx <= right && (fy - cy).abs() <= (right - fx) * r / (right - left)).then_some(color)
-    });
+    c.shape(
+        (left - 1.0) as i32,
+        (cy - r - 1.0) as i32,
+        (2.0 * r + 3.0) as i32,
+        (2.0 * r + 3.0) as i32,
+        |fx, fy| {
+            (fx >= left && fx <= right && (fy - cy).abs() <= (right - fx) * r / (right - left))
+                .then_some(color)
+        },
+    );
 }
 
 fn draw_symbol(c: &mut Canvas, sym: Symbol, cx: i32, cy: i32, color: Color) {
@@ -411,7 +492,13 @@ fn piano_key(c: &mut Canvas, x: i32, y: i32, sym: Symbol, label: &str, state: Ke
 /// Small charcoal title-bar button (12×10).
 fn title_button(c: &mut Canvas, x: i32, y: i32, kind: char, pressed: bool) {
     c.rect(x, y, 12, 10, INK);
-    c.rect(x + 1, y + 1, 10, 8, if pressed { CHAR_DARK } else { CHAR_MID });
+    c.rect(
+        x + 1,
+        y + 1,
+        10,
+        8,
+        if pressed { CHAR_DARK } else { CHAR_MID },
+    );
     if pressed {
         c.bevel(x + 1, y + 1, 10, 8, CHAR_DARK, CHAR_LIGHT);
     } else {
@@ -431,7 +518,13 @@ fn title_button(c: &mut Canvas, x: i32, y: i32, kind: char, pressed: bool) {
             c.rect(cx - 1, cy - 3, 2, 6, ink);
             c.rect(cx - 3, cy - 1, 6, 2, ink);
             c.rect(cx - 2, cy - 2, 4, 4, ink);
-            c.rect(cx - 1, cy - 1, 2, 2, if pressed { CHAR_DARK } else { CHAR_MID });
+            c.rect(
+                cx - 1,
+                cy - 1,
+                2,
+                2,
+                if pressed { CHAR_DARK } else { CHAR_MID },
+            );
         }
         _ => {
             for i in 0..5 {
@@ -447,7 +540,14 @@ fn toggle_button(c: &mut Canvas, x: i32, y: i32, w: i32, label: &str, state: Key
     let h = 16;
     let down = matches!(state, Key::Pressed);
     c.round_rect(x, y, w, h, 3.0, INK);
-    c.round_rect(x + 1, y + 1, w - 2, h - 2, 2.0, if down { CHAR_DARK } else { CHAR });
+    c.round_rect(
+        x + 1,
+        y + 1,
+        w - 2,
+        h - 2,
+        2.0,
+        if down { CHAR_DARK } else { CHAR },
+    );
     if down {
         c.rect(x + 3, y + h - 3, w - 6, 1, CHAR_LIGHT);
     } else {
@@ -457,12 +557,24 @@ fn toggle_button(c: &mut Canvas, x: i32, y: i32, w: i32, label: &str, state: Key
     let on = state == Key::Active;
     let (lx, ly) = (x + 8 + o, y + 8 + o);
     c.circle(lx as f32, ly as f32, 3.2, INK);
-    c.circle(lx as f32, ly as f32, 2.4, if on { SLIME } else { rgb(0x2f3a1c) });
+    c.circle(
+        lx as f32,
+        ly as f32,
+        2.4,
+        if on { SLIME } else { rgb(0x2f3a1c) },
+    );
     if on {
         c.circle(lx as f32 - 0.6, ly as f32 - 0.8, 0.9, SLIME_LIGHT);
         c.circle(lx as f32, ly as f32, 5.0, rgba(0x9fd630, 60));
     }
-    text(c, x + 15 + o, y + 5 + o, label, 1, if on { SLIME_LIGHT } else { CREAM });
+    text(
+        c,
+        x + 15 + o,
+        y + 5 + o,
+        label,
+        1,
+        if on { SLIME_LIGHT } else { CREAM },
+    );
 }
 
 /// Tiny round shade-mode button (12×12): record or stop.
@@ -522,7 +634,12 @@ fn deck_body(c: &mut Canvas, w: i32, h: i32) {
         // Vertical sheen: lighter top, deeper bottom.
         let t = fy / hf;
         let mix = |a: u8, b: u8| (a as f32 + (b as f32 - a as f32) * t) as u8;
-        Some([mix(ORANGE_TOP[0], ORANGE_BOTTOM[0]), mix(ORANGE_TOP[1], ORANGE_BOTTOM[1]), mix(ORANGE_TOP[2], ORANGE_BOTTOM[2]), 255])
+        Some([
+            mix(ORANGE_TOP[0], ORANGE_BOTTOM[0]),
+            mix(ORANGE_TOP[1], ORANGE_BOTTOM[1]),
+            mix(ORANGE_TOP[2], ORANGE_BOTTOM[2]),
+            255,
+        ])
     });
     // Plastic speckle, deterministic.
     let mut seed = 0x2545_f491u32;
@@ -530,8 +647,21 @@ fn deck_body(c: &mut Canvas, w: i32, h: i32) {
         seed ^= seed << 13;
         seed ^= seed >> 17;
         seed ^= seed << 5;
-        let (x, y) = (2 + (seed % (w as u32 - 4)) as i32, 2 + ((seed >> 12) % (h as u32 - 4)) as i32);
-        c.rect(x, y, 1, 1, if seed & 1 == 0 { rgba(0xffffff, 18) } else { rgba(0x000000, 22) });
+        let (x, y) = (
+            2 + (seed % (w as u32 - 4)) as i32,
+            2 + ((seed >> 12) % (h as u32 - 4)) as i32,
+        );
+        c.rect(
+            x,
+            y,
+            1,
+            1,
+            if seed & 1 == 0 {
+                rgba(0xffffff, 18)
+            } else {
+                rgba(0x000000, 22)
+            },
+        );
     }
     c.rect(4, 1, w - 8, 1, ORANGE_LIGHT);
     c.rect(1, 4, 1, h - 8, ORANGE_LIGHT);
@@ -580,8 +710,10 @@ fn cassette(c: &mut Canvas, x: i32, y: i32) {
     c.shape(x + 22, y + 44, 78, 20, |fx, fy| {
         let rel = fy - (y + 44) as f32;
         let inset = 8.0 - rel * 0.4;
-        (fx >= (x + 22) as f32 + inset && fx <= (x + 100) as f32 - inset && (0.0..19.0).contains(&rel))
-            .then_some(rgb(0x232227))
+        (fx >= (x + 22) as f32 + inset
+            && fx <= (x + 100) as f32 - inset
+            && (0.0..19.0).contains(&rel))
+        .then_some(rgb(0x232227))
     });
     for hx in [x + 40, x + 58, x + 76] {
         c.round_rect(hx, y + 54, 6, 6, 1.5, INK);
@@ -600,7 +732,10 @@ fn cassette(c: &mut Canvas, x: i32, y: i32) {
 fn reel(c: &mut Canvas, fx: f32, fy: f32, angle: f32) {
     c.circle(fx, fy, 6.5, TAPE);
     // A darker band on the tape pack makes the turning visible.
-    let (bx, by) = (fx + 5.3 * (angle + 0.5).cos(), fy + 5.3 * (angle + 0.5).sin());
+    let (bx, by) = (
+        fx + 5.3 * (angle + 0.5).cos(),
+        fy + 5.3 * (angle + 0.5).sin(),
+    );
     c.circle(bx, by, 1.1, rgb(0x2e1a0f));
     c.circle(fx, fy, 4.2, CREAM);
     c.circle(fx, fy, 2.2, INK);
@@ -620,7 +755,9 @@ fn reels_sheet(dir: &std::path::Path) -> BTreeMap<String, [i32; 2]> {
             reel(c, (k * 16) as f32 + 8.0, 8.0, angle);
         }
     });
-    (0..REEL_FRAMES).map(|k| (format!("f{k}"), [k * 16, 0])).collect()
+    (0..REEL_FRAMES)
+        .map(|k| (format!("f{k}"), [k * 16, 0]))
+        .collect()
 }
 
 fn grille(c: &mut Canvas, x: i32, y: i32, w: i32, h: i32) {
@@ -647,7 +784,10 @@ fn main_background(c: &mut Canvas) {
     c.rect(278, 26, 130, 72, rgb(0x14100e));
     cassette(c, 282, 30);
     // Glass glare over the cassette window.
-    c.shape(278, 26, 130, 72, |fx, fy| ((fx - 278.0) + (fy - 26.0) * 0.6 < 34.0 && (fx - 278.0) + (fy - 26.0) * 0.6 > 24.0).then_some(rgba(0xffffff, 16)));
+    c.shape(278, 26, 130, 72, |fx, fy| {
+        ((fx - 278.0) + (fy - 26.0) * 0.6 < 34.0 && (fx - 278.0) + (fy - 26.0) * 0.6 > 24.0)
+            .then_some(rgba(0xffffff, 16))
+    });
     // Slime dripping off the title onto the displays.
     for (x, len) in [(14, 5), (40, 9), (77, 4), (112, 11), (139, 6), (160, 8)] {
         drip(c, x, 17, len);
@@ -766,7 +906,12 @@ fn main() {
     let keys = |states: &[(&'static str, Symbol, &'static str, Key)]| -> States {
         states
             .iter()
-            .map(|&(name, sym, label, k)| (name, Box::new(move |c: &mut Canvas, x, y| piano_key(c, x, y, sym, label, k)) as Draw))
+            .map(|&(name, sym, label, k)| {
+                (
+                    name,
+                    Box::new(move |c: &mut Canvas, x, y| piano_key(c, x, y, sym, label, k)) as Draw,
+                )
+            })
             .collect()
     };
     let record = sheet.add(KEY_W, 18, keys(&record_states));
@@ -782,8 +927,14 @@ fn main() {
     );
     let title = |kind: char| -> States {
         vec![
-            ("normal", Box::new(move |c: &mut Canvas, x, y| title_button(c, x, y, kind, false))),
-            ("pressed", Box::new(move |c: &mut Canvas, x, y| title_button(c, x, y, kind, true))),
+            (
+                "normal",
+                Box::new(move |c: &mut Canvas, x, y| title_button(c, x, y, kind, false)),
+            ),
+            (
+                "pressed",
+                Box::new(move |c: &mut Canvas, x, y| title_button(c, x, y, kind, true)),
+            ),
         ]
     };
     let minimize = sheet.add(12, 10, title('_'));
@@ -791,17 +942,31 @@ fn main() {
     let close = sheet.add(12, 10, title('x'));
     let gear = sheet.add(12, 10, title('*'));
     let toggle = |w: i32, label: &'static str| -> States {
-        [("normal", Key::Normal), ("pressed", Key::Pressed), ("active", Key::Active)]
-            .iter()
-            .map(|&(name, k)| (name, Box::new(move |c: &mut Canvas, x, y| toggle_button(c, x, y, w, label, k)) as Draw))
-            .collect()
+        [
+            ("normal", Key::Normal),
+            ("pressed", Key::Pressed),
+            ("active", Key::Active),
+        ]
+        .iter()
+        .map(|&(name, k)| {
+            (
+                name,
+                Box::new(move |c: &mut Canvas, x, y| toggle_button(c, x, y, w, label, k)) as Draw,
+            )
+        })
+        .collect()
     };
     let library = sheet.add(66, 16, toggle(66, "LIBRARY"));
     let settings = sheet.add(66, 16, toggle(66, "SETTINGS"));
     let tiny = |states: &[(&'static str, Symbol, &'static str, Key)]| -> States {
         states
             .iter()
-            .map(|&(name, sym, _, k)| (name, Box::new(move |c: &mut Canvas, x, y| tiny_button(c, x, y, sym, k)) as Draw))
+            .map(|&(name, sym, _, k)| {
+                (
+                    name,
+                    Box::new(move |c: &mut Canvas, x, y| tiny_button(c, x, y, sym, k)) as Draw,
+                )
+            })
             .collect()
     };
     let tiny_record = sheet.add(12, 12, tiny(&record_states));
@@ -830,7 +995,8 @@ fn main() {
         })
     };
 
-    let sprite = |states: &BTreeMap<String, [i32; 2]>| json!({ "image": "buttons.png", "states": states });
+    let sprite =
+        |states: &BTreeMap<String, [i32; 2]>| json!({ "image": "buttons.png", "states": states });
     let levels_style = json!({
         "rows": 2, "segments": 28, "gap": 1,
         "on": "@lcdLit", "hot": "@lcdHot", "clip": "@record", "off": "@lcdGhost"

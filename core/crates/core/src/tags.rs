@@ -75,7 +75,11 @@ pub fn read(path: &Path) -> Result<TagFields, String> {
         date: date_string(&tag),
         track: tag.track(),
         genre: non_empty(tag.genre_parsed().as_deref()),
-        comment: tag.comments().find(|c| c.description.is_empty()).map(|c| c.text.clone()).filter(|t| !t.is_empty()),
+        comment: tag
+            .comments()
+            .find(|c| c.description.is_empty())
+            .map(|c| c.text.clone())
+            .filter(|t| !t.is_empty()),
         has_cover: front_cover(&tag).is_some(),
     })
 }
@@ -102,7 +106,12 @@ pub fn write(path: &Path, edit: &TagEdit, version: TagVersion) -> Result<(), Str
     apply_text(&mut tag, &edit.title, Tag::set_title, Tag::remove_title);
     apply_text(&mut tag, &edit.artist, Tag::set_artist, Tag::remove_artist);
     apply_text(&mut tag, &edit.album, Tag::set_album, Tag::remove_album);
-    apply_text(&mut tag, &edit.album_artist, Tag::set_album_artist, Tag::remove_album_artist);
+    apply_text(
+        &mut tag,
+        &edit.album_artist,
+        Tag::set_album_artist,
+        Tag::remove_album_artist,
+    );
     apply_text(&mut tag, &edit.genre, Tag::set_genre, Tag::remove_genre);
     if let Some(track) = edit.track {
         match track {
@@ -113,7 +122,11 @@ pub fn write(path: &Path, edit: &TagEdit, version: TagVersion) -> Result<(), Str
     if let Some(comment) = &edit.comment {
         tag.remove_comment(None, None);
         if let Some(text) = comment.as_deref().map(str::trim).filter(|t| !t.is_empty()) {
-            tag.add_frame(Comment { lang: "eng".into(), description: String::new(), text: text.to_string() });
+            tag.add_frame(Comment {
+                lang: "eng".into(),
+                description: String::new(),
+                text: text.to_string(),
+            });
         }
     }
     if let Some(date) = &edit.date {
@@ -149,7 +162,13 @@ pub fn write(path: &Path, edit: &TagEdit, version: TagVersion) -> Result<(), Str
 /// The original's tag for one track cut from it (track editor): every frame
 /// copied, the title replaced, the track number set to `number`/`total`,
 /// encoded ready to put in front of the track's audio.
-pub fn track_tag_bytes(original: &Path, title: &str, number: u32, total: u32, version: TagVersion) -> Result<Vec<u8>, String> {
+pub fn track_tag_bytes(
+    original: &Path,
+    title: &str,
+    number: u32,
+    total: u32,
+    version: TagVersion,
+) -> Result<Vec<u8>, String> {
     let mut tag = match Tag::read_from_path(original) {
         Ok(tag) => tag,
         Err(e) if matches!(e.kind, id3::ErrorKind::NoTag) => Tag::new(),
@@ -168,18 +187,23 @@ pub fn track_tag_bytes(original: &Path, title: &str, number: u32, total: u32, ve
         }
     };
     let mut out = Vec::new();
-    tag.write_to(&mut out, version).map_err(|e| format!("writing tags: {e}"))?;
+    tag.write_to(&mut out, version)
+        .map_err(|e| format!("writing tags: {e}"))?;
     Ok(out)
 }
 
 /// Copies the file, writes the tag into the copy, then renames it over the
 /// original. On any error the original is untouched and the copy removed.
 fn write_atomically(path: &Path, tag: &Tag, version: Version) -> Result<(), String> {
-    let file_name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let file_name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
     let temp = path.with_file_name(format!(".{file_name}.tagging"));
     let result = (|| -> Result<(), String> {
         std::fs::copy(path, &temp).map_err(|e| format!("copying {}: {e}", path.display()))?;
-        tag.write_to_path(&temp, version).map_err(|e| format!("writing tags: {e}"))?;
+        tag.write_to_path(&temp, version)
+            .map_err(|e| format!("writing tags: {e}"))?;
         std::fs::File::options()
             .append(true)
             .open(&temp)
@@ -208,11 +232,15 @@ fn apply_text(
 }
 
 fn non_empty(s: Option<&str>) -> Option<String> {
-    s.map(str::trim).filter(|s| !s.is_empty()).map(str::to_string)
+    s.map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
 }
 
 fn front_cover(tag: &Tag) -> Option<&Picture> {
-    tag.pictures().find(|p| p.picture_type == PictureType::CoverFront).or_else(|| tag.pictures().next())
+    tag.pictures()
+        .find(|p| p.picture_type == PictureType::CoverFront)
+        .or_else(|| tag.pictures().next())
 }
 
 /// Recording date as "YYYY[-MM[-DD]]", from TDRC (v2.4) or TYER (v2.3).
@@ -246,7 +274,14 @@ fn parse_date(text: &str) -> Result<Timestamp, String> {
         Some(d) => Some(num(d, 31).ok_or_else(err)?),
         None => None,
     };
-    Ok(Timestamp { year, month, day, hour: None, minute: None, second: None })
+    Ok(Timestamp {
+        year,
+        month,
+        day,
+        hour: None,
+        minute: None,
+        second: None,
+    })
 }
 
 fn remove_dates(tag: &mut Tag) {
@@ -284,7 +319,11 @@ fn load_image(path: &Path) -> Result<(String, Vec<u8>), String> {
 
 /// File extension for a cover's MIME type.
 pub fn cover_extension(mime: &str) -> &'static str {
-    if mime.eq_ignore_ascii_case("image/png") { "png" } else { "jpg" }
+    if mime.eq_ignore_ascii_case("image/png") {
+        "png"
+    } else {
+        "jpg"
+    }
 }
 
 #[cfg(test)]
@@ -293,10 +332,11 @@ pub(crate) mod tests {
     use crate::mp3::tests::{encode_all, sine};
 
     pub(crate) const PNG_1X1: &[u8] = &[
-        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00,
-        0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00, 0x0D, 0x49,
-        0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0xF8, 0xCF, 0xC0, 0xF0, 0x1F, 0x00, 0x05, 0x00, 0x01, 0xFF, 0x89, 0x99, 0x3D,
-        0x1D, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44,
+        0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1F,
+        0x15, 0xC4, 0x89, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0xF8,
+        0xCF, 0xC0, 0xF0, 0x1F, 0x00, 0x05, 0x00, 0x01, 0xFF, 0x89, 0x99, 0x3D, 0x1D, 0x00, 0x00,
+        0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
     ];
 
     fn mp3(dir: &Path, name: &str) -> PathBuf {
@@ -330,33 +370,68 @@ pub(crate) mod tests {
         };
         write(&path, &edit, TagVersion::V24).unwrap();
 
-        assert_eq!(read(&path).unwrap(), TagFields {
-            title: Some("Song".into()),
-            artist: Some("Artist".into()),
-            album: Some("Album".into()),
-            album_artist: Some("Various".into()),
-            date: Some("2026-10-03".into()),
-            track: Some(7),
-            genre: Some("Jazz".into()),
-            comment: Some("Live take".into()),
-            has_cover: true,
-        });
-        assert_eq!(read_cover(&path).unwrap(), ("image/png".to_string(), PNG_1X1.to_vec()));
-        assert_eq!(Tag::read_from_path(&path).unwrap().version(), Version::Id3v24);
+        assert_eq!(
+            read(&path).unwrap(),
+            TagFields {
+                title: Some("Song".into()),
+                artist: Some("Artist".into()),
+                album: Some("Album".into()),
+                album_artist: Some("Various".into()),
+                date: Some("2026-10-03".into()),
+                track: Some(7),
+                genre: Some("Jazz".into()),
+                comment: Some("Live take".into()),
+                has_cover: true,
+            }
+        );
+        assert_eq!(
+            read_cover(&path).unwrap(),
+            ("image/png".to_string(), PNG_1X1.to_vec())
+        );
+        assert_eq!(
+            Tag::read_from_path(&path).unwrap().version(),
+            Version::Id3v24
+        );
         // The audio frames are untouched.
         let audio_after = crate::mp3::scan(&path).unwrap();
-        assert_eq!((audio_after.frames, audio_after.has_info_tag), (audio_before.frames, audio_before.has_info_tag));
-        assert!(std::fs::read_dir(&dir).unwrap().all(|e| !e.unwrap().file_name().to_string_lossy().ends_with(".tagging")));
+        assert_eq!(
+            (audio_after.frames, audio_after.has_info_tag),
+            (audio_before.frames, audio_before.has_info_tag)
+        );
+        assert!(std::fs::read_dir(&dir).unwrap().all(|e| {
+            !e.unwrap()
+                .file_name()
+                .to_string_lossy()
+                .ends_with(".tagging")
+        }));
     }
 
     #[test]
     fn untouched_fields_are_kept_and_cleared_fields_removed() {
         let dir = crate::paths::tempdir();
         let path = mp3(&dir, "a.mp3");
-        write(&path, &TagEdit { title: set("T"), artist: set("A"), comment: set("C"), ..Default::default() }, TagVersion::V24)
-            .unwrap();
-        write(&path, &TagEdit { artist: Some(None), comment: set("   "), album: set("New"), ..Default::default() }, TagVersion::V24)
-            .unwrap();
+        write(
+            &path,
+            &TagEdit {
+                title: set("T"),
+                artist: set("A"),
+                comment: set("C"),
+                ..Default::default()
+            },
+            TagVersion::V24,
+        )
+        .unwrap();
+        write(
+            &path,
+            &TagEdit {
+                artist: Some(None),
+                comment: set("   "),
+                album: set("New"),
+                ..Default::default()
+            },
+            TagVersion::V24,
+        )
+        .unwrap();
         let fields = read(&path).unwrap();
         assert_eq!(fields.title.as_deref(), Some("T"));
         assert_eq!(fields.artist, None);
@@ -382,8 +457,16 @@ pub(crate) mod tests {
 
         let cover = dir.join("cover.png");
         std::fs::write(&cover, PNG_1X1).unwrap();
-        write(&path, &TagEdit { album: set("Roonie"), cover: CoverEdit::Set(cover), ..Default::default() }, TagVersion::V24)
-            .unwrap();
+        write(
+            &path,
+            &TagEdit {
+                album: set("Roonie"),
+                cover: CoverEdit::Set(cover),
+                ..Default::default()
+            },
+            TagVersion::V24,
+        )
+        .unwrap();
 
         let fields = read(&path).unwrap();
         assert_eq!(fields.title.as_deref(), Some("Testeroonie"));
@@ -392,15 +475,29 @@ pub(crate) mod tests {
         assert_eq!(fields.date.as_deref(), Some("2026-10-03"));
         assert_eq!(fields.album.as_deref(), Some("Roonie"));
         assert!(fields.has_cover);
-        assert_eq!(Tag::read_from_path(&path).unwrap().get("TSSE").and_then(|f| f.content().text()), Some("Sound Scraper test"));
+        assert_eq!(
+            Tag::read_from_path(&path)
+                .unwrap()
+                .get("TSSE")
+                .and_then(|f| f.content().text()),
+            Some("Sound Scraper test")
+        );
     }
 
     #[test]
     fn writes_id3v23_with_a_year() {
         let dir = crate::paths::tempdir();
         let path = mp3(&dir, "a.mp3");
-        write(&path, &TagEdit { date: set("1999-05-17"), title: set("Old player"), ..Default::default() }, TagVersion::V23)
-            .unwrap();
+        write(
+            &path,
+            &TagEdit {
+                date: set("1999-05-17"),
+                title: set("Old player"),
+                ..Default::default()
+            },
+            TagVersion::V23,
+        )
+        .unwrap();
         let tag = Tag::read_from_path(&path).unwrap();
         assert_eq!(tag.version(), Version::Id3v23);
         assert_eq!(tag.year(), Some(1999));
@@ -416,12 +513,22 @@ pub(crate) mod tests {
         let path = mp3(&dir, "a.mp3");
         let cover = dir.join("c.png");
         std::fs::write(&cover, PNG_1X1).unwrap();
-        let edit = TagEdit { title: set("Café ☕"), artist: set("Plain"), cover: CoverEdit::Set(cover), ..Default::default() };
+        let edit = TagEdit {
+            title: set("Café ☕"),
+            artist: set("Plain"),
+            cover: CoverEdit::Set(cover),
+            ..Default::default()
+        };
         write(&path, &edit, TagVersion::V23).unwrap();
         let data = std::fs::read(&path).unwrap();
         for id in [&b"TIT2"[..], b"TPE1", b"APIC"] {
             let i = data.windows(4).position(|w| w == id).unwrap();
-            assert!(data[i + 10] <= 1, "{} uses text encoding {}", String::from_utf8_lossy(id), data[i + 10]);
+            assert!(
+                data[i + 10] <= 1,
+                "{} uses text encoding {}",
+                String::from_utf8_lossy(id),
+                data[i + 10]
+            );
         }
         assert_eq!(read(&path).unwrap().title.as_deref(), Some("Café ☕"));
     }
@@ -432,17 +539,55 @@ pub(crate) mod tests {
         let path = mp3(&dir, "a.mp3");
         let cover = dir.join("cover.png");
         std::fs::write(&cover, PNG_1X1).unwrap();
-        write(&path, &TagEdit { cover: CoverEdit::Set(cover), ..Default::default() }, TagVersion::V24).unwrap();
-        write(&path, &TagEdit { cover: CoverEdit::Remove, ..Default::default() }, TagVersion::V24).unwrap();
+        write(
+            &path,
+            &TagEdit {
+                cover: CoverEdit::Set(cover),
+                ..Default::default()
+            },
+            TagVersion::V24,
+        )
+        .unwrap();
+        write(
+            &path,
+            &TagEdit {
+                cover: CoverEdit::Remove,
+                ..Default::default()
+            },
+            TagVersion::V24,
+        )
+        .unwrap();
         assert!(!read(&path).unwrap().has_cover);
 
         let before = std::fs::read(&path).unwrap();
         let not_image = dir.join("notes.txt");
         std::fs::write(&not_image, b"hello").unwrap();
-        let err = write(&path, &TagEdit { title: set("X"), cover: CoverEdit::Set(not_image), ..Default::default() }, TagVersion::V24);
+        let err = write(
+            &path,
+            &TagEdit {
+                title: set("X"),
+                cover: CoverEdit::Set(not_image),
+                ..Default::default()
+            },
+            TagVersion::V24,
+        );
         assert!(err.unwrap_err().contains("isn't a JPEG or PNG"));
-        assert!(write(&path, &TagEdit { date: set("10/03/2026"), ..Default::default() }, TagVersion::V24).is_err());
-        assert_eq!(std::fs::read(&path).unwrap(), before, "failed edits leave the file unchanged");
+        assert!(
+            write(
+                &path,
+                &TagEdit {
+                    date: set("10/03/2026"),
+                    ..Default::default()
+                },
+                TagVersion::V24
+            )
+            .is_err()
+        );
+        assert_eq!(
+            std::fs::read(&path).unwrap(),
+            before,
+            "failed edits leave the file unchanged"
+        );
     }
 
     #[test]
@@ -453,4 +598,3 @@ pub(crate) mod tests {
         assert_eq!(read(&path).unwrap(), TagFields::default());
     }
 }
-

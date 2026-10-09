@@ -22,9 +22,9 @@ use windows::{
         Storage::{FileSystem::FILE_ATTRIBUTE_NORMAL, Imapi::*},
         System::{
             Com::{
-                CLSCTX_ALL, COINIT_MULTITHREADED, CoCreateInstance, CoInitializeEx, CoUninitialize, IStream,
-                ISequentialStream_Impl, IStream_Impl, LOCKTYPE, STATFLAG, STATSTG, STGC, STGM_READ,
-                STGM_SHARE_DENY_WRITE, STREAM_SEEK,
+                CLSCTX_ALL, COINIT_MULTITHREADED, CoCreateInstance, CoInitializeEx, CoUninitialize,
+                ISequentialStream_Impl, IStream, IStream_Impl, LOCKTYPE, STATFLAG, STATSTG, STGC,
+                STGM_READ, STGM_SHARE_DENY_WRITE, STREAM_SEEK,
             },
             Power::{ES_CONTINUOUS, ES_SYSTEM_REQUIRED, SetThreadExecutionState},
         },
@@ -33,7 +33,10 @@ use windows::{
     core::{BSTR, HRESULT, HSTRING, Ref, implement},
 };
 
-use crate::{BurnEvent, Burner, Device, Media, PreparedDisc, SECTOR_BYTES, SECTORS_74, SECTORS_80, WriteOptions};
+use crate::{
+    BurnEvent, Burner, Device, Media, PreparedDisc, SECTOR_BYTES, SECTORS_74, SECTORS_80,
+    WriteOptions,
+};
 
 const CLIENT: &str = "Sound Scraper";
 
@@ -60,18 +63,29 @@ fn err(what: &str, e: windows::core::Error) -> String {
 
 fn recorder(id: &str) -> Result<IDiscRecorder2, String> {
     unsafe {
-        let r: IDiscRecorder2 =
-            CoCreateInstance(&MsftDiscRecorder2, None, CLSCTX_ALL).map_err(|e| err("opening the recorder", e))?;
-        r.InitializeDiscRecorder(&BSTR::from(id)).map_err(|e| err("opening the recorder", e))?;
+        let r: IDiscRecorder2 = CoCreateInstance(&MsftDiscRecorder2, None, CLSCTX_ALL)
+            .map_err(|e| err("opening the recorder", e))?;
+        r.InitializeDiscRecorder(&BSTR::from(id))
+            .map_err(|e| err("opening the recorder", e))?;
         Ok(r)
     }
 }
 
 fn name(r: &IDiscRecorder2) -> String {
-    let vendor = unsafe { r.VendorId() }.map(|b| b.to_string()).unwrap_or_default();
-    let product = unsafe { r.ProductId() }.map(|b| b.to_string()).unwrap_or_default();
-    let n = format!("{} {}", vendor.trim(), product.trim()).trim().to_string();
-    if n.is_empty() { "CD recorder".into() } else { n }
+    let vendor = unsafe { r.VendorId() }
+        .map(|b| b.to_string())
+        .unwrap_or_default();
+    let product = unsafe { r.ProductId() }
+        .map(|b| b.to_string())
+        .unwrap_or_default();
+    let n = format!("{} {}", vendor.trim(), product.trim())
+        .trim()
+        .to_string();
+    if n.is_empty() {
+        "CD recorder".into()
+    } else {
+        n
+    }
 }
 
 fn minutes(sectors: u64) -> String {
@@ -85,11 +99,22 @@ fn minutes(sectors: u64) -> String {
 }
 
 fn media(r: &IDiscRecorder2) -> Media {
-    let none = |label: &str| Media { state: "none".into(), kind: None, capacity: None, label: label.into() };
-    let unusable =
-        |kind: Option<&str>, label: &str| Media { state: "unusable".into(), kind: kind.map(str::to_string), capacity: None, label: label.into() };
+    let none = |label: &str| Media {
+        state: "none".into(),
+        kind: None,
+        capacity: None,
+        label: label.into(),
+    };
+    let unusable = |kind: Option<&str>, label: &str| Media {
+        state: "unusable".into(),
+        kind: kind.map(str::to_string),
+        capacity: None,
+        label: label.into(),
+    };
     unsafe {
-        let Ok(data) = CoCreateInstance::<_, IDiscFormat2Data>(&MsftDiscFormat2Data, None, CLSCTX_ALL) else {
+        let Ok(data) =
+            CoCreateInstance::<_, IDiscFormat2Data>(&MsftDiscFormat2Data, None, CLSCTX_ALL)
+        else {
             return none("No disc");
         };
         if data.SetRecorder(r).is_err() {
@@ -106,10 +131,22 @@ fn media(r: &IDiscRecorder2) -> Media {
             IMAPI_MEDIA_TYPE_CDROM => return unusable(Some("CD-ROM"), "This CD can't be written"),
             _ => return unusable(None, "Not a CD: audio CDs need a CD-R or CD-RW"),
         };
-        let blank = data.MediaPhysicallyBlank().map(|b| b.as_bool()).unwrap_or(false)
-            || data.MediaHeuristicallyBlank().map(|b| b.as_bool()).unwrap_or(false);
-        let free = data.FreeSectorsOnMedia().map(|n| n.max(0) as u64).unwrap_or(0);
-        let total = data.TotalSectorsOnMedia().map(|n| n.max(0) as u64).unwrap_or(free);
+        let blank = data
+            .MediaPhysicallyBlank()
+            .map(|b| b.as_bool())
+            .unwrap_or(false)
+            || data
+                .MediaHeuristicallyBlank()
+                .map(|b| b.as_bool())
+                .unwrap_or(false);
+        let free = data
+            .FreeSectorsOnMedia()
+            .map(|n| n.max(0) as u64)
+            .unwrap_or(0);
+        let total = data
+            .TotalSectorsOnMedia()
+            .map(|n| n.max(0) as u64)
+            .unwrap_or(free);
         if blank {
             Media {
                 state: "blank".into(),
@@ -125,7 +162,10 @@ fn media(r: &IDiscRecorder2) -> Media {
                 label: format!("CD-RW {}, not blank (erase first)", minutes(total)),
             }
         } else {
-            unusable(Some(label), "This CD-R has been written: insert a blank one")
+            unusable(
+                Some(label),
+                "This CD-R has been written: insert a blank one",
+            )
         }
     }
 }
@@ -137,10 +177,16 @@ pub fn devices() -> Vec<Device> {
         let _com = Com::init();
         let mut out = Vec::new();
         unsafe {
-            let Ok(master) = CoCreateInstance::<_, IDiscMaster2>(&MsftDiscMaster2, None, CLSCTX_ALL) else {
+            let Ok(master) =
+                CoCreateInstance::<_, IDiscMaster2>(&MsftDiscMaster2, None, CLSCTX_ALL)
+            else {
                 return out;
             };
-            if !master.IsSupportedEnvironment().map(|b| b.as_bool()).unwrap_or(false) {
+            if !master
+                .IsSupportedEnvironment()
+                .map(|b| b.as_bool())
+                .unwrap_or(false)
+            {
                 return out;
             }
             let count = master.Count().unwrap_or(0);
@@ -148,11 +194,18 @@ pub fn devices() -> Vec<Device> {
                 let Ok(id) = master.get_Item(i) else { continue };
                 let id = id.to_string();
                 let Ok(r) = recorder(&id) else { continue };
-                let Ok(tao) = CoCreateInstance::<_, IDiscFormat2TrackAtOnce>(&MsftDiscFormat2TrackAtOnce, None, CLSCTX_ALL)
-                else {
+                let Ok(tao) = CoCreateInstance::<_, IDiscFormat2TrackAtOnce>(
+                    &MsftDiscFormat2TrackAtOnce,
+                    None,
+                    CLSCTX_ALL,
+                ) else {
                     continue;
                 };
-                if !tao.IsRecorderSupported(&r).map(|b| b.as_bool()).unwrap_or(false) {
+                if !tao
+                    .IsRecorderSupported(&r)
+                    .map(|b| b.as_bool())
+                    .unwrap_or(false)
+                {
                     continue; // Can't write audio CDs.
                 }
                 out.push(Device {
@@ -201,8 +254,17 @@ impl ISequentialStream_Impl for CountingStream_Impl {
 }
 
 impl IStream_Impl for CountingStream_Impl {
-    fn Seek(&self, dlibmove: i64, dworigin: STREAM_SEEK, plibnewposition: *mut u64) -> windows::core::Result<()> {
-        let to = if plibnewposition.is_null() { None } else { Some(plibnewposition) };
+    fn Seek(
+        &self,
+        dlibmove: i64,
+        dworigin: STREAM_SEEK,
+        plibnewposition: *mut u64,
+    ) -> windows::core::Result<()> {
+        let to = if plibnewposition.is_null() {
+            None
+        } else {
+            Some(plibnewposition)
+        };
         unsafe { self.inner.Seek(dlibmove, dworigin, to) }
     }
 
@@ -210,10 +272,24 @@ impl IStream_Impl for CountingStream_Impl {
         unsafe { self.inner.SetSize(libnewsize) }
     }
 
-    fn CopyTo(&self, pstm: Ref<IStream>, cb: u64, pcbread: *mut u64, pcbwritten: *mut u64) -> windows::core::Result<()> {
+    fn CopyTo(
+        &self,
+        pstm: Ref<IStream>,
+        cb: u64,
+        pcbread: *mut u64,
+        pcbwritten: *mut u64,
+    ) -> windows::core::Result<()> {
         let target = pstm.ok()?;
-        let r = if pcbread.is_null() { None } else { Some(pcbread) };
-        let w = if pcbwritten.is_null() { None } else { Some(pcbwritten) };
+        let r = if pcbread.is_null() {
+            None
+        } else {
+            Some(pcbread)
+        };
+        let w = if pcbwritten.is_null() {
+            None
+        } else {
+            Some(pcbwritten)
+        };
         unsafe { self.inner.CopyTo(target, cb, r, w) }
     }
 
@@ -225,7 +301,12 @@ impl IStream_Impl for CountingStream_Impl {
         unsafe { self.inner.Revert() }
     }
 
-    fn LockRegion(&self, liboffset: u64, cb: u64, dwlocktype: &LOCKTYPE) -> windows::core::Result<()> {
+    fn LockRegion(
+        &self,
+        liboffset: u64,
+        cb: u64,
+        dwlocktype: &LOCKTYPE,
+    ) -> windows::core::Result<()> {
         unsafe { self.inner.LockRegion(liboffset, cb, *dwlocktype) }
     }
 
@@ -242,7 +323,11 @@ impl IStream_Impl for CountingStream_Impl {
     }
 }
 
-fn open_stream(path: &Path, read: Arc<AtomicU64>, cancel: Arc<AtomicBool>) -> Result<IStream, String> {
+fn open_stream(
+    path: &Path,
+    read: Arc<AtomicU64>,
+    cancel: Arc<AtomicBool>,
+) -> Result<IStream, String> {
     let inner = unsafe {
         SHCreateStreamOnFileEx(
             &HSTRING::from(path.as_os_str()),
@@ -253,7 +338,12 @@ fn open_stream(path: &Path, read: Arc<AtomicU64>, cancel: Arc<AtomicBool>) -> Re
         )
     }
     .map_err(|e| err(&format!("opening {}", path.display()), e))?;
-    Ok(CountingStream { inner, read, cancel }.into())
+    Ok(CountingStream {
+        inner,
+        read,
+        cancel,
+    }
+    .into())
 }
 
 pub struct ImapiBurner {
@@ -286,9 +376,12 @@ impl Burner for ImapiBurner {
     ) -> Result<String, String> {
         let _com = Com::init();
         let _awake = StayAwake::new();
-        let r = recorder(&self.device_id).map_err(|e| format!("The CD recorder isn't available: {e}"))?;
+        let r = recorder(&self.device_id)
+            .map_err(|e| format!("The CD recorder isn't available: {e}"))?;
         let m = media(&r);
-        let revision = unsafe { r.ProductRevision() }.map(|b| b.to_string()).unwrap_or_default();
+        let revision = unsafe { r.ProductRevision() }
+            .map(|b| b.to_string())
+            .unwrap_or_default();
         events(BurnEvent::Log(format!(
             "Drive: {} (firmware {}); disc: {}; Track-at-Once, 2 s gaps, no CD-Text (IMAPI2)",
             name(&r),
@@ -299,18 +392,31 @@ impl Burner for ImapiBurner {
             if options.erase && m.state == "erasable" {
                 events(BurnEvent::Phase("Erasing the CD-RW".into()));
                 let erase: IDiscFormat2Erase =
-                    CoCreateInstance(&MsftDiscFormat2Erase, None, CLSCTX_ALL).map_err(|e| err("erasing", e))?;
+                    CoCreateInstance(&MsftDiscFormat2Erase, None, CLSCTX_ALL)
+                        .map_err(|e| err("erasing", e))?;
                 erase.SetRecorder(&r).map_err(|e| err("erasing", e))?;
-                erase.SetClientName(&BSTR::from(CLIENT)).map_err(|e| err("erasing", e))?;
-                erase.SetFullErase(VARIANT_FALSE).map_err(|e| err("erasing", e))?;
-                erase.EraseMedia().map_err(|e| err("Couldn't erase the CD-RW", e))?;
+                erase
+                    .SetClientName(&BSTR::from(CLIENT))
+                    .map_err(|e| err("erasing", e))?;
+                erase
+                    .SetFullErase(VARIANT_FALSE)
+                    .map_err(|e| err("erasing", e))?;
+                erase
+                    .EraseMedia()
+                    .map_err(|e| err("Couldn't erase the CD-RW", e))?;
                 events(BurnEvent::Log("Erased the CD-RW".into()));
             }
             let tao: IDiscFormat2TrackAtOnce =
-                CoCreateInstance(&MsftDiscFormat2TrackAtOnce, None, CLSCTX_ALL).map_err(|e| err("preparing", e))?;
+                CoCreateInstance(&MsftDiscFormat2TrackAtOnce, None, CLSCTX_ALL)
+                    .map_err(|e| err("preparing", e))?;
             tao.SetRecorder(&r).map_err(|e| err("preparing", e))?;
-            tao.SetClientName(&BSTR::from(CLIENT)).map_err(|e| err("preparing", e))?;
-            if !tao.IsCurrentMediaSupported(&r).map(|b| b.as_bool()).unwrap_or(false) {
+            tao.SetClientName(&BSTR::from(CLIENT))
+                .map_err(|e| err("preparing", e))?;
+            if !tao
+                .IsCurrentMediaSupported(&r)
+                .map(|b| b.as_bool())
+                .unwrap_or(false)
+            {
                 return Err(format!("This disc can't take an audio CD ({}).", m.label));
             }
             if options.speed > 0 {
@@ -318,8 +424,12 @@ impl Burner for ImapiBurner {
                 let _ = tao.SetWriteSpeed(options.speed as i32 * 75, VARIANT_FALSE);
             }
             events(BurnEvent::Phase("Preparing the drive".into()));
-            tao.PrepareMedia().map_err(|e| err("Couldn't prepare the disc", e))?;
-            let free = tao.FreeSectorsOnMedia().map(|n| n.max(0) as u64).unwrap_or(0);
+            tao.PrepareMedia()
+                .map_err(|e| err("Couldn't prepare the disc", e))?;
+            let free = tao
+                .FreeSectorsOnMedia()
+                .map(|n| n.max(0) as u64)
+                .unwrap_or(0);
             events(BurnEvent::Log(format!("{free} sectors free on the disc")));
             if free > 0
                 && let Err(e) = disc.layout.check_fits(free + crate::FIRST_PREGAP_SECTORS)
@@ -343,7 +453,11 @@ impl Burner for ImapiBurner {
                                     stop.store(true, Ordering::Relaxed);
                                 }
                                 let sectors = read.load(Ordering::Relaxed) / SECTOR_BYTES as u64;
-                                events(BurnEvent::Written { sectors: t.start + sectors.min(t.sectors), speed_x: None, buffer: None });
+                                events(BurnEvent::Written {
+                                    sectors: t.start + sectors.min(t.sectors),
+                                    speed_x: None,
+                                    buffer: None,
+                                });
                                 std::thread::sleep(Duration::from_millis(200));
                             }
                         });
@@ -355,7 +469,11 @@ impl Burner for ImapiBurner {
                         return Err("Cancelled.".to_string());
                     }
                     added.map_err(|e| err(&format!("Writing track {} failed", t.number), e))?;
-                    events(BurnEvent::Written { sectors: t.start + t.sectors, speed_x: None, buffer: None });
+                    events(BurnEvent::Written {
+                        sectors: t.start + t.sectors,
+                        speed_x: None,
+                        buffer: None,
+                    });
                     if !speed_logged {
                         speed_logged = true;
                         if let Ok(s) = tao.CurrentWriteSpeed() {

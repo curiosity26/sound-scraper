@@ -72,7 +72,10 @@ impl VisHub {
 
     /// Whether an analyzer is running (a recording is active or paused).
     pub fn is_active(&self) -> bool {
-        self.output.lock().unwrap_or_else(|e| e.into_inner()).is_some()
+        self.output
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .is_some()
     }
 
     /// Runs `f` on the latest frame, if an analyzer is running.

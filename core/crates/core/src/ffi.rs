@@ -127,7 +127,8 @@ pub struct SsRecorderEvent {
 
 /// Receives recorder events, on a recorder thread or the calling thread.
 /// It must return quickly and must not call back into the same recorder.
-pub type SsRecorderCallback = Option<unsafe extern "C" fn(event: *const SsRecorderEvent, user_data: *mut c_void)>;
+pub type SsRecorderCallback =
+    Option<unsafe extern "C" fn(event: *const SsRecorderEvent, user_data: *mut c_void)>;
 
 static VERSION_C: &str = concat!(env!("CARGO_PKG_VERSION"), "\0");
 
@@ -146,7 +147,12 @@ pub extern "C" fn ss_recorder_create() -> *mut SsRecorder {
     let status = recorder.status();
     let player = Player::new(status.vis());
     let player_status = player.status();
-    Box::into_raw(Box::new(SsRecorder { inner: Mutex::new(recorder), status, player: Mutex::new(player), player_status }))
+    Box::into_raw(Box::new(SsRecorder {
+        inner: Mutex::new(recorder),
+        status,
+        player: Mutex::new(player),
+        player_status,
+    }))
 }
 
 /// Destroys a recorder, finalizing any recording in progress. NULL is a no-op.
@@ -201,24 +207,36 @@ pub unsafe extern "C" fn ss_recorder_set_callback(
     callback: SsRecorderCallback,
     user_data: *mut c_void,
 ) -> SsStatus {
-    let Some(r) = (unsafe { recorder.as_ref() }) else { return fail("recorder is NULL") };
+    let Some(r) = (unsafe { recorder.as_ref() }) else {
+        return fail("recorder is NULL");
+    };
     let mut inner = r.inner.lock().unwrap_or_else(|e| e.into_inner());
     if inner.state() != RecorderState::Idle {
         return fail("the callback can only be changed while idle");
     }
-    let target = callback.map(|callback| Arc::new(CallbackTarget { callback, user_data }));
+    let target = callback.map(|callback| {
+        Arc::new(CallbackTarget {
+            callback,
+            user_data,
+        })
+    });
     let sink: Option<recorder::EventSink> = target.clone().map(|target| {
         let status = r.status.clone();
         let player = r.player_status.clone();
-        Arc::new(move |event: &RecorderEvent| deliver(&target, &status, &player, event)) as recorder::EventSink
+        Arc::new(move |event: &RecorderEvent| deliver(&target, &status, &player, event))
+            as recorder::EventSink
     });
     inner.set_event_sink(sink);
     let player_sink: Option<crate::player::PlayerSink> = target.map(|target| {
         let status = r.status.clone();
         let player = r.player_status.clone();
-        Arc::new(move |event: &PlayerEvent| deliver_player(&target, &status, &player, event)) as crate::player::PlayerSink
+        Arc::new(move |event: &PlayerEvent| deliver_player(&target, &status, &player, event))
+            as crate::player::PlayerSink
     });
-    r.player.lock().unwrap_or_else(|e| e.into_inner()).set_event_sink(player_sink);
+    r.player
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .set_event_sink(player_sink);
     SsStatus::Ok
 }
 
@@ -241,7 +259,12 @@ fn base_event(status: &Status, player: &PlayerStatus) -> SsRecorderEvent {
     }
 }
 
-fn deliver_player(target: &CallbackTarget, status: &Status, player: &PlayerStatus, event: &PlayerEvent) {
+fn deliver_player(
+    target: &CallbackTarget,
+    status: &Status,
+    player: &PlayerStatus,
+    event: &PlayerEvent,
+) {
     let mut c = base_event(status, player);
     let text;
     match event {
@@ -249,7 +272,12 @@ fn deliver_player(target: &CallbackTarget, status: &Status, player: &PlayerStatu
             c.kind = SsRecorderEventKind::PlayerStateChanged;
             c.player_state = (*state).into();
         }
-        PlayerEvent::Progress { position, duration, peak, rms } => {
+        PlayerEvent::Progress {
+            position,
+            duration,
+            peak,
+            rms,
+        } => {
             c.kind = SsRecorderEventKind::PlayerProgress;
             c.position_ms = position.as_millis() as u64;
             c.duration_ms = duration.as_millis() as u64;
@@ -296,7 +324,9 @@ fn with_recorder(
     recorder: *const SsRecorder,
     f: impl FnOnce(&mut Recorder) -> Result<(), String>,
 ) -> SsStatus {
-    let Some(r) = (unsafe { recorder.as_ref() }) else { return fail("recorder is NULL") };
+    let Some(r) = (unsafe { recorder.as_ref() }) else {
+        return fail("recorder is NULL");
+    };
     let result = catch_unwind(AssertUnwindSafe(|| {
         let mut inner = r.inner.lock().unwrap_or_else(|e| e.into_inner());
         f(&mut inner)
@@ -317,7 +347,9 @@ fn with_recorder(
 /// `recorder` must be NULL or a live handle from `ss_recorder_create`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ss_recorder_start(recorder: *mut SsRecorder, app_pid: u32) -> SsStatus {
-    let Some(handle) = (unsafe { recorder.as_ref() }) else { return fail("recorder is NULL") };
+    let Some(handle) = (unsafe { recorder.as_ref() }) else {
+        return fail("recorder is NULL");
+    };
     with_recorder(recorder, |r| {
         // Held until the recording runs, so nothing loads in between.
         let mut player = handle.player.lock().unwrap_or_else(|e| e.into_inner());
@@ -360,7 +392,10 @@ pub unsafe extern "C" fn ss_recorder_resume(recorder: *mut SsRecorder) -> SsStat
 /// `recorder` must be NULL or a live handle; `out_path` must be NULL or
 /// writable.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ss_recorder_stop(recorder: *mut SsRecorder, out_path: *mut *mut c_char) -> SsStatus {
+pub unsafe extern "C" fn ss_recorder_stop(
+    recorder: *mut SsRecorder,
+    out_path: *mut *mut c_char,
+) -> SsStatus {
     with_recorder(recorder, |r| {
         let path = r.stop()?;
         if !out_path.is_null() {
@@ -375,7 +410,9 @@ fn with_player(
     recorder: *const SsRecorder,
     f: impl FnOnce(&mut Player, RecorderState) -> Result<(), String>,
 ) -> SsStatus {
-    let Some(r) = (unsafe { recorder.as_ref() }) else { return fail("recorder is NULL") };
+    let Some(r) = (unsafe { recorder.as_ref() }) else {
+        return fail("recorder is NULL");
+    };
     let result = catch_unwind(AssertUnwindSafe(|| {
         let mut player = r.player.lock().unwrap_or_else(|e| e.into_inner());
         f(&mut player, r.status.state())
@@ -400,7 +437,10 @@ fn not_recording(state: RecorderState) -> Result<(), String> {
 /// # Safety
 /// `recorder` must be NULL or a live handle; `path` NUL-terminated UTF-8.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ss_player_load(recorder: *mut SsRecorder, path: *const c_char) -> SsStatus {
+pub unsafe extern "C" fn ss_player_load(
+    recorder: *mut SsRecorder,
+    path: *const c_char,
+) -> SsStatus {
     with_player(recorder, |p, state| {
         not_recording(state)?;
         p.load(std::path::Path::new(unsafe { arg_str(path, "path")? }))
@@ -457,7 +497,9 @@ pub unsafe extern "C" fn ss_player_stop(recorder: *mut SsRecorder) -> SsStatus {
 /// `recorder` must be NULL or a live handle.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ss_player_seek(recorder: *mut SsRecorder, position_ms: u64) -> SsStatus {
-    with_player(recorder, |p, _| p.seek(std::time::Duration::from_millis(position_ms)))
+    with_player(recorder, |p, _| {
+        p.seek(std::time::Duration::from_millis(position_ms))
+    })
 }
 
 /// The player's state; Empty when `recorder` is NULL. Never blocks.
@@ -494,14 +536,19 @@ pub unsafe extern "C" fn ss_player_duration_ms(recorder: *const SsRecorder) -> u
 #[unsafe(no_mangle)]
 pub extern "C" fn ss_recover_partial_recordings() -> i32 {
     catch_unwind(|| {
-        let s = settings::load();
-        // Half-written masters can't be finished; startup also applies the
-        // masters' budget and age limit.
-        crate::masters::remove_partials();
-        crate::masters::cleanup(&s.master_policy());
-        recorder::recover_partials(&s.recordings_dir(), s.tag_version())
-    }.iter().filter(|r| r.is_ok()).count() as i32)
-        .unwrap_or(-1)
+        {
+            let s = settings::load();
+            // Half-written masters can't be finished; startup also applies the
+            // masters' budget and age limit.
+            crate::masters::remove_partials();
+            crate::masters::cleanup(&s.master_policy());
+            recorder::recover_partials(&s.recordings_dir(), s.tag_version())
+        }
+        .iter()
+        .filter(|r| r.is_ok())
+        .count() as i32
+    })
+    .unwrap_or(-1)
 }
 
 /// Frees a string returned by this library. NULL is a no-op.
@@ -571,13 +618,18 @@ pub extern "C" fn ss_audio_apps_list() -> *mut SsAudioAppList {
         apps.push(SsAudioApp {
             pid: app.pid,
             name: name.as_ptr(),
-            bundle_id: bundle_id.as_ref().map_or(ptr::null(), |b: &CString| b.as_ptr()),
+            bundle_id: bundle_id
+                .as_ref()
+                .map_or(ptr::null(), |b: &CString| b.as_ptr()),
             is_playing: app.is_playing,
         });
         strings.push(name);
         strings.extend(bundle_id);
     }
-    Box::into_raw(Box::new(SsAudioAppList { apps, _strings: strings }))
+    Box::into_raw(Box::new(SsAudioAppList {
+        apps,
+        _strings: strings,
+    }))
 }
 
 /// Number of apps in `list` (0 for NULL).
@@ -594,7 +646,10 @@ pub unsafe extern "C" fn ss_audio_app_list_len(list: *const SsAudioAppList) -> u
 /// # Safety
 /// `list` must be NULL or a live list from `ss_audio_apps_list`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ss_audio_app_list_get(list: *const SsAudioAppList, index: usize) -> *const SsAudioApp {
+pub unsafe extern "C" fn ss_audio_app_list_get(
+    list: *const SsAudioAppList,
+    index: usize,
+) -> *const SsAudioApp {
     unsafe { list.as_ref() }
         .and_then(|l| l.apps.get(index))
         .map_or(ptr::null(), |a| a as *const SsAudioApp)
@@ -630,12 +685,18 @@ pub struct SsCaptureReport {
 /// # Safety
 /// `out_report` must point to writable memory for one `SsCaptureReport`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ss_capture_test_wav(app_pid: u32, seconds: f64, out_report: *mut SsCaptureReport) -> SsStatus {
+pub unsafe extern "C" fn ss_capture_test_wav(
+    app_pid: u32,
+    seconds: f64,
+    out_report: *mut SsCaptureReport,
+) -> SsStatus {
     if out_report.is_null() {
         return fail("out_report is NULL");
     }
     let pid = (app_pid != 0).then_some(app_pid);
-    match catch_unwind(AssertUnwindSafe(|| capture_test::record_test_wav(pid, seconds))) {
+    match catch_unwind(AssertUnwindSafe(|| {
+        capture_test::record_test_wav(pid, seconds)
+    })) {
         Ok(Ok(r)) => {
             let path = CString::new(r.path.to_string_lossy().into_owned()).unwrap_or_default();
             unsafe {
@@ -708,7 +769,9 @@ pub type SsLibraryCallback = Option<unsafe extern "C" fn(user_data: *mut c_void)
 #[unsafe(no_mangle)]
 pub extern "C" fn ss_library_open() -> *mut SsLibrary {
     match catch_unwind(Library::open_default) {
-        Ok(Ok(library)) => Box::into_raw(Box::new(SsLibrary { inner: Mutex::new(library) })),
+        Ok(Ok(library)) => Box::into_raw(Box::new(SsLibrary {
+            inner: Mutex::new(library),
+        })),
         Ok(Err(message)) => {
             fail(message);
             ptr::null_mut()
@@ -732,9 +795,16 @@ pub unsafe extern "C" fn ss_library_destroy(library: *mut SsLibrary) {
     }
 }
 
-fn with_library<T>(library: *const SsLibrary, f: impl FnOnce(&mut Library) -> Result<T, String>) -> Result<T, SsStatus> {
-    let Some(l) = (unsafe { library.as_ref() }) else { return Err(fail("library is NULL")) };
-    match catch_unwind(AssertUnwindSafe(|| f(&mut l.inner.lock().unwrap_or_else(|e| e.into_inner())))) {
+fn with_library<T>(
+    library: *const SsLibrary,
+    f: impl FnOnce(&mut Library) -> Result<T, String>,
+) -> Result<T, SsStatus> {
+    let Some(l) = (unsafe { library.as_ref() }) else {
+        return Err(fail("library is NULL"));
+    };
+    match catch_unwind(AssertUnwindSafe(|| {
+        f(&mut l.inner.lock().unwrap_or_else(|e| e.into_inner()))
+    })) {
         Ok(Ok(value)) => Ok(value),
         Ok(Err(message)) => Err(fail(message)),
         Err(_) => Err(fail("library call panicked")),
@@ -746,7 +816,9 @@ unsafe fn arg_str<'a>(s: *const c_char, name: &str) -> Result<&'a str, String> {
     if s.is_null() {
         return Err(format!("{name} is NULL"));
     }
-    unsafe { std::ffi::CStr::from_ptr(s) }.to_str().map_err(|_| format!("{name} is not UTF-8"))
+    unsafe { std::ffi::CStr::from_ptr(s) }
+        .to_str()
+        .map_err(|_| format!("{name} is not UTF-8"))
 }
 
 fn c_string(s: &str) -> CString {
@@ -760,7 +832,9 @@ fn c_string(s: &str) -> CString {
 /// `library` must be NULL or a live handle from `ss_library_open`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ss_library_list(library: *mut SsLibrary) -> *mut SsRecordingList {
-    let Ok(recordings) = with_library(library, Library::list) else { return ptr::null_mut() };
+    let Ok(recordings) = with_library(library, Library::list) else {
+        return ptr::null_mut();
+    };
     let mut strings = Vec::new();
     let mut keep = |s: Option<&str>| -> *const c_char {
         match s {
@@ -786,7 +860,10 @@ pub unsafe extern "C" fn ss_library_list(library: *mut SsLibrary) -> *mut SsReco
             recorded_at_ms: r.recorded_at_ms,
         })
         .collect();
-    Box::into_raw(Box::new(SsRecordingList { items, _strings: strings }))
+    Box::into_raw(Box::new(SsRecordingList {
+        items,
+        _strings: strings,
+    }))
 }
 
 /// Number of recordings in `list` (0 for NULL).
@@ -803,7 +880,10 @@ pub unsafe extern "C" fn ss_recording_list_len(list: *const SsRecordingList) -> 
 /// # Safety
 /// `list` must be NULL or a live list from `ss_library_list`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ss_recording_list_get(list: *const SsRecordingList, index: usize) -> *const SsRecording {
+pub unsafe extern "C" fn ss_recording_list_get(
+    list: *const SsRecordingList,
+    index: usize,
+) -> *const SsRecording {
     unsafe { list.as_ref() }
         .and_then(|l| l.items.get(index))
         .map_or(ptr::null(), |r| r as *const SsRecording)
@@ -836,7 +916,9 @@ pub unsafe extern "C" fn ss_library_rename(
     out_file_name: *mut *mut c_char,
 ) -> SsStatus {
     let result = with_library(library, |l| {
-        let renamed = l.rename(unsafe { arg_str(file_name, "file_name")? }, unsafe { arg_str(new_name, "new_name")? })?;
+        let renamed = l.rename(unsafe { arg_str(file_name, "file_name")? }, unsafe {
+            arg_str(new_name, "new_name")?
+        })?;
         if !out_file_name.is_null() {
             unsafe { out_file_name.write(c_string(&renamed).into_raw()) };
         }
@@ -850,9 +932,14 @@ pub unsafe extern "C" fn ss_library_rename(
 /// # Safety
 /// `library` must be a live handle; `file_name` must be NUL-terminated UTF-8.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ss_library_trash(library: *mut SsLibrary, file_name: *const c_char) -> SsStatus {
-    with_library(library, |l| l.trash(unsafe { arg_str(file_name, "file_name")? }))
-        .map_or_else(|status| status, |()| SsStatus::Ok)
+pub unsafe extern "C" fn ss_library_trash(
+    library: *mut SsLibrary,
+    file_name: *const c_char,
+) -> SsStatus {
+    with_library(library, |l| {
+        l.trash(unsafe { arg_str(file_name, "file_name")? })
+    })
+    .map_or_else(|status| status, |()| SsStatus::Ok)
 }
 
 /// Shows the recording selected in Finder / Explorer.
@@ -860,9 +947,14 @@ pub unsafe extern "C" fn ss_library_trash(library: *mut SsLibrary, file_name: *c
 /// # Safety
 /// `library` must be a live handle; `file_name` must be NUL-terminated UTF-8.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ss_library_reveal(library: *mut SsLibrary, file_name: *const c_char) -> SsStatus {
-    with_library(library, |l| l.reveal(unsafe { arg_str(file_name, "file_name")? }))
-        .map_or_else(|status| status, |()| SsStatus::Ok)
+pub unsafe extern "C" fn ss_library_reveal(
+    library: *mut SsLibrary,
+    file_name: *const c_char,
+) -> SsStatus {
+    with_library(library, |l| {
+        l.reveal(unsafe { arg_str(file_name, "file_name")? })
+    })
+    .map_or_else(|status| status, |()| SsStatus::Ok)
 }
 
 /// Starts watching the folder; `callback(user_data)` fires on changes.
@@ -977,12 +1069,17 @@ pub struct SsTagEdit {
 /// # Safety
 /// `library` must be a live handle; `file_name` must be NUL-terminated UTF-8.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ss_library_read_tags(library: *mut SsLibrary, file_name: *const c_char) -> *const SsTags {
+pub unsafe extern "C" fn ss_library_read_tags(
+    library: *mut SsLibrary,
+    file_name: *const c_char,
+) -> *const SsTags {
     let read = with_library(library, |l| {
         let name = unsafe { arg_str(file_name, "file_name")? };
         Ok((l.read_tags(name)?, l.export_cover(name)?))
     });
-    let Ok((fields, cover)) = read else { return ptr::null() };
+    let Ok((fields, cover)) = read else {
+        return ptr::null();
+    };
     let mut strings = Vec::new();
     let mut keep = |s: Option<&str>| -> *const c_char {
         s.map_or(ptr::null(), |s| {
@@ -1003,7 +1100,9 @@ pub unsafe extern "C" fn ss_library_read_tags(library: *mut SsLibrary, file_name
         track: fields.track.unwrap_or(0),
         cover_path: keep(cover.as_ref().map(|p| p.to_string_lossy()).as_deref()),
     };
-    Box::into_raw(Box::new(SsTagsOwned { tags, strings })).cast_const().cast()
+    Box::into_raw(Box::new(SsTagsOwned { tags, strings }))
+        .cast_const()
+        .cast()
 }
 
 /// Frees tags from `ss_library_read_tags`. NULL is a no-op.
@@ -1060,7 +1159,9 @@ pub unsafe extern "C" fn ss_library_write_tags(
             cover: match e.cover {
                 SsCoverEdit::Keep => CoverEdit::Keep,
                 SsCoverEdit::Remove => CoverEdit::Remove,
-                SsCoverEdit::Set => CoverEdit::Set(unsafe { arg_str(e.cover_path, "cover_path")? }.into()),
+                SsCoverEdit::Set => {
+                    CoverEdit::Set(unsafe { arg_str(e.cover_path, "cover_path")? }.into())
+                }
             },
         };
         let version = match e.version {
@@ -1082,7 +1183,8 @@ pub unsafe extern "C" fn ss_library_write_tags(
 pub extern "C" fn ss_settings_get() -> *mut c_char {
     let s = settings::load();
     let mut json = serde_json::to_value(&s).unwrap_or_default();
-    json["effectiveRecordingsDir"] = serde_json::Value::String(s.recordings_dir().to_string_lossy().into_owned());
+    json["effectiveRecordingsDir"] =
+        serde_json::Value::String(s.recordings_dir().to_string_lossy().into_owned());
     c_string(&json.to_string()).into_raw()
 }
 
@@ -1095,7 +1197,8 @@ pub extern "C" fn ss_settings_get() -> *mut c_char {
 pub unsafe extern "C" fn ss_settings_set(json: *const c_char) -> SsStatus {
     let result = (|| -> Result<(), String> {
         let text = unsafe { arg_str(json, "json")? };
-        let parsed: settings::Settings = serde_json::from_str(text).map_err(|e| format!("invalid settings: {e}"))?;
+        let parsed: settings::Settings =
+            serde_json::from_str(text).map_err(|e| format!("invalid settings: {e}"))?;
         settings::save(&parsed)
     })();
     result.map_or_else(fail, |()| SsStatus::Ok)
@@ -1107,7 +1210,8 @@ pub unsafe extern "C" fn ss_settings_set(json: *const c_char) -> SsStatus {
 /// `library` must be a live handle from `ss_library_open`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ss_library_apply_settings(library: *mut SsLibrary) -> SsStatus {
-    with_library(library, |l| l.set_dir(settings::load().recordings_dir())).map_or_else(|status| status, |()| SsStatus::Ok)
+    with_library(library, |l| l.set_dir(settings::load().recordings_dir()))
+        .map_or_else(|status| status, |()| SsStatus::Ok)
 }
 
 /// Opaque visualizer handle: draws the live analysis of the recording, or
@@ -1127,8 +1231,13 @@ pub struct SsVis {
 /// `recorder` must be NULL or a live handle from `ss_recorder_create`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ss_vis_create(recorder: *const SsRecorder) -> *mut SsVis {
-    let Some(r) = (unsafe { recorder.as_ref() }) else { return ptr::null_mut() };
-    Box::into_raw(Box::new(SsVis { hub: r.status.vis(), renderer: Default::default() }))
+    let Some(r) = (unsafe { recorder.as_ref() }) else {
+        return ptr::null_mut();
+    };
+    Box::into_raw(Box::new(SsVis {
+        hub: r.status.vis(),
+        renderer: Default::default(),
+    }))
 }
 
 /// Sets the preset: one entry of a resolved skin's `visualizer.presets`, as
@@ -1140,8 +1249,11 @@ pub unsafe extern "C" fn ss_vis_create(recorder: *const SsRecorder) -> *mut SsVi
 /// `vis` must be a live handle; `json` NUL-terminated UTF-8.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ss_vis_set_preset(vis: *mut SsVis, json: *const c_char) -> SsStatus {
-    let Some(v) = (unsafe { vis.as_mut() }) else { return fail("vis is NULL") };
-    let result = unsafe { arg_str(json, "json") }.and_then(sound_scraper_vis::render::Preset::from_json);
+    let Some(v) = (unsafe { vis.as_mut() }) else {
+        return fail("vis is NULL");
+    };
+    let result =
+        unsafe { arg_str(json, "json") }.and_then(sound_scraper_vis::render::Preset::from_json);
     match result {
         Ok(preset) => {
             v.renderer.set_preset(preset);
@@ -1168,7 +1280,9 @@ pub unsafe extern "C" fn ss_vis_render(
     rgba: *mut u8,
     len: usize,
 ) -> bool {
-    let Some(v) = (unsafe { vis.as_mut() }) else { return false };
+    let Some(v) = (unsafe { vis.as_mut() }) else {
+        return false;
+    };
     let needed = width as usize * height as usize * 4;
     if rgba.is_null() || width == 0 || height == 0 || len < needed {
         return false;
@@ -1227,7 +1341,10 @@ fn parse_scene(json: *const c_char) -> Result<sound_scraper_layout::Scene, Strin
 /// # Safety
 /// `scene_json` and `id` must be NUL-terminated UTF-8.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ss_layout_drag_begin(scene_json: *const c_char, id: *const c_char) -> *mut SsLayoutGesture {
+pub unsafe extern "C" fn ss_layout_drag_begin(
+    scene_json: *const c_char,
+    id: *const c_char,
+) -> *mut SsLayoutGesture {
     let result = (|| {
         let scene = parse_scene(scene_json)?;
         sound_scraper_layout::Drag::begin(scene, unsafe { arg_str(id, "id")? })
@@ -1275,8 +1392,15 @@ pub unsafe extern "C" fn ss_layout_resize_begin(
 /// # Safety
 /// `gesture` must be NULL or live.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ss_layout_gesture_update(gesture: *const SsLayoutGesture, dx: f64, dy: f64, snap: bool) -> *mut c_char {
-    let Some(g) = (unsafe { gesture.as_ref() }) else { return ptr::null_mut() };
+pub unsafe extern "C" fn ss_layout_gesture_update(
+    gesture: *const SsLayoutGesture,
+    dx: f64,
+    dy: f64,
+    snap: bool,
+) -> *mut c_char {
+    let Some(g) = (unsafe { gesture.as_ref() }) else {
+        return ptr::null_mut();
+    };
     let placements = match g {
         SsLayoutGesture::Drag(d) => d.update(dx, dy, snap),
         SsLayoutGesture::Resize(r) => r.update(dx, dy, snap),
@@ -1398,8 +1522,14 @@ fn catch<T>(what: &str, f: impl FnOnce() -> Result<T, String>) -> Result<T, Stri
 /// `id_or_path` must be NULL or NUL-terminated UTF-8.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ss_skin_load(id_or_path: *const c_char) -> *mut c_char {
-    let arg = if id_or_path.is_null() { Ok(None) } else { unsafe { arg_str(id_or_path, "id_or_path") }.map(Some) };
-    json_or_null(catch("loading the skin", || skins::load(&skins::store(), arg?)))
+    let arg = if id_or_path.is_null() {
+        Ok(None)
+    } else {
+        unsafe { arg_str(id_or_path, "id_or_path") }.map(Some)
+    };
+    json_or_null(catch("loading the skin", || {
+        skins::load(&skins::store(), arg?)
+    }))
 }
 
 /// The skin chosen in the settings (`"skin"`), resolved as by
@@ -1407,7 +1537,9 @@ pub unsafe extern "C" fn ss_skin_load(id_or_path: *const c_char) -> *mut c_char 
 /// the reason first in `warnings`. Free with `ss_string_free`.
 #[unsafe(no_mangle)]
 pub extern "C" fn ss_skin_load_current() -> *mut c_char {
-    json_or_null(catch("loading the skin", || skins::load_current(&skins::store())))
+    json_or_null(catch("loading the skin", || {
+        skins::load_current(&skins::store())
+    }))
 }
 
 /// Validates a `.sskin` archive and installs it into the Skins folder
@@ -1421,7 +1553,9 @@ pub extern "C" fn ss_skin_load_current() -> *mut c_char {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ss_skin_install(archive_path: *const c_char) -> *mut c_char {
     let path = unsafe { arg_str(archive_path, "archive_path") };
-    json_or_null(catch("installing the skin", || skins::store().install(std::path::Path::new(path?))))
+    json_or_null(catch("installing the skin", || {
+        skins::store().install(std::path::Path::new(path?))
+    }))
 }
 
 /// Installed skins as a JSON array of summaries (see `ss_skin_install`),
@@ -1437,7 +1571,9 @@ pub extern "C" fn ss_skins_list() -> *mut c_char {
 /// `id` must be NUL-terminated UTF-8.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ss_skin_remove(id: *const c_char) -> SsStatus {
-    let result = catch("removing the skin", || skins::store().remove(unsafe { arg_str(id, "id")? }));
+    let result = catch("removing the skin", || {
+        skins::store().remove(unsafe { arg_str(id, "id")? })
+    });
     result.map_or_else(fail, |()| SsStatus::Ok)
 }
 
@@ -1452,7 +1588,9 @@ pub unsafe extern "C" fn ss_skin_remove(id: *const c_char) -> SsStatus {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ss_skin_inspect(archive_path: *const c_char) -> *mut c_char {
     let path = unsafe { arg_str(archive_path, "archive_path") };
-    json_or_null(catch("reading the skin", || skins::store().inspect(std::path::Path::new(path?))))
+    json_or_null(catch("reading the skin", || {
+        skins::store().inspect(std::path::Path::new(path?))
+    }))
 }
 
 /// A picture of a skin's main panel with sample content: the path of a
@@ -1463,7 +1601,11 @@ pub unsafe extern "C" fn ss_skin_inspect(archive_path: *const c_char) -> *mut c_
 /// `id_or_path` must be NULL or NUL-terminated UTF-8.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ss_skin_preview(id_or_path: *const c_char) -> *mut c_char {
-    let arg = if id_or_path.is_null() { Ok(None) } else { unsafe { arg_str(id_or_path, "id_or_path") }.map(Some) };
+    let arg = if id_or_path.is_null() {
+        Ok(None)
+    } else {
+        unsafe { arg_str(id_or_path, "id_or_path") }.map(Some)
+    };
     json_or_null(catch("drawing the skin", || {
         let store = skins::store();
         let skin = skins::load(&store, arg?)?;
@@ -1478,7 +1620,10 @@ pub unsafe extern "C" fn ss_skin_preview(id_or_path: *const c_char) -> *mut c_ch
 /// # Safety
 /// Both arguments must be NUL-terminated UTF-8.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ss_skin_package(dir: *const c_char, out_path: *const c_char) -> *mut c_char {
+pub unsafe extern "C" fn ss_skin_package(
+    dir: *const c_char,
+    out_path: *const c_char,
+) -> *mut c_char {
     let (dir, out) = unsafe { (arg_str(dir, "dir"), arg_str(out_path, "out_path")) };
     json_or_null(catch("packaging the skin", || {
         skins::store().package(std::path::Path::new(dir?), std::path::Path::new(out?))
@@ -1494,7 +1639,9 @@ pub unsafe extern "C" fn ss_skin_package(dir: *const c_char, out_path: *const c_
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ss_skin_create(parent: *const c_char, name: *const c_char) -> *mut c_char {
     let (parent, name) = unsafe { (arg_str(parent, "parent"), arg_str(name, "name")) };
-    json_or_null(catch("creating the skin", || skins::store().create_from_template(std::path::Path::new(parent?), name?)))
+    json_or_null(catch("creating the skin", || {
+        skins::store().create_from_template(std::path::Path::new(parent?), name?)
+    }))
 }
 
 /// A token (JSON string) that changes whenever a skin folder's files do,
@@ -1506,7 +1653,9 @@ pub unsafe extern "C" fn ss_skin_create(parent: *const c_char, name: *const c_ch
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ss_skin_folder_stamp(dir: *const c_char) -> *mut c_char {
     let dir = unsafe { arg_str(dir, "dir") };
-    json_or_null(catch("reading the skin folder", || skins::folder_stamp(std::path::Path::new(dir?))))
+    json_or_null(catch("reading the skin folder", || {
+        skins::folder_stamp(std::path::Path::new(dir?))
+    }))
 }
 
 // ------------------------------------------------------------ playlists
@@ -1569,7 +1718,10 @@ pub unsafe extern "C" fn ss_burn(request_json: *const c_char) -> *mut c_char {
 // ------------------------------------------------------------ track editor
 
 /// Open editors by id, and the next id (ids are never reused).
-type Editors = (u64, std::collections::HashMap<u64, Arc<crate::edit::editor::Editor>>);
+type Editors = (
+    u64,
+    std::collections::HashMap<u64, Arc<crate::edit::editor::Editor>>,
+);
 static EDITORS: Mutex<Option<Editors>> = Mutex::new(None);
 
 fn editor(id: u64) -> Result<Arc<crate::edit::editor::Editor>, String> {
@@ -1611,7 +1763,11 @@ pub unsafe extern "C" fn ss_editor_open(path: *const c_char) -> u64 {
 /// Closes an editor (stopping its waveform build). Unknown ids are ignored.
 #[unsafe(no_mangle)]
 pub extern "C" fn ss_editor_close(id: u64) {
-    let removed = EDITORS.lock().unwrap_or_else(|e| e.into_inner()).as_mut().and_then(|(_, map)| map.remove(&id));
+    let removed = EDITORS
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .as_mut()
+        .and_then(|(_, map)| map.remove(&id));
     // Dropping joins the worker; do it outside the lock.
     drop(removed);
 }
@@ -1627,7 +1783,12 @@ pub extern "C" fn ss_editor_status(id: u64) -> *mut c_char {
     json_or_null(catch("reading the editor", || {
         let editor = editor(id)?;
         let grid = editor.frame_grid();
-        let name = editor.path().file_name().unwrap_or_default().to_string_lossy().into_owned();
+        let name = editor
+            .path()
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .into_owned();
         let master = crate::masters::find(&name).is_some();
         Ok(match editor.status() {
             S::Loading(p) => serde_json::json!({ "state": "loading", "progress": p }),
@@ -1670,9 +1831,16 @@ pub unsafe extern "C" fn ss_editor_render(
         return false;
     }
     let Ok(editor) = editor(id) else { return false };
-    let style = if style_json.is_null() { "" } else { unsafe { arg_str(style_json, "style_json") }.unwrap_or("") };
+    let style = if style_json.is_null() {
+        ""
+    } else {
+        unsafe { arg_str(style_json, "style_json") }.unwrap_or("")
+    };
     let buf = unsafe { std::slice::from_raw_parts_mut(rgba, needed) };
-    catch_unwind(AssertUnwindSafe(|| editor.render(start_ms, ms_per_px, width, height, style, buf))).unwrap_or(false)
+    catch_unwind(AssertUnwindSafe(|| {
+        editor.render(start_ms, ms_per_px, width, height, style, buf)
+    }))
+    .unwrap_or(false)
 }
 
 /// The tracks an edit list (JSON, see `crate::edit::edits::EditList`) makes
@@ -1689,8 +1857,11 @@ pub unsafe extern "C" fn ss_editor_tracks(id: u64, edits_json: *const c_char) ->
     use crate::edit::editor::Status as S;
     json_or_null(catch("planning the tracks", || {
         let edits: crate::edit::edits::EditList =
-            serde_json::from_str(unsafe { arg_str(edits_json, "edits_json")? }).map_err(|e| format!("invalid edits: {e}"))?;
-        let S::Ready { rate, frames } = editor(id)?.status() else { return Err("the waveform isn't ready".into()) };
+            serde_json::from_str(unsafe { arg_str(edits_json, "edits_json")? })
+                .map_err(|e| format!("invalid edits: {e}"))?;
+        let S::Ready { rate, frames } = editor(id)?.status() else {
+            return Err("the waveform isn't ready".into());
+        };
         let ms = |f: u64| f as f64 * 1000.0 / f64::from(rate);
         Ok(edits
             .plan(rate, frames)
@@ -1719,8 +1890,11 @@ pub unsafe extern "C" fn ss_editor_tracks(id: u64, edits_json: *const c_char) ->
 pub unsafe extern "C" fn ss_editor_detect(id: u64, options_json: *const c_char) -> *mut c_char {
     json_or_null(catch("finding tracks", || {
         let opts: crate::edit::detect::DetectOptions =
-            serde_json::from_str(unsafe { arg_str(options_json, "options_json")? }).map_err(|e| format!("invalid options: {e}"))?;
-        editor(id)?.detect(&opts).ok_or_else(|| "the waveform isn't ready".to_string())
+            serde_json::from_str(unsafe { arg_str(options_json, "options_json")? })
+                .map_err(|e| format!("invalid options: {e}"))?;
+        editor(id)?
+            .detect(&opts)
+            .ok_or_else(|| "the waveform isn't ready".to_string())
     }))
 }
 
@@ -1747,7 +1921,11 @@ pub extern "C" fn ss_masters_delete_all() -> SsStatus {
 /// `file_name` must be NUL-terminated UTF-8.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ss_edits_load_draft(file_name: *const c_char) -> *mut c_char {
-    json_or_null(catch("loading edits", || Ok(crate::edit::edits::load_draft(unsafe { arg_str(file_name, "file_name")? }))))
+    json_or_null(catch("loading edits", || {
+        Ok(crate::edit::edits::load_draft(unsafe {
+            arg_str(file_name, "file_name")?
+        }))
+    }))
 }
 
 /// Keeps unsaved edits (JSON) for a recording; empty edits remove the draft.
@@ -1755,10 +1933,14 @@ pub unsafe extern "C" fn ss_edits_load_draft(file_name: *const c_char) -> *mut c
 /// # Safety
 /// `file_name` and `edits_json` must be NUL-terminated UTF-8.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn ss_edits_save_draft(file_name: *const c_char, edits_json: *const c_char) -> SsStatus {
+pub unsafe extern "C" fn ss_edits_save_draft(
+    file_name: *const c_char,
+    edits_json: *const c_char,
+) -> SsStatus {
     catch("saving edits", || {
         let edits: crate::edit::edits::EditList =
-            serde_json::from_str(unsafe { arg_str(edits_json, "edits_json")? }).map_err(|e| format!("invalid edits: {e}"))?;
+            serde_json::from_str(unsafe { arg_str(edits_json, "edits_json")? })
+                .map_err(|e| format!("invalid edits: {e}"))?;
         crate::edit::edits::save_draft(unsafe { arg_str(file_name, "file_name")? }, &edits)
     })
     .map_or_else(fail, |()| SsStatus::Ok)
@@ -1795,7 +1977,8 @@ pub unsafe extern "C" fn ss_editor_save(
 ) -> *mut c_char {
     let args = (|| -> Result<(String, crate::edit::edits::EditList), String> {
         let name = unsafe { arg_str(file_name, "file_name")? }.to_string();
-        let edits = serde_json::from_str(unsafe { arg_str(edits_json, "edits_json")? }).map_err(|e| format!("invalid edits: {e}"))?;
+        let edits = serde_json::from_str(unsafe { arg_str(edits_json, "edits_json")? })
+            .map_err(|e| format!("invalid edits: {e}"))?;
         Ok((name, edits))
     })();
     let (name, edits) = match args {
@@ -1805,11 +1988,19 @@ pub unsafe extern "C" fn ss_editor_save(
             return ptr::null_mut();
         }
     };
-    let Ok(dir) = with_library(library, |l| Ok(l.dir().to_path_buf())) else { return ptr::null_mut() };
+    let Ok(dir) = with_library(library, |l| Ok(l.dir().to_path_buf())) else {
+        return ptr::null_mut();
+    };
     let original = dir.join(&name);
     let saved = catch("saving the tracks", || {
         let master = crate::masters::find(&name);
-        crate::edit::save::save(&original, &edits, settings::load().tag_version(), master.as_deref(), &|_| {})
+        crate::edit::save::save(
+            &original,
+            &edits,
+            settings::load().tag_version(),
+            master.as_deref(),
+            &|_| {},
+        )
     });
     let saved = match saved {
         Ok(s) => s,
@@ -1825,9 +2016,14 @@ pub unsafe extern "C" fn ss_editor_save(
             return ptr::null_mut();
         }
         // A track named like the original got " (2)" while it was there.
-        let wanted = std::path::Path::new(&name).file_stem().map(|s| s.to_string_lossy().into_owned());
+        let wanted = std::path::Path::new(&name)
+            .file_stem()
+            .map(|s| s.to_string_lossy().into_owned());
         for path in &mut files {
-            if !original.exists() && strip_counter(path) == wanted && std::fs::rename(&*path, &original).is_ok() {
+            if !original.exists()
+                && strip_counter(path) == wanted
+                && std::fs::rename(&*path, &original).is_ok()
+            {
                 *path = original.clone();
             }
         }
@@ -1862,15 +2058,31 @@ mod tests {
     fn editor_saves_tracks_and_can_replace_the_original() {
         let dir = crate::paths::tempdir();
         let rate = 48000;
-        let samples: Vec<f32> = (0..rate * 3).flat_map(|i| [(i as f32 * 0.03).sin() * 0.3; 2]).collect();
-        std::fs::write(dir.join("Album.mp3"), crate::mp3::tests::encode_all(&samples, rate, true)).unwrap();
-        let lib = Library::open(dir.clone(), &dir.join("db.sqlite"), Box::new(|p: &std::path::Path| {
-            std::fs::remove_file(p).map_err(|e| e.to_string())
-        }))
+        let samples: Vec<f32> = (0..rate * 3)
+            .flat_map(|i| [(i as f32 * 0.03).sin() * 0.3; 2])
+            .collect();
+        std::fs::write(
+            dir.join("Album.mp3"),
+            crate::mp3::tests::encode_all(&samples, rate, true),
+        )
         .unwrap();
-        let library = Box::into_raw(Box::new(SsLibrary { inner: Mutex::new(lib) }));
+        let lib = Library::open(
+            dir.clone(),
+            &dir.join("db.sqlite"),
+            Box::new(|p: &std::path::Path| std::fs::remove_file(p).map_err(|e| e.to_string())),
+        )
+        .unwrap();
+        let library = Box::into_raw(Box::new(SsLibrary {
+            inner: Mutex::new(lib),
+        }));
 
-        let id = unsafe { ss_editor_open(CString::new(dir.join("Album.mp3").to_str().unwrap()).unwrap().as_ptr()) };
+        let id = unsafe {
+            ss_editor_open(
+                CString::new(dir.join("Album.mp3").to_str().unwrap())
+                    .unwrap()
+                    .as_ptr(),
+            )
+        };
         assert_ne!(id, 0);
         let take = |p: *mut c_char| {
             let s = unsafe { CStr::from_ptr(p) }.to_str().unwrap().to_string();
@@ -1882,14 +2094,22 @@ mod tests {
         }
         let edits = c"{\"firstName\":\"Album\",\"splices\":[{\"atMs\":1000,\"name\":\"Second\"}],\"deleted\":[]}";
         let tracks = take(unsafe { ss_editor_tracks(id, edits.as_ptr()) });
-        assert!(tracks.contains("\"name\":\"Second\"") && tracks.contains("\"startMs\":1000.0"), "{tracks}");
+        assert!(
+            tracks.contains("\"name\":\"Second\"") && tracks.contains("\"startMs\":1000.0"),
+            "{tracks}"
+        );
         ss_editor_close(id);
         assert!(ss_editor_status(id).is_null(), "closed");
 
         let out = unsafe { ss_editor_save(library, c"Album.mp3".as_ptr(), edits.as_ptr(), false) };
-        assert!(!out.is_null(), "{:?}", unsafe { CStr::from_ptr(ss_last_error_message()) });
+        assert!(!out.is_null(), "{:?}", unsafe {
+            CStr::from_ptr(ss_last_error_message())
+        });
         // The first track takes the original's name once it's gone.
-        assert_eq!(take(out), "{\"files\":[\"Album.mp3\",\"Second.mp3\"],\"fromMaster\":false,\"reencoded\":0}");
+        assert_eq!(
+            take(out),
+            "{\"files\":[\"Album.mp3\",\"Second.mp3\"],\"fromMaster\":false,\"reencoded\":0}"
+        );
         assert!(dir.join("Second.mp3").exists() && !dir.join("Album (2).mp3").exists());
         unsafe { ss_library_destroy(library) };
     }
@@ -1908,7 +2128,10 @@ mod tests {
         let r = ss_recorder_create();
         assert_eq!(unsafe { ss_player_state(r) }, SsPlayerState::Empty);
         assert_eq!(unsafe { ss_player_play(r) }, SsStatus::Error);
-        assert_eq!(unsafe { ss_player_load(r, c"/nonexistent.mp3".as_ptr()) }, SsStatus::Error);
+        assert_eq!(
+            unsafe { ss_player_load(r, c"/nonexistent.mp3".as_ptr()) },
+            SsStatus::Error
+        );
         assert_eq!(unsafe { ss_player_unload(r) }, SsStatus::Ok);
         assert_eq!(unsafe { ss_player_duration_ms(r) }, 0);
         unsafe { ss_recorder_destroy(r) };
@@ -1928,11 +2151,20 @@ mod tests {
         let vis = unsafe { ss_vis_create(r) };
         assert!(!vis.is_null());
         let preset = c"{\"style\":\"bars\",\"line\":\"#00ff00\"}";
-        assert_eq!(unsafe { ss_vis_set_preset(vis, preset.as_ptr()) }, SsStatus::Ok);
-        assert_eq!(unsafe { ss_vis_set_preset(vis, c"{\"style\":\"lasers\"}".as_ptr()) }, SsStatus::Error);
+        assert_eq!(
+            unsafe { ss_vis_set_preset(vis, preset.as_ptr()) },
+            SsStatus::Ok
+        );
+        assert_eq!(
+            unsafe { ss_vis_set_preset(vis, c"{\"style\":\"lasers\"}".as_ptr()) },
+            SsStatus::Error
+        );
         let mut buf = vec![0u8; 16 * 8 * 4];
         assert!(!unsafe { ss_vis_render(vis, 16, 8, 1.0, buf.as_mut_ptr(), buf.len()) });
-        assert!(buf.chunks_exact(4).any(|p| p == [0, 255, 0, 255]), "idle line drawn");
+        assert!(
+            buf.as_chunks::<4>().0.contains(&[0, 255, 0, 255]),
+            "idle line drawn"
+        );
         assert!(!unsafe { ss_vis_render(vis, 16, 8, 1.0, buf.as_mut_ptr(), 10) });
         unsafe { ss_recorder_destroy(r) };
         // Still usable after the recorder is gone.
@@ -1954,11 +2186,16 @@ mod tests {
         assert_eq!(v[1]["id"], "library");
         assert_eq!(v[1]["y"], 55.0);
         let analysis = unsafe { ss_layout_analyze(scene.as_ptr()) };
-        let text = unsafe { CStr::from_ptr(analysis) }.to_str().unwrap().to_owned();
+        let text = unsafe { CStr::from_ptr(analysis) }
+            .to_str()
+            .unwrap()
+            .to_owned();
         unsafe { ss_string_free(analysis) };
         assert!(text.contains("\"docked\":[\"library\"]"), "{text}");
         assert!(unsafe { ss_layout_drag_begin(c"{".as_ptr(), c"main".as_ptr()) }.is_null());
-        assert!(unsafe { ss_layout_resize_begin(scene.as_ptr(), c"nope".as_ptr(), 1.0, 1.0) }.is_null());
+        assert!(
+            unsafe { ss_layout_resize_begin(scene.as_ptr(), c"nope".as_ptr(), 1.0, 1.0) }.is_null()
+        );
     }
 
     #[test]
@@ -1967,7 +2204,10 @@ mod tests {
         assert!(json.is_null());
         let message = unsafe { CStr::from_ptr(ss_last_error_message()) };
         assert!(message.to_str().unwrap().contains("not installed"));
-        assert_eq!(unsafe { ss_skin_remove(c"com.alexboyce.soundscraper.default".as_ptr()) }, SsStatus::Error);
+        assert_eq!(
+            unsafe { ss_skin_remove(c"com.alexboyce.soundscraper.default".as_ptr()) },
+            SsStatus::Error
+        );
         assert!(unsafe { ss_skin_install(ptr::null()) }.is_null());
     }
 

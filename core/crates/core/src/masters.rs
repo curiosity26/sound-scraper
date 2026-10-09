@@ -90,7 +90,9 @@ pub fn remove(file_name: &str) {
 
 /// (count, bytes) of the masters kept.
 pub fn usage() -> (usize, u64) {
-    masters_in(&dir()).iter().fold((0, 0), |(n, b), m| (n + 1, b + m.1))
+    masters_in(&dir())
+        .iter()
+        .fold((0, 0), |(n, b), m| (n + 1, b + m.1))
 }
 
 pub fn remove_all() -> Result<(), String> {
@@ -113,13 +115,19 @@ pub fn remove_partials() {
 
 /// (path, bytes, last used), oldest first.
 fn masters_in(dir: &Path) -> Vec<(PathBuf, u64, SystemTime)> {
-    let Ok(entries) = std::fs::read_dir(dir) else { return Vec::new() };
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
     let mut found: Vec<_> = entries
         .flatten()
         .filter(|e| e.file_name().to_string_lossy().ends_with(EXT))
         .filter_map(|e| {
             let meta = e.metadata().ok()?;
-            Some((e.path(), meta.len(), meta.modified().unwrap_or(SystemTime::UNIX_EPOCH)))
+            Some((
+                e.path(),
+                meta.len(),
+                meta.modified().unwrap_or(SystemTime::UNIX_EPOCH),
+            ))
         })
         .collect();
     found.sort_by_key(|m| m.2);
@@ -173,12 +181,17 @@ impl MasterWriter {
     pub fn create(dir: &Path, name: &str, rate: u32) -> Result<Self, String> {
         std::fs::create_dir_all(dir).map_err(|e| format!("creating {}: {e}", dir.display()))?;
         let part = dir.join(format!("{}{PART}", paths::sanitize(name)));
-        let mut file = BufWriter::new(File::create(&part).map_err(|e| format!("creating {}: {e}", part.display()))?);
+        let mut file = BufWriter::new(
+            File::create(&part).map_err(|e| format!("creating {}: {e}", part.display()))?,
+        );
         let info = StreamInfo::new(rate as usize, 2, BITS).map_err(|e| format!("FLAC: {e:?}"))?;
         // "fLaC", then STREAMINFO as the last metadata block (filled in at the end).
-        file.write_all(b"fLaC\x80\x00\x00\x22").map_err(|e| e.to_string())?;
+        file.write_all(b"fLaC\x80\x00\x00\x22")
+            .map_err(|e| e.to_string())?;
         file.write_all(&[0u8; 34]).map_err(|e| e.to_string())?;
-        let config = config::Encoder::default().into_verified().map_err(|e| format!("FLAC: {e:?}"))?;
+        let config = config::Encoder::default()
+            .into_verified()
+            .map_err(|e| format!("FLAC: {e:?}"))?;
         Ok(Self {
             part,
             file,
@@ -194,7 +207,8 @@ impl MasterWriter {
     /// Adds interleaved stereo samples.
     pub fn push(&mut self, stereo: &[f32]) -> Result<(), String> {
         for &s in stereo {
-            self.pending.push((s.clamp(-1.0, 1.0) * 32767.0).round() as i32);
+            self.pending
+                .push((s.clamp(-1.0, 1.0) * 32767.0).round() as i32);
             if self.pending.len() == BLOCK * 2 {
                 self.flush_block()?;
             }
@@ -208,13 +222,19 @@ impl MasterWriter {
             return Ok(());
         }
         let mut fb = FrameBuf::with_size(2, n).map_err(|e| format!("FLAC: {e:?}"))?;
-        (&mut fb, &mut self.ctx).fill_interleaved(&self.pending).map_err(|e| format!("FLAC: {e:?}"))?;
+        (&mut fb, &mut self.ctx)
+            .fill_interleaved(&self.pending)
+            .map_err(|e| format!("FLAC: {e:?}"))?;
         let frame = flacenc::encode_fixed_size_frame(&self.config, &fb, self.frames, &self.info)
             .map_err(|e| format!("FLAC: {e:?}"))?;
         self.info.update_frame_info(&frame);
         self.sink.clear();
-        frame.write(&mut self.sink).map_err(|e| format!("FLAC: {e:?}"))?;
-        self.file.write_all(self.sink.as_slice()).map_err(|e| format!("writing {}: {e}", self.part.display()))?;
+        frame
+            .write(&mut self.sink)
+            .map_err(|e| format!("FLAC: {e:?}"))?;
+        self.file
+            .write_all(self.sink.as_slice())
+            .map_err(|e| format!("writing {}: {e}", self.part.display()))?;
         self.frames += 1;
         self.pending.clear();
         Ok(())
@@ -227,7 +247,9 @@ impl MasterWriter {
         self.info.set_md5_digest(&self.ctx.md5_digest());
         self.info.set_total_samples(self.ctx.total_samples());
         self.sink.clear();
-        self.info.write(&mut self.sink).map_err(|e| format!("FLAC: {e:?}"))?;
+        self.info
+            .write(&mut self.sink)
+            .map_err(|e| format!("FLAC: {e:?}"))?;
         // A fixed-blocksize stream's minimum block size is the block size
         // (only the last block may be shorter), which some decoders insist on.
         let mut header = self.sink.as_slice().to_vec();
@@ -239,7 +261,8 @@ impl MasterWriter {
         file.sync_all().map_err(err)?;
         drop(file);
         let target = path_for(self.part.parent().unwrap_or(Path::new(".")), file_name);
-        std::fs::rename(&self.part, &target).map_err(|e| format!("renaming {}: {e}", self.part.display()))?;
+        std::fs::rename(&self.part, &target)
+            .map_err(|e| format!("renaming {}: {e}", self.part.display()))?;
         Ok(target)
     }
 
@@ -259,8 +282,14 @@ mod tests {
     fn writes_a_flac_that_decodes_to_the_same_samples() {
         let dir = paths::tempdir();
         let rate = 44100;
-        let samples: Vec<f32> =
-            (0..10_000).flat_map(|i| [(i as f32 * 0.01).sin() * 0.5, (i as f32 * 0.013).cos() * 0.25]).collect();
+        let samples: Vec<f32> = (0..10_000)
+            .flat_map(|i| {
+                [
+                    (i as f32 * 0.01).sin() * 0.5,
+                    (i as f32 * 0.013).cos() * 0.25,
+                ]
+            })
+            .collect();
         let mut w = MasterWriter::create(&dir, "Song.mp3.part", rate).unwrap();
         for chunk in samples.chunks(882) {
             w.push(chunk).unwrap();
@@ -274,7 +303,11 @@ mod tests {
         let mut out = Vec::new();
         while s.decode(&mut out) {}
         assert_eq!(out.len(), samples.len());
-        let worst = out.iter().zip(&samples).map(|(a, b)| (a - b).abs()).fold(0.0, f32::max);
+        let worst = out
+            .iter()
+            .zip(&samples)
+            .map(|(a, b)| (a - b).abs())
+            .fold(0.0, f32::max);
         assert!(worst <= 1.0 / 32767.0, "16-bit exact: {worst}");
     }
 
@@ -296,10 +329,31 @@ mod tests {
         make("old", 100, 5);
         make("mid", 100, 3);
         make("new", 100, 1);
-        let policy = Policy { budget_bytes: 250, ..Policy::default() };
-        assert_eq!(cleanup_in(&dir, &policy, now), 2, "the 40-day one, then the oldest over budget");
-        let left: Vec<String> = masters_in(&dir).iter().map(|m| m.0.file_name().unwrap().to_string_lossy().into()).collect();
+        let policy = Policy {
+            budget_bytes: 250,
+            ..Policy::default()
+        };
+        assert_eq!(
+            cleanup_in(&dir, &policy, now),
+            2,
+            "the 40-day one, then the oldest over budget"
+        );
+        let left: Vec<String> = masters_in(&dir)
+            .iter()
+            .map(|m| m.0.file_name().unwrap().to_string_lossy().into())
+            .collect();
         assert_eq!(left, vec!["mid.flac", "new.flac"]);
-        assert_eq!(cleanup_in(&dir, &Policy { keep: false, ..policy }, now), 2, "off removes all");
+        assert_eq!(
+            cleanup_in(
+                &dir,
+                &Policy {
+                    keep: false,
+                    ..policy
+                },
+                now
+            ),
+            2,
+            "off removes all"
+        );
     }
 }

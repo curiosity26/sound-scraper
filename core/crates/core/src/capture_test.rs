@@ -43,7 +43,13 @@ fn record(source: CaptureSource, seconds: f64, path: &Path) -> Result<CaptureRep
     let session = backend.start(source, tx).map_err(|e| e.to_string())?;
 
     let mut writer: Option<hound::WavWriter<_>> = None;
-    let mut report = CaptureReport { path: path.to_owned(), frames: 0, sample_rate: 0, channels: 0, peak: 0.0 };
+    let mut report = CaptureReport {
+        path: path.to_owned(),
+        frames: 0,
+        sample_rate: 0,
+        channels: 0,
+        peak: 0.0,
+    };
     let deadline = Instant::now() + Duration::from_secs_f64(seconds + 3.0);
     let result = loop {
         let Some(remaining) = deadline.checked_duration_since(Instant::now()) else {
@@ -55,7 +61,8 @@ fn record(source: CaptureSource, seconds: f64, path: &Path) -> Result<CaptureRep
         };
         if writer.is_none() {
             if let Some(dir) = path.parent() {
-                std::fs::create_dir_all(dir).map_err(|e| format!("creating {}: {e}", dir.display()))?;
+                std::fs::create_dir_all(dir)
+                    .map_err(|e| format!("creating {}: {e}", dir.display()))?;
             }
             let spec = hound::WavSpec {
                 channels: chunk.channels,
@@ -69,10 +76,12 @@ fn record(source: CaptureSource, seconds: f64, path: &Path) -> Result<CaptureRep
         }
         let w = writer.as_mut().unwrap();
         let wanted = (seconds * report.sample_rate as f64) as u64;
-        let take = ((wanted - report.frames) as usize * report.channels as usize).min(chunk.samples.len());
+        let take =
+            ((wanted - report.frames) as usize * report.channels as usize).min(chunk.samples.len());
         for &s in &chunk.samples[..take] {
             report.peak = report.peak.max(s.abs());
-            w.write_sample(s).map_err(|e| format!("writing {}: {e}", path.display()))?;
+            w.write_sample(s)
+                .map_err(|e| format!("writing {}: {e}", path.display()))?;
         }
         report.frames += (take / report.channels.max(1) as usize) as u64;
         if report.frames >= wanted {

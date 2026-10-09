@@ -21,7 +21,12 @@ pub struct DetectOptions {
 
 impl Default for DetectOptions {
     fn default() -> Self {
-        Self { threshold_db: -60.0, min_gap_ms: 1500.0, min_track_ms: 10_000.0, remove_gaps: false }
+        Self {
+            threshold_db: -60.0,
+            min_gap_ms: 1500.0,
+            min_track_ms: 10_000.0,
+            remove_gaps: false,
+        }
     }
 }
 
@@ -76,13 +81,25 @@ pub fn detect(peaks: &Peaks, opts: &DetectOptions) -> Vec<Proposal> {
     gaps.sort_by(|x, y| (y.1 - y.0).total_cmp(&(x.1 - x.0)));
     let mut kept: Vec<Proposal> = Vec::new();
     for (a, b) in gaps {
-        let at = if opts.remove_gaps { b - MARGIN_MS } else { (b - LEAD_IN_MS).max(a) };
+        let at = if opts.remove_gaps {
+            b - MARGIN_MS
+        } else {
+            (b - LEAD_IN_MS).max(a)
+        };
         let far_enough = at >= opts.min_track_ms
             && total_ms - at >= opts.min_track_ms
-            && kept.iter().all(|p| (p.at_ms - at).abs() >= opts.min_track_ms);
+            && kept
+                .iter()
+                .all(|p| (p.at_ms - at).abs() >= opts.min_track_ms);
         if far_enough {
-            let delete = (opts.remove_gaps && b - a > 2.0 * MARGIN_MS).then_some((a + MARGIN_MS, b - MARGIN_MS));
-            kept.push(Proposal { at_ms: at, gap_start_ms: a, gap_end_ms: b, delete });
+            let delete = (opts.remove_gaps && b - a > 2.0 * MARGIN_MS)
+                .then_some((a + MARGIN_MS, b - MARGIN_MS));
+            kept.push(Proposal {
+                at_ms: at,
+                gap_start_ms: a,
+                gap_end_ms: b,
+                delete,
+            });
         }
     }
     kept.sort_by(|x, y| x.at_ms.total_cmp(&y.at_ms));
@@ -100,41 +117,86 @@ mod tests {
         let mut buckets = Vec::new();
         for &(loud, ms) in parts {
             let v = if loud { 8000 } else { 10 }; // about -12 dB / -70 dB
-            buckets.extend((0..ms / 10).map(|_| Bucket { min: -v, max: v, rms: v }));
+            buckets.extend((0..ms / 10).map(|_| Bucket {
+                min: -v,
+                max: v,
+                rms: v,
+            }));
         }
         let frames = buckets.len() as u64 * BUCKET;
-        Peaks { rate, frames, buckets }
+        Peaks {
+            rate,
+            frames,
+            buckets,
+        }
     }
 
     #[test]
     fn finds_gaps_between_songs() {
-        let p = peaks(&[(false, 500), (true, 60_000), (false, 2000), (true, 50_000), (false, 3000), (true, 40_000), (false, 900)]);
+        let p = peaks(&[
+            (false, 500),
+            (true, 60_000),
+            (false, 2000),
+            (true, 50_000),
+            (false, 3000),
+            (true, 40_000),
+            (false, 900),
+        ]);
         let found = detect(&p, &DetectOptions::default());
         let at: Vec<f64> = found.iter().map(|x| x.at_ms.round()).collect();
-        assert_eq!(at, vec![500.0 + 60_000.0 + 2000.0 - 200.0, 500.0 + 60_000.0 + 2000.0 + 50_000.0 + 3000.0 - 200.0]);
+        assert_eq!(
+            at,
+            vec![
+                500.0 + 60_000.0 + 2000.0 - 200.0,
+                500.0 + 60_000.0 + 2000.0 + 50_000.0 + 3000.0 - 200.0
+            ]
+        );
         assert!(found.iter().all(|x| x.delete.is_none()));
     }
 
     #[test]
     fn short_pauses_and_short_tracks_are_ignored() {
         // A 1 s pause (too short a gap) and a 3 s "track" (too short).
-        let p = peaks(&[(true, 40_000), (false, 1000), (true, 40_000), (false, 2000), (true, 3000), (false, 4000), (true, 40_000)]);
+        let p = peaks(&[
+            (true, 40_000),
+            (false, 1000),
+            (true, 40_000),
+            (false, 2000),
+            (true, 3000),
+            (false, 4000),
+            (true, 40_000),
+        ]);
         let found = detect(&p, &DetectOptions::default());
         assert_eq!(found.len(), 1, "{found:?}");
-        assert!((found[0].gap_end_ms - found[0].gap_start_ms - 4000.0).abs() < 1.0, "the longer gap wins");
+        assert!(
+            (found[0].gap_end_ms - found[0].gap_start_ms - 4000.0).abs() < 1.0,
+            "the longer gap wins"
+        );
     }
 
     #[test]
     fn a_short_last_track_is_found() {
         // Alex's test recording: 42 s, 35 s, then 25 s.
-        let p = peaks(&[(true, 42_000), (false, 2700), (true, 35_000), (false, 2700), (true, 25_000)]);
+        let p = peaks(&[
+            (true, 42_000),
+            (false, 2700),
+            (true, 35_000),
+            (false, 2700),
+            (true, 25_000),
+        ]);
         assert_eq!(detect(&p, &DetectOptions::default()).len(), 2);
     }
 
     #[test]
     fn remove_gaps_proposes_deletions_with_margins() {
         let p = peaks(&[(true, 40_000), (false, 2000), (true, 40_000)]);
-        let found = detect(&p, &DetectOptions { remove_gaps: true, ..Default::default() });
+        let found = detect(
+            &p,
+            &DetectOptions {
+                remove_gaps: true,
+                ..Default::default()
+            },
+        );
         assert_eq!(found[0].delete, Some((40_100.0, 41_900.0)));
         assert_eq!(found[0].at_ms, 41_900.0);
     }
@@ -142,7 +204,10 @@ mod tests {
     #[test]
     fn threshold_decides_what_is_silence() {
         let p = peaks(&[(true, 40_000), (false, 2000), (true, 40_000)]);
-        let strict = DetectOptions { threshold_db: -80.0, ..Default::default() };
+        let strict = DetectOptions {
+            threshold_db: -80.0,
+            ..Default::default()
+        };
         assert!(detect(&p, &strict).is_empty(), "-70 dB isn't silent at -80");
     }
 }

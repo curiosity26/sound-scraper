@@ -14,7 +14,12 @@ type EventCallback = extern "C" fn(*mut c_void, *const c_char) -> c_int;
 
 unsafe extern "C" {
     fn ssdr_devices_json() -> *mut c_char;
-    fn ssdr_burn(request_json: *const c_char, ctx: *mut c_void, cb: EventCallback, error_out: *mut *mut c_char) -> c_int;
+    fn ssdr_burn(
+        request_json: *const c_char,
+        ctx: *mut c_void,
+        cb: EventCallback,
+        error_out: *mut *mut c_char,
+    ) -> c_int;
     fn ssdr_free(s: *mut c_char);
 }
 
@@ -60,7 +65,11 @@ extern "C" fn on_event(ctx: *mut c_void, json: *const c_char) -> c_int {
             (ctx.events)(BurnEvent::Log(l));
         }
         if let Some(sectors) = e.written {
-            (ctx.events)(BurnEvent::Written { sectors, speed_x: e.speed, buffer: None });
+            (ctx.events)(BurnEvent::Written {
+                sectors,
+                speed_x: e.speed,
+                buffer: None,
+            });
         }
     }
     c_int::from(ctx.cancel.load(Ordering::Relaxed))
@@ -107,7 +116,14 @@ impl Burner for DiscRecordingBurner {
         let request = CString::new(request.to_string()).map_err(|e| e.to_string())?;
         let ctx = Context { events, cancel };
         let mut error: *mut c_char = std::ptr::null_mut();
-        let result = unsafe { ssdr_burn(request.as_ptr(), &ctx as *const Context as *mut c_void, on_event, &mut error) };
+        let result = unsafe {
+            ssdr_burn(
+                request.as_ptr(),
+                &ctx as *const Context as *mut c_void,
+                on_event,
+                &mut error,
+            )
+        };
         match result {
             0 => Ok(self.device_id.clone()),
             1 => Err("Cancelled.".into()),

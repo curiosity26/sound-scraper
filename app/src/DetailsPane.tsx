@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
   Image,
@@ -8,24 +8,24 @@ import {
   StyleSheet,
   Text,
   View,
-} from 'react-native';
+} from 'react-native'
 
-import { errorText, safeSettings } from './appHelpers';
+import { errorText, safeSettings } from './appHelpers'
 import {
   displayName,
   formatDate,
   formatDuration,
   formatSize,
-} from './libraryModel';
-import { library, type Recording, type Tags } from './native/SoundScraper';
+} from './libraryModel'
+import { library, type Recording, type Tags } from './native/SoundScraper'
 import {
   chooseCover as chooseCoverFor,
   type MenuContext,
   openRecordingMenu,
   recordingActions,
   type ShowMenu,
-} from './recordingMenu';
-import { usePanelStyles } from './panelTheme';
+} from './recordingMenu'
+import { usePanelStyles } from './panelTheme'
 import {
   buildEdit,
   type CoverChange,
@@ -37,28 +37,28 @@ import {
   mergeTags,
   TEXT_FIELDS,
   validate,
-} from './tagModel';
-import { colors } from './theme';
-import { TextField } from './TextField';
+} from './tagModel'
+import { colors } from './theme'
+import { TextField } from './TextField'
 
-export type { ShowMenu };
+export type { ShowMenu }
 
 type Props = {
   /** One recording, or several for a bulk edit. */
-  fileNames: string[];
+  fileNames: string[]
   /** A rename gave the recording a new file name. */
-  onRenamed: (oldName: string, newName: string) => void;
+  onRenamed: (oldName: string, newName: string) => void
   /** Something changed on disk (tags, name, trash). */
-  onChanged: () => void;
-  onClose: () => void;
+  onChanged: () => void
+  onClose: () => void
   /** The actions menu; without it (no native menus) they show as links. */
-  showMenu?: ShowMenu;
+  showMenu?: ShowMenu
   /** Set to a function that opens the actions menu at (x, y) in the window
    * (the panel's title-bar menu button calls it). */
-  menuRef?: { current?: (x: number, y: number) => void };
-  textStyle: object;
-  isDark: boolean;
-};
+  menuRef?: { current?: (x: number, y: number) => void }
+  textStyle: object
+  isDark: boolean
+}
 
 /**
  * Details of the selected recording(s): big cover art (click or drop an
@@ -68,89 +68,89 @@ type Props = {
  * of their shared tags.
  */
 export function DetailsPane(props: Props): React.JSX.Element {
-  const { fileNames, textStyle, isDark, onChanged } = props;
-  const t = usePanelStyles();
-  const [tags, setTags] = useState<Tags[]>();
-  const [recordings, setRecordings] = useState<Recording[]>([]);
-  const [error, setError] = useState<string>();
-  const [notice, setNotice] = useState<string>();
-  const [busy, setBusy] = useState(false);
-  const [area, setArea] = useState({ width: 0, height: 0 });
-  const single = fileNames.length === 1;
-  const key = fileNames.join('\u0000');
+  const { fileNames, textStyle, isDark, onChanged } = props
+  const t = usePanelStyles()
+  const [tags, setTags] = useState<Tags[]>()
+  const [recordings, setRecordings] = useState<Recording[]>([])
+  const [error, setError] = useState<string>()
+  const [notice, setNotice] = useState<string>()
+  const [busy, setBusy] = useState(false)
+  const [area, setArea] = useState({ width: 0, height: 0 })
+  const single = fileNames.length === 1
+  const key = fileNames.join('\u0000')
 
   const load = useCallback(async () => {
-    const names = key.split('\u0000').filter(Boolean);
+    const names = key.split('\u0000').filter(Boolean)
     try {
       const [loaded, all] = await Promise.all([
         Promise.all(names.map(n => library.readTags(n))),
         library.list(),
-      ]);
-      setTags(loaded);
-      setRecordings(all.filter(r => names.includes(r.fileName)));
+      ])
+      setTags(loaded)
+      setRecordings(all.filter(r => names.includes(r.fileName)))
     } catch (e) {
-      setError(`Couldn't read the tags: ${errorText(e)}`);
+      setError(`Couldn't read the tags: ${errorText(e)}`)
     }
-  }, [key]);
+  }, [key])
 
   useEffect(() => {
-    setTags(undefined);
-    setError(undefined);
-    setNotice(undefined);
-    load();
-  }, [load]);
+    setTags(undefined)
+    setError(undefined)
+    setNotice(undefined)
+    load()
+  }, [load])
 
-  const merged = useMemo(() => (tags ? mergeTags(tags) : undefined), [tags]);
+  const merged = useMemo(() => (tags ? mergeTags(tags) : undefined), [tags])
   const cover: CoverState = useMemo(
     () => (tags ? mergeCovers(tags) : { kind: 'none' }),
     [tags],
-  );
+  )
 
   /** Writes one change to every selected recording, then reloads. */
   const write = async (
     edits: Partial<Record<Field, string>>,
     coverChange: CoverChange,
   ) => {
-    setBusy(true);
-    setError(undefined);
+    setBusy(true)
+    setError(undefined)
     try {
-      const v23 = safeSettings()?.id3Version === '2.3';
-      await library.writeTags(fileNames, buildEdit(edits, coverChange, v23));
-      onChanged();
-      await load();
+      const v23 = safeSettings()?.id3Version === '2.3'
+      await library.writeTags(fileNames, buildEdit(edits, coverChange, v23))
+      onChanged()
+      await load()
     } catch (e) {
-      setError(`Couldn't save: ${errorText(e)}`);
+      setError(`Couldn't save: ${errorText(e)}`)
     } finally {
-      setBusy(false);
+      setBusy(false)
     }
-  };
+  }
 
   const saveField = async (field: Field, text: string) => {
-    const problem = validate(field, text);
+    const problem = validate(field, text)
     if (problem) {
-      setError(problem);
-      return false;
+      setError(problem)
+      return false
     }
-    await write({ [field]: text }, { kind: 'keep' });
-    return true;
-  };
+    await write({ [field]: text }, { kind: 'keep' })
+    return true
+  }
 
   const rename = async (text: string) => {
-    const old = fileNames[0];
-    const recording = recordings.find(r => r.fileName === old);
+    const old = fileNames[0]
+    const recording = recordings.find(r => r.fileName === old)
     if (!text.trim() || (recording && text.trim() === displayName(recording))) {
-      return true;
+      return true
     }
     try {
-      const renamed = await library.rename(old, text);
-      onChanged();
-      props.onRenamed(old, renamed);
-      return true;
+      const renamed = await library.rename(old, text)
+      onChanged()
+      props.onRenamed(old, renamed)
+      return true
     } catch (e) {
-      setError(`Couldn't rename: ${errorText(e)}`);
-      return false;
+      setError(`Couldn't rename: ${errorText(e)}`)
+      return false
     }
-  };
+  }
 
   const menuContext: MenuContext = {
     fileNames,
@@ -158,55 +158,55 @@ export function DetailsPane(props: Props): React.JSX.Element {
     hasCover: cover.kind !== 'none',
     showMenu: props.showMenu,
     onChanged: () => {
-      onChanged();
-      load();
+      onChanged()
+      load()
     },
     onTrashed: props.onClose,
     report: m => {
-      setError(m.isError ? m.text : undefined);
-      setNotice(m.isError ? undefined : m.text);
+      setError(m.isError ? m.text : undefined)
+      setNotice(m.isError ? undefined : m.text)
     },
-  };
-  const chooseCover = () => chooseCoverFor(menuContext);
+  }
+  const chooseCover = () => chooseCoverFor(menuContext)
 
   const onDrop = (e: {
-    nativeEvent: { dataTransfer?: { files?: Array<{ uri?: string }> } };
+    nativeEvent: { dataTransfer?: { files?: Array<{ uri?: string }> } }
   }) => {
-    const uri = e.nativeEvent.dataTransfer?.files?.[0]?.uri;
-    const path = uri ? decodeURI(uri.replace(/^file:\/\//, '')) : undefined;
+    const uri = e.nativeEvent.dataTransfer?.files?.[0]?.uri
+    const path = uri ? decodeURI(uri.replace(/^file:\/\//, '')) : undefined
     if (path && /\.(png|jpe?g)$/i.test(path)) {
-      write({}, { kind: 'set', path });
+      write({}, { kind: 'set', path })
     } else if (path) {
-      setError('Drop a PNG or JPEG image.');
+      setError('Drop a PNG or JPEG image.')
     }
-  };
-
-  const actions = recordingActions(menuContext);
-  const openMenu = (x: number, y: number) =>
-    openRecordingMenu(menuContext, x, y);
-
-  if (props.menuRef) {
-    props.menuRef.current = openMenu;
   }
 
-  const recording = single ? recordings[0] : undefined;
+  const actions = recordingActions(menuContext)
+  const openMenu = (x: number, y: number) =>
+    openRecordingMenu(menuContext, x, y)
+
+  if (props.menuRef) {
+    props.menuRef.current = openMenu
+  }
+
+  const recording = single ? recordings[0] : undefined
   // The cover leaves room below it for the file name and title (about
   // 110 points), so they show without scrolling.
   const size = Math.max(
     96,
     Math.min(area.width, area.height > 0 ? area.height - 110 : area.width),
-  );
+  )
   const dropProps = {
     draggedTypes: ['fileUrl'],
     onDrop,
-  } as object;
+  } as object
 
   return (
     <ScrollView
       style={styles.root}
       onLayout={(e: LayoutChangeEvent) => {
-        const { width, height } = e.nativeEvent.layout;
-        setArea({ width, height });
+        const { width, height } = e.nativeEvent.layout
+        setArea({ width, height })
       }}
     >
       <View {...dropProps} style={styles.coverBox}>
@@ -266,7 +266,7 @@ export function DetailsPane(props: Props): React.JSX.Element {
             </Text>
           )}
           {TEXT_FIELDS.map(field => {
-            const m = merged[field];
+            const m = merged[field]
             return (
               <InlineField
                 key={`${key}-${field}`}
@@ -278,7 +278,7 @@ export function DetailsPane(props: Props): React.JSX.Element {
                 onCommit={text => saveField(field, text)}
                 textStyle={textStyle}
               />
-            );
+            )
           })}
           {recording && (
             <View style={styles.info}>
@@ -319,7 +319,7 @@ export function DetailsPane(props: Props): React.JSX.Element {
         </View>
       )}
     </ScrollView>
-  );
+  )
 }
 
 /**
@@ -327,36 +327,36 @@ export function DetailsPane(props: Props): React.JSX.Element {
  * field) commits, Esc cancels. `onCommit` resolves false to keep editing.
  */
 export function InlineField(props: {
-  label: string;
-  value: string;
-  mixed?: boolean;
-  multiline?: boolean;
-  large?: boolean;
-  onCommit: (text: string) => Promise<boolean>;
-  textStyle: object;
-  testID?: string;
+  label: string
+  value: string
+  mixed?: boolean
+  multiline?: boolean
+  large?: boolean
+  onCommit: (text: string) => Promise<boolean>
+  textStyle: object
+  testID?: string
 }): React.JSX.Element {
-  const t = usePanelStyles();
-  const [editing, setEditing] = useState<string>();
+  const t = usePanelStyles()
+  const [editing, setEditing] = useState<string>()
   const commit = async () => {
     if (editing === undefined) {
-      return;
+      return
     }
-    const text = editing;
+    const text = editing
     if (text === props.value) {
-      setEditing(undefined);
-      return;
+      setEditing(undefined)
+      return
     }
     if (await props.onCommit(text)) {
-      setEditing(undefined);
+      setEditing(undefined)
     }
-  };
+  }
   const valueStyle = [
     styles.value,
     props.large && styles.valueLarge,
     props.textStyle,
     t.cell,
-  ];
+  ]
   return (
     <View style={styles.field}>
       <Text style={[styles.label, props.textStyle, t.cell]}>{props.label}</Text>
@@ -372,7 +372,7 @@ export function InlineField(props: {
           onBlur={commit}
           onKeyPress={e => {
             if (e.nativeEvent.key === 'Escape') {
-              setEditing(undefined);
+              setEditing(undefined)
             }
           }}
           style={[styles.input, valueStyle, t.input]}
@@ -399,11 +399,11 @@ export function InlineField(props: {
         </Pressable>
       )}
     </View>
-  );
+  )
 }
 
 function Info(props: { label: string; value: string; textStyle: object }) {
-  const t = usePanelStyles();
+  const t = usePanelStyles()
   return (
     <View style={styles.infoRow}>
       <Text style={[styles.infoLabel, props.textStyle, t.cell]}>
@@ -417,7 +417,7 @@ function Info(props: { label: string; value: string; textStyle: object }) {
         {props.value}
       </Text>
     </View>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -462,4 +462,4 @@ const styles = StyleSheet.create({
   infoValue: { flex: 1, fontSize: 11 },
   links: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 10 },
   link: { color: colors.accent, fontSize: 13 },
-});
+})

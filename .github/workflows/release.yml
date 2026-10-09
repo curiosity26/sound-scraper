@@ -48,7 +48,8 @@ jobs:
           ruby-version: "3.3"
           working-directory: app
           bundler-cache: true
-      - run: rustup target add aarch64-apple-darwin
+      # Installs the toolchain pinned in rust-toolchain.toml, with its targets.
+      - run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: core
@@ -122,7 +123,8 @@ jobs:
           node-version-file: app/.nvmrc
           cache: npm
           cache-dependency-path: app/package-lock.json
-      - run: rustup target add ${{ matrix.rust-target }}
+      # Installs the toolchain pinned in rust-toolchain.toml, with its targets.
+      - run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: core
@@ -189,6 +191,7 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+      - run: rustup toolchain install
       # Every skin in skins/ except the built-in Default, as a .sskin named
       # after the skin ("Hi-Fi '74" -> HiFi74.sskin).
       - name: Package the extra skins

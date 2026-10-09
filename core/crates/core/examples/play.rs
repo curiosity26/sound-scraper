@@ -12,8 +12,19 @@ fn main() {
     let seek = args.next().and_then(|s| s.parse::<f64>().ok());
     let mut player = Player::new(VisHub::new());
     player.set_event_sink(Some(Arc::new(|e: &PlayerEvent| match e {
-        PlayerEvent::Progress { position, duration, peak, .. } => {
-            println!("{:>6.2}/{:.2}s  peak L {:.2} R {:.2}", position.as_secs_f64(), duration.as_secs_f64(), peak[0], peak[1])
+        PlayerEvent::Progress {
+            position,
+            duration,
+            peak,
+            ..
+        } => {
+            println!(
+                "{:>6.2}/{:.2}s  peak L {:.2} R {:.2}",
+                position.as_secs_f64(),
+                duration.as_secs_f64(),
+                peak[0],
+                peak[1]
+            )
         }
         other => println!("{other:?}"),
     })));

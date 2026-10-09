@@ -66,7 +66,9 @@ pub struct SkinStore {
 
 impl SkinStore {
     pub fn new(skins_dir: impl Into<PathBuf>) -> Self {
-        Self { skins_dir: skins_dir.into() }
+        Self {
+            skins_dir: skins_dir.into(),
+        }
     }
 
     pub fn skins_dir(&self) -> &Path {
@@ -79,8 +81,13 @@ impl SkinStore {
         if dir.join("skin.json").is_file() {
             return Ok(dir);
         }
-        fs::create_dir_all(&self.skins_dir).map_err(|e| format!("{}: {e}", self.skins_dir.display()))?;
-        let temp = self.skins_dir.join(format!(".builtin-{}.tmp-{}", builtin::HASH, std::process::id()));
+        fs::create_dir_all(&self.skins_dir)
+            .map_err(|e| format!("{}: {e}", self.skins_dir.display()))?;
+        let temp = self.skins_dir.join(format!(
+            ".builtin-{}.tmp-{}",
+            builtin::HASH,
+            std::process::id()
+        ));
         let _ = fs::remove_dir_all(&temp);
         fs::create_dir_all(&temp).map_err(|e| format!("{}: {e}", temp.display()))?;
         for (name, bytes) in builtin::FILES {
@@ -104,7 +111,8 @@ impl SkinStore {
 
     /// The Default skin, resolved.
     pub fn load_default(&self) -> Result<ResolvedSkin, String> {
-        let mut skin = resolve::load_dir(&self.builtin_dir()?, None).map_err(|e| format!("Default skin: {e}"))?;
+        let mut skin = resolve::load_dir(&self.builtin_dir()?, None)
+            .map_err(|e| format!("Default skin: {e}"))?;
         skin.builtin = true;
         Ok(skin)
     }
@@ -131,8 +139,11 @@ impl SkinStore {
     /// Validates a `.sskin` archive and installs it as `skins_dir/<id>`,
     /// replacing an installed skin with the same id.
     pub fn install(&self, archive: &Path) -> Result<SkinSummary, String> {
-        fs::create_dir_all(&self.skins_dir).map_err(|e| format!("{}: {e}", self.skins_dir.display()))?;
-        let staging = self.skins_dir.join(format!(".installing-{}", std::process::id()));
+        fs::create_dir_all(&self.skins_dir)
+            .map_err(|e| format!("{}: {e}", self.skins_dir.display()))?;
+        let staging = self
+            .skins_dir
+            .join(format!(".installing-{}", std::process::id()));
         let _ = fs::remove_dir_all(&staging);
         fs::create_dir_all(&staging).map_err(|e| format!("{}: {e}", staging.display()))?;
         let result = (|| {
@@ -145,9 +156,11 @@ impl SkinStore {
             let old = self.skins_dir.join(format!(".removing-{}", skin.id));
             let _ = fs::remove_dir_all(&old);
             if target.exists() {
-                fs::rename(&target, &old).map_err(|e| format!("replacing {}: {e}", target.display()))?;
+                fs::rename(&target, &old)
+                    .map_err(|e| format!("replacing {}: {e}", target.display()))?;
             }
-            fs::rename(&root, &target).map_err(|e| format!("installing to {}: {e}", target.display()))?;
+            fs::rename(&root, &target)
+                .map_err(|e| format!("installing to {}: {e}", target.display()))?;
             let _ = fs::remove_dir_all(&old);
             Ok(summary(&skin, target, None))
         })();
@@ -158,8 +171,11 @@ impl SkinStore {
     /// Validates a `.sskin` archive without installing it: what it is, a
     /// preview, and the installed skin it would replace.
     pub fn inspect(&self, archive: &Path) -> Result<SkinInspection, String> {
-        fs::create_dir_all(&self.skins_dir).map_err(|e| format!("{}: {e}", self.skins_dir.display()))?;
-        let staging = self.skins_dir.join(format!(".inspecting-{}-{}", std::process::id(), unique()));
+        fs::create_dir_all(&self.skins_dir)
+            .map_err(|e| format!("{}: {e}", self.skins_dir.display()))?;
+        let staging =
+            self.skins_dir
+                .join(format!(".inspecting-{}-{}", std::process::id(), unique()));
         let _ = fs::remove_dir_all(&staging);
         fs::create_dir_all(&staging).map_err(|e| format!("{}: {e}", staging.display()))?;
         let result = (|| {
@@ -169,14 +185,27 @@ impl SkinStore {
                 return Err("the Default skin is built in and can't be replaced".to_string());
             }
             // One archive preview at a time.
-            for entry in fs::read_dir(self.previews_dir()).into_iter().flatten().flatten() {
+            for entry in fs::read_dir(self.previews_dir())
+                .into_iter()
+                .flatten()
+                .flatten()
+            {
                 if entry.file_name().to_string_lossy().starts_with("archive-") {
                     let _ = fs::remove_file(entry.path());
                 }
             }
-            let preview = self.previews_dir().join(format!("archive-{}-{}.png", std::process::id(), unique()));
-            let preview = preview::write_main_png(&skin, &preview).ok().map(|()| preview);
-            let installed = self.list().into_iter().find(|s| s.id == skin.id && !s.builtin);
+            let preview = self.previews_dir().join(format!(
+                "archive-{}-{}.png",
+                std::process::id(),
+                unique()
+            ));
+            let preview = preview::write_main_png(&skin, &preview)
+                .ok()
+                .map(|()| preview);
+            let installed = self
+                .list()
+                .into_iter()
+                .find(|s| s.id == skin.id && !s.builtin);
             Ok(SkinInspection {
                 id: skin.id,
                 name: skin.name,
@@ -201,14 +230,21 @@ impl SkinStore {
     /// version of its files and cached.
     pub fn preview(&self, skin: &ResolvedSkin) -> Result<PathBuf, String> {
         let stamp = folder_stamp(&skin.dir)?;
-        let key = format!("{:016x}", fnv(&format!("{}|{}|{stamp}", skin.id, skin.dir.display())));
+        let key = format!(
+            "{:016x}",
+            fnv(&format!("{}|{}|{stamp}", skin.id, skin.dir.display()))
+        );
         let prefix = format!("{}-", skin.id);
         let path = self.previews_dir().join(format!("{prefix}{key}.png"));
         if path.is_file() {
             return Ok(path);
         }
         // Drop this skin's older pictures.
-        for entry in fs::read_dir(self.previews_dir()).into_iter().flatten().flatten() {
+        for entry in fs::read_dir(self.previews_dir())
+            .into_iter()
+            .flatten()
+            .flatten()
+        {
             if entry.file_name().to_string_lossy().starts_with(&prefix) {
                 let _ = fs::remove_file(entry.path());
             }
@@ -223,7 +259,9 @@ impl SkinStore {
     pub fn package(&self, dir: &Path, out: &Path) -> Result<SkinSummary, String> {
         let skin = self.load_dir(dir)?;
         if skin.id == DEFAULT_ID {
-            return Err("give the skin its own id in skin.json first (it's the Default skin's)".into());
+            return Err(
+                "give the skin its own id in skin.json first (it's the Default skin's)".into(),
+            );
         }
         files::write_archive(&skin.dir, out)?;
         if let Err(e) = self.inspect(out) {
@@ -246,15 +284,20 @@ impl SkinStore {
         }
         let source = self.builtin_dir()?;
         fs::create_dir_all(&dest).map_err(|e| format!("{}: {e}", dest.display()))?;
-        for entry in fs::read_dir(&source).map_err(|e| format!("{}: {e}", source.display()))?.flatten() {
+        for entry in fs::read_dir(&source)
+            .map_err(|e| format!("{}: {e}", source.display()))?
+            .flatten()
+        {
             let file = entry.file_name();
             if file == "skin.json" || !entry.path().is_file() {
                 continue;
             }
-            fs::copy(entry.path(), dest.join(&file)).map_err(|e| format!("{}: {e}", file.to_string_lossy()))?;
+            fs::copy(entry.path(), dest.join(&file))
+                .map_err(|e| format!("{}: {e}", file.to_string_lossy()))?;
         }
         let text = fs::read_to_string(source.join("skin.json")).map_err(|e| e.to_string())?;
-        let mut manifest: serde_json::Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+        let mut manifest: serde_json::Value =
+            serde_json::from_str(&text).map_err(|e| e.to_string())?;
         let slug: String = name
             .to_lowercase()
             .chars()
@@ -264,8 +307,14 @@ impl SkinStore {
             .filter(|p| !p.is_empty())
             .collect::<Vec<_>>()
             .join("-");
-        let slug = if slug.is_empty() { "my-skin".to_string() } else { slug };
-        manifest["$schema"] = "https://raw.githubusercontent.com/curiosity26/sound-scraper/main/skin.schema.json".into();
+        let slug = if slug.is_empty() {
+            "my-skin".to_string()
+        } else {
+            slug
+        };
+        manifest["$schema"] =
+            "https://raw.githubusercontent.com/curiosity26/sound-scraper/main/skin.schema.json"
+                .into();
         manifest["id"] = format!("com.example.{slug}").into();
         manifest["name"] = name.into();
         manifest["author"] = "".into();
@@ -294,9 +343,14 @@ impl SkinStore {
             }),
         }
         let mut installed = Vec::new();
-        for entry in fs::read_dir(&self.skins_dir).into_iter().flatten().flatten() {
+        for entry in fs::read_dir(&self.skins_dir)
+            .into_iter()
+            .flatten()
+            .flatten()
+        {
             let name = entry.file_name().to_string_lossy().into_owned();
-            if name.starts_with('.') || !entry.path().is_dir() || resolve::check_id(&name).is_err() {
+            if name.starts_with('.') || !entry.path().is_dir() || resolve::check_id(&name).is_err()
+            {
                 continue;
             }
             let mut warnings = Vec::new();
@@ -315,7 +369,10 @@ impl SkinStore {
                     error: Some(format!("installed as {name} but its id is {}", m.id)),
                     ..unreadable(&name, entry.path())
                 },
-                Err(e) => SkinSummary { error: Some(e), ..unreadable(&name, entry.path()) },
+                Err(e) => SkinSummary {
+                    error: Some(e),
+                    ..unreadable(&name, entry.path())
+                },
             });
         }
         installed.sort_by_key(|s| s.name.to_lowercase());
@@ -346,7 +403,10 @@ pub fn folder_stamp(dir: &Path) -> Result<String, String> {
     let files = files::skin_files(dir)?;
     let mut h = 0xcbf2_9ce4_8422_2325u64;
     for f in &files {
-        let nanos = f.modified.and_then(|m| m.duration_since(std::time::UNIX_EPOCH).ok()).map_or(0, |d| d.as_nanos());
+        let nanos = f
+            .modified
+            .and_then(|m| m.duration_since(std::time::UNIX_EPOCH).ok())
+            .map_or(0, |d| d.as_nanos());
         h = fnv_more(h, &format!("{}|{}|{nanos};", f.rel, f.len));
     }
     Ok(format!("{}:{h:016x}", files.len()))
@@ -384,7 +444,15 @@ fn summary(skin: &ResolvedSkin, dir: PathBuf, error: Option<String>) -> SkinSumm
 }
 
 fn unreadable(id: &str, dir: PathBuf) -> SkinSummary {
-    SkinSummary { id: id.into(), name: id.into(), author: None, version: None, dir, builtin: false, error: None }
+    SkinSummary {
+        id: id.into(),
+        name: id.into(),
+        author: None,
+        version: None,
+        dir,
+        builtin: false,
+        error: None,
+    }
 }
 
 #[cfg(test)]

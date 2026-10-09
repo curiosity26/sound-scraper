@@ -11,9 +11,14 @@ use crate::resolve::{ImageRef, ResolvedElement, ResolvedLayout, ResolvedSkin};
 /// Draws a layout (the main panel or its shade) at `scale` device pixels
 /// per point. Images that fail to load are left out.
 pub fn render(skin: &ResolvedSkin, layout: &ResolvedLayout, scale: u32) -> RgbaImage {
-    let p = Painter { scale: scale.max(1) };
+    let p = Painter {
+        scale: scale.max(1),
+    };
     let s = p.scale as i64;
-    let mut out = RgbaImage::new(layout.size[0] as u32 * p.scale, layout.size[1] as u32 * p.scale);
+    let mut out = RgbaImage::new(
+        layout.size[0] as u32 * p.scale,
+        layout.size[1] as u32 * p.scale,
+    );
     if let Some(bg) = layout.background.as_ref().and_then(|bg| p.load(bg)) {
         imageops::overlay(&mut out, &bg, 0, 0);
     }
@@ -32,13 +37,35 @@ pub fn render(skin: &ResolvedSkin, layout: &ResolvedLayout, scale: u32) -> RgbaI
                 "status" => "recording",
                 _ => "normal",
             };
-            if let Some(at) = sprite.states.get(state).or_else(|| sprite.states.values().next()) {
-                blit(&mut out, &sheet, at[0] * s, at[1] * s, w * s, h * s, x * s, y * s);
+            if let Some(at) = sprite
+                .states
+                .get(state)
+                .or_else(|| sprite.states.values().next())
+            {
+                blit(
+                    &mut out,
+                    &sheet,
+                    at[0] * s,
+                    at[1] * s,
+                    w * s,
+                    h * s,
+                    x * s,
+                    y * s,
+                );
             }
         }
         if el.font.is_some() {
             let sample = match name.as_str() {
-                "elapsed" if el.style.as_ref().and_then(|s| s.get("tenths")).and_then(Value::as_bool) == Some(false) => "12:34",
+                "elapsed"
+                    if el
+                        .style
+                        .as_ref()
+                        .and_then(|s| s.get("tenths"))
+                        .and_then(Value::as_bool)
+                        == Some(false) =>
+                {
+                    "12:34"
+                }
                 "elapsed" => "12:34.5",
                 "status" => "● REC",
                 "source" => "Spotify: Lo-fi beats",
@@ -64,9 +91,21 @@ pub fn render(skin: &ResolvedSkin, layout: &ResolvedLayout, scale: u32) -> RgbaI
     for animation in &layout.animations {
         let [x, y, w, h] = animation.rect;
         if let Some(sheet) = p.load(&animation.sprite.image)
-            && let Some(at) = animation.frames.first().and_then(|f| animation.sprite.states.get(f))
+            && let Some(at) = animation
+                .frames
+                .first()
+                .and_then(|f| animation.sprite.states.get(f))
         {
-            blit(&mut out, &sheet, at[0] * s, at[1] * s, w * s, h * s, x * s, y * s);
+            blit(
+                &mut out,
+                &sheet,
+                at[0] * s,
+                at[1] * s,
+                w * s,
+                h * s,
+                x * s,
+                y * s,
+            );
         }
     }
     out
@@ -78,12 +117,15 @@ pub fn write_main_png(skin: &ResolvedSkin, path: &Path) -> Result<(), String> {
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     }
-    image.save(path).map_err(|e| format!("{}: {e}", path.display()))
+    image
+        .save(path)
+        .map_err(|e| format!("{}: {e}", path.display()))
 }
 
 /// A visualizer preset drawn from a made-up frame, straight alpha.
 pub fn visualize(preset: &Value, w: u32, h: u32, scale: u32) -> RgbaImage {
-    let preset = sound_scraper_vis::render::Preset::from_json(&preset.to_string()).unwrap_or_default();
+    let preset =
+        sound_scraper_vis::render::Preset::from_json(&preset.to_string()).unwrap_or_default();
     let mut renderer = sound_scraper_vis::render::Renderer::new(preset);
     let mut buf = vec![0u8; (w * h * 4) as usize];
     let frame = sample_frame();
@@ -91,7 +133,7 @@ pub fn visualize(preset: &Value, w: u32, h: u32, scale: u32) -> RgbaImage {
     renderer.render(Some(&frame), w, h, scale as f32, &mut buf);
     renderer.render(Some(&frame), w, h, scale as f32, &mut buf);
     // Premultiplied → straight alpha.
-    for px in buf.chunks_exact_mut(4) {
+    for px in buf.as_chunks_mut::<4>().0 {
         let a = px[3] as u32;
         if a > 0 && a < 255 {
             for c in &mut px[..3] {
@@ -122,7 +164,11 @@ fn sample_frame() -> sound_scraper_vis::Frame {
 /// `#rrggbb` or `#rrggbbaa` (resolved skin colors); magenta otherwise.
 pub fn hex(c: &str) -> [u8; 4] {
     let h = c.trim_start_matches('#');
-    let v = |i: usize| h.get(i..i + 2).and_then(|s| u8::from_str_radix(s, 16).ok()).unwrap_or(0);
+    let v = |i: usize| {
+        h.get(i..i + 2)
+            .and_then(|s| u8::from_str_radix(s, 16).ok())
+            .unwrap_or(0)
+    };
     match h.len() {
         6 => [v(0), v(2), v(4), 255],
         8 => [v(0), v(2), v(4), v(6)],
@@ -132,10 +178,18 @@ pub fn hex(c: &str) -> [u8; 4] {
 
 #[allow(clippy::too_many_arguments)]
 fn blit(dst: &mut RgbaImage, src: &RgbaImage, sx: i64, sy: i64, w: i64, h: i64, dx: i64, dy: i64) {
-    if sx < 0 || sy < 0 || w <= 0 || h <= 0 || sx + w > src.width() as i64 || sy + h > src.height() as i64 {
+    if sx < 0
+        || sy < 0
+        || w <= 0
+        || h <= 0
+        || sx + w > src.width() as i64
+        || sy + h > src.height() as i64
+    {
         return;
     }
-    let view = src.view(sx as u32, sy as u32, w as u32, h as u32).to_image();
+    let view = src
+        .view(sx as u32, sy as u32, w as u32, h as u32)
+        .to_image();
     imageops::overlay(dst, &view, dx, dy);
 }
 
@@ -164,7 +218,11 @@ impl Painter {
         match exact {
             Some(p) => {
                 let i = image::open(p).ok()?.to_rgba8();
-                Some(if i.dimensions() == (w, h) { i } else { imageops::resize(&i, w, h, imageops::FilterType::Triangle) })
+                Some(if i.dimensions() == (w, h) {
+                    i
+                } else {
+                    imageops::resize(&i, w, h, imageops::FilterType::Triangle)
+                })
             }
             None => {
                 let source = img.path2x.as_ref().unwrap_or(&img.path);
@@ -174,38 +232,92 @@ impl Painter {
         }
     }
 
-    fn sprite_text(&self, dst: &mut RgbaImage, skin: &ResolvedSkin, el: &ResolvedElement, text: &str) {
-        let Some(font) = el.font.as_ref().and_then(|f| skin.fonts.get(f)) else { return };
-        let Some(sheet) = self.load(&font.image) else { return };
+    fn sprite_text(
+        &self,
+        dst: &mut RgbaImage,
+        skin: &ResolvedSkin,
+        el: &ResolvedElement,
+        text: &str,
+    ) {
+        let Some(font) = el.font.as_ref().and_then(|f| skin.fonts.get(f)) else {
+            return;
+        };
+        let Some(sheet) = self.load(&font.image) else {
+            return;
+        };
         let s = self.scale as i64;
         let [cw, ch] = font.cell;
         let capacity = (el.rect[2] / cw.max(1)) as usize;
-        let pad = el.style.as_ref().and_then(|s| s.get("pad")).and_then(Value::as_bool).unwrap_or(false);
-        let mut chars: Vec<char> =
-            text.chars().map(|c| if font.glyphs.contains(c) { c } else { c.to_ascii_uppercase() }).take(capacity).collect();
+        let pad = el
+            .style
+            .as_ref()
+            .and_then(|s| s.get("pad"))
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let mut chars: Vec<char> = text
+            .chars()
+            .map(|c| {
+                if font.glyphs.contains(c) {
+                    c
+                } else {
+                    c.to_ascii_uppercase()
+                }
+            })
+            .take(capacity)
+            .collect();
         let right = el.align.as_deref() == Some("right");
         if pad || right {
             while chars.len() < capacity {
-                if right { chars.insert(0, ' ') } else { chars.push(' ') }
+                if right {
+                    chars.insert(0, ' ')
+                } else {
+                    chars.push(' ')
+                }
             }
         }
         for (i, c) in chars.iter().enumerate() {
-            let Some(index) = font.glyphs.chars().position(|g| g == *c) else { continue };
-            let (gx, gy) = ((index as i64 % font.columns) * cw, (index as i64 / font.columns) * ch);
-            blit(dst, &sheet, gx * s, gy * s, cw * s, ch * s, (el.rect[0] + i as i64 * cw) * s, el.rect[1] * s);
+            let Some(index) = font.glyphs.chars().position(|g| g == *c) else {
+                continue;
+            };
+            let (gx, gy) = (
+                (index as i64 % font.columns) * cw,
+                (index as i64 / font.columns) * ch,
+            );
+            blit(
+                dst,
+                &sheet,
+                gx * s,
+                gy * s,
+                cw * s,
+                ch * s,
+                (el.rect[0] + i as i64 * cw) * s,
+                el.rect[1] * s,
+            );
         }
     }
 
     fn segments(&self, dst: &mut RgbaImage, style: &Map<String, Value>, rect: [i64; 4]) {
         let s = self.scale as i64;
         let [x, y, w, h] = rect;
-        let rows = style.get("rows").and_then(Value::as_i64).unwrap_or(1).clamp(1, 2);
-        let segments = style.get("segments").and_then(Value::as_i64).unwrap_or(20).max(1);
+        let rows = style
+            .get("rows")
+            .and_then(Value::as_i64)
+            .unwrap_or(1)
+            .clamp(1, 2);
+        let segments = style
+            .get("segments")
+            .and_then(Value::as_i64)
+            .unwrap_or(20)
+            .max(1);
         let gap = style.get("gap").and_then(Value::as_i64).unwrap_or(1).max(0);
         let color = |k: &str, d: &str| hex(style.get(k).and_then(Value::as_str).unwrap_or(d));
         let row_h = (h - gap * (rows - 1)) / rows;
         for row in 0..rows {
-            let lit = if row == 0 { segments * 8 / 10 } else { segments * 6 / 10 };
+            let lit = if row == 0 {
+                segments * 8 / 10
+            } else {
+                segments * 6 / 10
+            };
             for seg in 0..segments {
                 let sw = (w - gap * (segments - 1)) as f64 / segments as f64;
                 let sx = x as f64 + seg as f64 * (sw + gap as f64);
@@ -219,7 +331,14 @@ impl Painter {
                 } else {
                     on
                 };
-                fill(dst, (sx * s as f64) as i64, (y + row * (row_h + gap)) * s, (sw * s as f64).max(1.0) as i64, row_h * s, c);
+                fill(
+                    dst,
+                    (sx * s as f64) as i64,
+                    (y + row * (row_h + gap)) * s,
+                    (sw * s as f64).max(1.0) as i64,
+                    row_h * s,
+                    c,
+                );
             }
         }
     }
@@ -238,8 +357,15 @@ impl Painter {
         let travel = (w - thumb[0]).max(0);
         let tx = x + (travel as f64 * progress).round() as i64;
         let fill_w = tx - x + thumb[0] / 2;
-        let sheet = el.sprite.as_ref().and_then(|sp| Some((sp, self.load(&sp.image)?)));
-        let cell = |state: &str| sheet.as_ref().and_then(|(sp, img)| Some((sp.states.get(state)?, img)));
+        let sheet = el
+            .sprite
+            .as_ref()
+            .and_then(|sp| Some((sp, self.load(&sp.image)?)));
+        let cell = |state: &str| {
+            sheet
+                .as_ref()
+                .and_then(|(sp, img)| Some((sp.states.get(state)?, img)))
+        };
         let color = |k: &str| style.get(k).and_then(Value::as_str).map(hex);
         if let Some((at, img)) = cell("track") {
             blit(dst, img, at[0] * s, at[1] * s, w * s, h * s, x * s, y * s);
@@ -247,13 +373,31 @@ impl Painter {
             fill(dst, x * s, y * s, w * s, h * s, c);
         }
         if let Some((at, img)) = cell("fill") {
-            blit(dst, img, at[0] * s, at[1] * s, fill_w * s, h * s, x * s, y * s);
+            blit(
+                dst,
+                img,
+                at[0] * s,
+                at[1] * s,
+                fill_w * s,
+                h * s,
+                x * s,
+                y * s,
+            );
         } else if let Some(c) = color("fill") {
             fill(dst, x * s, y * s, fill_w * s, h * s, c);
         }
         let ty = y + (h - thumb[1]) / 2;
         if let Some((at, img)) = cell("thumb") {
-            blit(dst, img, at[0] * s, at[1] * s, thumb[0] * s, thumb[1] * s, tx * s, ty * s);
+            blit(
+                dst,
+                img,
+                at[0] * s,
+                at[1] * s,
+                thumb[0] * s,
+                thumb[1] * s,
+                tx * s,
+                ty * s,
+            );
         } else if let Some(c) = color("thumb") {
             fill(dst, tx * s, ty * s, thumb[0] * s, thumb[1] * s, c);
         }
@@ -263,9 +407,13 @@ impl Painter {
     fn needles(&self, dst: &mut RgbaImage, style: &Map<String, Value>, rect: [i64; 4]) {
         let n = |k: &str, d: f64| style.get(k).and_then(Value::as_f64).unwrap_or(d);
         let pair = |k: &str, d: [f64; 2]| {
-            style.get(k).and_then(Value::as_array).filter(|a| a.len() == 2).map_or(d, |a| {
-                [a[0].as_f64().unwrap_or(d[0]), a[1].as_f64().unwrap_or(d[1])]
-            })
+            style
+                .get(k)
+                .and_then(Value::as_array)
+                .filter(|a| a.len() == 2)
+                .map_or(d, |a| {
+                    [a[0].as_f64().unwrap_or(d[0]), a[1].as_f64().unwrap_or(d[1])]
+                })
         };
         let faces = n("faces", 2.0).clamp(1.0, 2.0) as i64;
         let gap = n("gap", 4.0);
@@ -273,13 +421,19 @@ impl Painter {
         let pivot = pair("pivot", [face_w / 2.0, rect[3] as f64 * 1.3]);
         let length = n("length", pivot[1] * 0.9);
         let (sweep, range) = (n("sweep", 90.0), pair("range", [-20.0, 3.0]));
-        let color = hex(style.get("needle").and_then(Value::as_str).unwrap_or("#1a120a"));
+        let color = hex(style
+            .get("needle")
+            .and_then(Value::as_str)
+            .unwrap_or("#1a120a"));
         let s = self.scale as f64;
         let width = (n("width", 1.0) * s).max(1.0) as i64;
         for (face, vu) in [-3.0, -6.0].into_iter().take(faces as usize).enumerate() {
             let t = ((vu - range[0]) / (range[1] - range[0])).clamp(0.0, 1.0);
             let a = (-sweep / 2.0 + t * sweep).to_radians();
-            let (ox, oy) = (rect[0] as f64 + face as f64 * (face_w + gap), rect[1] as f64);
+            let (ox, oy) = (
+                rect[0] as f64 + face as f64 * (face_w + gap),
+                rect[1] as f64,
+            );
             let (px, py) = (ox + pivot[0], oy + pivot[1]);
             for i in 0..(length * s * 2.0) as i64 {
                 let d = i as f64 / (s * 2.0);

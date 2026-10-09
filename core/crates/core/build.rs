@@ -30,6 +30,9 @@ fn main() {
         Ok(bindings) => {
             bindings.write_to_file(&header_path);
         }
-        Err(err) => panic!("cbindgen failed to generate {}: {err}", header_path.display()),
+        Err(err) => panic!(
+            "cbindgen failed to generate {}: {err}",
+            header_path.display()
+        ),
     }
 }

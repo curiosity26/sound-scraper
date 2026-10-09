@@ -5,7 +5,10 @@ use std::{env, fmt::Write as _, fs, path::PathBuf};
 
 fn main() {
     let crate_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    let skin_dir = crate_dir.join("../../../skins/default").canonicalize().expect("skins/default exists");
+    let skin_dir = crate_dir
+        .join("../../../skins/default")
+        .canonicalize()
+        .expect("skins/default exists");
     println!("cargo:rerun-if-changed={}", skin_dir.display());
 
     let mut files: Vec<_> = fs::read_dir(&skin_dir)
@@ -25,9 +28,18 @@ fn main() {
         for byte in name.bytes().chain(fs::read(path).unwrap()) {
             hash = (hash ^ byte as u64).wrapping_mul(0x0100_0000_01b3);
         }
-        writeln!(source, "    ({name:?}, include_bytes!({:?})),", path.display().to_string()).unwrap();
+        writeln!(
+            source,
+            "    ({name:?}, include_bytes!({:?})),",
+            path.display().to_string()
+        )
+        .unwrap();
     }
     source.push_str("];\n");
     writeln!(source, "pub const HASH: &str = \"{hash:016x}\";").unwrap();
-    fs::write(PathBuf::from(env::var("OUT_DIR").unwrap()).join("builtin_default.rs"), source).unwrap();
+    fs::write(
+        PathBuf::from(env::var("OUT_DIR").unwrap()).join("builtin_default.rs"),
+        source,
+    )
+    .unwrap();
 }

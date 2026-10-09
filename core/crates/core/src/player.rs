@@ -82,8 +82,15 @@ pub enum PlayerEvent {
     StateChanged(PlayerState),
     /// About 10 Hz while playing, and after loads, seeks and stops. Levels
     /// are linear (0..=1), [left, right].
-    Progress { position: Duration, duration: Duration, peak: [f32; 2], rms: [f32; 2] },
-    Error { message: String },
+    Progress {
+        position: Duration,
+        duration: Duration,
+        peak: [f32; 2],
+        rms: [f32; 2],
+    },
+    Error {
+        message: String,
+    },
 }
 
 pub type PlayerSink = Arc<dyn Fn(&PlayerEvent) + Send + Sync>;
@@ -141,7 +148,12 @@ type Reply = Sender<Result<(), String>>;
 impl Player {
     /// A player whose analysis goes to `hub` (the recorder's).
     pub fn new(hub: Arc<VisHub>) -> Self {
-        Self { hub, events: None, status: Arc::default(), worker: None }
+        Self {
+            hub,
+            events: None,
+            status: Arc::default(),
+            worker: None,
+        }
     }
 
     pub fn set_event_sink(&mut self, sink: Option<PlayerSink>) {
@@ -160,11 +172,18 @@ impl Player {
     pub fn load(&mut self, path: &Path) -> Result<(), String> {
         self.unload();
         let source = Source::open(path)?;
-        self.status.duration_ms.store(source.duration.as_millis() as u64, Ordering::Release);
+        self.status
+            .duration_ms
+            .store(source.duration.as_millis() as u64, Ordering::Release);
         self.status.position_ms.store(0, Ordering::Release);
         *self.status.path.lock().unwrap_or_else(|e| e.into_inner()) = Some(path.to_path_buf());
         let (tx, rx) = mpsc::channel();
-        let job = Job::new(source, self.hub.clone(), self.status.clone(), self.events.clone());
+        let job = Job::new(
+            source,
+            self.hub.clone(),
+            self.status.clone(),
+            self.events.clone(),
+        );
         let thread = std::thread::Builder::new()
             .name("sound-scraper-player".into())
             .spawn(move || job.run(rx))
@@ -209,10 +228,17 @@ impl Player {
     }
 
     fn send(&mut self, command: Command) -> Result<(), String> {
-        let Some(worker) = &self.worker else { return Err("nothing is loaded".into()) };
+        let Some(worker) = &self.worker else {
+            return Err("nothing is loaded".into());
+        };
         let (reply_tx, reply_rx) = mpsc::channel();
-        worker.tx.send((command, reply_tx)).map_err(|_| "the player stopped".to_string())?;
-        reply_rx.recv_timeout(REPLY_TIMEOUT).map_err(|_| format!("the player didn't respond to {command:?}"))?
+        worker
+            .tx
+            .send((command, reply_tx))
+            .map_err(|_| "the player stopped".to_string())?;
+        reply_rx
+            .recv_timeout(REPLY_TIMEOUT)
+            .map_err(|_| format!("the player didn't respond to {command:?}"))?
     }
 }
 
@@ -227,8 +253,21 @@ fn set_state(status: &PlayerStatus, events: &Option<PlayerSink>, state: PlayerSt
     emit(events, &PlayerEvent::StateChanged(state));
 }
 
-fn emit_progress(status: &PlayerStatus, events: &Option<PlayerSink>, peak: [f32; 2], rms: [f32; 2]) {
-    emit(events, &PlayerEvent::Progress { position: status.position(), duration: status.duration(), peak, rms });
+fn emit_progress(
+    status: &PlayerStatus,
+    events: &Option<PlayerSink>,
+    peak: [f32; 2],
+    rms: [f32; 2],
+) {
+    emit(
+        events,
+        &PlayerEvent::Progress {
+            position: status.position(),
+            duration: status.duration(),
+            peak,
+            rms,
+        },
+    );
 }
 
 fn emit(events: &Option<PlayerSink>, event: &PlayerEvent) {
@@ -262,7 +301,10 @@ impl Source {
         if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
             hint.with_extension(ext);
         }
-        let options = FormatOptions { enable_gapless: true, ..Default::default() };
+        let options = FormatOptions {
+            enable_gapless: true,
+            ..Default::default()
+        };
         let probed = symphonia::default::get_probe()
             .format(&hint, stream, &options, &MetadataOptions::default())
             .map_err(|e| format!("{} isn't a playable MP3: {e}", path.display()))?;
@@ -281,7 +323,16 @@ impl Source {
             .n_frames
             .map(|n| Duration::from_secs_f64(n as f64 / f64::from(rate)))
             .unwrap_or_default();
-        Ok(Self { track_id: track.id, format, decoder, rate, duration, n_frames: params.n_frames, skip_until: 0, eof: false })
+        Ok(Self {
+            track_id: track.id,
+            format,
+            decoder,
+            rate,
+            duration,
+            n_frames: params.n_frames,
+            skip_until: 0,
+            eof: false,
+        })
     }
 
     /// Seeks to frame `ts` exactly (decoding resumes there); false if it
@@ -289,7 +340,10 @@ impl Source {
     pub(crate) fn seek_frame(&mut self, ts: u64) -> bool {
         self.eof = false;
         self.skip_until = 0;
-        let to = SeekTo::TimeStamp { ts, track_id: self.track_id };
+        let to = SeekTo::TimeStamp {
+            ts,
+            track_id: self.track_id,
+        };
         match self.format.seek(SeekMode::Accurate, to) {
             Ok(seeked) => {
                 self.decoder.reset();
@@ -305,10 +359,17 @@ impl Source {
 
     /// Seeks to `at`; returns the position actually reached.
     fn seek(&mut self, at: Duration) -> Duration {
-        let at = if self.duration > Duration::ZERO { at.min(self.duration) } else { at };
+        let at = if self.duration > Duration::ZERO {
+            at.min(self.duration)
+        } else {
+            at
+        };
         self.eof = false;
         self.skip_until = 0;
-        let to = SeekTo::Time { time: Time::from(at.as_secs_f64()), track_id: Some(self.track_id) };
+        let to = SeekTo::Time {
+            time: Time::from(at.as_secs_f64()),
+            track_id: Some(self.track_id),
+        };
         match self.format.seek(SeekMode::Accurate, to) {
             Ok(seeked) => {
                 self.decoder.reset();
@@ -359,7 +420,10 @@ impl Source {
             buf.copy_interleaved_ref(decoded);
             let samples = buf.samples();
             let frames = samples.len() / channels;
-            let skip = self.skip_until.saturating_sub(packet.ts()).min(frames as u64) as usize;
+            let skip = self
+                .skip_until
+                .saturating_sub(packet.ts())
+                .min(frames as u64) as usize;
             for frame in samples.chunks_exact(channels).skip(skip) {
                 let left = frame[0];
                 let right = if channels > 1 { frame[1] } else { left };
@@ -406,11 +470,18 @@ struct Output {
 
 impl Output {
     fn open() -> Result<Self, String> {
-        let device = cpal::default_host().default_output_device().ok_or("no audio output device")?;
-        let supported = device.default_output_config().map_err(|e| format!("audio output: {e}"))?;
+        let device = cpal::default_host()
+            .default_output_device()
+            .ok_or("no audio output device")?;
+        let supported = device
+            .default_output_config()
+            .map_err(|e| format!("audio output: {e}"))?;
         let format = supported.sample_format();
         let config: cpal::StreamConfig = supported.into();
-        let feed = Arc::new(Mutex::new(Feed { consumer: None, tap: None }));
+        let feed = Arc::new(Mutex::new(Feed {
+            consumer: None,
+            tap: None,
+        }));
         let counters = Arc::new(Counters::default());
         let stream = match format {
             cpal::SampleFormat::F32 => build::<f32>(&device, &config, &feed, &counters),
@@ -419,7 +490,12 @@ impl Output {
             cpal::SampleFormat::U16 => build::<u16>(&device, &config, &feed, &counters),
             other => return Err(format!("audio output: unsupported sample format {other}")),
         }?;
-        Ok(Self { stream, rate: config.sample_rate, feed, counters })
+        Ok(Self {
+            stream,
+            rate: config.sample_rate,
+            feed,
+            counters,
+        })
     }
 
     fn feed(&self) -> std::sync::MutexGuard<'_, Feed> {
@@ -447,9 +523,13 @@ where
             *config,
             move |data: &mut [T], _| {
                 data.fill(silence);
-                let Ok(mut feed) = feed.try_lock() else { return };
+                let Ok(mut feed) = feed.try_lock() else {
+                    return;
+                };
                 let Feed { consumer, tap } = &mut *feed;
-                let Some(consumer) = consumer.as_mut() else { return };
+                let Some(consumer) = consumer.as_mut() else {
+                    return;
+                };
                 let frames = data.len() / channels;
                 let n = (consumer.slots() / 2).min(frames);
                 if n > 0
@@ -460,7 +540,10 @@ where
                     stereo.extend_from_slice(a);
                     stereo.extend_from_slice(b);
                     chunk.commit_all();
-                    for (out, lr) in data.chunks_exact_mut(channels).zip(stereo.chunks_exact(2)) {
+                    for (out, lr) in data
+                        .chunks_exact_mut(channels)
+                        .zip(stereo.as_chunks::<2>().0)
+                    {
                         if channels == 1 {
                             out[0] = T::from_sample((lr[0] + lr[1]) * 0.5);
                         } else {
@@ -479,7 +562,10 @@ where
             },
             move |e| {
                 // Rerouting to a new default device and glitches need nothing.
-                if !matches!(e.kind(), cpal::ErrorKind::DeviceChanged | cpal::ErrorKind::Xrun) {
+                if !matches!(
+                    e.kind(),
+                    cpal::ErrorKind::DeviceChanged | cpal::ErrorKind::Xrun
+                ) {
                     errors.failed.store(true, Ordering::Release);
                 }
             },
@@ -510,7 +596,12 @@ struct Job {
 }
 
 impl Job {
-    fn new(source: Source, hub: Arc<VisHub>, status: Arc<PlayerStatus>, events: Option<PlayerSink>) -> Self {
+    fn new(
+        source: Source,
+        hub: Arc<VisHub>,
+        status: Arc<PlayerStatus>,
+        events: Option<PlayerSink>,
+    ) -> Self {
         Self {
             source,
             hub,
@@ -530,7 +621,11 @@ impl Job {
 
     fn run(mut self, rx: Receiver<(Command, Reply)>) {
         loop {
-            let wait = if self.state == PlayerState::Playing && self.wants_audio() { Duration::ZERO } else { IDLE_WAIT };
+            let wait = if self.state == PlayerState::Playing && self.wants_audio() {
+                Duration::ZERO
+            } else {
+                IDLE_WAIT
+            };
             match rx.recv_timeout(wait) {
                 Ok((command, reply)) => {
                     let result = self.handle(command);
@@ -542,7 +637,11 @@ impl Job {
             if self.state != PlayerState::Playing {
                 continue;
             }
-            if self.output.as_ref().is_some_and(|o| o.counters.failed.load(Ordering::Acquire)) {
+            if self
+                .output
+                .as_ref()
+                .is_some_and(|o| o.counters.failed.load(Ordering::Acquire))
+            {
                 // The device went away or changed format: reopen at the
                 // current position on whatever the default is now.
                 let at = self.position();
@@ -554,7 +653,11 @@ impl Job {
             }
             self.fill();
             self.update_position();
-            if self.output.as_ref().is_some_and(|o| o.counters.drained.load(Ordering::Acquire)) {
+            if self
+                .output
+                .as_ref()
+                .is_some_and(|o| o.counters.drained.load(Ordering::Acquire))
+            {
                 self.finish();
                 continue;
             }
@@ -597,7 +700,9 @@ impl Job {
                     self.restart_at(at);
                 } else {
                     let reached = self.source.seek(at);
-                    self.status.position_ms.store(reached.as_millis() as u64, Ordering::Release);
+                    self.status
+                        .position_ms
+                        .store(reached.as_millis() as u64, Ordering::Release);
                 }
                 self.progress();
                 Ok(())
@@ -610,7 +715,8 @@ impl Job {
         let output = Output::open()?;
         let (analyzer, tap) = Analyzer::start(self.hub.clone(), output.rate);
         output.feed().tap = Some(tap);
-        self.resampler = (output.rate != self.source.rate).then(|| Stereo::new(self.source.rate, output.rate));
+        self.resampler =
+            (output.rate != self.source.rate).then(|| Stereo::new(self.source.rate, output.rate));
         self.output = Some(output);
         self.analyzer = Some(analyzer);
         self.restart_at(at);
@@ -619,13 +725,18 @@ impl Job {
 
     fn start(&mut self) -> Result<(), String> {
         let output = self.output.as_ref().ok_or("no audio output")?;
-        output.stream.play().map_err(|e| format!("audio output: {e}"))
+        output
+            .stream
+            .play()
+            .map_err(|e| format!("audio output: {e}"))
     }
 
     /// Seeks the decoder and swaps in an empty ring, dropping queued audio.
     fn restart_at(&mut self, at: Duration) {
         self.base = self.source.seek(at);
-        self.status.position_ms.store(self.base.as_millis() as u64, Ordering::Release);
+        self.status
+            .position_ms
+            .store(self.base.as_millis() as u64, Ordering::Release);
         self.decoded.clear();
         self.pending.clear();
         if let Some(r) = &mut self.resampler {
@@ -643,12 +754,18 @@ impl Job {
     }
 
     fn wants_audio(&self) -> bool {
-        !self.source.eof && self.producer.as_ref().is_some_and(|p| p.slots() >= 2 * RESAMPLE_CHUNK * 2)
+        !self.source.eof
+            && self
+                .producer
+                .as_ref()
+                .is_some_and(|p| p.slots() >= 2 * RESAMPLE_CHUNK * 2)
     }
 
     /// Decodes until the ring is full (or the file ends).
     fn fill(&mut self) {
-        let Some(producer) = self.producer.as_mut() else { return };
+        let Some(producer) = self.producer.as_mut() else {
+            return;
+        };
         loop {
             if !self.pending.is_empty() {
                 let n = producer.slots().min(self.pending.len()) & !1;
@@ -685,8 +802,14 @@ impl Job {
         let Some(output) = &self.output else { return };
         let played = output.counters.played.load(Ordering::Acquire);
         let at = self.base + Duration::from_secs_f64(played as f64 / f64::from(output.rate));
-        let at = if self.source.duration > Duration::ZERO { at.min(self.source.duration) } else { at };
-        self.status.position_ms.store(at.as_millis() as u64, Ordering::Release);
+        let at = if self.source.duration > Duration::ZERO {
+            at.min(self.source.duration)
+        } else {
+            at
+        };
+        self.status
+            .position_ms
+            .store(at.as_millis() as u64, Ordering::Release);
     }
 
     fn position(&self) -> Duration {
@@ -732,7 +855,11 @@ impl Job {
 
     fn progress(&mut self) {
         self.last_progress = Instant::now();
-        let (peak, rms) = if self.analyzer.is_some() { self.hub.levels() } else { Default::default() };
+        let (peak, rms) = if self.analyzer.is_some() {
+            self.hub.levels()
+        } else {
+            Default::default()
+        };
         emit_progress(&self.status, &self.events, peak, rms);
     }
 }
@@ -747,9 +874,14 @@ pub(crate) struct Stereo {
 
 impl Stereo {
     pub(crate) fn new(from: u32, to: u32) -> Self {
-        let inner = FftFixedIn::new(from as usize, to as usize, RESAMPLE_CHUNK, 2, 2).expect("valid resampler");
+        let inner = FftFixedIn::new(from as usize, to as usize, RESAMPLE_CHUNK, 2, 2)
+            .expect("valid resampler");
         let skip = inner.output_delay();
-        Self { inner, input: [Vec::new(), Vec::new()], skip }
+        Self {
+            inner,
+            input: [Vec::new(), Vec::new()],
+            skip,
+        }
     }
 
     fn reset(&mut self) {
@@ -761,7 +893,7 @@ impl Stereo {
     /// Consumes `input` (interleaved) and appends resampled frames to `out`;
     /// `flush` pushes out the remainder at the end of the file.
     pub(crate) fn process(&mut self, input: &mut Vec<f32>, out: &mut Vec<f32>, flush: bool) {
-        for lr in input.chunks_exact(2) {
+        for lr in input.as_chunks::<2>().0 {
             self.input[0].push(lr[0]);
             self.input[1].push(lr[1]);
         }
@@ -769,7 +901,11 @@ impl Stereo {
         loop {
             let need = self.inner.input_frames_next();
             let result = if self.input[0].len() >= need {
-                let block: Vec<Vec<f32>> = self.input.iter_mut().map(|c| c.drain(..need).collect()).collect();
+                let block: Vec<Vec<f32>> = self
+                    .input
+                    .iter_mut()
+                    .map(|c| c.drain(..need).collect())
+                    .collect();
                 self.inner.process(&block, None)
             } else if flush && !self.input[0].is_empty() {
                 let block: Vec<Vec<f32>> = self.input.iter_mut().map(std::mem::take).collect();
@@ -797,7 +933,9 @@ mod tests {
     #[test]
     fn resampler_keeps_length() {
         let mut r = Stereo::new(44_100, 48_000);
-        let mut input: Vec<f32> = (0..44_100 * 2).map(|i| ((i / 2) as f32 * 0.01).sin()).collect();
+        let mut input: Vec<f32> = (0..44_100 * 2)
+            .map(|i| ((i / 2) as f32 * 0.01).sin())
+            .collect();
         let mut out = Vec::new();
         r.process(&mut input, &mut out, true);
         let frames = out.len() / 2;

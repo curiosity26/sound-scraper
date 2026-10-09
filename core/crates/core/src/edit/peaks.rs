@@ -51,13 +51,17 @@ impl Peaks {
             if cancel.load(Ordering::Relaxed) {
                 return Err("cancelled".into());
             }
-            for f in buf.chunks_exact(2) {
+            for f in buf.as_chunks::<2>().0 {
                 lo = lo.min(f[0]).min(f[1]);
                 hi = hi.max(f[0]).max(f[1]);
                 sq += (f64::from(f[0]) * f64::from(f[0]) + f64::from(f[1]) * f64::from(f[1])) / 2.0;
                 n += 1;
                 if n == BUCKET {
-                    buckets.push(Bucket { min: to_i16(lo), max: to_i16(hi), rms: to_i16((sq / n as f64).sqrt() as f32) });
+                    buckets.push(Bucket {
+                        min: to_i16(lo),
+                        max: to_i16(hi),
+                        rms: to_i16((sq / n as f64).sqrt() as f32),
+                    });
                     (lo, hi, sq, n) = (f32::MAX, f32::MIN, 0.0, 0);
                 }
             }
@@ -69,14 +73,26 @@ impl Peaks {
             }
         }
         if n > 0 {
-            buckets.push(Bucket { min: to_i16(lo), max: to_i16(hi), rms: to_i16((sq / n as f64).sqrt() as f32) });
+            buckets.push(Bucket {
+                min: to_i16(lo),
+                max: to_i16(hi),
+                rms: to_i16((sq / n as f64).sqrt() as f32),
+            });
         }
         progress(1.0);
-        Ok(Self { rate: source.rate, frames, buckets })
+        Ok(Self {
+            rate: source.rate,
+            frames,
+            buckets,
+        })
     }
 
     /// From the cache, or built (and cached).
-    pub fn load_or_build(path: &Path, progress: &dyn Fn(f32), cancel: &AtomicBool) -> Result<Self, String> {
+    pub fn load_or_build(
+        path: &Path,
+        progress: &dyn Fn(f32),
+        cancel: &AtomicBool,
+    ) -> Result<Self, String> {
         let cache = cache_path(path);
         if let Some(cached) = cache.as_deref().and_then(|c| Self::read(c).ok()) {
             return Ok(cached);
@@ -104,7 +120,11 @@ impl Peaks {
             sq += f64::from(b.rms) * f64::from(b.rms);
         }
         let s = 1.0 / 32767.0;
-        Some((f32::from(lo) * s, f32::from(hi) * s, ((sq / (last - first) as f64).sqrt() as f32) * s))
+        Some((
+            f32::from(lo) * s,
+            f32::from(hi) * s,
+            ((sq / (last - first) as f64).sqrt() as f32) * s,
+        ))
     }
 
     fn write(&self, path: &Path) -> std::io::Result<()> {
@@ -140,17 +160,37 @@ impl Peaks {
             return Err(bad());
         }
         let v = |i: usize| i16::from_le_bytes([data[i], data[i + 1]]);
-        let buckets = (0..count).map(|i| 24 + i * 6).map(|o| Bucket { min: v(o), max: v(o + 2), rms: v(o + 4) }).collect();
-        Ok(Self { rate, frames, buckets })
+        let buckets = (0..count)
+            .map(|i| 24 + i * 6)
+            .map(|o| Bucket {
+                min: v(o),
+                max: v(o + 2),
+                rms: v(o + 4),
+            })
+            .collect();
+        Ok(Self {
+            rate,
+            frames,
+            buckets,
+        })
     }
 }
 
 fn cache_path(path: &Path) -> Option<PathBuf> {
     let meta = std::fs::metadata(path).ok()?;
-    let mtime = meta.modified().ok()?.duration_since(UNIX_EPOCH).ok()?.as_nanos();
+    let mtime = meta
+        .modified()
+        .ok()?
+        .duration_since(UNIX_EPOCH)
+        .ok()?
+        .as_nanos();
     let mut h = std::collections::hash_map::DefaultHasher::new();
     (path, meta.len(), mtime).hash(&mut h);
-    Some(paths::editor_data_dir().join("Peaks").join(format!("{:016x}.peaks", h.finish())))
+    Some(
+        paths::editor_data_dir()
+            .join("Peaks")
+            .join(format!("{:016x}.peaks", h.finish())),
+    )
 }
 
 #[cfg(test)]
@@ -174,13 +214,19 @@ mod tests {
         assert_eq!(peaks.frames, 2 * u64::from(rate));
         assert_eq!(peaks.buckets.len() as u64, peaks.frames.div_ceil(BUCKET));
         let (lo, hi, rms) = peaks.range(0.0, 40_000.0).unwrap();
-        assert!(lo > -0.02 && hi < 0.02 && rms < 0.01, "silence: {lo} {hi} {rms}");
+        assert!(
+            lo > -0.02 && hi < 0.02 && rms < 0.01,
+            "silence: {lo} {hi} {rms}"
+        );
         let (lo, hi, rms) = peaks.range(52_000.0, 90_000.0).unwrap();
         assert!(lo < -0.4 && hi > 0.4 && rms > 0.3, "loud: {lo} {hi} {rms}");
 
         let file = dir.join("p.peaks");
         peaks.write(&file).unwrap();
         assert_eq!(Peaks::read(&file).unwrap(), peaks);
-        assert!(Peaks::build(&path, &|_| {}, &AtomicBool::new(true)).is_err(), "cancels");
+        assert!(
+            Peaks::build(&path, &|_| {}, &AtomicBool::new(true)).is_err(),
+            "cancels"
+        );
     }
 }

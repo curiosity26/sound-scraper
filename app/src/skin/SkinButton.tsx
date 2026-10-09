@@ -1,38 +1,38 @@
 // Layout here comes from skin data (rects, sizes), so styles are inline.
 /* eslint-disable react-native/no-inline-styles */
-import React from 'react';
-import { Pressable } from 'react-native';
+import React from 'react'
+import { Pressable } from 'react-native'
 
-import { scaleRect, SpriteCell, useSkinScale } from './SkinImage';
-import type { SkinElement } from './types';
+import { scaleRect, SpriteCell, useSkinScale } from './SkinImage'
+import type { SkinElement } from './types'
 
 type Props = {
-  element: SkinElement;
-  onPress: () => void;
+  element: SkinElement
+  onPress: () => void
   /** Latched on (a panel open…). */
-  active?: boolean;
+  active?: boolean
   /**
    * A mode with its own look, e.g. "recording" for the record button: the
    * sprite's "recording"/"recordingPressed" states, falling back to
    * active/pressed.
    */
-  mode?: string;
-  disabled?: boolean;
-  testID?: string;
-  accessibilityLabel: string;
-};
+  mode?: string
+  disabled?: boolean
+  testID?: string
+  accessibilityLabel: string
+}
 
 /** Picks the best sprite state for a button, falling back toward "normal". */
 export function buttonState(
   states: Record<string, unknown>,
   flags: {
-    pressed: boolean;
-    active: boolean;
-    disabled: boolean;
-    mode?: string;
+    pressed: boolean
+    active: boolean
+    disabled: boolean
+    mode?: string
   },
 ): string {
-  const { mode } = flags;
+  const { mode } = flags
   // A disabled button in a mode keeps the mode's look (record stays lit
   // while recording).
   const candidates = flags.disabled
@@ -49,8 +49,8 @@ export function buttonState(
     ? ['pressed']
     : flags.active
     ? ['active']
-    : [];
-  return candidates.find(s => s in states) ?? 'normal';
+    : []
+  return candidates.find(s => s in states) ?? 'normal'
 }
 
 /**
@@ -59,10 +59,10 @@ export function buttonState(
  * paints the button into its background.
  */
 export function SkinButton(props: Props): React.JSX.Element {
-  const { element, active = false, disabled = false } = props;
-  const [, , w, h] = element.rect;
-  const s = useSkinScale();
-  const sprite = element.sprite;
+  const { element, active = false, disabled = false } = props
+  const [, , w, h] = element.rect
+  const s = useSkinScale()
+  const sprite = element.sprite
   return (
     <Pressable
       testID={props.testID}
@@ -75,15 +75,15 @@ export function SkinButton(props: Props): React.JSX.Element {
     >
       {({ pressed }) => {
         if (!sprite) {
-          return null;
+          return null
         }
         const state = buttonState(sprite.states, {
           pressed,
           active,
           disabled,
           mode: props.mode,
-        });
-        const dim = disabled && state === 'normal';
+        })
+        const dim = disabled && state === 'normal'
         return (
           <SpriteCell
             image={sprite.image}
@@ -91,8 +91,8 @@ export function SkinButton(props: Props): React.JSX.Element {
             size={[w, h]}
             style={dim ? { opacity: 0.5 } : undefined}
           />
-        );
+        )
       }}
     </Pressable>
-  );
+  )
 }

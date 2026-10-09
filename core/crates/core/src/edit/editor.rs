@@ -105,7 +105,9 @@ impl Editor {
     pub fn open(path: &Path) -> Self {
         // Opening a recording counts as using its master (cleanup is by
         // least recent use).
-        if let Some(master) = crate::masters::find(&path.file_name().unwrap_or_default().to_string_lossy()) {
+        if let Some(master) =
+            crate::masters::find(&path.file_name().unwrap_or_default().to_string_lossy())
+        {
             crate::masters::touch(&master);
         }
         let shared = Arc::new(Shared::default());
@@ -139,7 +141,10 @@ impl Editor {
     }
 
     /// Find Tracks; None until the waveform is ready.
-    pub fn detect(&self, opts: &super::detect::DetectOptions) -> Option<Vec<super::detect::Proposal>> {
+    pub fn detect(
+        &self,
+        opts: &super::detect::DetectOptions,
+    ) -> Option<Vec<super::detect::Proposal>> {
         let peaks = self.shared.peaks.lock().unwrap().clone()?;
         Some(super::detect::detect(&peaks, opts))
     }
@@ -150,7 +155,10 @@ impl Editor {
 
     pub fn status(&self) -> Status {
         if let Some(p) = self.shared.peaks.lock().unwrap().as_ref() {
-            return Status::Ready { rate: p.rate, frames: p.frames };
+            return Status::Ready {
+                rate: p.rate,
+                frames: p.frames,
+            };
         }
         if let Some(e) = self.shared.error.lock().unwrap().as_ref() {
             return Status::Failed(e.clone());
@@ -165,13 +173,18 @@ impl Editor {
         if cached.0 != json {
             let parsed: StyleJson = serde_json::from_str(json).unwrap_or_default();
             let d = Style::default();
-            let pick = |v: &Option<String>, fallback| v.as_deref().and_then(parse_color).unwrap_or(fallback);
+            let pick = |v: &Option<String>, fallback| {
+                v.as_deref().and_then(parse_color).unwrap_or(fallback)
+            };
             cached.1 = Style {
                 background: pick(&parsed.background, d.background),
                 wave: pick(&parsed.wave, d.wave),
                 rms: pick(&parsed.rms, d.rms),
                 center: pick(&parsed.center, d.center),
-                gain: parsed.gain.filter(|g| g.is_finite() && *g > 0.0).unwrap_or(1.0),
+                gain: parsed
+                    .gain
+                    .filter(|g| g.is_finite() && *g > 0.0)
+                    .unwrap_or(1.0),
             };
             cached.0 = json.to_string();
         }
@@ -181,10 +194,18 @@ impl Editor {
     /// Draws `width`×`height` pixels starting at `start_ms`, `ms_per_px`
     /// milliseconds per pixel, into premultiplied RGBA. False until the
     /// waveform is ready (the background is drawn anyway).
-    pub fn render(&self, start_ms: f64, ms_per_px: f64, width: u32, height: u32, style_json: &str, rgba: &mut [u8]) -> bool {
+    pub fn render(
+        &self,
+        start_ms: f64,
+        ms_per_px: f64,
+        width: u32,
+        height: u32,
+        style_json: &str,
+        rgba: &mut [u8],
+    ) -> bool {
         let style = self.apply_style(style_json);
         let (w, h) = (width as usize, height as usize);
-        for px in rgba.chunks_exact_mut(4) {
+        for px in rgba.as_chunks_mut::<4>().0 {
             px.copy_from_slice(&premultiply(style.background));
         }
         let mid = h / 2;
@@ -192,7 +213,9 @@ impl Editor {
         for x in 0..w {
             put(rgba, w, x, mid, center);
         }
-        let Some(peaks) = self.shared.peaks.lock().unwrap().clone() else { return false };
+        let Some(peaks) = self.shared.peaks.lock().unwrap().clone() else {
+            return false;
+        };
         let fpp = ms_per_px / 1000.0 * f64::from(peaks.rate);
         let start = start_ms / 1000.0 * f64::from(peaks.rate);
         if fpp <= 0.0 {
@@ -200,12 +223,20 @@ impl Editor {
         }
         let detailed = fpp < BUCKET as f64 / 2.0;
         if detailed {
-            self.load_detail(start.max(0.0) as u64, (start + fpp * w as f64).ceil().max(0.0) as u64, peaks.frames);
+            self.load_detail(
+                start.max(0.0) as u64,
+                (start + fpp * w as f64).ceil().max(0.0) as u64,
+                peaks.frames,
+            );
         }
         let detail = self.detail.lock().unwrap();
         let half = (h as f64 - 1.0) / 2.0;
         let gain = style.gain;
-        let y = |v: f32| (half - f64::from((v * gain).clamp(-1.0, 1.0)) * half).round().clamp(0.0, h as f64 - 1.0) as usize;
+        let y = |v: f32| {
+            (half - f64::from((v * gain).clamp(-1.0, 1.0)) * half)
+                .round()
+                .clamp(0.0, h as f64 - 1.0) as usize
+        };
         let (wave, rms) = (premultiply(style.wave), premultiply(style.rms));
         for x in 0..w {
             let a = start + x as f64 * fpp;
@@ -246,7 +277,9 @@ impl Editor {
         let span = (b - a.min(b)).max(1);
         let from = a.saturating_sub(span / 2);
         let to = (b + span / 2).min(total);
-        let Ok(mut source) = Source::open(&self.path) else { return };
+        let Ok(mut source) = Source::open(&self.path) else {
+            return;
+        };
         if !source.seek_frame(from) {
             return;
         }
@@ -271,11 +304,19 @@ impl Drop for Editor {
 fn frame_grid(path: &Path) -> Option<(f64, f64)> {
     use std::io::Read;
     let mut head = Vec::new();
-    std::fs::File::open(path).ok()?.take(256 * 1024).read_to_end(&mut head).ok()?;
+    std::fs::File::open(path)
+        .ok()?
+        .take(256 * 1024)
+        .read_to_end(&mut head)
+        .ok()?;
     let index = super::mp3cut::Mp3Index::parse(&head).ok()?;
     let rate = f64::from(index.header.sample_rate);
     let spf = index.samples_per_frame() as f64;
-    let lead = if index.gapless { (super::mp3cut::DECODER_DELAY + index.delay_field) as f64 } else { 0.0 };
+    let lead = if index.gapless {
+        (super::mp3cut::DECODER_DELAY + index.delay_field) as f64
+    } else {
+        0.0
+    };
     // Raw boundaries are at multiples of spf; presentation = raw - lead.
     let first = (spf - lead.rem_euclid(spf)) % spf;
     Some((spf * 1000.0 / rate, first * 1000.0 / rate))
@@ -284,12 +325,14 @@ fn frame_grid(path: &Path) -> Option<(f64, f64)> {
 fn sample_range(first: u64, samples: &[f32], a: f64, b: f64) -> Option<(f32, f32, f32)> {
     let i = (a as u64).checked_sub(first)? as usize;
     // Through the next sample too, so neighbouring columns join up.
-    let j = ((b.ceil() as u64 + 1).saturating_sub(first) as usize).max(i + 1).min(samples.len() / 2);
+    let j = ((b.ceil() as u64 + 1).saturating_sub(first) as usize)
+        .max(i + 1)
+        .min(samples.len() / 2);
     if i >= j {
         return None;
     }
     let (mut lo, mut hi, mut sq) = (f32::MAX, f32::MIN, 0f64);
-    for f in samples[i * 2..j * 2].chunks_exact(2) {
+    for f in samples[i * 2..j * 2].as_chunks::<2>().0 {
         lo = lo.min(f[0]).min(f[1]);
         hi = hi.max(f[0]).max(f[1]);
         sq += (f64::from(f[0]).powi(2) + f64::from(f[1]).powi(2)) / 2.0;
@@ -327,7 +370,11 @@ mod tests {
         let rate = 48000;
         let samples: Vec<f32> = (0..rate * 2)
             .flat_map(|i| {
-                let v = if i < rate { 0.0 } else { (i as f32 * 0.05).sin() * 0.8 };
+                let v = if i < rate {
+                    0.0
+                } else {
+                    (i as f32 * 0.05).sin() * 0.8
+                };
                 [v, v]
             })
             .collect();
@@ -344,7 +391,8 @@ mod tests {
             assert!(start.elapsed().as_secs() < 10, "{:?}", editor.status());
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
-        let style = r##"{"background":"#000000","wave":"#ff0000","rms":"#00ff00","center":"#0000ff"}"##;
+        let style =
+            r##"{"background":"#000000","wave":"#ff0000","rms":"#00ff00","center":"#0000ff"}"##;
         let (w, h) = (100u32, 40u32);
         let mut buf = vec![0u8; (w * h * 4) as usize];
         // The whole 2 s: left half silent, right half loud.

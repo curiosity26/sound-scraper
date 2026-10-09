@@ -1,13 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native'
 
-import { AboutPanel } from './src/AboutPanel';
+import { AboutPanel } from './src/AboutPanel'
 import {
   errorText,
   rememberedPid,
@@ -15,100 +9,100 @@ import {
   safeList,
   safeRecover,
   safeState,
-} from './src/appHelpers';
-import { LibraryScreen, refreshLibraryViews } from './src/LibraryScreen';
-import { panelStyles, SettingsPanel } from './src/SettingsPanel';
+} from './src/appHelpers'
+import { LibraryScreen, refreshLibraryViews } from './src/LibraryScreen'
+import { panelStyles, SettingsPanel } from './src/SettingsPanel'
 import {
   type AudioApp,
   getCoreVersion,
   recorder,
   type RecorderState,
-} from './src/native/SoundScraper';
-import { RecordBar } from './src/RecordBar';
-import { SourcePicker } from './src/SourcePicker';
-import { colors, text } from './src/theme';
+} from './src/native/SoundScraper'
+import { RecordBar } from './src/RecordBar'
+import { SourcePicker } from './src/SourcePicker'
+import { colors, text } from './src/theme'
 
 function useCoreVersion(): { version?: string; error?: string } {
   return useMemo(() => {
     try {
-      return { version: getCoreVersion() };
+      return { version: getCoreVersion() }
     } catch (e) {
-      return { error: e instanceof Error ? e.message : String(e) };
+      return { error: e instanceof Error ? e.message : String(e) }
     }
-  }, []);
+  }, [])
 }
 
 function App(): React.JSX.Element {
-  const isDark = useColorScheme() === 'dark';
-  const fg = isDark ? text.dark : text.light;
-  const { version, error } = useCoreVersion();
+  const isDark = useColorScheme() === 'dark'
+  const fg = isDark ? text.dark : text.light
+  const { version, error } = useCoreVersion()
 
-  const [apps, setApps] = useState<AudioApp[]>(() => safeList());
+  const [apps, setApps] = useState<AudioApp[]>(() => safeList())
   const [selectedPid, setSelectedPid] = useState(() =>
     rememberedPid(safeList()),
-  );
-  const [state, setState] = useState<RecorderState>(() => safeState());
-  const [starting, setStarting] = useState(false);
-  const [elapsedMs, setElapsedMs] = useState(0);
-  const [peak, setPeak] = useState(0);
-  const [message, setMessage] = useState<{ text: string; isError: boolean }>();
-  const [overlay, setOverlay] = useState<'settings' | 'about'>();
+  )
+  const [state, setState] = useState<RecorderState>(() => safeState())
+  const [starting, setStarting] = useState(false)
+  const [elapsedMs, setElapsedMs] = useState(0)
+  const [peak, setPeak] = useState(0)
+  const [message, setMessage] = useState<{ text: string; isError: boolean }>()
+  const [overlay, setOverlay] = useState<'settings' | 'about'>()
 
   useEffect(() => {
-    const recovered = safeRecover();
+    const recovered = safeRecover()
     if (recovered > 0) {
       setMessage({
         text: `Recovered ${recovered} interrupted recording${
           recovered === 1 ? '' : 's'
         }.`,
         isError: false,
-      });
+      })
     }
     const subscription = recorder.onEvent(e => {
       switch (e.kind) {
         case 'state':
-          setState(e.state as RecorderState);
+          setState(e.state as RecorderState)
           if (e.state === 'idle') {
-            setPeak(0);
+            setPeak(0)
           }
-          break;
+          break
         case 'progress':
-          setElapsedMs(e.elapsedMs);
-          setPeak(e.peak);
-          break;
+          setElapsedMs(e.elapsedMs)
+          setPeak(e.peak)
+          break
         case 'finished':
-          setMessage({ text: `Saved ${e.path}`, isError: false });
-          break;
+          setMessage({ text: `Saved ${e.path}`, isError: false })
+          break
         case 'error':
-          setMessage({ text: `Recording failed: ${e.message}`, isError: true });
-          break;
+          setMessage({ text: `Recording failed: ${e.message}`, isError: true })
+          break
       }
-    });
-    return () => subscription.remove();
-  }, []);
+    })
+    return () => subscription.remove()
+  }, [])
 
   const onRecord = useCallback(async () => {
-    setStarting(true);
-    setMessage(undefined);
-    setElapsedMs(0);
+    setStarting(true)
+    setMessage(undefined)
+    setElapsedMs(0)
     try {
-      const app = apps.find(a => a.pid === selectedPid);
-      await recorder.start(app);
-      rememberSource(app);
+      const app = apps.find(a => a.pid === selectedPid)
+      await recorder.start(app)
+      rememberSource(app)
     } catch (e) {
-      setMessage({ text: `Couldn't start: ${errorText(e)}`, isError: true });
+      setMessage({ text: `Couldn't start: ${errorText(e)}`, isError: true })
     } finally {
-      setStarting(false);
+      setStarting(false)
     }
-  }, [apps, selectedPid]);
+  }, [apps, selectedPid])
 
   const onStop = useCallback(async () => {
     try {
-      await recorder.stop();
+      await recorder.stop()
     } catch (e) {
-      setMessage({ text: `Couldn't save: ${errorText(e)}`, isError: true });
+      setMessage({ text: `Couldn't save: ${errorText(e)}`, isError: true })
     }
-  }, []);
+  }, [])
 
   return (
     <View style={[styles.root, isDark ? styles.rootDark : styles.rootLight]}>
@@ -188,7 +182,7 @@ function App(): React.JSX.Element {
         </View>
       )}
     </View>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -206,6 +200,6 @@ const styles = StyleSheet.create({
   },
   headerLinks: { flexDirection: 'row', gap: 16 },
   headerLink: { color: colors.accent, fontSize: 13 },
-});
+})
 
-export default App;
+export default App

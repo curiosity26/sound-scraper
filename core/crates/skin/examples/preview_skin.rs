@@ -30,11 +30,20 @@ fn main() {
         eprintln!("warning: {w}");
     }
     let main = preview::render(&skin, &skin.panels.main.layout, SCALE);
-    let shade = skin.panels.main.shade.as_ref().map(|l| preview::render(&skin, l, SCALE));
+    let shade = skin
+        .panels
+        .main
+        .shade
+        .as_ref()
+        .map(|l| preview::render(&skin, l, SCALE));
     let gap = 12 * SCALE;
     // Every visualizer preset, on the skin's LCD color.
     let (vw, vh) = (112 * SCALE, 34 * SCALE);
-    let lcd = preview::hex(skin.colors.get("lcdBackground").map_or("#000000", |s| s.as_str()));
+    let lcd = preview::hex(
+        skin.colors
+            .get("lcdBackground")
+            .map_or("#000000", |s| s.as_str()),
+    );
     let looks: Vec<RgbaImage> = skin
         .visualizer
         .presets
@@ -47,15 +56,29 @@ fn main() {
         .collect();
     let looks_h = if looks.is_empty() { 0 } else { vh + gap };
     let height = main.height() + shade.as_ref().map_or(0, |s| s.height() + gap) + 2 * gap + looks_h;
-    let width = main.width().max(shade.as_ref().map_or(0, |s| s.width())).max(looks.len() as u32 * (vw + gap / 2)) + 2 * gap;
+    let width = main
+        .width()
+        .max(shade.as_ref().map_or(0, |s| s.width()))
+        .max(looks.len() as u32 * (vw + gap / 2))
+        + 2 * gap;
     let mut sheet = RgbaImage::from_pixel(width, height, image::Rgba([47, 107, 110, 255]));
     imageops::overlay(&mut sheet, &main, gap as i64, gap as i64);
     if let Some(shade) = shade {
-        imageops::overlay(&mut sheet, &shade, gap as i64, (main.height() + 2 * gap) as i64);
+        imageops::overlay(
+            &mut sheet,
+            &shade,
+            gap as i64,
+            (main.height() + 2 * gap) as i64,
+        );
     }
     for (i, tile) in looks.iter().enumerate() {
         let x = gap as i64 + i as i64 * (vw + gap / 2) as i64;
-        imageops::overlay(&mut sheet, tile, x, (height - looks_h - gap / 2) as i64 + gap as i64 / 2);
+        imageops::overlay(
+            &mut sheet,
+            tile,
+            x,
+            (height - looks_h - gap / 2) as i64 + gap as i64 / 2,
+        );
     }
     sheet.save(&out).unwrap();
     println!("wrote {out}");
