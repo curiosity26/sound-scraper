@@ -53,10 +53,12 @@ Tags are saved as ID3v2.4. For older players, car stereos and Windows, choose **
 
 A long recording, such as a whole album or a radio show, can be split into separate tracks in the track editor. Choose **Edit Track…** from a recording's right-click menu or the details gear menu.
 
+![The track editor with a recording sliced into three tracks](docs/images/track-editor.png)
+
 - **Play** and scrub: click the time ruler to move the playhead, or drag along it to hear where you are. Space plays and pauses.
 - **Slice** (or press M) at the playhead to start a new track there. Drag a slice's edge to move it, and double-click a track to name it. The name becomes both the title and the file name.
 - **Auto Slice** finds the gaps between songs for you. Pick a preset (*Digital* or *Vinyl / Radio*) or tune the silence level and lengths, check the proposed slices, then **Add Slices**.
-- **Delete** a stretch you don't want (an ad, a DJ talking, dead air): drag across the waveform to select it, then **Delete Selection**. Click a deleted stretch to **Restore** it.
+- **Delete** a stretch you don't want (an ad, a DJ talking, dead air): drag across the waveform to select it, then **Delete**. Click a deleted stretch to **Restore** it.
 - Zoom with the sliders around the waveform, **Fit** to see it all, and toggle **Snap** to snap slices to the ruler. Undo and redo work as usual.
 
 Nothing changes until you press **Save…**, which asks whether to keep the original recording: **Yes, keep it** or **No, delete it**. The new tracks keep all of the original's tags except the title, and are numbered 1/N to N/N. Cuts are made without re-encoding, so the tracks sound exactly like the original; only a track with a deleted stretch inside it is re-encoded.
