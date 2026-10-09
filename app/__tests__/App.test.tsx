@@ -51,6 +51,11 @@ test('renders the core version and an idle record bar', async () => {
   expect(
     tree!.root.findAllByProps({ testID: 'record' }).length,
   ).toBeGreaterThan(0)
+  // Unmount so list timers can't fire after the test ends (jest then
+  // fails the run with "Cannot log after tests are done").
+  await ReactTestRenderer.act(() => {
+    tree!.unmount()
+  })
 })
 
 test('formats elapsed time', () => {
