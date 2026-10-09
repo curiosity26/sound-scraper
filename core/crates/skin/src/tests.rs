@@ -188,7 +188,7 @@ fn missing_elements_fall_back_to_default() {
     assert!(els["stop"].fallback && els["elapsed"].fallback);
     assert_eq!(
         els["record"].sprite.as_ref().unwrap().image.path,
-        dir.canonicalize().unwrap().join("btn.png")
+        resolve::canonical(&dir).unwrap().join("btn.png")
     );
     // Fallback sprites still point into the Default skin's folder.
     assert!(
@@ -198,7 +198,7 @@ fn missing_elements_fall_back_to_default() {
             .unwrap()
             .image
             .path
-            .starts_with(store.builtin_dir().unwrap().canonicalize().unwrap())
+            .starts_with(resolve::canonical(&store.builtin_dir().unwrap()).unwrap())
     );
     // Fonts, colors, shade and frame panels come from the Default skin.
     assert!(skin.fonts.contains_key("lcd"));

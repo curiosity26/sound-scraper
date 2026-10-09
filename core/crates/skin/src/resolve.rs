@@ -871,7 +871,7 @@ impl Resolver<'_> {
 
 /// `dir` made absolute, without Windows' `\\?\` prefix (which file URLs,
 /// and so the app's images, can't carry).
-fn canonical(dir: &Path) -> Result<PathBuf, String> {
+pub(crate) fn canonical(dir: &Path) -> Result<PathBuf, String> {
     let path = dir
         .canonicalize()
         .map_err(|e| format!("{}: {e}", dir.display()))?;
