@@ -10,7 +10,9 @@
 //!   Dragging any other panel moves just that panel (detaching it).
 //! - While dragging, panel edges snap within [`SNAP`] points to other
 //!   panels' edges (docking), to their left/right or top/bottom edges when
-//!   stacked (alignment), and to the screens' work areas.
+//!   stacked (alignment), and to the screens' work areas. No moving panel
+//!   goes above the top of a work area (macOS keeps windows below the menu
+//!   bar, which would pull a docked group apart).
 //! - Resizing a panel keeps the panels docked on its moving (right/bottom)
 //!   edges attached.
 
@@ -49,7 +51,11 @@ impl Rect {
         self.y + self.h
     }
     fn offset(&self, dx: f64, dy: f64) -> Self {
-        Self { x: self.x + dx, y: self.y + dy, ..*self }
+        Self {
+            x: self.x + dx,
+            y: self.y + dy,
+            ..*self
+        }
     }
     /// Overlap of the two [start, end) ranges (negative: the gap).
     fn overlap(a0: f64, a1: f64, b0: f64, b1: f64) -> f64 {
@@ -114,8 +120,10 @@ pub struct Placement {
 
 /// Whether `a` and `b` touch edge to edge, overlapping along that edge.
 pub fn touching(a: &Rect, b: &Rect) -> bool {
-    let side = ((a.right() - b.x).abs() <= TOUCH || (b.right() - a.x).abs() <= TOUCH) && a.v_overlap(b) > 0.0;
-    let stack = ((a.bottom() - b.y).abs() <= TOUCH || (b.bottom() - a.y).abs() <= TOUCH) && a.h_overlap(b) > 0.0;
+    let side = ((a.right() - b.x).abs() <= TOUCH || (b.right() - a.x).abs() <= TOUCH)
+        && a.v_overlap(b) > 0.0;
+    let stack = ((a.bottom() - b.y).abs() <= TOUCH || (b.bottom() - a.y).abs() <= TOUCH)
+        && a.h_overlap(b) > 0.0;
     side || stack
 }
 
@@ -153,7 +161,12 @@ impl Scene {
     /// Ids of the panels docked to the main panel (not including it).
     pub fn docked_to_main(&self) -> Vec<String> {
         match self.index(MAIN) {
-            Some(m) => self.docked_chain(m).into_iter().skip(1).map(|i| self.panels[i].id.clone()).collect(),
+            Some(m) => self
+                .docked_chain(m)
+                .into_iter()
+                .skip(1)
+                .map(|i| self.panels[i].id.clone())
+                .collect(),
             None => Vec::new(),
         }
     }
@@ -166,12 +179,20 @@ impl Scene {
         }
         let mut out = Vec::new();
         let mut done = vec![false; self.panels.len()];
-        let order: Vec<usize> = self.index(MAIN).into_iter().chain(0..self.panels.len()).collect();
+        let order: Vec<usize> = self
+            .index(MAIN)
+            .into_iter()
+            .chain(0..self.panels.len())
+            .collect();
         for i in order {
             if done[i] || !self.panels[i].visible {
                 continue;
             }
-            let group = if self.panels[i].id == MAIN { self.docked_chain(i) } else { vec![i] };
+            let group = if self.panels[i].id == MAIN {
+                self.docked_chain(i)
+            } else {
+                vec![i]
+            };
             group.iter().for_each(|&g| done[g] = true);
             let f = self.panels[i].frame;
             let strip = Rect::new(f.x, f.y, f.w, f.h.min(20.0));
@@ -187,7 +208,10 @@ impl Scene {
             let dy = clamp_shift(f.y, f.h, screen.y, screen.bottom());
             for &g in &group {
                 let p = &self.panels[g];
-                out.push(Placement { id: p.id.clone(), frame: p.frame.offset(dx, dy) });
+                out.push(Placement {
+                    id: p.id.clone(),
+                    frame: p.frame.offset(dx, dy),
+                });
             }
         }
         out
@@ -201,7 +225,10 @@ fn nearest_screen<'a>(screens: &'a [Rect], f: &Rect) -> &'a Rect {
         let dy = (s.y - cy).max(cy - s.bottom()).max(0.0);
         dx * dx + dy * dy
     };
-    screens.iter().min_by(|a, b| dist(a).total_cmp(&dist(b))).expect("screens not empty")
+    screens
+        .iter()
+        .min_by(|a, b| dist(a).total_cmp(&dist(b)))
+        .expect("screens not empty")
 }
 
 /// The shift that brings [start, start+len) inside [lo, hi] (or to lo when
@@ -223,7 +250,10 @@ fn overlaps(a: &Rect, b: &Rect) -> bool {
 
 /// The best adjustment within [`SNAP`]: smallest in size.
 fn best(candidates: impl Iterator<Item = f64>) -> f64 {
-    candidates.filter(|d| d.abs() <= SNAP).min_by(|a, b| a.abs().total_cmp(&b.abs())).unwrap_or(0.0)
+    candidates
+        .filter(|d| d.abs() <= SNAP)
+        .min_by(|a, b| a.abs().total_cmp(&b.abs()))
+        .unwrap_or(0.0)
 }
 
 /// Snap adjustments (dx, dy) for `moving` rects against `fixed` rects and
@@ -258,6 +288,24 @@ fn snap_group(moving: &[Rect], fixed: &[Rect], screens: &[Rect]) -> (f64, f64) {
     (best(xs.into_iter()), best(ys.into_iter()))
 }
 
+/// How far down (dy) the moving rects, shifted by `sy`, must go so none
+/// starts above the top of the screens under it. macOS keeps windows below
+/// the menu bar, so a group dragged higher would leave its top panel behind
+/// while the panels docked below it carried on.
+fn below_screen_tops(moving: &[Rect], sy: f64, screens: &[Rect]) -> f64 {
+    moving
+        .iter()
+        .filter_map(|m| {
+            let top = screens
+                .iter()
+                .filter(|s| m.h_overlap(s) > 0.0)
+                .map(|s| s.y)
+                .reduce(f64::min)?;
+            Some(top - (m.y + sy))
+        })
+        .fold(0.0, f64::max)
+}
+
 /// A window drag in progress.
 pub struct Drag {
     scene: Scene,
@@ -269,15 +317,25 @@ impl Drag {
     /// Starts dragging `id`: the main panel brings its docked chain; any
     /// other panel moves alone.
     pub fn begin(scene: Scene, id: &str) -> Result<Self, String> {
-        let i = scene.index(id).ok_or_else(|| format!("no panel \"{id}\""))?;
-        let moving = if id == MAIN { scene.docked_chain(i) } else { vec![i] };
+        let i = scene
+            .index(id)
+            .ok_or_else(|| format!("no panel \"{id}\""))?;
+        let moving = if id == MAIN {
+            scene.docked_chain(i)
+        } else {
+            vec![i]
+        };
         Ok(Self { scene, moving })
     }
 
     /// Where the moving panels go for a pointer moved by (dx, dy) since the
     /// drag began; `snap` false (Option held) moves freely.
     pub fn update(&self, dx: f64, dy: f64, snap: bool) -> Vec<Placement> {
-        let moved: Vec<Rect> = self.moving.iter().map(|&i| self.scene.panels[i].frame.offset(dx, dy)).collect();
+        let moved: Vec<Rect> = self
+            .moving
+            .iter()
+            .map(|&i| self.scene.panels[i].frame.offset(dx, dy))
+            .collect();
         let (sx, sy) = if snap {
             let fixed: Vec<Rect> = self
                 .scene
@@ -291,11 +349,15 @@ impl Drag {
         } else {
             (0.0, 0.0)
         };
+        let sy = sy + below_screen_tops(&moved, sy, &self.scene.screens);
         let mut out: Vec<Placement> = self
             .moving
             .iter()
             .zip(moved)
-            .map(|(&i, f)| Placement { id: self.scene.panels[i].id.clone(), frame: f.offset(sx, sy) })
+            .map(|(&i, f)| Placement {
+                id: self.scene.panels[i].id.clone(),
+                frame: f.offset(sx, sy),
+            })
             .collect();
         if snap && let [single] = self.moving.as_slice() {
             out[0].frame = self.span_stack(*single, out[0].frame);
@@ -313,14 +375,16 @@ impl Drag {
         let stacked = self.scene.panels.iter().enumerate().any(|(j, q)| {
             j != i
                 && q.visible
-                && ((q.frame.bottom() - f.y).abs() <= TOUCH || (f.bottom() - q.frame.y).abs() <= TOUCH)
+                && ((q.frame.bottom() - f.y).abs() <= TOUCH
+                    || (f.bottom() - q.frame.y).abs() <= TOUCH)
                 && q.frame.h_overlap(&f) > 0.0
         });
         if !p.resizable || stacked {
             return f;
         }
         for (j, q) in self.scene.panels.iter().enumerate() {
-            let beside = (q.frame.right() - f.x).abs() <= TOUCH || (f.right() - q.frame.x).abs() <= TOUCH;
+            let beside =
+                (q.frame.right() - f.x).abs() <= TOUCH || (f.right() - q.frame.x).abs() <= TOUCH;
             if j == i || !q.visible || !beside || q.frame.v_overlap(&f) <= 0.0 {
                 continue;
             }
@@ -328,11 +392,21 @@ impl Drag {
             if column.len() < 2 {
                 continue;
             }
-            let top = column.iter().map(|&k| self.scene.panels[k].frame.y).fold(f64::MAX, f64::min);
-            let bottom = column.iter().map(|&k| self.scene.panels[k].frame.bottom()).fold(f64::MIN, f64::max);
+            let top = column
+                .iter()
+                .map(|&k| self.scene.panels[k].frame.y)
+                .fold(f64::MAX, f64::min);
+            let bottom = column
+                .iter()
+                .map(|&k| self.scene.panels[k].frame.bottom())
+                .fold(f64::MIN, f64::max);
             let span = bottom - top;
             let aligned = (f.y - top).abs() <= TOUCH || (f.bottom() - bottom).abs() <= TOUCH;
-            let spanned = Rect { y: top, h: span, ..f };
+            let spanned = Rect {
+                y: top,
+                h: span,
+                ..f
+            };
             let clear = self
                 .scene
                 .panels
@@ -390,20 +464,56 @@ impl Scene {
             let top = group.iter().map(|r| r.y).fold(f64::MAX, f64::min);
             let right = group.iter().map(|r| r.right()).fold(f64::MIN, f64::max);
             let bottom = group.iter().map(|r| r.bottom()).fold(f64::MIN, f64::max);
-            candidates.push(Rect { x: right, y: top, ..want });
+            candidates.push(Rect {
+                x: right,
+                y: top,
+                ..want
+            });
             for r in group.iter().filter(|r| (r.right() - right).abs() <= TOUCH) {
-                candidates.push(Rect { x: right, y: r.y, ..want });
+                candidates.push(Rect {
+                    x: right,
+                    y: r.y,
+                    ..want
+                });
             }
-            candidates.push(Rect { x: left, y: bottom, ..want });
-            candidates.push(Rect { x: left - want.w, y: top, ..want });
-            candidates.push(Rect { x: left, y: top - want.h, ..want });
+            candidates.push(Rect {
+                x: left,
+                y: bottom,
+                ..want
+            });
+            candidates.push(Rect {
+                x: left - want.w,
+                y: top,
+                ..want
+            });
+            candidates.push(Rect {
+                x: left,
+                y: top - want.h,
+                ..want
+            });
         }
         for (_, o) in &others {
             candidates.extend([
-                Rect { x: o.right(), y: o.y, ..want },
-                Rect { x: o.x, y: o.bottom(), ..want },
-                Rect { x: o.x - want.w, y: o.y, ..want },
-                Rect { x: o.x, y: o.y - want.h, ..want },
+                Rect {
+                    x: o.right(),
+                    y: o.y,
+                    ..want
+                },
+                Rect {
+                    x: o.x,
+                    y: o.bottom(),
+                    ..want
+                },
+                Rect {
+                    x: o.x - want.w,
+                    y: o.y,
+                    ..want
+                },
+                Rect {
+                    x: o.x,
+                    y: o.y - want.h,
+                    ..want
+                },
             ]);
         }
         if let Some(c) = candidates.iter().find(|c| free(c)) {
@@ -420,8 +530,18 @@ impl Scene {
             // Re-anchor "left of" and "above" spots to the smaller size.
             for c in &candidates {
                 small_candidates.push(Rect { w, h, ..*c });
-                small_candidates.push(Rect { x: c.right() - w, w, h, ..*c });
-                small_candidates.push(Rect { y: c.bottom() - h, w, h, ..*c });
+                small_candidates.push(Rect {
+                    x: c.right() - w,
+                    w,
+                    h,
+                    ..*c
+                });
+                small_candidates.push(Rect {
+                    y: c.bottom() - h,
+                    w,
+                    h,
+                    ..*c
+                });
             }
             if let Some(c) = small_candidates.iter().find(|c| free(c)) {
                 return *c;
@@ -430,7 +550,10 @@ impl Scene {
         // Still no room (a small screen): on a screen, covering as little as
         // possible.
         let covered = |r: &Rect| -> f64 {
-            others.iter().map(|(_, o)| r.h_overlap(o).max(0.0) * r.v_overlap(o).max(0.0)).sum()
+            others
+                .iter()
+                .map(|(_, o)| r.h_overlap(o).max(0.0) * r.v_overlap(o).max(0.0))
+                .sum()
         };
         std::iter::once(want)
             .chain(candidates)
@@ -446,7 +569,10 @@ impl Scene {
             return r;
         }
         let s = nearest_screen(&self.screens, &r);
-        r.offset(clamp_shift(r.x, r.w, s.x, s.right()), clamp_shift(r.y, r.h, s.y, s.bottom()))
+        r.offset(
+            clamp_shift(r.x, r.w, s.x, s.right()),
+            clamp_shift(r.y, r.h, s.y, s.bottom()),
+        )
     }
 
     /// The vertical column `i` belongs to: visible panels stacked edge to
@@ -459,8 +585,14 @@ impl Scene {
             let a = self.panels[col[k]].frame;
             for (j, p) in self.panels.iter().enumerate() {
                 let b = p.frame;
-                let stacked = (b.y - a.bottom()).abs() <= TOUCH || (a.y - b.bottom()).abs() <= TOUCH;
-                if p.visible && !col.contains(&j) && stacked && same(a.x, b.x) && same(a.right(), b.right()) {
+                let stacked =
+                    (b.y - a.bottom()).abs() <= TOUCH || (a.y - b.bottom()).abs() <= TOUCH;
+                if p.visible
+                    && !col.contains(&j)
+                    && stacked
+                    && same(a.x, b.x)
+                    && same(a.right(), b.right())
+                {
                     col.push(j);
                 }
             }
@@ -479,19 +611,29 @@ impl Scene {
             if scene.panels[i].frame != f {
                 scene.panels[i].frame = f;
                 out.retain(|p| p.id != scene.panels[i].id);
-                out.push(Placement { id: scene.panels[i].id.clone(), frame: f });
+                out.push(Placement {
+                    id: scene.panels[i].id.clone(),
+                    frame: f,
+                });
             }
         };
         if let Some(m) = scene.index(MAIN) {
             let main = scene.panels[m].frame;
             for j in scene.column(m) {
-                let f = Rect { x: main.x, w: main.w, ..scene.panels[j].frame };
+                let f = Rect {
+                    x: main.x,
+                    w: main.w,
+                    ..scene.panels[j].frame
+                };
                 place(&mut scene, j, f, &mut out);
             }
         }
         for i in 0..scene.panels.len() {
             if scene.panels[i].visible {
-                let drag = Drag { scene: scene.clone(), moving: vec![i] };
+                let drag = Drag {
+                    scene: scene.clone(),
+                    moving: vec![i],
+                };
                 let f = drag.span_stack(i, scene.panels[i].frame);
                 place(&mut scene, i, f, &mut out);
             }
@@ -507,15 +649,20 @@ impl Scene {
         let main = self.index(MAIN);
         let group = main.map(|m| self.docked_chain(m)).unwrap_or_default();
         let origin = main.map(|m| self.panels[m].frame);
-        let biggest = self.screens.iter().fold(None, |acc: Option<(f64, f64)>, s| match acc {
-            None => Some((s.w, s.h)),
-            Some((w, h)) => Some((w.max(s.w), h.max(s.h))),
-        });
+        let biggest = self
+            .screens
+            .iter()
+            .fold(None, |acc: Option<(f64, f64)>, s| match acc {
+                None => Some((s.w, s.h)),
+                Some((w, h)) => Some((w.max(s.w), h.max(s.h))),
+            });
         let mut out = Vec::new();
         for (i, p) in self.panels.iter().enumerate() {
             let f = p.frame;
             let (x, y) = match origin {
-                Some(o) if group.contains(&i) => (o.x + (f.x - o.x) * ratio, o.y + (f.y - o.y) * ratio),
+                Some(o) if group.contains(&i) => {
+                    (o.x + (f.x - o.x) * ratio, o.y + (f.y - o.y) * ratio)
+                }
                 _ => (f.x, f.y),
             };
             let (mut w, mut h) = (f.w * ratio, f.h * ratio);
@@ -525,7 +672,10 @@ impl Scene {
                 w = w.min(bw);
                 h = h.min(bh);
             }
-            out.push(Placement { id: p.id.clone(), frame: Rect::new(x, y, w, h) });
+            out.push(Placement {
+                id: p.id.clone(),
+                frame: Rect::new(x, y, w, h),
+            });
         }
         // A panel outside the group that the change now covers moves to a
         // free spot (the app never creates overlaps; the user may).
@@ -540,8 +690,12 @@ impl Scene {
             }
             let f = scaled.panels[i].frame;
             let was = |k: usize| overlaps(&self.panels[i].frame, &self.panels[k].frame);
-            let covered = (0..scaled.panels.len())
-                .any(|k| k != i && scaled.panels[k].visible && overlaps(&f, &scaled.panels[k].frame) && !was(k));
+            let covered = (0..scaled.panels.len()).any(|k| {
+                k != i
+                    && scaled.panels[k].visible
+                    && overlaps(&f, &scaled.panels[k].frame)
+                    && !was(k)
+            });
             if covered {
                 let spot = scaled.place(&scaled.panels[i].id.clone(), f);
                 scaled.panels[i].frame = spot;
@@ -575,10 +729,16 @@ pub struct Resize {
 
 impl Resize {
     pub fn begin(scene: Scene, id: &str, min_w: f64, min_h: f64) -> Result<Self, String> {
-        let index = scene.index(id).ok_or_else(|| format!("no panel \"{id}\""))?;
+        let index = scene
+            .index(id)
+            .ok_or_else(|| format!("no panel \"{id}\""))?;
         let f = scene.panels[index].frame;
         let n = scene.panels.len();
-        let column: Vec<usize> = scene.column(index).into_iter().filter(|&j| j != index).collect();
+        let column: Vec<usize> = scene
+            .column(index)
+            .into_iter()
+            .filter(|&j| j != index)
+            .collect();
         let lock_width = id != MAIN && column.iter().any(|&j| scene.panels[j].id == MAIN);
 
         // Column members move down or stretch as part of the resized panel
@@ -614,7 +774,11 @@ impl Resize {
         }
         while let Some(i) = queue.pop_front() {
             for (j, p) in scene.panels.iter().enumerate() {
-                if !p.visible || depth[j] == 0 || depth[j] <= depth[i] || !touching(&scene.panels[i].frame, &p.frame) {
+                if !p.visible
+                    || depth[j] == 0
+                    || depth[j] <= depth[i]
+                    || !touching(&scene.panels[i].frame, &p.frame)
+                {
                     continue;
                 }
                 if depth[j] == usize::MAX {
@@ -633,14 +797,25 @@ impl Resize {
             follows[j].0 &= p.frame.x >= f.right() - TOUCH;
             follows[j].1 &= p.frame.y >= f.bottom() - TOUCH;
         }
-        Ok(Self { scene, index, min: (min_w, min_h), lock_width, column, follows })
+        Ok(Self {
+            scene,
+            index,
+            min: (min_w, min_h),
+            lock_width,
+            column,
+            follows,
+        })
     }
 
     /// New frames for a size change of (dw, dh) since the resize began.
     pub fn update(&self, dw: f64, dh: f64, snap: bool) -> Vec<Placement> {
         let p = &self.scene.panels[self.index];
         let dw = if self.lock_width { 0.0 } else { dw };
-        let mut f = Rect { w: (p.frame.w + dw).max(self.min.0), h: (p.frame.h + dh).max(self.min.1), ..p.frame };
+        let mut f = Rect {
+            w: (p.frame.w + dw).max(self.min.0),
+            h: (p.frame.h + dh).max(self.min.1),
+            ..p.frame
+        };
         if self.lock_width {
             f.w = p.frame.w;
         }
@@ -651,7 +826,10 @@ impl Resize {
                 .iter()
                 .enumerate()
                 .filter(|(j, q)| {
-                    q.visible && *j != self.index && !self.column.contains(j) && self.follows[*j] == (false, false)
+                    q.visible
+                        && *j != self.index
+                        && !self.column.contains(j)
+                        && self.follows[*j] == (false, false)
                 })
                 .map(|(_, q)| q.frame)
                 .collect();
@@ -666,11 +844,18 @@ impl Resize {
                 .flat_map(|s| [s.y - f.bottom(), s.bottom() - f.bottom()])
                 .chain(self.scene.screens.iter().map(|w| w.bottom() - f.bottom()));
             let (sx, sy) = (if self.lock_width { 0.0 } else { best(xs) }, best(ys));
-            f.w = (f.w + sx).max(if self.lock_width { p.frame.w } else { self.min.0 });
+            f.w = (f.w + sx).max(if self.lock_width {
+                p.frame.w
+            } else {
+                self.min.0
+            });
             f.h = (f.h + sy).max(self.min.1);
         }
         let (dx, dy) = (f.w - p.frame.w, f.h - p.frame.h);
-        let mut out = vec![Placement { id: p.id.clone(), frame: f }];
+        let mut out = vec![Placement {
+            id: p.id.clone(),
+            frame: f,
+        }];
         for (j, &(fx, fy)) in self.follows.iter().enumerate() {
             let in_column = self.column.contains(&j);
             let (sx, sy) = (if fx { dx } else { 0.0 }, if fy { dy } else { 0.0 });
@@ -681,7 +866,10 @@ impl Resize {
                     moved.x = f.x;
                     moved.w = f.w;
                 }
-                out.push(Placement { id: q.id.clone(), frame: moved });
+                out.push(Placement {
+                    id: q.id.clone(),
+                    frame: moved,
+                });
             }
         }
         out
@@ -701,14 +889,20 @@ pub struct SavedLayout {
 }
 
 pub fn load_from(path: &Path) -> Option<SavedLayout> {
-    std::fs::read_to_string(path).ok().and_then(|s| serde_json::from_str(&s).ok())
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
 }
 
 pub fn save_to(path: &Path, layout: &SavedLayout) -> Result<(), String> {
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir).map_err(|e| format!("creating {}: {e}", dir.display()))?;
     }
-    let json = serde_json::to_string_pretty(&SavedLayout { version: 1, ..layout.clone() }).map_err(|e| e.to_string())?;
+    let json = serde_json::to_string_pretty(&SavedLayout {
+        version: 1,
+        ..layout.clone()
+    })
+    .map_err(|e| e.to_string())?;
     let temp = path.with_extension("json.tmp");
     std::fs::write(&temp, json).map_err(|e| format!("writing {}: {e}", temp.display()))?;
     std::fs::rename(&temp, path).map_err(|e| format!("saving {}: {e}", path.display()))
