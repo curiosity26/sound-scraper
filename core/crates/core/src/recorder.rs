@@ -808,11 +808,15 @@ mod tests {
     fn pause_excludes_paused_time_and_finalizes() {
         let dir = crate::paths::tempdir();
         let (mut r, events) = recorder(&dir);
+        // Wall time spent recording; sleeps overshoot on a busy machine, so
+        // the duration check compares against this rather than the 1.2 s asked for.
+        let started = std::time::Instant::now();
         r.start(system()).unwrap();
         std::thread::sleep(Duration::from_millis(600));
         let vis = r.status().vis();
         assert!(vis.is_active(), "the analyzer runs while recording");
         r.pause().unwrap();
+        let mut recorded = started.elapsed();
         let elapsed_at_pause = r.status().elapsed();
         std::thread::sleep(Duration::from_millis(700));
         assert!(
@@ -823,9 +827,11 @@ mod tests {
             vis.is_active() && vis.levels().0[0] > 0.1,
             "the analyzer keeps going while paused"
         );
+        let resumed = std::time::Instant::now();
         r.resume().unwrap();
         std::thread::sleep(Duration::from_millis(600));
         let path = r.stop().unwrap();
+        recorded += resumed.elapsed();
         assert!(!vis.is_active(), "the analyzer stops with the recording");
 
         assert_eq!(path.extension().unwrap(), "mp3");
@@ -846,9 +852,10 @@ mod tests {
         let scan = mp3::scan(&path).unwrap();
         assert!(scan.has_info_tag, "Xing/LAME tag missing");
         let d = scan.duration_secs();
+        let recorded = recorded.as_secs_f64();
         assert!(
-            (1.05..=1.45).contains(&d),
-            "duration {d:.2}s should exclude the 0.7s pause"
+            d >= 1.05 && (d - recorded).abs() < 0.25,
+            "duration {d:.2}s should match the {recorded:.2}s recorded, excluding the 0.7s pause"
         );
 
         let tag = id3::Tag::read_from_path(&path).unwrap();
