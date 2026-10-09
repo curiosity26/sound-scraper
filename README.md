@@ -100,7 +100,7 @@ Skin authors: the format is described in [docs/skins.md](docs/skins.md), and [sk
 
 ## Settings
 
-<img src="docs/images/settings.png" alt="The Settings panel" width="300" align="right">
+<img src="docs/images/settings.png" alt="The Settings panel" width="300">
 
 **SETTINGS** also holds the recordings folder, MP3 quality (128 to 320 kbps, or VBR V0/V2), silence trimming, the default ID3 version and lossless masters. Sound Scraper remembers the last source you recorded from. **About** lists the open-source components it uses.
 
