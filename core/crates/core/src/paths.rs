@@ -23,7 +23,10 @@ pub fn app_data_dir() -> PathBuf {
         if let Some(appdata) = std::env::var_os("APPDATA") {
             return PathBuf::from(appdata).join("Sound Scraper");
         }
-    } else if let Some(data) = std::env::var_os("XDG_DATA_HOME").map(PathBuf::from).or(home.map(|h| h.join(".local/share"))) {
+    } else if let Some(data) = std::env::var_os("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .or(home.map(|h| h.join(".local/share")))
+    {
         return data.join("sound-scraper");
     }
     recordings_dir().join(".sound-scraper")
@@ -44,10 +47,20 @@ pub fn editor_data_dir() -> PathBuf {
 pub fn sanitize(name: &str) -> String {
     let cleaned: String = name
         .chars()
-        .map(|c| if c.is_control() || r#"/\:*?"<>|"#.contains(c) { '_' } else { c })
+        .map(|c| {
+            if c.is_control() || r#"/\:*?"<>|"#.contains(c) {
+                '_'
+            } else {
+                c
+            }
+        })
         .collect();
     let trimmed = cleaned.trim().trim_end_matches('.');
-    if trimmed.is_empty() { "Recording".to_string() } else { trimmed.to_string() }
+    if trimmed.is_empty() {
+        "Recording".to_string()
+    } else {
+        trimmed.to_string()
+    }
 }
 
 /// `<Source> YYYY-MM-DD HH-MM`, e.g. `Spotify 2026-10-03 14-05`.
@@ -60,7 +73,9 @@ pub fn default_name(source_label: &str, when: chrono::DateTime<chrono::Local>) -
 pub fn unique_path(dir: &Path, stem: &str, ext: &str, also_taken: &[&str]) -> PathBuf {
     let free = |candidate: &str| {
         !dir.join(format!("{candidate}{ext}")).exists()
-            && also_taken.iter().all(|other| !dir.join(format!("{candidate}{other}")).exists())
+            && also_taken
+                .iter()
+                .all(|other| !dir.join(format!("{candidate}{other}")).exists())
     };
     if free(stem) {
         return dir.join(format!("{stem}{ext}"));
@@ -90,8 +105,14 @@ mod tests {
         let dir = tempdir();
         std::fs::write(dir.join("Song.mp3"), b"").unwrap();
         std::fs::write(dir.join("Song (2).mp3.part"), b"").unwrap();
-        assert_eq!(unique_path(&dir, "Song", ".mp3", &[".mp3.part"]), dir.join("Song (3).mp3"));
-        assert_eq!(unique_path(&dir, "Other", ".mp3", &[]), dir.join("Other.mp3"));
+        assert_eq!(
+            unique_path(&dir, "Song", ".mp3", &[".mp3.part"]),
+            dir.join("Song (3).mp3")
+        );
+        assert_eq!(
+            unique_path(&dir, "Other", ".mp3", &[]),
+            dir.join("Other.mp3")
+        );
     }
 
     pub(crate) fn tempdir() -> PathBuf {

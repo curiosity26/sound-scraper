@@ -320,20 +320,48 @@ pub fn required_states(element: &str) -> &'static [&'static str] {
     }
 }
 
-pub const TABLE_COLORS: &[&str] =
-    &["background", "alternate", "text", "selection", "selectionText", "header", "headerText", "grid"];
-pub const CONTROL_COLORS: &[&str] = &["background", "text", "border", "accent", "button", "buttonText"];
+pub const TABLE_COLORS: &[&str] = &[
+    "background",
+    "alternate",
+    "text",
+    "selection",
+    "selectionText",
+    "header",
+    "headerText",
+    "grid",
+];
+pub const CONTROL_COLORS: &[&str] = &[
+    "background",
+    "text",
+    "border",
+    "accent",
+    "button",
+    "buttonText",
+];
 /// The library's playlist view: the CD capacity bar (`fill` while it fits a
 /// 74-minute disc, `fill80` when it needs an 80, `over` past that, `track`
 /// behind, `mark` for the 74/80 lines, `text` for its caption), the
 /// reorder `handle`, the drop `insert` line and `missing` rows.
-pub const PLAYLIST_COLORS: &[&str] = &["fill", "fill80", "over", "track", "mark", "text", "handle", "insert", "missing"];
+pub const PLAYLIST_COLORS: &[&str] = &[
+    "fill", "fill80", "over", "track", "mark", "text", "handle", "insert", "missing",
+];
 
 /// The burn panel: progress `bar` over `track`, the drive `buffer` bar,
 /// status lamps (`waiting`, `preparing`, `writing`, `done`, `failed`) and
 /// whether they `glow`, and the log (`log` behind `logText`).
-pub const PROGRESS_COLORS: &[&str] =
-    &["bar", "track", "buffer", "waiting", "preparing", "writing", "done", "failed", "glow", "log", "logText"];
+pub const PROGRESS_COLORS: &[&str] = &[
+    "bar",
+    "track",
+    "buffer",
+    "waiting",
+    "preparing",
+    "writing",
+    "done",
+    "failed",
+    "glow",
+    "log",
+    "logText",
+];
 
 pub const WAVEFORM_COLORS: &[&str] = &[
     "background",

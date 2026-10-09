@@ -62,8 +62,13 @@ impl EditList {
     /// The tracks to write for a recording of `total` frames at `rate`.
     /// Tracks left with no audio (wholly deleted) are skipped.
     pub fn plan(&self, rate: u32, total: u64) -> Vec<TrackPlan> {
-        let to_frames = |ms: f64| ((ms.max(0.0) / 1000.0 * f64::from(rate)).round() as u64).min(total);
-        let mut splices: Vec<(u64, &str)> = self.splices.iter().map(|s| (to_frames(s.at_ms), s.name.as_str())).collect();
+        let to_frames =
+            |ms: f64| ((ms.max(0.0) / 1000.0 * f64::from(rate)).round() as u64).min(total);
+        let mut splices: Vec<(u64, &str)> = self
+            .splices
+            .iter()
+            .map(|s| (to_frames(s.at_ms), s.name.as_str()))
+            .collect();
         splices.sort_by_key(|s| s.0);
         let mut starts = vec![(0, self.first_name.as_str())];
         for (at, name) in splices {
@@ -77,7 +82,12 @@ impl EditList {
         let mut deleted: Vec<(u64, u64)> = self
             .deleted
             .iter()
-            .map(|r| (to_frames(r.start_ms.min(r.end_ms)), to_frames(r.start_ms.max(r.end_ms))))
+            .map(|r| {
+                (
+                    to_frames(r.start_ms.min(r.end_ms)),
+                    to_frames(r.start_ms.max(r.end_ms)),
+                )
+            })
             .filter(|(a, b)| b > a)
             .collect();
         deleted.sort();
@@ -103,7 +113,11 @@ impl EditList {
                 let name = name.trim();
                 tracks.push(TrackPlan {
                     start,
-                    name: if name.is_empty() { format!("Track {}", tracks.len() + 1) } else { name.to_string() },
+                    name: if name.is_empty() {
+                        format!("Track {}", tracks.len() + 1)
+                    } else {
+                        name.to_string()
+                    },
                     segments,
                 });
             }
@@ -169,11 +183,17 @@ mod tests {
     const RATE: u32 = 1000; // 1 frame = 1 ms
 
     fn splice(at: f64, name: &str) -> Splice {
-        Splice { at_ms: at, name: name.into() }
+        Splice {
+            at_ms: at,
+            name: name.into(),
+        }
     }
 
     fn region(a: f64, b: f64) -> Region {
-        Region { start_ms: a, end_ms: b }
+        Region {
+            start_ms: a,
+            end_ms: b,
+        }
     }
 
     #[test]
@@ -185,8 +205,14 @@ mod tests {
         };
         let t = e.plan(RATE, 10_000);
         assert_eq!(
-            t.iter().map(|t| (t.name.as_str(), t.segments.clone())).collect::<Vec<_>>(),
-            vec![("Intro", vec![(0, 3000)]), ("One", vec![(3000, 6000)]), ("Two", vec![(6000, 10_000)])]
+            t.iter()
+                .map(|t| (t.name.as_str(), t.segments.clone()))
+                .collect::<Vec<_>>(),
+            vec![
+                ("Intro", vec![(0, 3000)]),
+                ("One", vec![(3000, 6000)]),
+                ("Two", vec![(6000, 10_000)])
+            ]
         );
     }
 
@@ -197,7 +223,11 @@ mod tests {
             splices: vec![splice(5000.0, "B")],
             // Trims A's start, cuts across the splice, and removes a middle
             // stretch of B.
-            deleted: vec![region(0.0, 1000.0), region(4000.0, 5500.0), region(8000.0, 7000.0)],
+            deleted: vec![
+                region(0.0, 1000.0),
+                region(4000.0, 5500.0),
+                region(8000.0, 7000.0),
+            ],
         };
         let t = e.plan(RATE, 10_000);
         assert_eq!(t[0].segments, vec![(1000, 4000)]);
@@ -209,17 +239,28 @@ mod tests {
     fn wholly_deleted_tracks_are_skipped_and_names_defaulted() {
         let e = EditList {
             first_name: " ".into(),
-            splices: vec![splice(2000.0, "Gone"), splice(4000.0, "Kept"), splice(20_000.0, "Past the end")],
+            splices: vec![
+                splice(2000.0, "Gone"),
+                splice(4000.0, "Kept"),
+                splice(20_000.0, "Past the end"),
+            ],
             deleted: vec![region(2000.0, 4000.0)],
         };
         let t = e.plan(RATE, 10_000);
-        assert_eq!(t.iter().map(|t| t.name.as_str()).collect::<Vec<_>>(), vec!["Track 1", "Kept"]);
+        assert_eq!(
+            t.iter().map(|t| t.name.as_str()).collect::<Vec<_>>(),
+            vec!["Track 1", "Kept"]
+        );
     }
 
     #[test]
     fn drafts_round_trip_and_empty_ones_are_removed() {
         let dir = paths::tempdir();
-        let e = EditList { first_name: "x".into(), splices: vec![splice(1.5, "y")], deleted: vec![region(1.0, 2.0)] };
+        let e = EditList {
+            first_name: "x".into(),
+            splices: vec![splice(1.5, "y")],
+            deleted: vec![region(1.0, 2.0)],
+        };
         save_draft_in(&dir, "a.mp3", &e).unwrap();
         assert_eq!(load_draft_in(&dir, "a.mp3"), Some(e));
         save_draft_in(&dir, "a.mp3", &EditList::default()).unwrap();

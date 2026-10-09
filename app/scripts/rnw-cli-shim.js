@@ -8,29 +8,29 @@
 //
 // Use: set NODE_OPTIONS="-r <repo>/app/scripts/rnw-cli-shim.js" before the CLI,
 // Metro or MSBuild. Remove once react-native-windows ships a fixed CLI.
-const Module = require('module');
+const Module = require('module')
 
-const fallback = process.platform === 'win32' ? 'powershell.exe' : 'pwsh';
-const originalLoad = Module._load;
+const fallback = process.platform === 'win32' ? 'powershell.exe' : 'pwsh'
+const originalLoad = Module._load
 
 Module._load = function (request, ...rest) {
   if (request !== '@react-native-windows/find-dotnet-tools') {
-    return originalLoad.call(this, request, ...rest);
+    return originalLoad.call(this, request, ...rest)
   }
-  let real;
+  let real
   try {
-    real = originalLoad.call(this, request, ...rest);
+    real = originalLoad.call(this, request, ...rest)
   } catch {
-    real = {};
+    real = {}
   }
   return {
     ...real,
     findPowerShell: () => {
       try {
-        return real.findPowerShell();
+        return real.findPowerShell()
       } catch {
-        return fallback;
+        return fallback
       }
     },
-  };
-};
+  }
+}

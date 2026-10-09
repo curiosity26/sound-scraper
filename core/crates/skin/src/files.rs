@@ -23,24 +23,34 @@ pub fn is_image(path: &str) -> bool {
 }
 
 fn extension(path: &str) -> Option<String> {
-    Path::new(path).extension().map(|e| e.to_string_lossy().to_ascii_lowercase())
+    Path::new(path)
+        .extension()
+        .map(|e| e.to_string_lossy().to_ascii_lowercase())
 }
 
 /// Files a skin may contain: images, JSON and text (plus extension-less
 /// LICENSE/README/AUTHORS notes).
 fn allowed_file(path: &str) -> bool {
     match extension(path) {
-        Some(ext) => IMAGE_EXTENSIONS.contains(&ext.as_str()) || OTHER_EXTENSIONS.contains(&ext.as_str()),
+        Some(ext) => {
+            IMAGE_EXTENSIONS.contains(&ext.as_str()) || OTHER_EXTENSIONS.contains(&ext.as_str())
+        }
         None => {
-            let name = Path::new(path).file_name().map(|n| n.to_string_lossy().to_ascii_uppercase());
-            matches!(name.as_deref(), Some("LICENSE" | "README" | "AUTHORS" | "COPYING"))
+            let name = Path::new(path)
+                .file_name()
+                .map(|n| n.to_string_lossy().to_ascii_uppercase());
+            matches!(
+                name.as_deref(),
+                Some("LICENSE" | "README" | "AUTHORS" | "COPYING")
+            )
         }
     }
 }
 
 /// Junk that archivers and Finder add; skipped instead of rejected.
 fn is_junk(path: &str) -> bool {
-    path.split('/').any(|part| part == "__MACOSX" || part == ".DS_Store" || part == "Thumbs.db")
+    path.split('/')
+        .any(|part| part == "__MACOSX" || part == ".DS_Store" || part == "Thumbs.db")
 }
 
 /// Checks a relative path from a manifest or an archive: no absolute paths,
@@ -50,14 +60,18 @@ pub fn safe_relative(path: &str) -> Result<PathBuf, String> {
         return Err("empty path".into());
     }
     if path.contains('\\') || path.contains(':') || path.contains('\0') {
-        return Err(format!("{path}: only relative paths with forward slashes are allowed"));
+        return Err(format!(
+            "{path}: only relative paths with forward slashes are allowed"
+        ));
     }
     let mut clean = PathBuf::new();
     for component in Path::new(path).components() {
         match component {
             Component::Normal(part) => clean.push(part),
             Component::CurDir => {}
-            Component::ParentDir => return Err(format!("{path}: \"..\" is not allowed in skin paths")),
+            Component::ParentDir => {
+                return Err(format!("{path}: \"..\" is not allowed in skin paths"));
+            }
             Component::RootDir | Component::Prefix(_) => {
                 return Err(format!("{path}: absolute paths are not allowed in skins"));
             }
@@ -97,7 +111,11 @@ pub fn skin_files(root: &Path) -> Result<Vec<SkinFile>, String> {
         for entry in entries {
             let entry = entry.map_err(|e| format!("{}: {e}", dir.display()))?;
             let path = entry.path();
-            let rel = path.strip_prefix(root).unwrap_or(&path).to_string_lossy().replace('\\', "/");
+            let rel = path
+                .strip_prefix(root)
+                .unwrap_or(&path)
+                .to_string_lossy()
+                .replace('\\', "/");
             if entry.file_name().to_string_lossy().starts_with('.') || is_junk(&rel) {
                 continue;
             }
@@ -114,13 +132,23 @@ pub fn skin_files(root: &Path) -> Result<Vec<SkinFile>, String> {
             } else if !meta.is_file() {
                 return Err(format!("{rel}: not a regular file"));
             } else if !allowed_file(&rel) {
-                return Err(format!("{rel}: only images (PNG, JPEG, WebP), JSON and text files are allowed"));
+                return Err(format!(
+                    "{rel}: only images (PNG, JPEG, WebP), JSON and text files are allowed"
+                ));
             } else {
                 total += meta.len();
                 if total > MAX_UNPACKED_BYTES {
-                    return Err(format!("the skin is larger than {} MB unpacked", MAX_UNPACKED_BYTES / 1024 / 1024));
+                    return Err(format!(
+                        "the skin is larger than {} MB unpacked",
+                        MAX_UNPACKED_BYTES / 1024 / 1024
+                    ));
                 }
-                files.push(SkinFile { rel, path, len: meta.len(), modified: meta.modified().ok() });
+                files.push(SkinFile {
+                    rel,
+                    path,
+                    len: meta.len(),
+                    modified: meta.modified().ok(),
+                });
             }
         }
     }
@@ -138,13 +166,20 @@ pub fn write_archive(root: &Path, out: &Path) -> Result<(), String> {
         let file = fs::File::create(&temp).map_err(|e| format!("{}: {e}", temp.display()))?;
         let mut zip = zip::ZipWriter::new(file);
         for f in &files {
-            let method = if is_image(&f.rel) { zip::CompressionMethod::Stored } else { zip::CompressionMethod::Deflated };
+            let method = if is_image(&f.rel) {
+                zip::CompressionMethod::Stored
+            } else {
+                zip::CompressionMethod::Deflated
+            };
             let options = zip::write::SimpleFileOptions::default().compression_method(method);
-            zip.start_file(f.rel.as_str(), options).map_err(|e| format!("{}: {e}", f.rel))?;
+            zip.start_file(f.rel.as_str(), options)
+                .map_err(|e| format!("{}: {e}", f.rel))?;
             let bytes = fs::read(&f.path).map_err(|e| format!("{}: {e}", f.rel))?;
-            zip.write_all(&bytes).map_err(|e| format!("{}: {e}", f.rel))?;
+            zip.write_all(&bytes)
+                .map_err(|e| format!("{}: {e}", f.rel))?;
         }
-        zip.finish().map_err(|e| format!("{}: {e}", temp.display()))?;
+        zip.finish()
+            .map_err(|e| format!("{}: {e}", temp.display()))?;
         fs::rename(&temp, out).map_err(|e| format!("{}: {e}", out.display()))
     })();
     if result.is_err() {
@@ -158,13 +193,20 @@ pub fn write_archive(root: &Path, out: &Path) -> Result<(), String> {
 /// from the zip headers). Returns the skin's root: `dest`, or the single
 /// top-level folder holding `skin.json` when the archive wraps one.
 pub fn extract_archive(archive: &Path, dest: &Path) -> Result<PathBuf, String> {
-    let name = archive.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let name = archive
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
     let file = fs::File::open(archive).map_err(|e| format!("{name}: {e}"))?;
     let size = file.metadata().map_err(|e| format!("{name}: {e}"))?.len();
     if size > MAX_ARCHIVE_BYTES {
-        return Err(format!("{name}: skins can be at most {} MB", MAX_ARCHIVE_BYTES / 1024 / 1024));
+        return Err(format!(
+            "{name}: skins can be at most {} MB",
+            MAX_ARCHIVE_BYTES / 1024 / 1024
+        ));
     }
-    let mut zip = zip::ZipArchive::new(file).map_err(|e| format!("{name}: not a valid skin archive ({e})"))?;
+    let mut zip = zip::ZipArchive::new(file)
+        .map_err(|e| format!("{name}: not a valid skin archive ({e})"))?;
     if zip.len() > MAX_FILES {
         return Err(format!("{name}: the skin has more than {MAX_FILES} files"));
     }
@@ -176,7 +218,9 @@ pub fn extract_archive(archive: &Path, dest: &Path) -> Result<PathBuf, String> {
             continue;
         }
         if entry.is_symlink() {
-            return Err(format!("{entry_name}: symbolic links are not allowed in skins"));
+            return Err(format!(
+                "{entry_name}: symbolic links are not allowed in skins"
+            ));
         }
         let rel = safe_relative(entry_name.trim_end_matches('/'))?;
         let target = dest.join(&rel);
@@ -185,7 +229,9 @@ pub fn extract_archive(archive: &Path, dest: &Path) -> Result<PathBuf, String> {
             continue;
         }
         if !allowed_file(&entry_name) {
-            return Err(format!("{entry_name}: only images (PNG, JPEG, WebP), JSON and text files are allowed"));
+            return Err(format!(
+                "{entry_name}: only images (PNG, JPEG, WebP), JSON and text files are allowed"
+            ));
         }
         if let Some(parent) = target.parent() {
             fs::create_dir_all(parent).map_err(|e| format!("{entry_name}: {e}"))?;
@@ -196,10 +242,14 @@ pub fn extract_archive(archive: &Path, dest: &Path) -> Result<PathBuf, String> {
             .open(&target)
             .map_err(|e| format!("{entry_name}: {e}"))?;
         let remaining = MAX_UNPACKED_BYTES - total;
-        let copied = io::copy(&mut (&mut entry).take(remaining + 1), &mut out).map_err(|e| format!("{entry_name}: {e}"))?;
+        let copied = io::copy(&mut (&mut entry).take(remaining + 1), &mut out)
+            .map_err(|e| format!("{entry_name}: {e}"))?;
         total += copied;
         if total > MAX_UNPACKED_BYTES {
-            return Err(format!("{name}: the skin is larger than {} MB unpacked", MAX_UNPACKED_BYTES / 1024 / 1024));
+            return Err(format!(
+                "{name}: the skin is larger than {} MB unpacked",
+                MAX_UNPACKED_BYTES / 1024 / 1024
+            ));
         }
     }
     if dest.join("skin.json").is_file() {
@@ -208,7 +258,10 @@ pub fn extract_archive(archive: &Path, dest: &Path) -> Result<PathBuf, String> {
     let dirs: Vec<PathBuf> = fs::read_dir(dest)
         .map_err(|e| e.to_string())?
         .filter_map(|e| e.ok().map(|e| e.path()))
-        .filter(|p| !p.file_name().is_some_and(|n| n.to_string_lossy().starts_with('.')))
+        .filter(|p| {
+            !p.file_name()
+                .is_some_and(|n| n.to_string_lossy().starts_with('.'))
+        })
         .collect();
     match dirs.as_slice() {
         [only] if only.join("skin.json").is_file() => Ok(only.clone()),

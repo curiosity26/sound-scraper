@@ -1,1 +1,1 @@
-export { default } from './WaveformViewWindowsNativeComponent';
+export { default } from './WaveformViewWindowsNativeComponent'

@@ -50,7 +50,11 @@ impl SilenceTrimmer {
     /// Frames held back after audio was heard: the length the recording
     /// grows by if audio resumes.
     pub fn held_frames(&self) -> u64 {
-        if self.started { (self.held.len() / 2) as u64 + self.overflow_frames } else { 0 }
+        if self.started {
+            (self.held.len() / 2) as u64 + self.overflow_frames
+        } else {
+            0
+        }
     }
 
     /// Takes a chunk; appends what should be encoded now to `out`.
@@ -85,7 +89,11 @@ impl SilenceTrimmer {
 
     fn hold(&mut self, silence: &[f32]) {
         self.held.extend_from_slice(silence);
-        let limit = if self.started { self.max_held_frames } else { self.margin_frames } * 2;
+        let limit = if self.started {
+            self.max_held_frames
+        } else {
+            self.margin_frames
+        } * 2;
         if self.held.len() > limit {
             let excess = self.held.len() - limit;
             if self.started {
@@ -130,7 +138,11 @@ mod tests {
     #[test]
     fn keeps_silence_between_sounds() {
         let out = run(&[frames(10, 0.5), frames(300, 0.0005), frames(10, 0.5)]);
-        assert_eq!(out.len(), (10 + 300 + 10) * 2, "the quiet stretch is kept as captured");
+        assert_eq!(
+            out.len(),
+            (10 + 300 + 10) * 2,
+            "the quiet stretch is kept as captured"
+        );
         assert!(out[20..620].iter().all(|&s| s == 0.0005));
     }
 
@@ -170,6 +182,10 @@ mod tests {
         assert_eq!(t.held_frames(), 40_000);
         t.push(&frames(1, 0.5), &mut out);
         assert_eq!(out.len(), (1 + 40_000 + 1) * 2, "the timeline is preserved");
-        assert!(out[out.len() - 2 - 10_000 * 2..out.len() - 2].iter().all(|&s| s == 0.0));
+        assert!(
+            out[out.len() - 2 - 10_000 * 2..out.len() - 2]
+                .iter()
+                .all(|&s| s == 0.0)
+        );
     }
 }

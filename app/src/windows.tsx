@@ -1,21 +1,21 @@
 // Roots of the skinned UI's windows (registered in index.js). They share one
 // JS runtime, so the skin and library refreshes are shared between them.
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 
-import { AboutPanel } from './AboutPanel';
-import { BurnPanel, openBurnPanel } from './BurnPanel';
-import { safeSettings } from './appHelpers';
-import { DetailsPane } from './DetailsPane';
-import { EditorPanel } from './editor/EditorPanel';
-import { LibraryScreen, refreshLibraryViews } from './LibraryScreen';
-import { SettingsPanel } from './SettingsPanel';
-import { playback } from './playback';
-import { MainPanel } from './skin/MainPanel';
-import { SkinChooser } from './skin/SkinChooser';
-import { SkinPanelFrame } from './skin/SkinPanelFrame';
-import { SkinProvider, useSkin } from './skin/SkinProvider';
-import { SkinScale } from './skin/SkinImage';
+import { AboutPanel } from './AboutPanel'
+import { BurnPanel, openBurnPanel } from './BurnPanel'
+import { safeSettings } from './appHelpers'
+import { DetailsPane } from './DetailsPane'
+import { EditorPanel } from './editor/EditorPanel'
+import { LibraryScreen, refreshLibraryViews } from './LibraryScreen'
+import { SettingsPanel } from './SettingsPanel'
+import { playback } from './playback'
+import { MainPanel } from './skin/MainPanel'
+import { SkinChooser } from './skin/SkinChooser'
+import { SkinPanelFrame } from './skin/SkinPanelFrame'
+import { SkinProvider, useSkin } from './skin/SkinProvider'
+import { SkinScale } from './skin/SkinImage'
 import {
   burnTarget,
   doubleSizeStore,
@@ -26,22 +26,22 @@ import {
   skins,
   skinStore,
   windows,
-} from './skin/skins';
-import { colors } from './theme';
-import { selection } from './selection';
-import type { Message } from './useRecorder';
+} from './skin/skins'
+import { colors } from './theme'
+import { selection } from './selection'
+import type { Message } from './useRecorder'
 
 /** Double size (⌘D), shared by every window. */
 function useDoubleSize(): boolean {
-  const [double, setDouble] = useState(doubleSizeStore.get);
-  useEffect(() => doubleSizeStore.subscribe(setDouble), []);
-  return double;
+  const [double, setDouble] = useState(doubleSizeStore.get)
+  useEffect(() => doubleSizeStore.subscribe(setDouble), [])
+  return double
 }
 
 /** The skin, at the current scale, around a window's content. */
 function Skinned(props: { children: React.ReactNode }): React.JSX.Element {
-  const [error, setError] = useState<string>();
-  const double = useDoubleSize();
+  const [error, setError] = useState<string>()
+  const double = useDoubleSize()
   return (
     <SkinScale.Provider value={double ? 2 : 1}>
       <SkinProvider
@@ -59,7 +59,7 @@ function Skinned(props: { children: React.ReactNode }): React.JSX.Element {
         {props.children}
       </SkinProvider>
     </SkinScale.Provider>
-  );
+  )
 }
 
 /** The main window: the skinned panel. */
@@ -67,27 +67,27 @@ export function MainApp(): React.JSX.Element {
   useEffect(() => {
     // Skins opened before JS started (double-clicking a .sskin launches the
     // app), then as they come.
-    const takeSkins = () => openSkinFiles(skins.takeOpened()).catch(() => {});
-    takeSkins();
+    const takeSkins = () => openSkinFiles(skins.takeOpened()).catch(() => {})
+    takeSkins()
     const subscription = windows.onEvent(e => {
       if (e.window !== 'main') {
-        return;
+        return
       }
       if (e.event === 'toggleDoubleSize') {
         // Window › Double Size (⌘D), Ctrl+D on Windows.
-        doubleSizeStore.set(!doubleSizeStore.get());
+        doubleSizeStore.set(!doubleSizeStore.get())
       } else if (e.event === 'skinFilesOpened') {
-        takeSkins();
+        takeSkins()
       }
-    });
-    return () => subscription.remove();
-  }, []);
-  useFolderLiveReload();
+    })
+    return () => subscription.remove()
+  }, [])
+  useFolderLiveReload()
   return (
     <Skinned>
       <MainPanel />
     </Skinned>
-  );
+  )
 }
 
 /**
@@ -95,64 +95,64 @@ export function MainApp(): React.JSX.Element {
  * it whenever its files change.
  */
 function useFolderLiveReload() {
-  const [dir, setDir] = useState(() => chosenFolder());
-  useEffect(() => skinStore.subscribe(() => setDir(chosenFolder())), []);
+  const [dir, setDir] = useState(() => chosenFolder())
+  useEffect(() => skinStore.subscribe(() => setDir(chosenFolder())), [])
   useEffect(() => {
     if (!dir) {
-      return;
+      return
     }
-    let last: string | undefined;
-    let busy = false;
+    let last: string | undefined
+    let busy = false
     const timer = setInterval(async () => {
       if (busy) {
-        return;
+        return
       }
-      busy = true;
+      busy = true
       try {
-        const stamp = await skins.folderStamp(dir);
+        const stamp = await skins.folderStamp(dir)
         if (last !== undefined && stamp !== last) {
-          await skinStore.reload();
+          await skinStore.reload()
         }
-        last = stamp;
+        last = stamp
       } catch {
         // A save in progress, or the folder went away: try again.
       } finally {
-        busy = false;
+        busy = false
       }
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [dir]);
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [dir])
 }
 
 function chosenFolder(): string | null {
-  const chosen = safeSettings()?.skin ?? null;
-  return isFolderSkin(chosen) ? chosen : null;
+  const chosen = safeSettings()?.skin ?? null
+  return isFolderSkin(chosen) ? chosen : null
 }
 
 /** Text color and whether the panel is dark, from the skin's controls. */
 function usePanelText(
   panel: 'library' | 'settings' | 'details' | 'editor' | 'burn',
 ) {
-  const skin = useSkin();
-  const c = skin.panels[panel].controls;
+  const skin = useSkin()
+  const c = skin.panels[panel].controls
   return {
     fg: { color: c.text ?? '#f2f2f2' },
     isDark: isDarkColor(c.background ?? '#1e1e1e'),
-  };
+  }
 }
 
 export function isDarkColor(hex: string): boolean {
-  const h = hex.replace('#', '');
+  const h = hex.replace('#', '')
   const v = (i: number) =>
-    parseInt(h.length < 6 ? h[i] + h[i] : h.slice(i * 2, i * 2 + 2), 16);
-  return 0.299 * v(0) + 0.587 * v(1) + 0.114 * v(2) < 128;
+    parseInt(h.length < 6 ? h[i] + h[i] : h.slice(i * 2, i * 2 + 2), 16)
+  return 0.299 * v(0) + 0.587 * v(1) + 0.114 * v(2) < 128
 }
 
 function LibraryContent(props: {
-  onCount: (n: number, playlistName?: string) => void;
+  onCount: (n: number, playlistName?: string) => void
 }) {
-  const { fg, isDark } = usePanelText('library');
-  const [message, setMessage] = useState<Message>();
+  const { fg, isDark } = usePanelText('library')
+  const [message, setMessage] = useState<Message>()
   return (
     <View style={styles.content}>
       <LibraryScreen
@@ -178,34 +178,34 @@ function LibraryContent(props: {
         </Text>
       )}
     </View>
-  );
+  )
 }
 
 /** The library window. */
 export function LibraryApp(): React.JSX.Element {
   // A string, so an unchanged count doesn't re-render (and the callback is
   // stable: LibraryScreen reports again whenever it changes).
-  const [title, setTitle] = useState('Library');
+  const [title, setTitle] = useState('Library')
   const onCount = useCallback(
     (n: number, playlist?: string) =>
       setTitle(`${playlist ? `Library: ${playlist}` : 'Library'} (${n})`),
     [],
-  );
+  )
   return (
     <Skinned>
       <SkinPanelFrame panel="library" title={title}>
         <LibraryContent onCount={onCount} />
       </SkinPanelFrame>
     </Skinned>
-  );
+  )
 }
 
 function SettingsContent() {
-  const { fg } = usePanelText('settings');
-  const skin = useSkin();
-  const accent = skin.panels.settings.controls.accent ?? colors.accent;
-  const [tab, setTab] = useState(settingsTab.get);
-  useEffect(() => settingsTab.subscribe(setTab), []);
+  const { fg } = usePanelText('settings')
+  const skin = useSkin()
+  const accent = skin.panels.settings.controls.accent ?? colors.accent
+  const [tab, setTab] = useState(settingsTab.get)
+  useEffect(() => settingsTab.subscribe(setTab), [])
   return (
     <View style={styles.content}>
       <View style={styles.tabs}>
@@ -237,16 +237,16 @@ function SettingsContent() {
       )}
       {tab === 'about' && <AboutPanel textStyle={fg} />}
     </View>
-  );
+  )
 }
 
 function DetailsContent(props: {
-  menuRef: { current?: (x: number, y: number) => void };
+  menuRef: { current?: (x: number, y: number) => void }
 }) {
-  const { fg, isDark } = usePanelText('details');
-  const [fileNames, setFileNames] = useState(selection.get());
-  useEffect(() => selection.subscribe(setFileNames), []);
-  const close = () => windows.setPanelVisible('details', false);
+  const { fg, isDark } = usePanelText('details')
+  const [fileNames, setFileNames] = useState(selection.get())
+  useEffect(() => selection.subscribe(setFileNames), [])
+  const close = () => windows.setPanelVisible('details', false)
   if (fileNames.length === 0) {
     return (
       <View style={styles.content}>
@@ -254,15 +254,15 @@ function DetailsContent(props: {
           Click a recording in the library to see its details.
         </Text>
       </View>
-    );
+    )
   }
   return (
     <View style={styles.content}>
       <DetailsPane
         fileNames={fileNames}
         onRenamed={(old, renamed) => {
-          playback.renamed(old, renamed);
-          selection.set([renamed]);
+          playback.renamed(old, renamed)
+          selection.set([renamed])
         }}
         onChanged={refreshLibraryViews}
         onClose={close}
@@ -272,25 +272,25 @@ function DetailsContent(props: {
         isDark={isDark}
       />
     </View>
-  );
+  )
 }
 
 /** The details window: the selected recording(s). Closing it deselects. */
 export function DetailsApp(): React.JSX.Element {
-  const [count, setCount] = useState(selection.get().length);
-  const menuRef = useRef<(x: number, y: number) => void>(undefined);
+  const [count, setCount] = useState(selection.get().length)
+  const menuRef = useRef<(x: number, y: number) => void>(undefined)
   useEffect(() => {
-    const unsubscribe = selection.subscribe(names => setCount(names.length));
+    const unsubscribe = selection.subscribe(names => setCount(names.length))
     const subscription = windows.onEvent(e => {
       if (e.window === 'details' && e.event === 'hidden') {
-        selection.set([]);
+        selection.set([])
       }
-    });
+    })
     return () => {
-      unsubscribe();
-      subscription.remove();
-    };
-  }, []);
+      unsubscribe()
+      subscription.remove()
+    }
+  }, [])
   return (
     <Skinned>
       <SkinPanelFrame
@@ -301,14 +301,14 @@ export function DetailsApp(): React.JSX.Element {
         <DetailsContent menuRef={menuRef} />
       </SkinPanelFrame>
     </Skinned>
-  );
+  )
 }
 
 function EditorContent() {
-  const { fg } = usePanelText('editor');
-  const skin = useSkin();
-  const [target, setTarget] = useState(editorTarget.get);
-  useEffect(() => editorTarget.subscribe(setTarget), []);
+  const { fg } = usePanelText('editor')
+  const skin = useSkin()
+  const [target, setTarget] = useState(editorTarget.get)
+  useEffect(() => editorTarget.subscribe(setTarget), [])
   if (!target) {
     return (
       <View style={styles.content}>
@@ -316,7 +316,7 @@ function EditorContent() {
           Choose Edit Track… in a recording's details to edit it here.
         </Text>
       </View>
-    );
+    )
   }
   return (
     <View style={styles.content}>
@@ -326,34 +326,34 @@ function EditorContent() {
         colors={skin.panels.editor.waveform}
         onSaved={(files, keptOriginal) => {
           if (!keptOriginal && playback.get().path === target.path) {
-            playback.clear();
+            playback.clear()
           }
-          refreshLibraryViews();
-          selection.set(files.slice(0, 1));
-          windows.setPanelVisible('editor', false);
-          editorTarget.set(null);
+          refreshLibraryViews()
+          selection.set(files.slice(0, 1))
+          windows.setPanelVisible('editor', false)
+          editorTarget.set(null)
         }}
       />
     </View>
-  );
+  )
 }
 
 /** The track editor window: the recording chosen with Edit Track…. */
 export function EditorApp(): React.JSX.Element {
-  const [title, setTitle] = useState(editorTarget.get()?.title);
+  const [title, setTitle] = useState(editorTarget.get()?.title)
   useEffect(() => {
-    const unsubscribe = editorTarget.subscribe(t => setTitle(t?.title));
+    const unsubscribe = editorTarget.subscribe(t => setTitle(t?.title))
     const subscription = windows.onEvent(e => {
       // Closing the window closes the recording (its edits stay a draft).
       if (e.window === 'editor' && e.event === 'hidden') {
-        editorTarget.set(null);
+        editorTarget.set(null)
       }
-    });
+    })
     return () => {
-      unsubscribe();
-      subscription.remove();
-    };
-  }, []);
+      unsubscribe()
+      subscription.remove()
+    }
+  }, [])
   return (
     <Skinned>
       <SkinPanelFrame
@@ -363,13 +363,13 @@ export function EditorApp(): React.JSX.Element {
         <EditorContent />
       </SkinPanelFrame>
     </Skinned>
-  );
+  )
 }
 
 /** The burn window: a playlist to CD or a disc image. */
 export function BurnApp(): React.JSX.Element {
-  const [name, setName] = useState(burnTarget.get()?.name);
-  useEffect(() => burnTarget.subscribe(t => setName(t?.name)), []);
+  const [name, setName] = useState(burnTarget.get()?.name)
+  useEffect(() => burnTarget.subscribe(t => setName(t?.name)), [])
   return (
     <Skinned>
       <SkinPanelFrame panel="burn" title={name ? `Burn: ${name}` : 'Burn CD'}>
@@ -378,7 +378,7 @@ export function BurnApp(): React.JSX.Element {
         </View>
       </SkinPanelFrame>
     </Skinned>
-  );
+  )
 }
 
 /** The settings window: settings, skin and about. */
@@ -389,7 +389,7 @@ export function SettingsApp(): React.JSX.Element {
         <SettingsContent />
       </SkinPanelFrame>
     </Skinned>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -410,10 +410,10 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   skinErrorText: { color: '#f3ead0', fontSize: 12 },
-});
+})
 
 if (__DEV__) {
   // Lets the debugger drive the panels (see also native/SoundScraper.ts).
-  const g = globalThis as { __soundScraper?: Record<string, unknown> };
-  g.__soundScraper = { ...g.__soundScraper, selection, windows };
+  const g = globalThis as { __soundScraper?: Record<string, unknown> }
+  g.__soundScraper = { ...g.__soundScraper, selection, windows }
 }

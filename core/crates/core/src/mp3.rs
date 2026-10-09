@@ -11,12 +11,15 @@ use std::{
     path::Path,
 };
 
-use mp3lame_encoder::{Bitrate, Builder, FlushGap, InterleavedPcm, Quality as LameQuality, VbrMode};
+use mp3lame_encoder::{
+    Bitrate, Builder, FlushGap, InterleavedPcm, Quality as LameQuality, VbrMode,
+};
 
 use crate::settings::Quality;
 
 /// Input rates LAME accepts without resampling.
-pub const SUPPORTED_RATES: [u32; 9] = [8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000];
+pub const SUPPORTED_RATES: [u32; 9] =
+    [8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000];
 
 /// Stereo f32 → CBR MP3. The first frame LAME emits is a placeholder for the
 /// Xing/LAME tag, which [`Mp3Encoder::lame_tag`] fills in at the end.
@@ -28,7 +31,9 @@ pub struct Mp3Encoder {
 impl Mp3Encoder {
     pub fn new(sample_rate: u32, quality: Quality) -> Result<Self, String> {
         if !SUPPORTED_RATES.contains(&sample_rate) {
-            return Err(format!("{sample_rate} Hz is not supported yet (resampling isn't implemented)"));
+            return Err(format!(
+                "{sample_rate} Hz is not supported yet (resampling isn't implemented)"
+            ));
         }
         let lame_err = |e: mp3lame_encoder::BuildError| format!("LAME setup failed: {e:?}");
         let mut b = Builder::new().ok_or("LAME failed to initialize")?;
@@ -44,17 +49,26 @@ impl Mp3Encoder {
             Quality::Cbr320 => cbr(&mut b, Bitrate::Kbps320),
             Quality::Vbr0 | Quality::Vbr2 => {
                 b.set_vbr_mode(VbrMode::Mtrh).map_err(lame_err)?;
-                b.set_vbr_quality(if quality == Quality::Vbr0 { LameQuality::Best } else { LameQuality::NearBest })
+                b.set_vbr_quality(if quality == Quality::Vbr0 {
+                    LameQuality::Best
+                } else {
+                    LameQuality::NearBest
+                })
             }
         }
         .map_err(lame_err)?;
-        Ok(Self { inner: b.build().map_err(lame_err)?, out: Vec::new() })
+        Ok(Self {
+            inner: b.build().map_err(lame_err)?,
+            out: Vec::new(),
+        })
     }
 
     /// Encodes interleaved stereo samples; returns the MP3 bytes produced.
     pub fn encode(&mut self, interleaved_stereo: &[f32]) -> Result<&[u8], String> {
         self.out.clear();
-        self.out.reserve(mp3lame_encoder::max_required_buffer_size(interleaved_stereo.len() / 2));
+        self.out.reserve(mp3lame_encoder::max_required_buffer_size(
+            interleaved_stereo.len() / 2,
+        ));
         self.inner
             .encode_to_vec(InterleavedPcm(interleaved_stereo), &mut self.out)
             .map_err(|e| format!("LAME encode failed: {e:?}"))?;
@@ -99,7 +113,9 @@ impl FrameHeader {
             return None;
         }
         let mpeg1 = version == 0b11;
-        const BR_V1: [u32; 15] = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320];
+        const BR_V1: [u32; 15] = [
+            0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320,
+        ];
         const BR_V2: [u32; 15] = [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160];
         let br_index = (b[2] >> 4) as usize;
         let sr_index = ((b[2] >> 2) & 0b11) as usize;
@@ -107,15 +123,22 @@ impl FrameHeader {
             return None;
         }
         let bitrate_kbps = if mpeg1 { BR_V1 } else { BR_V2 }[br_index];
-        let sample_rate = [44100, 48000, 32000][sr_index] >> match version {
-            0b11 => 0,
-            0b10 => 1,
-            _ => 2,
-        };
+        let sample_rate = [44100, 48000, 32000][sr_index]
+            >> match version {
+                0b11 => 0,
+                0b10 => 1,
+                _ => 2,
+            };
         let padding = ((b[2] >> 1) & 1) as usize;
         let coefficient = if mpeg1 { 144 } else { 72 };
         let length = (coefficient * bitrate_kbps as usize * 1000) / sample_rate as usize + padding;
-        Some(Self { mpeg1, sample_rate, bitrate_kbps, mono: b[3] >> 6 == 0b11, length })
+        Some(Self {
+            mpeg1,
+            sample_rate,
+            bitrate_kbps,
+            mono: b[3] >> 6 == 0b11,
+            length,
+        })
     }
 
     pub fn samples_per_frame(&self) -> u32 {
@@ -152,7 +175,8 @@ impl Mp3Scan {
     /// Duration from the frame count (excluding the tag frame).
     pub fn duration_secs(&self) -> f64 {
         let Some(h) = self.first else { return 0.0 };
-        let audio_frames = self.frames - u64::from(self.has_info_tag || self.has_empty_tag_placeholder);
+        let audio_frames =
+            self.frames - u64::from(self.has_info_tag || self.has_empty_tag_placeholder);
         audio_frames as f64 * f64::from(h.samples_per_frame()) / f64::from(h.sample_rate)
     }
 }
@@ -196,7 +220,9 @@ fn id3v2_size(data: &[u8]) -> usize {
     if data.len() < 10 || &data[..3] != b"ID3" {
         return 0;
     }
-    let size = data[6..10].iter().fold(0usize, |acc, &b| (acc << 7) | (b & 0x7F) as usize);
+    let size = data[6..10]
+        .iter()
+        .fold(0usize, |acc, &b| (acc << 7) | (b & 0x7F) as usize);
     let footer = if data[5] & 0x10 != 0 { 10 } else { 0 };
     10 + size + footer
 }
@@ -207,7 +233,10 @@ fn id3v2_size(data: &[u8]) -> usize {
 pub fn repair(path: &Path) -> io::Result<Mp3Scan> {
     let before = scan(path)?;
     let Some(first) = before.first else {
-        return Err(io::Error::new(io::ErrorKind::InvalidData, "no MP3 frames found"));
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "no MP3 frames found",
+        ));
     };
     let mut file = File::options().read(true).write(true).open(path)?;
     file.set_len(before.audio_end)?;
@@ -219,7 +248,9 @@ pub fn repair(path: &Path) -> io::Result<Mp3Scan> {
         info.extend_from_slice(&0x0000_0003u32.to_be_bytes()); // frames + bytes fields present
         info.extend_from_slice(&audio_frames.to_be_bytes());
         info.extend_from_slice(&bytes.to_be_bytes());
-        file.seek(SeekFrom::Start(before.audio_start + first.xing_offset() as u64))?;
+        file.seek(SeekFrom::Start(
+            before.audio_start + first.xing_offset() as u64,
+        ))?;
         file.write_all(&info)?;
     }
     file.sync_all()?;
@@ -267,7 +298,11 @@ pub(crate) mod tests {
         let h = s.first.unwrap();
         assert_eq!((h.sample_rate, h.bitrate_kbps, h.mono), (48000, 192, false));
         assert!(s.has_info_tag);
-        assert!((s.duration_secs() - 2.0).abs() < 0.1, "duration {}", s.duration_secs());
+        assert!(
+            (s.duration_secs() - 2.0).abs() < 0.1,
+            "duration {}",
+            s.duration_secs()
+        );
     }
 
     #[test]
@@ -284,7 +319,11 @@ pub(crate) mod tests {
         let after = repair(&path).unwrap();
         assert!(after.has_info_tag);
         assert_eq!(std::fs::metadata(&path).unwrap().len(), after.audio_end);
-        assert!((after.duration_secs() - 1.0).abs() < 0.1, "duration {}", after.duration_secs());
+        assert!(
+            (after.duration_secs() - 1.0).abs() < 0.1,
+            "duration {}",
+            after.duration_secs()
+        );
     }
 
     #[test]
@@ -297,7 +336,11 @@ pub(crate) mod tests {
         out[..tag.len()].copy_from_slice(&tag);
         let s = scan_bytes(&out);
         assert!(s.has_info_tag);
-        assert!((s.duration_secs() - 2.0).abs() < 0.1, "duration {}", s.duration_secs());
+        assert!(
+            (s.duration_secs() - 2.0).abs() < 0.1,
+            "duration {}",
+            s.duration_secs()
+        );
     }
 
     #[test]

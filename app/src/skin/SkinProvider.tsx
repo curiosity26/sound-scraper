@@ -1,32 +1,32 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Platform } from 'react-native';
+import React, { createContext, useContext, useEffect, useState } from 'react'
+import { Platform } from 'react-native'
 
-import { skinStore } from './skins';
-import type { Skin } from './types';
+import { skinStore } from './skins'
+import type { Skin } from './types'
 
-const SkinContext = createContext<Skin | undefined>(undefined);
+const SkinContext = createContext<Skin | undefined>(undefined)
 
 type Props = {
-  children: React.ReactNode;
+  children: React.ReactNode
   /** Shown until the skin has loaded. */
-  fallback?: React.ReactNode;
-  onError?: (message: string) => void;
-};
+  fallback?: React.ReactNode
+  onError?: (message: string) => void
+}
 
 /**
  * Loads the skin chosen in the settings (once per JS runtime) and provides
  * it; re-renders when another window picks a different skin.
  */
 export function SkinProvider(props: Props): React.JSX.Element {
-  const { onError } = props;
-  const [skin, setSkin] = useState(skinStore.get());
+  const { onError } = props
+  const [skin, setSkin] = useState(skinStore.get())
   useEffect(() => {
-    const unsubscribe = skinStore.subscribe(setSkin);
+    const unsubscribe = skinStore.subscribe(setSkin)
     if (!skinStore.get()) {
-      skinStore.reload().catch(e => onError?.(String(e?.message ?? e)));
+      skinStore.reload().catch(e => onError?.(String(e?.message ?? e)))
     }
-    return unsubscribe;
-  }, [onError]);
+    return unsubscribe
+  }, [onError])
   return (
     <SkinContext.Provider value={skin}>
       {skin ? (
@@ -45,13 +45,13 @@ export function SkinProvider(props: Props): React.JSX.Element {
         props.fallback ?? null
       )}
     </SkinContext.Provider>
-  );
+  )
 }
 
 export function useSkin(): Skin {
-  const skin = useContext(SkinContext);
+  const skin = useContext(SkinContext)
   if (!skin) {
-    throw new Error('useSkin outside a loaded SkinProvider');
+    throw new Error('useSkin outside a loaded SkinProvider')
   }
-  return skin;
+  return skin
 }

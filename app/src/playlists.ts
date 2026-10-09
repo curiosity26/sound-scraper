@@ -1,46 +1,46 @@
 // The playlists and the one showing in the library, shared by every window
 // (one JS runtime). The core keeps them (playlists.rs); this mirrors the
 // list, the showing playlist's items, and which row is playing.
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react'
 
 import {
   type Playlist,
   type PlaylistItem,
   playlistsApi,
-} from './native/SoundScraper';
+} from './native/SoundScraper'
 
 export type PlaylistsState = {
-  playlists: Playlist[];
+  playlists: Playlist[]
   /** The playlist showing in the library; null = the whole library. */
-  activeId: number | null;
+  activeId: number | null
   /** The showing playlist's items, in order. */
-  items: PlaylistItem[];
+  items: PlaylistItem[]
   /** The playlist row loaded for playback (a recording can repeat). */
-  playingItemId: number | null;
-};
+  playingItemId: number | null
+}
 
 let state: PlaylistsState = {
   playlists: [],
   activeId: null,
   items: [],
   playingItemId: null,
-};
-let loaded = false;
-const listeners = new Set<(s: PlaylistsState) => void>();
+}
+let loaded = false
+const listeners = new Set<(s: PlaylistsState) => void>()
 
 function publish(change: Partial<PlaylistsState>) {
-  state = { ...state, ...change };
-  listeners.forEach(l => l(state));
+  state = { ...state, ...change }
+  listeners.forEach(l => l(state))
 }
 
 /** Re-reads the list and the showing playlist's items from the core. */
 function reload(activeId = state.activeId) {
-  const playlists = playlistsApi.list();
+  const playlists = playlistsApi.list()
   const active =
     activeId !== null && playlists.some(p => p.id === activeId)
       ? activeId
-      : null;
-  const items = active === null ? [] : playlistsApi.items(active);
+      : null
+  const items = active === null ? [] : playlistsApi.items(active)
   publish({
     playlists,
     activeId: active,
@@ -48,14 +48,14 @@ function reload(activeId = state.activeId) {
     playingItemId: items.some(i => i.id === state.playingItemId)
       ? state.playingItemId
       : null,
-  });
+  })
 }
 
 function ensureLoaded() {
   if (!loaded) {
-    loaded = true;
+    loaded = true
     try {
-      reload(playlistsApi.active());
+      reload(playlistsApi.active())
     } catch {
       // No playlists available (e.g. the plain UI without the core): stay empty.
     }
@@ -64,66 +64,66 @@ function ensureLoaded() {
 
 export const playlists = {
   get: (): PlaylistsState => {
-    ensureLoaded();
-    return state;
+    ensureLoaded()
+    return state
   },
   subscribe: (listener: (s: PlaylistsState) => void): (() => void) => {
-    ensureLoaded();
-    listeners.add(listener);
-    return () => listeners.delete(listener);
+    ensureLoaded()
+    listeners.add(listener)
+    return () => listeners.delete(listener)
   },
   /** Re-reads everything (after a rename or trash elsewhere). */
   refresh: () => reload(),
 
   /** Shows a playlist in the library (null = the whole library). */
   show: (id: number | null) => {
-    playlistsApi.setActive(id);
-    reload(id);
+    playlistsApi.setActive(id)
+    reload(id)
   },
   active: (): Playlist | undefined =>
     state.playlists.find(p => p.id === state.activeId),
 
   create: (name: string, fileNames: string[] = []): Playlist => {
-    const made = playlistsApi.create(name, fileNames);
-    reload();
-    return made;
+    const made = playlistsApi.create(name, fileNames)
+    reload()
+    return made
   },
   rename: (id: number, name: string) => {
-    playlistsApi.rename(id, name);
-    reload();
+    playlistsApi.rename(id, name)
+    reload()
   },
   duplicate: (id: number): Playlist => {
-    const made = playlistsApi.duplicate(id);
-    playlistsApi.setActive(made.id);
-    reload(made.id);
-    return made;
+    const made = playlistsApi.duplicate(id)
+    playlistsApi.setActive(made.id)
+    reload(made.id)
+    return made
   },
   delete: (id: number) => {
-    playlistsApi.delete(id);
-    reload(state.activeId === id ? null : state.activeId);
+    playlistsApi.delete(id)
+    reload(state.activeId === id ? null : state.activeId)
   },
   add: (id: number, fileNames: string[]) => {
-    playlistsApi.add(id, fileNames);
-    reload();
+    playlistsApi.add(id, fileNames)
+    reload()
   },
   remove: (itemIds: number[]) => {
     if (state.activeId === null) {
-      return;
+      return
     }
-    playlistsApi.remove(state.activeId, itemIds);
-    reload();
+    playlistsApi.remove(state.activeId, itemIds)
+    reload()
   },
   setOrder: (itemIds: number[]) => {
     if (state.activeId === null) {
-      return;
+      return
     }
     // Show the new order at once; the core confirms.
-    const byId = new Map(state.items.map(i => [i.id, i]));
-    publish({ items: itemIds.map(id => byId.get(id)!).filter(Boolean) });
+    const byId = new Map(state.items.map(i => [i.id, i]))
+    publish({ items: itemIds.map(id => byId.get(id)!).filter(Boolean) })
     try {
-      playlistsApi.setOrder(state.activeId, itemIds);
+      playlistsApi.setOrder(state.activeId, itemIds)
     } finally {
-      reload();
+      reload()
     }
   },
   /** Names in a playlist (for "already there" checks). */
@@ -132,22 +132,22 @@ export const playlists = {
 
   /** A new recording goes into the playlist showing, if any. */
   recorded: (fileName: string) => {
-    ensureLoaded();
+    ensureLoaded()
     if (state.activeId !== null) {
-      playlistsApi.add(state.activeId, [fileName]);
-      reload();
+      playlistsApi.add(state.activeId, [fileName])
+      reload()
     }
   },
 
   setPlaying: (itemId: number | null) => publish({ playingItemId: itemId }),
-};
+}
 
 /** The playlists, re-rendering on changes. */
 export function usePlaylists(): PlaylistsState {
-  const [s, setS] = useState(playlists.get);
+  const [s, setS] = useState(playlists.get)
   useEffect(() => {
-    setS(playlists.get());
-    return playlists.subscribe(setS);
-  }, []);
-  return s;
+    setS(playlists.get())
+    return playlists.subscribe(setS)
+  }, [])
+  return s
 }

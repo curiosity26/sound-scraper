@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react'
 import {
   Image,
   Platform,
@@ -6,12 +6,12 @@ import {
   StyleSheet,
   Text,
   View,
-} from 'react-native';
+} from 'react-native'
 
-import { errorText, safeSettings } from '../appHelpers';
-import { usePanelStyles } from '../panelTheme';
-import { colors } from '../theme';
-import { fileUri } from './SkinImage';
+import { errorText, safeSettings } from '../appHelpers'
+import { usePanelStyles } from '../panelTheme'
+import { colors } from '../theme'
+import { fileUri } from './SkinImage'
 import {
   chooseSkin,
   doubleSizeStore,
@@ -20,11 +20,11 @@ import {
   skinMessages,
   skins,
   skinStore,
-} from './skins';
-import type { SkinInspection, SkinSummary } from './types';
-import { TextField } from '../TextField';
+} from './skins'
+import type { SkinInspection, SkinSummary } from './types'
+import { TextField } from '../TextField'
 
-const CARD_W = 196;
+const CARD_W = 196
 
 /**
  * Settings › Skin: the installed skins as a grid of pictures, the install
@@ -32,125 +32,125 @@ const CARD_W = 196;
  * that reloads as it changes, packaging, a starter template).
  */
 export function SkinChooser(props: { textStyle: object }): React.JSX.Element {
-  const { textStyle } = props;
-  const t = usePanelStyles();
-  const [list, setList] = useState<SkinSummary[]>([]);
+  const { textStyle } = props
+  const t = usePanelStyles()
+  const [list, setList] = useState<SkinSummary[]>([])
   const [chosen, setChosen] = useState<string | null>(
     () => safeSettings()?.skin ?? null,
-  );
+  )
   // Shared, so they survive the window re-mounting for a new skin.
-  const [{ note, error }, setMessage] = useState(skinMessages.get);
-  useEffect(() => skinMessages.subscribe(setMessage), []);
-  const setNote = (text?: string) => skinMessages.set({ note: text });
-  const setError = (text?: string) => skinMessages.set({ error: text });
-  const [double, setDouble] = useState(doubleSizeStore.get);
-  useEffect(() => doubleSizeStore.subscribe(setDouble), []);
+  const [{ note, error }, setMessage] = useState(skinMessages.get)
+  useEffect(() => skinMessages.subscribe(setMessage), [])
+  const setNote = (text?: string) => skinMessages.set({ note: text })
+  const setError = (text?: string) => skinMessages.set({ error: text })
+  const [double, setDouble] = useState(doubleSizeStore.get)
+  useEffect(() => doubleSizeStore.subscribe(setDouble), [])
   const [warnings, setWarnings] = useState<string[]>(
     () => skinStore.get()?.warnings ?? [],
-  );
-  const [pending, setPending] = useState(pendingInstall.get);
-  useEffect(() => pendingInstall.subscribe(setPending), []);
-  const [naming, setNaming] = useState<string>();
+  )
+  const [pending, setPending] = useState(pendingInstall.get)
+  useEffect(() => pendingInstall.subscribe(setPending), [])
+  const [naming, setNaming] = useState<string>()
 
   const refresh = useCallback(async () => {
     try {
-      setList(await skins.list());
+      setList(await skins.list())
     } catch (e) {
-      setError(errorText(e));
+      setError(errorText(e))
     }
-  }, []);
+  }, [])
   useEffect(() => {
-    refresh();
+    refresh()
     return skinStore.subscribe(skin => {
-      setWarnings(skin.warnings);
-      setChosen(safeSettings()?.skin ?? null);
-    });
-  }, [refresh]);
+      setWarnings(skin.warnings)
+      setChosen(safeSettings()?.skin ?? null)
+    })
+  }, [refresh])
 
   const run = async (action: () => Promise<void>) => {
-    skinMessages.set({});
+    skinMessages.set({})
     try {
-      await action();
+      await action()
     } catch (e) {
-      setError(errorText(e));
+      setError(errorText(e))
     }
-  };
+  }
   const choose = (skin: string | null) =>
     run(async () => {
-      await chooseSkin(skin);
-      setChosen(skin);
-    });
+      await chooseSkin(skin)
+      setChosen(skin)
+    })
 
   const pickAndInspect = async () => {
-    const path = await skins.pickArchive();
+    const path = await skins.pickArchive()
     if (path) {
       await run(async () =>
         pendingInstall.set({ inspection: await skins.inspect(path) }),
-      );
+      )
     }
-  };
+  }
 
   const install = (inspection: SkinInspection) =>
     run(async () => {
-      pendingInstall.set(null);
-      const installed = await skins.install(inspection.path);
-      await refresh();
-      await chooseSkin(installed.id);
-      setChosen(installed.id);
-      setNote(`Installed ${installed.name}.`);
-    });
+      pendingInstall.set(null)
+      const installed = await skins.install(inspection.path)
+      await refresh()
+      await chooseSkin(installed.id)
+      setChosen(installed.id)
+      setNote(`Installed ${installed.name}.`)
+    })
 
   const useFolder = async () => {
-    const dir = await skins.pickFolder();
+    const dir = await skins.pickFolder()
     if (dir) {
-      await choose(dir);
+      await choose(dir)
     }
-  };
+  }
 
   const create = (name: string) =>
     run(async () => {
       const parent = await skins.pickAnyFolder(
         'Where should the new skin go?',
         'Create Skin Here',
-      );
+      )
       if (!parent) {
-        return;
+        return
       }
-      setNaming(undefined);
-      const dir = await skins.create(parent, name);
-      await chooseSkin(dir);
-      setChosen(dir);
+      setNaming(undefined)
+      const dir = await skins.create(parent, name)
+      await chooseSkin(dir)
+      setChosen(dir)
       setNote(
         `Made ${name} from the Default skin. Edit its files and the app ` +
           'updates as you save. README.md in the folder explains the format.',
-      );
-    });
+      )
+    })
 
   const packageFolder = (dir: string) =>
     run(async () => {
-      const name = skinStore.get()?.name ?? 'Skin';
-      const out = await skins.pickSaveLocation(`${name}.sskin`);
+      const name = skinStore.get()?.name ?? 'Skin'
+      const out = await skins.pickSaveLocation(`${name}.sskin`)
       if (!out) {
-        return;
+        return
       }
-      const packaged = await skins.package(dir, out);
-      setNote(`Packaged ${packaged.name} as ${packaged.dir}.`);
-    });
+      const packaged = await skins.package(dir, out)
+      setNote(`Packaged ${packaged.name} as ${packaged.dir}.`)
+    })
 
   const remove = (skin: SkinSummary) =>
     run(async () => {
       if (chosen === skin.id) {
-        await chooseSkin(null);
-        setChosen(null);
+        await chooseSkin(null)
+        setChosen(null)
       }
-      await skins.remove(skin.id);
-      await refresh();
-    });
+      await skins.remove(skin.id)
+      await refresh()
+    })
 
   const isChosen = (s: SkinSummary) =>
-    s.builtin ? !chosen || chosen === s.id : chosen === s.id;
-  const folderInUse = isFolderSkin(chosen) ? chosen : null;
-  const modifier = Platform.OS === 'windows' ? 'Ctrl+D' : '⌘D';
+    s.builtin ? !chosen || chosen === s.id : chosen === s.id
+  const folderInUse = isFolderSkin(chosen) ? chosen : null
+  const modifier = Platform.OS === 'windows' ? 'Ctrl+D' : '⌘D'
 
   return (
     <View>
@@ -280,24 +280,24 @@ export function SkinChooser(props: { textStyle: object }): React.JSX.Element {
         </Text>
       ))}
     </View>
-  );
+  )
 }
 
 /** A skin in the grid: its picture, name and author. */
 function SkinCard(props: {
-  name: string;
-  detail: string;
+  name: string
+  detail: string
   /** For skins.preview: an id, a folder, '' for Default; null for none. */
-  preview: string | null;
-  chosen: boolean;
-  error?: string | null;
-  onPress?: () => void;
-  testID?: string;
-  textStyle: object;
-  children?: React.ReactNode;
+  preview: string | null
+  chosen: boolean
+  error?: string | null
+  onPress?: () => void
+  testID?: string
+  textStyle: object
+  children?: React.ReactNode
 }) {
-  const t = usePanelStyles();
-  const accent = (t.link as { color?: string }).color ?? colors.accent;
+  const t = usePanelStyles()
+  const accent = (t.link as { color?: string }).color ?? colors.accent
   return (
     <Pressable
       testID={props.testID}
@@ -335,7 +335,7 @@ function SkinCard(props: {
         <View style={styles.cardActions}>{props.children}</View>
       )}
     </Pressable>
-  );
+  )
 }
 
 /**
@@ -343,26 +343,26 @@ function SkinCard(props: {
  * folder as it changes (the path changes with it).
  */
 function Preview(props: {
-  source: string | null;
-  width: number;
-  path?: string;
+  source: string | null
+  width: number
+  path?: string
 }) {
-  const [path, setPath] = useState<string | null>(props.path ?? null);
-  const [version, setVersion] = useState(0);
-  const { source } = props;
+  const [path, setPath] = useState<string | null>(props.path ?? null)
+  const [version, setVersion] = useState(0)
+  const { source } = props
   useEffect(() => {
     if (source === null || props.path) {
-      return;
+      return
     }
-    let live = true;
+    let live = true
     skins
       .preview(source)
       .then(p => live && setPath(p))
-      .catch(() => live && setPath(null));
+      .catch(() => live && setPath(null))
     return () => {
-      live = false;
-    };
-  }, [source, version, props.path]);
+      live = false
+    }
+  }, [source, version, props.path])
   // A folder skin changes as its author works on it.
   useEffect(
     () =>
@@ -370,9 +370,9 @@ function Preview(props: {
         ? skinStore.subscribe(() => setVersion(v => v + 1))
         : undefined,
     [source],
-  );
-  const size = useImageSize(path);
-  const height = size ? (props.width * size[1]) / size[0] : props.width / 3;
+  )
+  const size = useImageSize(path)
+  const height = size ? (props.width * size[1]) / size[0] : props.width / 3
   return path ? (
     <Image
       source={{ uri: fileUri(path) }}
@@ -381,42 +381,42 @@ function Preview(props: {
     />
   ) : (
     <View style={[styles.noPreview, { width: props.width, height }]} />
-  );
+  )
 }
 
 function useImageSize(path: string | null): [number, number] | null {
-  const [size, setSize] = useState<[number, number] | null>(null);
+  const [size, setSize] = useState<[number, number] | null>(null)
   useEffect(() => {
     if (!path) {
-      return;
+      return
     }
-    let live = true;
+    let live = true
     Image.getSize(
       fileUri(path),
       (w, h) => live && setSize([w, h]),
       () => {},
-    );
+    )
     return () => {
-      live = false;
-    };
-  }, [path]);
-  return size;
+      live = false
+    }
+  }, [path])
+  return size
 }
 
 /** A .sskin about to be installed: what it is, and Install / Cancel. */
 function InstallCard(props: {
-  inspection: SkinInspection;
-  onInstall: () => void;
-  onCancel: () => void;
-  textStyle: object;
+  inspection: SkinInspection
+  onInstall: () => void
+  onCancel: () => void
+  textStyle: object
 }) {
-  const { inspection: s, textStyle } = props;
-  const t = usePanelStyles();
+  const { inspection: s, textStyle } = props
+  const t = usePanelStyles()
   const replaces = s.installed
     ? `Replaces the installed ${s.installed.name}${
         s.installed.version ? ` ${s.installed.version}` : ''
       }.`
-    : null;
+    : null
   return (
     <View
       testID="install-card"
@@ -453,11 +453,11 @@ function InstallCard(props: {
         </Pressable>
       </View>
     </View>
-  );
+  )
 }
 
 function baseName(path: string): string {
-  return path.split(/[\\/]/).filter(Boolean).pop() ?? path;
+  return path.split(/[\\/]/).filter(Boolean).pop() ?? path
 }
 
 const styles = StyleSheet.create({
@@ -511,4 +511,4 @@ const styles = StyleSheet.create({
   note: { fontSize: 12, marginTop: 6 },
   error: { color: colors.error, fontSize: 12, marginTop: 4 },
   warning: { fontSize: 11, opacity: 0.7, marginTop: 4 },
-});
+})

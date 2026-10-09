@@ -10,7 +10,12 @@ fn main() {
     if args.first().map(String::as_str) == Some("list") {
         for app in sources::audio_apps() {
             let marker = if app.is_playing { "♪" } else { " " };
-            println!("{marker} {:>6}  {}  ({})", app.pid, app.name, app.bundle_id.unwrap_or_default());
+            println!(
+                "{marker} {:>6}  {}  ({})",
+                app.pid,
+                app.name,
+                app.bundle_id.unwrap_or_default()
+            );
         }
         return;
     }

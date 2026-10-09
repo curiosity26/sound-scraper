@@ -3,8 +3,8 @@
 
 use serde::Deserialize;
 use tiny_skia::{
-    Color, FillRule, GradientStop, LinearGradient, Paint, PathBuilder, Pixmap, PixmapMut, PixmapPaint, Point, Rect,
-    Shader, Stroke, Transform,
+    Color, FillRule, GradientStop, LinearGradient, Paint, PathBuilder, Pixmap, PixmapMut,
+    PixmapPaint, Point, Rect, Shader, Stroke, Transform,
 };
 
 use crate::Frame;
@@ -64,12 +64,20 @@ pub const STYLES: &[&str] = &["bars", "scope", "mirror", "radial", "fire"];
 
 impl Preset {
     pub fn from_json(json: &str) -> Result<Self, String> {
-        let preset: Preset = serde_json::from_str(json).map_err(|e| format!("visualizer preset: {e}"))?;
+        let preset: Preset =
+            serde_json::from_str(json).map_err(|e| format!("visualizer preset: {e}"))?;
         if !STYLES.contains(&preset.style.as_str()) {
-            return Err(format!("visualizer preset: unknown style \"{}\" (use {})", preset.style, STYLES.join(", ")));
+            return Err(format!(
+                "visualizer preset: unknown style \"{}\" (use {})",
+                preset.style,
+                STYLES.join(", ")
+            ));
         }
         if preset.bands == 0 || preset.bands > crate::BANDS {
-            return Err(format!("visualizer preset: bands must be 1..={}", crate::BANDS));
+            return Err(format!(
+                "visualizer preset: bands must be 1..={}",
+                crate::BANDS
+            ));
         }
         Ok(preset)
     }
@@ -82,9 +90,19 @@ pub fn parse_color(s: &str) -> Option<Color> {
     let (r, g, b, a) = match hex.len() {
         3 | 4 => {
             let d = |i| v(i, 1).map(|x| x * 17);
-            (d(0)?, d(1)?, d(2)?, if hex.len() == 4 { d(3)? } else { 255 })
+            (
+                d(0)?,
+                d(1)?,
+                d(2)?,
+                if hex.len() == 4 { d(3)? } else { 255 },
+            )
         }
-        6 | 8 => (v(0, 2)?, v(2, 2)?, v(4, 2)?, if hex.len() == 8 { v(6, 2)? } else { 255 }),
+        6 | 8 => (
+            v(0, 2)?,
+            v(2, 2)?,
+            v(4, 2)?,
+            if hex.len() == 8 { v(6, 2)? } else { 255 },
+        ),
         _ => return None,
     };
     Some(Color::from_rgba8(r, g, b, a))
@@ -105,7 +123,10 @@ impl Default for Renderer {
 
 impl Renderer {
     pub fn new(preset: Preset) -> Self {
-        Self { preset, trail: None }
+        Self {
+            preset,
+            trail: None,
+        }
     }
 
     pub fn preset(&self) -> &Preset {
@@ -119,8 +140,17 @@ impl Renderer {
 
     /// Draws `frame` (or the idle look when None) into `rgba`: premultiplied
     /// RGBA, `width` × `height` pixels, `unit` pixels per skin point.
-    pub fn render(&mut self, frame: Option<&Frame>, width: u32, height: u32, unit: f32, rgba: &mut [u8]) -> bool {
-        let Some(mut pixmap) = PixmapMut::from_bytes(rgba, width, height) else { return false };
+    pub fn render(
+        &mut self,
+        frame: Option<&Frame>,
+        width: u32,
+        height: u32,
+        unit: f32,
+        rgba: &mut [u8],
+    ) -> bool {
+        let Some(mut pixmap) = PixmapMut::from_bytes(rgba, width, height) else {
+            return false;
+        };
         let p = &self.preset;
         pixmap.fill(parse_color(&p.background).unwrap_or(Color::TRANSPARENT));
         let (w, h) = (width as f32, height as f32);
@@ -141,7 +171,14 @@ impl Renderer {
                 let (bw, step) = bar_metrics(p, w, unit);
                 for (i, v) in bands.iter().enumerate() {
                     let bh = (v * h / 2.0).max(unit.min(1.0));
-                    fill_rect(&mut pixmap, i as f32 * step, h / 2.0 - bh, bw, bh * 2.0, &fill);
+                    fill_rect(
+                        &mut pixmap,
+                        i as f32 * step,
+                        h / 2.0 - bh,
+                        bw,
+                        bh * 2.0,
+                        &fill,
+                    );
                 }
             }
             "fire" => {
@@ -151,11 +188,28 @@ impl Renderer {
                     && trail.height() == height
                 {
                     let rise = unit.max(1.0).round() as i32;
-                    let paint = PixmapPaint { opacity: p.decay.clamp(0.0, 0.98), ..PixmapPaint::default() };
-                    layer.draw_pixmap(0, -rise, trail.as_ref(), &paint, Transform::identity(), None);
+                    let paint = PixmapPaint {
+                        opacity: p.decay.clamp(0.0, 0.98),
+                        ..PixmapPaint::default()
+                    };
+                    layer.draw_pixmap(
+                        0,
+                        -rise,
+                        trail.as_ref(),
+                        &paint,
+                        Transform::identity(),
+                        None,
+                    );
                 }
                 draw_bars(&mut layer.as_mut(), p, &bands, &[], &fill, None, w, h, unit);
-                pixmap.draw_pixmap(0, 0, layer.as_ref(), &PixmapPaint::default(), Transform::identity(), None);
+                pixmap.draw_pixmap(
+                    0,
+                    0,
+                    layer.as_ref(),
+                    &PixmapPaint::default(),
+                    Transform::identity(),
+                    None,
+                );
                 self.trail = Some(layer);
             }
             _ => {
@@ -186,13 +240,25 @@ fn bar_metrics(p: &Preset, w: f32, unit: f32) -> (f32, f32) {
 }
 
 fn bar_paint(p: &Preset, color: Color, h: f32) -> Paint<'static> {
-    let mut paint = Paint { anti_alias: false, ..Paint::default() };
+    let mut paint = Paint {
+        anti_alias: false,
+        ..Paint::default()
+    };
     let colors: Vec<Color> = p.gradient.iter().filter_map(|c| parse_color(c)).collect();
     let last = colors.len().max(2) - 1;
-    let stops: Vec<GradientStop> =
-        colors.iter().enumerate().map(|(i, c)| GradientStop::new(i as f32 / last as f32, *c)).collect();
+    let stops: Vec<GradientStop> = colors
+        .iter()
+        .enumerate()
+        .map(|(i, c)| GradientStop::new(i as f32 / last as f32, *c))
+        .collect();
     let shader = if stops.len() >= 2 {
-        LinearGradient::new(Point::from_xy(0.0, h), Point::from_xy(0.0, 0.0), stops, tiny_skia::SpreadMode::Pad, Transform::identity())
+        LinearGradient::new(
+            Point::from_xy(0.0, h),
+            Point::from_xy(0.0, 0.0),
+            stops,
+            tiny_skia::SpreadMode::Pad,
+            Transform::identity(),
+        )
     } else {
         None
     };
@@ -226,7 +292,10 @@ fn draw_bars(
         fill_rect(pixmap, i as f32 * step, h - bh, bw, bh, fill);
     }
     if let Some(color) = peak {
-        let mut paint = Paint { anti_alias: false, ..Paint::default() };
+        let mut paint = Paint {
+            anti_alias: false,
+            ..Paint::default()
+        };
         paint.set_color(color);
         let mark = unit.max(1.0);
         for (i, v) in peaks.iter().enumerate() {
@@ -239,7 +308,10 @@ fn draw_bars(
 }
 
 fn stroke_paint(color: Color) -> Paint<'static> {
-    let mut paint = Paint { anti_alias: true, ..Paint::default() };
+    let mut paint = Paint {
+        anti_alias: true,
+        ..Paint::default()
+    };
     paint.set_color(color);
     paint
 }
@@ -250,11 +322,24 @@ fn draw_scope(pixmap: &mut PixmapMut, frame: &Frame, color: Color, w: f32, h: f3
     for (i, s) in frame.waveform.iter().enumerate() {
         let x = i as f32 / (n - 1) as f32 * w;
         let y = h / 2.0 - s.clamp(-1.0, 1.0) * (h / 2.0 - width);
-        if i == 0 { pb.move_to(x, y) } else { pb.line_to(x, y) }
+        if i == 0 {
+            pb.move_to(x, y)
+        } else {
+            pb.line_to(x, y)
+        }
     }
     if let Some(path) = pb.finish() {
-        let stroke = Stroke { width: width.max(1.0), ..Stroke::default() };
-        pixmap.stroke_path(&path, &stroke_paint(color), &stroke, Transform::identity(), None);
+        let stroke = Stroke {
+            width: width.max(1.0),
+            ..Stroke::default()
+        };
+        pixmap.stroke_path(
+            &path,
+            &stroke_paint(color),
+            &stroke,
+            Transform::identity(),
+            None,
+        );
     }
 }
 
@@ -272,24 +357,53 @@ fn draw_radial(pixmap: &mut PixmapMut, bands: &[f32], color: Color, w: f32, h: f
         pb.move_to(cx + rx * inner * dx, cy + ry * inner * dy);
         pb.line_to(cx + rx * k * dx, cy + ry * k * dy);
     }
-    if let Some(oval) = Rect::from_xywh(cx - rx * inner, cy - ry * inner, 2.0 * rx * inner, 2.0 * ry * inner)
-        .and_then(PathBuilder::from_oval)
+    if let Some(oval) = Rect::from_xywh(
+        cx - rx * inner,
+        cy - ry * inner,
+        2.0 * rx * inner,
+        2.0 * ry * inner,
+    )
+    .and_then(PathBuilder::from_oval)
     {
         let mut paint = stroke_paint(color);
         paint.shader = Shader::SolidColor(
-            Color::from_rgba(color.red(), color.green(), color.blue(), color.alpha() * 0.35).unwrap_or(color),
+            Color::from_rgba(
+                color.red(),
+                color.green(),
+                color.blue(),
+                color.alpha() * 0.35,
+            )
+            .unwrap_or(color),
         );
-        pixmap.fill_path(&oval, &paint, FillRule::Winding, Transform::identity(), None);
+        pixmap.fill_path(
+            &oval,
+            &paint,
+            FillRule::Winding,
+            Transform::identity(),
+            None,
+        );
     }
     if let Some(path) = pb.finish() {
-        let stroke = Stroke { width: width.max(1.0), ..Stroke::default() };
-        pixmap.stroke_path(&path, &stroke_paint(color), &stroke, Transform::identity(), None);
+        let stroke = Stroke {
+            width: width.max(1.0),
+            ..Stroke::default()
+        };
+        pixmap.stroke_path(
+            &path,
+            &stroke_paint(color),
+            &stroke,
+            Transform::identity(),
+            None,
+        );
     }
 }
 
 /// Not recording: the grid and a flat line.
 fn draw_idle(pixmap: &mut PixmapMut, p: &Preset, w: f32, h: f32, unit: f32) {
-    let mut paint = Paint { anti_alias: false, ..Paint::default() };
+    let mut paint = Paint {
+        anti_alias: false,
+        ..Paint::default()
+    };
     if let Some(grid) = parse_color(&p.grid) {
         paint.set_color(grid);
         let mut x = 0.0;
@@ -300,7 +414,14 @@ fn draw_idle(pixmap: &mut PixmapMut, p: &Preset, w: f32, h: f32, unit: f32) {
     }
     if let Some(line) = parse_color(&p.line).or_else(|| parse_color(&p.color)) {
         paint.set_color(line);
-        fill_rect(pixmap, 0.0, ((h / 2.0) / unit).floor() * unit, w, unit.max(1.0), &paint);
+        fill_rect(
+            pixmap,
+            0.0,
+            ((h / 2.0) / unit).floor() * unit,
+            w,
+            unit.max(1.0),
+            &paint,
+        );
     }
 }
 
@@ -375,24 +496,44 @@ mod tests {
 
     #[test]
     fn presets_parse_and_validate() {
-        let p = Preset::from_json(r##"{"name":"Fire","style":"fire","bands":20,"gradient":["#f00","#ff0"]}"##).unwrap();
-        assert_eq!((p.style.as_str(), p.bands, p.gradient.len()), ("fire", 20, 2));
-        assert!(Preset::from_json(r#"{"style":"lasers"}"#).unwrap_err().contains("unknown style"));
+        let p = Preset::from_json(
+            r##"{"name":"Fire","style":"fire","bands":20,"gradient":["#f00","#ff0"]}"##,
+        )
+        .unwrap();
+        assert_eq!(
+            (p.style.as_str(), p.bands, p.gradient.len()),
+            ("fire", 20, 2)
+        );
+        assert!(
+            Preset::from_json(r#"{"style":"lasers"}"#)
+                .unwrap_err()
+                .contains("unknown style")
+        );
         assert!(Preset::from_json(r#"{"bands":0}"#).is_err());
-        assert_eq!(parse_color("#f008"), Some(Color::from_rgba8(255, 0, 0, 136)));
+        assert_eq!(
+            parse_color("#f008"),
+            Some(Color::from_rgba8(255, 0, 0, 136))
+        );
         assert_eq!(parse_color("nope"), None);
     }
 
     #[test]
     fn gradient_bars_change_color_with_height() {
-        let preset = Preset { bands: 4, gradient: vec!["#0000ff".into(), "#ff0000".into()], ..Preset::default() };
+        let preset = Preset {
+            bands: 4,
+            gradient: vec!["#0000ff".into(), "#ff0000".into()],
+            ..Preset::default()
+        };
         let mut r = Renderer::new(preset);
         let mut f = Frame::default();
         f.bands.iter_mut().for_each(|b| *b = 1.0);
         let mut buf = vec![0u8; 64 * 32 * 4];
         r.render(Some(&f), 64, 32, 1.0, &mut buf);
         let (top, bottom) = (pixel(&buf, 2, 0), pixel(&buf, 2, 31));
-        assert!(top[0] > top[2] && bottom[2] > bottom[0], "{top:?} {bottom:?}");
+        assert!(
+            top[0] > top[2] && bottom[2] > bottom[0],
+            "{top:?} {bottom:?}"
+        );
     }
 
     #[test]

@@ -35,7 +35,10 @@ pub fn load_current(store: &SkinStore) -> Result<ResolvedSkin, String> {
         Ok(skin) => Ok(skin),
         Err(e) if chosen.is_some() => {
             let mut skin = store.load_default()?;
-            skin.warnings.insert(0, format!("The chosen skin couldn't be loaded, so the Default skin is used: {e}"));
+            skin.warnings.insert(
+                0,
+                format!("The chosen skin couldn't be loaded, so the Default skin is used: {e}"),
+            );
             Ok(skin)
         }
         Err(e) => Err(e),
@@ -52,7 +55,14 @@ mod tests {
         assert_eq!(load(&store, None).unwrap().id, DEFAULT_ID);
         assert_eq!(load(&store, Some("")).unwrap().id, DEFAULT_ID);
         let dir = store.builtin_dir().unwrap();
-        assert_eq!(load(&store, Some(dir.to_str().unwrap())).unwrap().id, DEFAULT_ID);
-        assert!(load(&store, Some("com.example.missing")).unwrap_err().contains("not installed"));
+        assert_eq!(
+            load(&store, Some(dir.to_str().unwrap())).unwrap().id,
+            DEFAULT_ID
+        );
+        assert!(
+            load(&store, Some("com.example.missing"))
+                .unwrap_err()
+                .contains("not installed")
+        );
     }
 }

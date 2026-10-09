@@ -1,60 +1,60 @@
 // The track editor's native side (NativeEditor.ts), with JSON decoded.
-import NativeEditor from './NativeEditor';
+import NativeEditor from './NativeEditor'
 
 export type WaveformStatus =
   | { state: 'loading'; progress: number }
   | {
-      state: 'ready';
-      rate: number;
-      durationMs: number;
+      state: 'ready'
+      rate: number
+      durationMs: number
       /** The MP3 frame grid lossless cuts land on. */
-      frameMs: number | null;
-      frameOffsetMs: number | null;
+      frameMs: number | null
+      frameOffsetMs: number | null
       /** A lossless master exists: tracks are encoded from it on save. */
-      master: boolean;
+      master: boolean
     }
-  | { state: 'failed'; message: string };
+  | { state: 'failed'; message: string }
 
 /** A track an edit makes (ss_editor_tracks). */
 export type TrackInfo = {
-  name: string;
+  name: string
   /** In the original's timeline. */
-  startMs: number;
-  durationMs: number;
+  startMs: number
+  durationMs: number
   /** Has a deleted stretch inside it, so it's re-encoded on save. */
-  reencode: boolean;
-};
+  reencode: boolean
+}
 
 export type DetectOptions = {
-  thresholdDb: number;
-  minGapMs: number;
-  minTrackMs: number;
-  removeGaps: boolean;
-};
+  thresholdDb: number
+  minGapMs: number
+  minTrackMs: number
+  removeGaps: boolean
+}
 
 /** A splice Find Tracks proposes, in a gap. */
 export type Proposal = {
-  atMs: number;
-  gapStartMs: number;
-  gapEndMs: number;
+  atMs: number
+  gapStartMs: number
+  gapEndMs: number
   /** With removeGaps: the stretch to delete. */
-  delete: [number, number] | null;
-};
+  delete: [number, number] | null
+}
 
 export type SaveResult = {
-  files: string[];
-  reencoded: number;
-  fromMaster: boolean;
-};
+  files: string[]
+  reencoded: number
+  fromMaster: boolean
+}
 
 /** False where the editor isn't available yet (Windows). */
-export const editorAvailable = NativeEditor != null;
+export const editorAvailable = NativeEditor != null
 
 function native() {
   if (!NativeEditor) {
-    throw new Error('The track editor is not available on this platform yet');
+    throw new Error('The track editor is not available on this platform yet')
   }
-  return NativeEditor;
+  return NativeEditor
 }
 
 export const editorCore = {
@@ -79,4 +79,4 @@ export const editorCore = {
     keepOriginal: boolean,
   ): Promise<SaveResult> =>
     JSON.parse(await native().save(fileName, editsJson, keepOriginal)),
-};
+}

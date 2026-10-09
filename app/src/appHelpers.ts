@@ -5,71 +5,71 @@ import {
   recorder,
   type RecorderState,
   settings,
-} from './native/SoundScraper';
+} from './native/SoundScraper'
 
 export function safeSettings() {
   try {
-    return settings.get();
+    return settings.get()
   } catch {
-    return undefined;
+    return undefined
   }
 }
 
 /** The PID of the remembered app if it's running, else 0 (system audio). */
 export function rememberedPid(apps: AudioApp[]): number {
-  const last = safeSettings()?.lastSource;
+  const last = safeSettings()?.lastSource
   if (last?.kind !== 'app') {
-    return 0;
+    return 0
   }
   const match = apps.find(
     a => (last.id && a.bundleId === last.id) || a.name === last.name,
-  );
-  return match?.pid ?? 0;
+  )
+  return match?.pid ?? 0
 }
 
 export function rememberSource(app: AudioApp | undefined) {
-  const current = safeSettings();
+  const current = safeSettings()
   if (!current) {
-    return;
+    return
   }
   const lastSource = app
     ? { kind: 'app' as const, id: app.bundleId, name: app.name }
-    : { kind: 'system' as const };
-  settings.set({ ...current, lastSource }).catch(() => {});
+    : { kind: 'system' as const }
+  settings.set({ ...current, lastSource }).catch(() => {})
 }
 
 export function errorText(e: unknown): string {
   // Native rejections arrive as Error on macOS but as plain
   // {code, message} objects on Windows.
   if (e instanceof Error) {
-    return e.message;
+    return e.message
   }
   if (e && typeof e === 'object' && 'message' in e) {
-    return String((e as { message: unknown }).message);
+    return String((e as { message: unknown }).message)
   }
-  return String(e);
+  return String(e)
 }
 
 export function safeList(): AudioApp[] {
   try {
-    return listAudioApps();
+    return listAudioApps()
   } catch {
-    return [];
+    return []
   }
 }
 
 export function safeState(): RecorderState {
   try {
-    return recorder.state();
+    return recorder.state()
   } catch {
-    return 'idle';
+    return 'idle'
   }
 }
 
 export function safeRecover(): number {
   try {
-    return recorder.recoverPartials();
+    return recorder.recoverPartials()
   } catch {
-    return 0;
+    return 0
   }
 }

@@ -1,22 +1,22 @@
-import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React from 'react'
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 
-import type { AudioApp } from './native/SoundScraper';
-import { colors } from './theme';
+import type { AudioApp } from './native/SoundScraper'
+import { colors } from './theme'
 
 type Props = {
-  apps: AudioApp[];
+  apps: AudioApp[]
   /** 0 = all system audio. */
-  selectedPid: number;
-  onSelect: (pid: number) => void;
-  onRefresh: () => void;
-  disabled: boolean;
-  textStyle: object;
-};
+  selectedPid: number
+  onSelect: (pid: number) => void
+  onRefresh: () => void
+  disabled: boolean
+  textStyle: object
+}
 
 /** "All system audio" or one app; apps playing sound are marked ♪. */
 export function SourcePicker(props: Props): React.JSX.Element {
-  const { apps, selectedPid, onSelect, onRefresh, disabled, textStyle } = props;
+  const { apps, selectedPid, onSelect, onRefresh, disabled, textStyle } = props
   return (
     <View style={disabled && styles.disabled}>
       <View style={styles.headerRow}>
@@ -45,15 +45,15 @@ export function SourcePicker(props: Props): React.JSX.Element {
         ))}
       </ScrollView>
     </View>
-  );
+  )
 }
 
 function Row(props: {
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-  disabled: boolean;
-  textStyle: object;
+  label: string
+  selected: boolean
+  onPress: () => void
+  disabled: boolean
+  textStyle: object
 }) {
   return (
     <Pressable
@@ -66,7 +66,7 @@ function Row(props: {
         {props.label}
       </Text>
     </Pressable>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -89,4 +89,4 @@ const styles = StyleSheet.create({
   row: { paddingVertical: 6, paddingHorizontal: 10 },
   rowSelected: { backgroundColor: '#2f6fde22' },
   rowText: { fontSize: 14 },
-});
+})

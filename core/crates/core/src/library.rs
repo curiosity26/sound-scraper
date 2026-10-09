@@ -57,17 +57,30 @@ impl Library {
     /// The default library: `~/Music/Sound Scraper`, indexed in the app data folder.
     pub fn open_default() -> Result<Self, String> {
         let db_dir = paths::app_data_dir();
-        std::fs::create_dir_all(&db_dir).map_err(|e| format!("creating {}: {e}", db_dir.display()))?;
-        Self::open(crate::settings::load().recordings_dir(), &db_dir.join("library.db"), Box::new(move_to_trash))
+        std::fs::create_dir_all(&db_dir)
+            .map_err(|e| format!("creating {}: {e}", db_dir.display()))?;
+        Self::open(
+            crate::settings::load().recordings_dir(),
+            &db_dir.join("library.db"),
+            Box::new(move_to_trash),
+        )
     }
 
     pub fn open(dir: PathBuf, db_path: &Path, trasher: Trasher) -> Result<Self, String> {
         std::fs::create_dir_all(&dir).map_err(|e| format!("creating {}: {e}", dir.display()))?;
-        let db = Connection::open(db_path).map_err(|e| format!("opening {}: {e}", db_path.display()))?;
+        let db =
+            Connection::open(db_path).map_err(|e| format!("opening {}: {e}", db_path.display()))?;
         migrate(&db).map_err(|e| format!("preparing the library index: {e}"))?;
         let covers_dir = db_path.parent().unwrap_or(Path::new(".")).join("covers");
         let playlists_db = crate::playlists::db_path_beside(db_path);
-        Ok(Self { dir, covers_dir, db, playlists_db, trasher, watcher: None })
+        Ok(Self {
+            dir,
+            covers_dir,
+            db,
+            playlists_db,
+            trasher,
+            watcher: None,
+        })
     }
 
     pub fn dir(&self) -> &Path {
@@ -82,7 +95,9 @@ impl Library {
             return Ok(());
         }
         std::fs::create_dir_all(&dir).map_err(|e| format!("creating {}: {e}", dir.display()))?;
-        self.db.execute("DELETE FROM recordings", []).map_err(|e| format!("library index: {e}"))?;
+        self.db
+            .execute("DELETE FROM recordings", [])
+            .map_err(|e| format!("library index: {e}"))?;
         let old = std::mem::replace(&mut self.dir, dir);
         if let Some(watcher) = self.watcher.as_mut() {
             let _ = watcher.watcher().unwatch(&old);
@@ -100,7 +115,9 @@ impl Library {
     pub fn list(&mut self) -> Result<Vec<Recording>, String> {
         let sql_err = |e: rusqlite::Error| format!("library index: {e}");
         let mut on_disk = Vec::new();
-        for entry in std::fs::read_dir(&self.dir).map_err(|e| format!("reading {}: {e}", self.dir.display()))? {
+        for entry in std::fs::read_dir(&self.dir)
+            .map_err(|e| format!("reading {}: {e}", self.dir.display()))?
+        {
             let Ok(entry) = entry else { continue };
             let name = entry.file_name().to_string_lossy().into_owned();
             if !is_recording(&name) {
@@ -120,7 +137,15 @@ impl Library {
                     "SELECT title, artist, album, duration_ms, recorded_at_ms FROM recordings
                      WHERE file_name = ?1 AND size_bytes = ?2 AND mtime_ms = ?3",
                     params![name, *size as i64, mtime],
-                    |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get::<_, i64>(3)?, r.get(4)?)),
+                    |r| {
+                        Ok((
+                            r.get(0)?,
+                            r.get(1)?,
+                            r.get(2)?,
+                            r.get::<_, i64>(3)?,
+                            r.get(4)?,
+                        ))
+                    },
                 )
                 .optional()
                 .map_err(sql_err)?;
@@ -164,15 +189,28 @@ impl Library {
 
         // Forget files that are gone.
         let names: Vec<String> = {
-            let mut stmt = tx.prepare("SELECT file_name FROM recordings").map_err(sql_err)?;
-            stmt.query_map([], |r| r.get(0)).map_err(sql_err)?.filter_map(Result::ok).collect()
+            let mut stmt = tx
+                .prepare("SELECT file_name FROM recordings")
+                .map_err(sql_err)?;
+            stmt.query_map([], |r| r.get(0))
+                .map_err(sql_err)?
+                .filter_map(Result::ok)
+                .collect()
         };
-        for name in names.iter().filter(|n| !on_disk.iter().any(|(d, ..)| d == *n)) {
-            tx.execute("DELETE FROM recordings WHERE file_name = ?1", [name]).map_err(sql_err)?;
+        for name in names
+            .iter()
+            .filter(|n| !on_disk.iter().any(|(d, ..)| d == *n))
+        {
+            tx.execute("DELETE FROM recordings WHERE file_name = ?1", [name])
+                .map_err(sql_err)?;
         }
         tx.commit().map_err(sql_err)?;
 
-        recordings.sort_by(|a, b| b.recorded_at_ms.cmp(&a.recorded_at_ms).then_with(|| a.file_name.cmp(&b.file_name)));
+        recordings.sort_by(|a, b| {
+            b.recorded_at_ms
+                .cmp(&a.recorded_at_ms)
+                .then_with(|| a.file_name.cmp(&b.file_name))
+        });
         Ok(recordings)
     }
 
@@ -183,7 +221,10 @@ impl Library {
         let from = self.existing(file_name)?;
         let old_stem = stem(file_name);
         let requested = new_name.trim();
-        let requested = requested.strip_suffix(".mp3").or_else(|| requested.strip_suffix(".MP3")).unwrap_or(requested);
+        let requested = requested
+            .strip_suffix(".mp3")
+            .or_else(|| requested.strip_suffix(".MP3"))
+            .unwrap_or(requested);
         let new_stem = paths::sanitize(requested);
         if new_stem == old_stem {
             return Ok(file_name.to_string());
@@ -229,9 +270,16 @@ impl Library {
     /// `None` if the recording has no cover. Files are named by content, so
     /// an unchanged cover is written once.
     pub fn export_cover(&self, file_name: &str) -> Result<Option<PathBuf>, String> {
-        let Some((mime, data)) = tags::read_cover(&self.existing(file_name)?) else { return Ok(None) };
-        std::fs::create_dir_all(&self.covers_dir).map_err(|e| format!("creating {}: {e}", self.covers_dir.display()))?;
-        let path = self.covers_dir.join(format!("{:016x}.{}", fnv1a(&data), tags::cover_extension(&mime)));
+        let Some((mime, data)) = tags::read_cover(&self.existing(file_name)?) else {
+            return Ok(None);
+        };
+        std::fs::create_dir_all(&self.covers_dir)
+            .map_err(|e| format!("creating {}: {e}", self.covers_dir.display()))?;
+        let path = self.covers_dir.join(format!(
+            "{:016x}.{}",
+            fnv1a(&data),
+            tags::cover_extension(&mime)
+        ));
         if !path.exists() {
             std::fs::write(&path, &data).map_err(|e| format!("writing {}: {e}", path.display()))?;
         }
@@ -241,8 +289,16 @@ impl Library {
     /// Applies one edit to several recordings (bulk edit). All names are
     /// checked first; each file is then written atomically. Returns the first
     /// error after attempting every file.
-    pub fn write_tags(&mut self, file_names: &[String], edit: &TagEdit, version: TagVersion) -> Result<(), String> {
-        let paths: Vec<PathBuf> = file_names.iter().map(|n| self.existing(n)).collect::<Result<_, _>>()?;
+    pub fn write_tags(
+        &mut self,
+        file_names: &[String],
+        edit: &TagEdit,
+        version: TagVersion,
+    ) -> Result<(), String> {
+        let paths: Vec<PathBuf> = file_names
+            .iter()
+            .map(|n| self.existing(n))
+            .collect::<Result<_, _>>()?;
         let mut first_error = None;
         for (name, path) in file_names.iter().zip(&paths) {
             if let Err(e) = tags::write(path, edit, version) {
@@ -267,8 +323,11 @@ impl Library {
         self.watcher = None;
         // Any change counts: on macOS (kqueue) the reported path is just a
         // guess at which entry changed, and re-listing is cheap with the index.
-        let mut debouncer = new_debouncer(Duration::from_millis(300), move |_: DebounceEventResult| on_change())
-        .map_err(|e| format!("starting the folder watcher: {e}"))?;
+        let mut debouncer =
+            new_debouncer(Duration::from_millis(300), move |_: DebounceEventResult| {
+                on_change()
+            })
+            .map_err(|e| format!("starting the folder watcher: {e}"))?;
         debouncer
             .watcher()
             .watch(&self.dir, RecursiveMode::NonRecursive)
@@ -283,7 +342,9 @@ impl Library {
 
     /// Resolves a file name from the UI to a path inside the folder.
     fn existing(&self, file_name: &str) -> Result<PathBuf, String> {
-        let plain = Path::new(file_name).file_name().is_some_and(|n| n == file_name);
+        let plain = Path::new(file_name)
+            .file_name()
+            .is_some_and(|n| n == file_name);
         if !plain || !is_recording(file_name) {
             return Err(format!("not a recording name: {file_name}"));
         }
@@ -323,7 +384,10 @@ fn is_recording(name: &str) -> bool {
 }
 
 fn stem(file_name: &str) -> String {
-    Path::new(file_name).file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default()
+    Path::new(file_name)
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_default()
 }
 
 fn mtime_ms(meta: &std::fs::Metadata) -> i64 {
@@ -339,7 +403,11 @@ type FileInfo = (String, Option<String>, Option<String>, u64, i64);
 fn read_file_info(path: &Path, file_name: &str, mtime_ms: i64) -> FileInfo {
     use id3::TagLike;
     let tag = id3::Tag::read_from_path(path).ok();
-    let title = tag.as_ref().and_then(|t| t.title()).map(str::to_string).unwrap_or_else(|| stem(file_name));
+    let title = tag
+        .as_ref()
+        .and_then(|t| t.title())
+        .map(str::to_string)
+        .unwrap_or_else(|| stem(file_name));
     let artist = tag.as_ref().and_then(|t| t.artist()).map(str::to_string);
     let album = tag.as_ref().and_then(|t| t.album()).map(str::to_string);
     let recorded_at = tag
@@ -347,7 +415,9 @@ fn read_file_info(path: &Path, file_name: &str, mtime_ms: i64) -> FileInfo {
         .and_then(|t| t.date_recorded())
         .and_then(timestamp_ms)
         .unwrap_or(mtime_ms);
-    let duration_ms = mp3::scan(path).map(|s| (s.duration_secs() * 1000.0).round() as u64).unwrap_or(0);
+    let duration_ms = mp3::scan(path)
+        .map(|s| (s.duration_secs() * 1000.0).round() as u64)
+        .unwrap_or(0);
     (title, artist, album, duration_ms, recorded_at)
 }
 
@@ -359,25 +429,33 @@ fn timestamp_ms(t: id3::Timestamp) -> Option<i64> {
         u32::from(t.minute.unwrap_or(0)),
         u32::from(t.second.unwrap_or(0)),
     )?;
-    Local.from_local_datetime(&time).earliest().map(|dt| dt.timestamp_millis())
+    Local
+        .from_local_datetime(&time)
+        .earliest()
+        .map(|dt| dt.timestamp_millis())
 }
 
 /// Updates the ID3 title to `new_stem` if it was still the default (the old
 /// file name), so user-entered titles are never overwritten.
 fn update_title_if_default(path: &Path, old_stem: &str, new_stem: &str) -> Result<(), String> {
     use id3::TagLike;
-    let Ok(mut tag) = id3::Tag::read_from_path(path) else { return Ok(()) };
+    let Ok(mut tag) = id3::Tag::read_from_path(path) else {
+        return Ok(());
+    };
     if tag.title() != Some(old_stem) {
         return Ok(());
     }
     tag.set_title(new_stem);
     let version = tag.version();
-    tag.write_to_path(path, version).map_err(|e| format!("updating the title tag: {e}"))
+    tag.write_to_path(path, version)
+        .map_err(|e| format!("updating the title tag: {e}"))
 }
 
 /// Stable 64-bit FNV-1a, for content-addressed cover file names.
 fn fnv1a(data: &[u8]) -> u64 {
-    data.iter().fold(0xcbf2_9ce4_8422_2325, |h, &b| (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3))
+    data.iter().fold(0xcbf2_9ce4_8422_2325, |h, &b| {
+        (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3)
+    })
 }
 
 fn move_to_trash(path: &Path) -> Result<(), String> {
@@ -390,18 +468,27 @@ fn move_to_trash(path: &Path) -> Result<(), String> {
         use trash::macos::{DeleteMethod, TrashContextExtMacos};
         trash.set_delete_method(DeleteMethod::NsFileManager);
     }
-    trash.delete(path).map_err(|e| format!("moving {} to the Trash: {e}", path.display()))
+    trash
+        .delete(path)
+        .map_err(|e| format!("moving {} to the Trash: {e}", path.display()))
 }
 
 pub(crate) fn reveal_in_file_manager(path: &Path) -> Result<(), String> {
     #[cfg(target_os = "macos")]
-    let status = std::process::Command::new("open").arg("-R").arg(path).status();
+    let status = std::process::Command::new("open")
+        .arg("-R")
+        .arg(path)
+        .status();
     #[cfg(target_os = "windows")]
     return reveal_windows(path);
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    let status = std::process::Command::new("xdg-open").arg(path.parent().unwrap_or(path)).status();
+    let status = std::process::Command::new("xdg-open")
+        .arg(path.parent().unwrap_or(path))
+        .status();
     #[cfg(not(target_os = "windows"))]
-    status.map(|_| ()).map_err(|e| format!("showing {}: {e}", path.display()))
+    status
+        .map(|_| ())
+        .map_err(|e| format!("showing {}: {e}", path.display()))
 }
 
 /// Opens Explorer on the folder with the file selected. Uses the Shell API
@@ -423,7 +510,8 @@ fn reveal_windows(path: &Path) -> Result<(), String> {
         let result = if pidl.is_null() {
             Err(format!("showing {shown}: path not found"))
         } else {
-            let r = SHOpenFolderAndSelectItems(pidl, None, 0).map_err(|e| format!("showing {shown}: {e}"));
+            let r = SHOpenFolderAndSelectItems(pidl, None, 0)
+                .map_err(|e| format!("showing {shown}: {e}"));
             ILFree(Some(pidl));
             r
         };
@@ -441,10 +529,11 @@ fn reveal_windows(path: &Path) -> Result<(), String> {
 pub fn wait_for_change(library: &mut Library, timeout: Duration, change: impl FnOnce()) -> bool {
     let (tx, rx) = mpsc::channel();
     let tx = std::sync::Mutex::new(tx);
-    if library.watch(move || {
-        let _ = tx.lock().unwrap().send(());
-    })
-    .is_err()
+    if library
+        .watch(move || {
+            let _ = tx.lock().unwrap().send(());
+        })
+        .is_err()
     {
         return false;
     }
@@ -482,7 +571,11 @@ mod tests {
             }),
         )
         .unwrap();
-        Fixture { dir, library, trashed }
+        Fixture {
+            dir,
+            library,
+            trashed,
+        }
     }
 
     /// Writes a tagged MP3 of `seconds` named `<stem>.mp3`.
@@ -509,32 +602,52 @@ mod tests {
     #[test]
     fn lists_recordings_with_metadata_newest_first() {
         let mut f = fixture();
-        add(&f.dir, "Music 2026-10-03 14-05", 1.0, Some("Music 2026-10-03 14-05"));
+        add(
+            &f.dir,
+            "Music 2026-10-03 14-05",
+            1.0,
+            Some("Music 2026-10-03 14-05"),
+        );
         add(&f.dir, "Untagged", 2.0, None); // mtime = now, so newest
         std::fs::write(f.dir.join("Live.mp3.part"), b"in progress").unwrap();
         std::fs::write(f.dir.join("notes.txt"), b"").unwrap();
 
         let list = f.library.list().unwrap();
-        assert_eq!(list.iter().map(|r| r.file_name.as_str()).collect::<Vec<_>>(), [
-            "Untagged.mp3",
-            "Music 2026-10-03 14-05.mp3"
-        ]);
+        assert_eq!(
+            list.iter()
+                .map(|r| r.file_name.as_str())
+                .collect::<Vec<_>>(),
+            ["Untagged.mp3", "Music 2026-10-03 14-05.mp3"]
+        );
         let untagged = &list[0];
-        assert_eq!((untagged.title.as_str(), untagged.artist.as_deref()), ("Untagged", None));
-        assert!((untagged.duration_ms as i64 - 2000).abs() < 100, "{}", untagged.duration_ms);
+        assert_eq!(
+            (untagged.title.as_str(), untagged.artist.as_deref()),
+            ("Untagged", None)
+        );
+        assert!(
+            (untagged.duration_ms as i64 - 2000).abs() < 100,
+            "{}",
+            untagged.duration_ms
+        );
         let tagged = &list[1];
         assert_eq!(tagged.artist.as_deref(), Some("Someone"));
         assert!((tagged.duration_ms as i64 - 1000).abs() < 100);
-        assert_eq!(tagged.recorded_at_ms, timestamp_ms(id3::Timestamp {
-            year: 2026,
-            month: Some(10),
-            day: Some(1),
-            hour: Some(14),
-            minute: Some(5),
-            second: None
-        })
-        .unwrap());
-        assert_eq!(tagged.size_bytes, std::fs::metadata(&tagged.path).unwrap().len());
+        assert_eq!(
+            tagged.recorded_at_ms,
+            timestamp_ms(id3::Timestamp {
+                year: 2026,
+                month: Some(10),
+                day: Some(1),
+                hour: Some(14),
+                minute: Some(5),
+                second: None
+            })
+            .unwrap()
+        );
+        assert_eq!(
+            tagged.size_bytes,
+            std::fs::metadata(&tagged.path).unwrap().len()
+        );
     }
 
     #[test]
@@ -543,40 +656,75 @@ mod tests {
         let path = add(&f.dir, "A", 1.0, Some("A"));
         f.library.list().unwrap();
         // Change the cached title behind the file's back: a reused row keeps it.
-        f.library.db.execute("UPDATE recordings SET title = 'cached'", []).unwrap();
+        f.library
+            .db
+            .execute("UPDATE recordings SET title = 'cached'", [])
+            .unwrap();
         assert_eq!(f.library.list().unwrap()[0].title, "cached");
         // Removing the file prunes its row.
         std::fs::remove_file(&path).unwrap();
         assert!(f.library.list().unwrap().is_empty());
-        let rows: i64 = f.library.db.query_row("SELECT COUNT(*) FROM recordings", [], |r| r.get(0)).unwrap();
+        let rows: i64 = f
+            .library
+            .db
+            .query_row("SELECT COUNT(*) FROM recordings", [], |r| r.get(0))
+            .unwrap();
         assert_eq!(rows, 0);
     }
 
     #[test]
     fn rename_sanitizes_avoids_collisions_and_updates_default_title() {
         let mut f = fixture();
-        add(&f.dir, "Music 2026-10-03 14-05", 0.5, Some("Music 2026-10-03 14-05"));
+        add(
+            &f.dir,
+            "Music 2026-10-03 14-05",
+            0.5,
+            Some("Music 2026-10-03 14-05"),
+        );
         add(&f.dir, "Taken", 0.5, Some("Taken"));
 
-        let renamed = f.library.rename("Music 2026-10-03 14-05.mp3", "Taken.mp3").unwrap();
+        let renamed = f
+            .library
+            .rename("Music 2026-10-03 14-05.mp3", "Taken.mp3")
+            .unwrap();
         assert_eq!(renamed, "Taken (2).mp3");
         let tag = id3::Tag::read_from_path(f.dir.join(&renamed)).unwrap();
         assert_eq!(tag.title(), Some("Taken (2)"));
         assert_eq!(tag.artist(), Some("Someone"), "other tags survive");
 
-        let renamed = f.library.rename("Taken (2).mp3", "  AC/DC: Live?  ").unwrap();
+        let renamed = f
+            .library
+            .rename("Taken (2).mp3", "  AC/DC: Live?  ")
+            .unwrap();
         assert_eq!(renamed, "AC_DC_ Live_.mp3");
         assert!(!f.dir.join("Taken (2).mp3").exists());
 
-        let names: Vec<_> = f.library.list().unwrap().into_iter().map(|r| r.file_name).collect();
-        assert!(names.contains(&"AC_DC_ Live_.mp3".to_string()) && names.contains(&"Taken.mp3".to_string()));
+        let names: Vec<_> = f
+            .library
+            .list()
+            .unwrap()
+            .into_iter()
+            .map(|r| r.file_name)
+            .collect();
+        assert!(
+            names.contains(&"AC_DC_ Live_.mp3".to_string())
+                && names.contains(&"Taken.mp3".to_string())
+        );
     }
 
     #[test]
     fn rename_keeps_a_custom_title() {
         let mut f = fixture();
-        add(&f.dir, "Music 2026-10-03 14-05", 0.5, Some("My favourite song"));
-        let renamed = f.library.rename("Music 2026-10-03 14-05.mp3", "Favourite").unwrap();
+        add(
+            &f.dir,
+            "Music 2026-10-03 14-05",
+            0.5,
+            Some("My favourite song"),
+        );
+        let renamed = f
+            .library
+            .rename("Music 2026-10-03 14-05.mp3", "Favourite")
+            .unwrap();
         let tag = id3::Tag::read_from_path(f.dir.join(renamed)).unwrap();
         assert_eq!(tag.title(), Some("My favourite song"));
     }
@@ -616,26 +764,57 @@ mod tests {
             cover: crate::tags::CoverEdit::Set(cover),
             ..Default::default()
         };
-        f.library.write_tags(&["One.mp3".into(), "Two.mp3".into()], &edit, TagVersion::V24).unwrap();
+        f.library
+            .write_tags(
+                &["One.mp3".into(), "Two.mp3".into()],
+                &edit,
+                TagVersion::V24,
+            )
+            .unwrap();
 
         let list = f.library.list().unwrap();
         for (name, title) in [("One.mp3", "One"), ("Two.mp3", "Two")] {
             let r = list.iter().find(|r| r.file_name == name).unwrap();
-            assert_eq!((r.title.as_str(), r.album.as_deref(), r.artist.as_deref()), (title, Some("Shared"), None));
+            assert_eq!(
+                (r.title.as_str(), r.album.as_deref(), r.artist.as_deref()),
+                (title, Some("Shared"), None)
+            );
             assert!(f.library.read_tags(name).unwrap().has_cover);
         }
         let exported = f.library.export_cover("One.mp3").unwrap().unwrap();
-        assert_eq!(std::fs::read(&exported).unwrap(), crate::tags::tests::PNG_1X1);
-        assert_eq!(f.library.export_cover("Two.mp3").unwrap().unwrap(), exported, "same image, same cache file");
+        assert_eq!(
+            std::fs::read(&exported).unwrap(),
+            crate::tags::tests::PNG_1X1
+        );
+        assert_eq!(
+            f.library.export_cover("Two.mp3").unwrap().unwrap(),
+            exported,
+            "same image, same cache file"
+        );
     }
 
     #[test]
     fn bulk_tag_edit_checks_every_name_first() {
         let mut f = fixture();
         add(&f.dir, "One", 0.3, Some("One"));
-        let edit = TagEdit { album: Some(Some("X".into())), ..Default::default() };
-        assert!(f.library.write_tags(&["One.mp3".into(), "Missing.mp3".into()], &edit, TagVersion::V24).is_err());
-        assert_eq!(f.library.read_tags("One.mp3").unwrap().album, None, "nothing written");
+        let edit = TagEdit {
+            album: Some(Some("X".into())),
+            ..Default::default()
+        };
+        assert!(
+            f.library
+                .write_tags(
+                    &["One.mp3".into(), "Missing.mp3".into()],
+                    &edit,
+                    TagVersion::V24
+                )
+                .is_err()
+        );
+        assert_eq!(
+            f.library.read_tags("One.mp3").unwrap().album,
+            None,
+            "nothing written"
+        );
     }
 
     #[test]
@@ -645,10 +824,18 @@ mod tests {
         add(&f.dir, "B", 0.3, None);
         let db = crate::playlists::db_path_beside(&f.dir.parent().unwrap().join("library.db"));
         let mut playlists = crate::playlists::Playlists::open(&db).unwrap();
-        let id = playlists.create("Mix", &["A.mp3".into(), "B.mp3".into()]).unwrap().id;
+        let id = playlists
+            .create("Mix", &["A.mp3".into(), "B.mp3".into()])
+            .unwrap()
+            .id;
         let renamed = f.library.rename("A.mp3", "Alpha").unwrap();
         f.library.trash("B.mp3").unwrap();
-        let items: Vec<_> = playlists.items(id).unwrap().into_iter().map(|i| i.file_name).collect();
+        let items: Vec<_> = playlists
+            .items(id)
+            .unwrap()
+            .into_iter()
+            .map(|i| i.file_name)
+            .collect();
         assert_eq!(items, [renamed]);
     }
 
@@ -661,7 +848,13 @@ mod tests {
         f.library.set_dir(other.clone()).unwrap();
         assert!(f.library.list().unwrap().is_empty());
         add(&other, "New", 0.3, None);
-        let names: Vec<_> = f.library.list().unwrap().into_iter().map(|r| r.file_name).collect();
+        let names: Vec<_> = f
+            .library
+            .list()
+            .unwrap()
+            .into_iter()
+            .map(|r| r.file_name)
+            .collect();
         assert_eq!(names, ["New.mp3"]);
     }
 

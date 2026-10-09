@@ -1,24 +1,24 @@
 // Layout here comes from skin data (rects, sizes), so styles are inline.
 /* eslint-disable react-native/no-inline-styles */
-import React, { useCallback, useEffect, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react'
+import { Pressable, View } from 'react-native'
 
-import { formatElapsed } from '../RecordBar';
-import type { PlayerState, RecorderState } from '../native/SoundScraper';
-import { playback, usePlayback } from '../playback';
-import { usePlaylists } from '../playlists';
-import { type Message, useRecorder } from '../useRecorder';
-import { DragSurface } from './DragSurface';
-import { LevelMeter } from './LevelMeter';
-import { SkinAnimation } from './SkinAnimation';
-import { Visualizer } from './Visualizer';
-import { SkinButton } from './SkinButton';
-import { SkinSeek } from './SkinSeek';
-import { scaleRect, SkinImage, SpriteCell, useSkinScale } from './SkinImage';
-import { useSkin } from './SkinProvider';
-import { windows } from './skins';
-import { ElementText } from './SpriteText';
-import type { ElementName, Rect, SkinElement } from './types';
+import { formatElapsed } from '../RecordBar'
+import type { PlayerState, RecorderState } from '../native/SoundScraper'
+import { playback, usePlayback } from '../playback'
+import { usePlaylists } from '../playlists'
+import { type Message, useRecorder } from '../useRecorder'
+import { DragSurface } from './DragSurface'
+import { LevelMeter } from './LevelMeter'
+import { SkinAnimation } from './SkinAnimation'
+import { Visualizer } from './Visualizer'
+import { SkinButton } from './SkinButton'
+import { SkinSeek } from './SkinSeek'
+import { scaleRect, SkinImage, SpriteCell, useSkinScale } from './SkinImage'
+import { useSkin } from './SkinProvider'
+import { windows } from './skins'
+import { ElementText } from './SpriteText'
+import type { ElementName, Rect, SkinElement } from './types'
 
 /** Elements that take clicks, so the window doesn't drag from them. */
 const INTERACTIVE: ElementName[] = [
@@ -33,21 +33,21 @@ const INTERACTIVE: ElementName[] = [
   'minimize',
   'shade',
   'close',
-];
+]
 
 export function statusText(state: RecorderState, starting: boolean): string {
   if (starting) {
-    return 'STARTING';
+    return 'STARTING'
   }
   switch (state) {
     case 'recording':
-      return '● REC';
+      return '● REC'
     case 'paused':
-      return '⏸ PAUSED';
+      return '⏸ PAUSED'
     case 'finalizing':
-      return 'SAVING';
+      return 'SAVING'
     default:
-      return 'READY';
+      return 'READY'
   }
 }
 
@@ -55,43 +55,43 @@ export function statusText(state: RecorderState, starting: boolean): string {
 export function playbackStatusText(state: PlayerState): string {
   switch (state) {
     case 'playing':
-      return '▶ PLAYING';
+      return '▶ PLAYING'
     case 'paused':
-      return '⏸ PAUSED';
+      return '⏸ PAUSED'
     default:
-      return '■ STOPPED';
+      return '■ STOPPED'
   }
 }
 
 /** The skinned main window: transport, time, status, levels and source. */
 export function MainPanel(): React.JSX.Element {
-  const skin = useSkin();
-  const s = useSkinScale();
-  const r = useRecorder();
-  const p = usePlayback();
-  const pl = usePlaylists();
-  const [scrubMs, setScrubMs] = useState<number>();
-  const [shaded, setShaded] = useState(false);
+  const skin = useSkin()
+  const s = useSkinScale()
+  const r = useRecorder()
+  const p = usePlayback()
+  const pl = usePlaylists()
+  const [scrubMs, setScrubMs] = useState<number>()
+  const [shaded, setShaded] = useState(false)
   const [panels, setPanels] = useState(() => ({
     library: windows.isPanelVisible('library'),
     settings: windows.isPanelVisible('settings'),
-  }));
-  const [shownMessage, setShownMessage] = useState<Message>();
+  }))
+  const [shownMessage, setShownMessage] = useState<Message>()
 
-  const shade = skin.panels.main.shade;
-  const layout = shaded && shade ? shade : skin.panels.main;
-  const els = layout.elements;
+  const shade = skin.panels.main.shade
+  const layout = shaded && shade ? shade : skin.panels.main
+  const els = layout.elements
 
   useEffect(() => {
     const subscription = windows.onEvent(e => {
       if (e.window === 'main' && e.event === 'toggleShade') {
-        setShaded(on => !on);
+        setShaded(on => !on)
       } else if (e.window === 'library' || e.window === 'settings') {
-        setPanels(prev => ({ ...prev, [e.window]: e.event === 'shown' }));
+        setPanels(prev => ({ ...prev, [e.window]: e.event === 'shown' }))
       }
-    });
-    return () => subscription.remove();
-  }, []);
+    })
+    return () => subscription.remove()
+  }, [])
 
   useEffect(() => {
     const scaled = (rect: Rect): Rect => [
@@ -99,78 +99,78 @@ export function MainPanel(): React.JSX.Element {
       rect[1] * s,
       rect[2] * s,
       rect[3] * s,
-    ];
+    ]
     const holes = INTERACTIVE.flatMap(name => {
-      const el = layout.elements[name];
-      return el ? [scaled(el.rect)] : [];
-    });
+      const el = layout.elements[name]
+      return el ? [scaled(el.rect)] : []
+    })
     windows.setMainLayout(
       [layout.size[0] * s, layout.size[1] * s],
       layout.dragRegions.map(scaled),
       holes,
       s,
-    );
-  }, [layout, s]);
+    )
+  }, [layout, s])
 
-  const { setMessage: showMessage } = r;
+  const { setMessage: showMessage } = r
   useEffect(
     () => playback.onError(text => showMessage({ text, isError: true })),
     [showMessage],
-  );
+  )
 
   // Messages show in the source display for a while.
   useEffect(() => {
     if (!r.message) {
-      return;
+      return
     }
-    setShownMessage(r.message);
+    setShownMessage(r.message)
     const timer = setTimeout(
       () => setShownMessage(undefined),
       r.message.isError ? 12000 : 6000,
-    );
-    return () => clearTimeout(timer);
-  }, [r.message]);
+    )
+    return () => clearTimeout(timer)
+  }, [r.message])
 
-  const active = r.state === 'recording' || r.state === 'paused';
-  const busy = r.starting || r.state === 'finalizing';
+  const active = r.state === 'recording' || r.state === 'paused'
+  const busy = r.starting || r.state === 'finalizing'
   // A recording loaded for playback, and no recording running: the
   // displays show the playback.
-  const loaded = p.state !== 'empty' && !active && !busy;
-  const playing = loaded && p.state === 'playing';
+  const loaded = p.state !== 'empty' && !active && !busy
+  const playing = loaded && p.state === 'playing'
 
-  const { refreshApps, setSelectedPid, selectedPid, setMessage } = r;
+  const { refreshApps, setSelectedPid, selectedPid, setMessage } = r
   const chooseSource = useCallback(async () => {
-    setShownMessage(undefined);
-    const el = layout.elements.source;
+    setShownMessage(undefined)
+    const el = layout.elements.source
     if (!el) {
-      return;
+      return
     }
     if (active || busy) {
       setMessage({
         text: 'Stop recording to change the source',
         isError: false,
-      });
-      return;
+      })
+      return
     }
-    const apps = refreshApps();
+    const apps = refreshApps()
     const items = [
       'All system audio',
       '-',
       ...apps.map(a => `${a.isPlaying ? '♪ ' : ''}${a.name}`),
-    ];
-    const index = apps.findIndex(a => a.pid === selectedPid);
-    const checked = selectedPid === 0 || index < 0 ? 0 : index + 2;
-    const [x, y, , h] = el.rect;
+    ]
+    const index = apps.findIndex(a => a.pid === selectedPid)
+    const checked = selectedPid === 0 || index < 0 ? 0 : index + 2
+    const [x, y, , h] = el.rect
     const chosen = await windows.showMenu(
       items,
       checked,
       x * s,
       (y + h + 2) * s,
-    );
+    )
     if (chosen === 0) {
-      setSelectedPid(0);
+      setSelectedPid(0)
     } else if (chosen >= 2) {
-      setSelectedPid(apps[chosen - 2].pid);
+      setSelectedPid(apps[chosen - 2].pid)
     }
   }, [
     layout,
@@ -181,97 +181,97 @@ export function MainPanel(): React.JSX.Element {
     setSelectedPid,
     selectedPid,
     setMessage,
-  ]);
+  ])
 
   const close = useCallback(async () => {
     if (active) {
-      await r.stop();
+      await r.stop()
     }
-    windows.quit();
-  }, [active, r]);
+    windows.quit()
+  }, [active, r])
 
   // Record starts a new recording (unloading what was loaded for
   // playback). Play is pause while recording or playing, and resumes a
   // paused recording; record is disabled meanwhile. Skins without a play
   // element (made before playback) keep record as pause too, unless they
   // have a separate pause element.
-  const hasPlay = els.play != null;
-  const pauseSeparate = els.pause != null || hasPlay;
+  const hasPlay = els.play != null
+  const pauseSeparate = els.pause != null || hasPlay
   const onRecord = () => {
     if (r.state === 'idle') {
-      r.record();
+      r.record()
     } else if (hasPlay) {
-      return;
+      return
     } else if (r.state === 'paused') {
-      r.resume();
+      r.resume()
     } else if (r.state === 'recording' && !pauseSeparate) {
-      r.pause();
+      r.pause()
     }
-  };
+  }
   const onPlay = () => {
     if (r.state === 'recording') {
-      r.pause();
+      r.pause()
     } else if (r.state === 'paused') {
-      r.resume();
+      r.resume()
     } else if (playing) {
-      playback.pause();
+      playback.pause()
     } else if (loaded) {
-      playback.play();
+      playback.play()
     }
-  };
+  }
   const onPause = () => {
     if (active) {
-      r.state === 'paused' ? r.resume() : r.pause();
+      r.state === 'paused' ? r.resume() : r.pause()
     } else if (playing) {
-      playback.pause();
+      playback.pause()
     } else if (loaded && p.state === 'paused') {
-      playback.play();
+      playback.play()
     }
-  };
+  }
   const onStop = () => {
     if (active) {
-      r.stop();
+      r.stop()
     } else if (loaded) {
-      playback.stop();
+      playback.stop()
     }
-  };
+  }
   const stoppable =
-    active || (loaded && (p.state !== 'stopped' || p.positionMs > 0));
+    active || (loaded && (p.state !== 'stopped' || p.positionMs > 0))
   const recordMode =
     r.state === 'paused'
       ? 'paused'
       : r.state === 'recording'
       ? 'recording'
-      : undefined;
+      : undefined
   const recordLabel = hasPlay
     ? 'Record'
     : r.state === 'paused'
     ? 'Resume'
     : r.state === 'recording' && !pauseSeparate
     ? 'Pause'
-    : 'Record';
+    : 'Record'
   const playMode =
     r.state === 'recording' || r.state === 'paused'
       ? r.state
       : playing
       ? 'playing'
-      : undefined;
+      : undefined
   const playLabel =
     r.state === 'paused'
       ? 'Resume'
       : r.state === 'recording' || playing
       ? 'Pause'
-      : 'Play';
+      : 'Play'
   // Animations follow the tape: recording, or playing back.
   const tapeState: RecorderState = playing
     ? 'recording'
     : loaded && p.state === 'paused'
     ? 'paused'
-    : r.state;
+    : r.state
 
   const togglePanel = (panel: 'library' | 'settings') => {
-    windows.setPanelVisible(panel, !panels[panel]);
-  };
+    windows.setPanelVisible(panel, !panels[panel])
+  }
 
   const button = (
     name: ElementName,
@@ -279,7 +279,7 @@ export function MainPanel(): React.JSX.Element {
     onPress: () => void,
     flags: { active?: boolean; disabled?: boolean; mode?: string } = {},
   ) => {
-    const el = els[name];
+    const el = els[name]
     return el ? (
       <SkinButton
         key={name}
@@ -291,27 +291,27 @@ export function MainPanel(): React.JSX.Element {
         disabled={flags.disabled}
         mode={flags.mode}
       />
-    ) : null;
-  };
+    ) : null
+  }
 
-  const [width, height] = layout.size;
+  const [width, height] = layout.size
   const status = loaded
     ? playbackStatusText(p.state)
-    : statusText(r.state, r.starting);
+    : statusText(r.state, r.starting)
   // While recording with a playlist showing, the recording goes into it.
   const into =
     (r.state === 'recording' || r.state === 'paused') && pl.activeId !== null
       ? pl.playlists.find(x => x.id === pl.activeId)?.name
-      : undefined;
+      : undefined
   const sourceText =
     shownMessage?.text ??
     (loaded && p.title
       ? `♪ ${p.title}`
       : into
       ? `${r.sourceName} → ${into}`
-      : r.sourceName);
-  const levels = loaded ? p.levels : r.levels;
-  const elapsedMs = loaded ? scrubMs ?? p.positionMs : r.elapsedMs;
+      : r.sourceName)
+  const levels = loaded ? p.levels : r.levels
+  const elapsedMs = loaded ? scrubMs ?? p.positionMs : r.elapsedMs
 
   return (
     <View
@@ -455,22 +455,22 @@ export function MainPanel(): React.JSX.Element {
       )}
       {button('close', 'Quit', close)}
     </View>
-  );
+  )
 }
 
 /** The status sprite for the state when the skin has one, else its text. */
 function StatusElement(props: {
-  element: SkinElement;
-  fonts: Parameters<typeof ElementText>[0]['fonts'];
+  element: SkinElement
+  fonts: Parameters<typeof ElementText>[0]['fonts']
   /** A recorder state, or a player state during playback. */
-  state: string;
-  text: string;
+  state: string
+  text: string
 }) {
-  const { element } = props;
-  const s = useSkinScale();
-  const sprite = element.sprite;
+  const { element } = props
+  const s = useSkinScale()
+  const sprite = element.sprite
   if (sprite) {
-    const at = sprite.states[props.state] ?? sprite.states.idle;
+    const at = sprite.states[props.state] ?? sprite.states.idle
     return (
       <View
         testID="status"
@@ -484,7 +484,7 @@ function StatusElement(props: {
           size={[element.rect[2], element.rect[3]]}
         />
       </View>
-    );
+    )
   }
   return (
     <ElementText
@@ -493,5 +493,5 @@ function StatusElement(props: {
       fonts={props.fonts}
       text={props.text}
     />
-  );
+  )
 }

@@ -1,0 +1,60 @@
+# Code-quality checks for every pull request and push to main: ESLint
+# (React Native config + Prettier), TypeScript, Jest, cargo fmt, clippy with
+# warnings denied, and the Rust tests. Clippy runs on each OS because the
+# capture backends are platform-specific code.
+name: Lint
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  js:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: app/.nvmrc
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+
+  rustfmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo fmt --manifest-path core/Cargo.toml --all --check
+
+  clippy:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-26, windows-2025]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - if: runner.os == 'Windows'
+        run: git config --system core.longpaths true
+      - uses: actions/checkout@v4
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+          key: lint-${{ matrix.os }}
+      - run: cargo clippy --manifest-path core/Cargo.toml --workspace --all-targets -- -D warnings
+      - run: cargo test --manifest-path core/Cargo.toml --workspace

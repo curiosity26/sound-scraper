@@ -88,12 +88,18 @@ const CURRENT_VERSION: u32 = 1;
 /// ID3v2.4 everywhere except Windows, whose MP3 metadata reader (Explorer
 /// thumbnails, Media Player) can't read v2.4's UTF-8 frames, cover art included.
 pub fn default_id3_version() -> &'static str {
-    if cfg!(target_os = "windows") { "2.3" } else { "2.4" }
+    if cfg!(target_os = "windows") {
+        "2.3"
+    } else {
+        "2.4"
+    }
 }
 
 impl Settings {
     pub fn recordings_dir(&self) -> PathBuf {
-        self.recordings_dir.clone().unwrap_or_else(paths::recordings_dir)
+        self.recordings_dir
+            .clone()
+            .unwrap_or_else(paths::recordings_dir)
     }
 
     pub fn master_policy(&self) -> crate::masters::Policy {
@@ -107,7 +113,11 @@ impl Settings {
     }
 
     pub fn tag_version(&self) -> TagVersion {
-        if self.id3_version == "2.3" { TagVersion::V23 } else { TagVersion::V24 }
+        if self.id3_version == "2.3" {
+            TagVersion::V23
+        } else {
+            TagVersion::V24
+        }
     }
 
     /// Checks values coming from the UI.
@@ -117,9 +127,14 @@ impl Settings {
         }
         if let Some(dir) = &self.recordings_dir {
             if !dir.is_absolute() {
-                return Err(format!("the recordings folder must be an absolute path: {}", dir.display()));
+                return Err(format!(
+                    "the recordings folder must be an absolute path: {}",
+                    dir.display()
+                ));
             }
-            std::fs::create_dir_all(dir).map_err(|e| format!("can't use {} as the recordings folder: {e}", dir.display()))?;
+            std::fs::create_dir_all(dir).map_err(|e| {
+                format!("can't use {} as the recordings folder: {e}", dir.display())
+            })?;
         }
         Ok(())
     }
@@ -131,7 +146,9 @@ pub fn settings_path() -> PathBuf {
 
 /// Loads settings; a missing or unreadable file gives the defaults.
 pub fn load_from(path: &Path) -> Settings {
-    let Some(mut settings) = std::fs::read_to_string(path).ok().and_then(|s| serde_json::from_str::<Settings>(&s).ok())
+    let Some(mut settings) = std::fs::read_to_string(path)
+        .ok()
+        .and_then(|s| serde_json::from_str::<Settings>(&s).ok())
     else {
         return Settings::default();
     };
@@ -185,7 +202,10 @@ mod tests {
             recordings_dir: Some(dir.join("Recordings")),
             quality: Quality::Vbr0,
             id3_version: "2.3".into(),
-            last_source: Some(SourceRef::App { id: Some("com.spotify.client".into()), name: "Spotify".into() }),
+            last_source: Some(SourceRef::App {
+                id: Some("com.spotify.client".into()),
+                name: "Spotify".into(),
+            }),
             skin: Some("com.example.green".into()),
             double_size: true,
             trim_silence: false,
@@ -199,7 +219,10 @@ mod tests {
         assert!(dir.join("Recordings").is_dir(), "folder is created");
         assert_eq!(s.tag_version(), TagVersion::V23);
         let json = std::fs::read_to_string(&path).unwrap();
-        assert!(json.contains("\"quality\": \"vbr0\"") && json.contains("\"kind\": \"app\""), "{json}");
+        assert!(
+            json.contains("\"quality\": \"vbr0\"") && json.contains("\"kind\": \"app\""),
+            "{json}"
+        );
     }
 
     #[test]
@@ -209,7 +232,14 @@ mod tests {
         std::fs::write(&path, r#"{"quality":"cbr192","id3Version":"2.4"}"#).unwrap();
         let s = load_from(&path);
         assert_eq!(s.version, CURRENT_VERSION);
-        assert_eq!(s.id3_version, if cfg!(target_os = "windows") { "2.3" } else { "2.4" });
+        assert_eq!(
+            s.id3_version,
+            if cfg!(target_os = "windows") {
+                "2.3"
+            } else {
+                "2.4"
+            }
+        );
         // An explicit choice saved by a current version is kept.
         std::fs::write(&path, r#"{"version":1,"id3Version":"2.4"}"#).unwrap();
         assert_eq!(load_from(&path).id3_version, "2.4");
@@ -221,13 +251,22 @@ mod tests {
         let path = dir.join("settings.json");
         std::fs::write(&path, r#"{"quality":"cbr320"}"#).unwrap();
         assert_eq!(load_from(&path).quality, Quality::Cbr320);
-        assert!(load_from(&path).trim_silence, "trimming is on unless turned off");
+        assert!(
+            load_from(&path).trim_silence,
+            "trimming is on unless turned off"
+        );
         assert_eq!(load_from(&path).id3_version, default_id3_version());
         std::fs::write(&path, "not json").unwrap();
         assert_eq!(load_from(&path), Settings::default());
-        let bad = Settings { id3_version: "1.0".into(), ..Default::default() };
+        let bad = Settings {
+            id3_version: "1.0".into(),
+            ..Default::default()
+        };
         assert!(save_to(&path, &bad).is_err());
-        let relative = Settings { recordings_dir: Some("relative/dir".into()), ..Default::default() };
+        let relative = Settings {
+            recordings_dir: Some("relative/dir".into()),
+            ..Default::default()
+        };
         assert!(save_to(&path, &relative).is_err());
     }
 }

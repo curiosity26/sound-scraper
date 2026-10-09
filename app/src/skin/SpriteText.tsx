@@ -1,25 +1,25 @@
 // Layout here comes from skin data (rects, sizes), so styles are inline.
 /* eslint-disable react-native/no-inline-styles */
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Animated, Easing, Text, View } from 'react-native';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Animated, Easing, Text, View } from 'react-native'
 
-import { scaleRect, SpriteCell, useSkinScale } from './SkinImage';
-import type { SkinElement, SpriteFont } from './types';
+import { scaleRect, SpriteCell, useSkinScale } from './SkinImage'
+import type { SkinElement, SpriteFont } from './types'
 
 /**
  * Maps `text` onto a font's glyphs: accents are dropped, lowercase falls
  * back to uppercase, and anything else missing becomes "?" (or a space).
  */
 export function toGlyphs(text: string, glyphs: string): string[] {
-  const available = new Set(Array.from(glyphs));
-  const unknown = available.has('?') ? '?' : ' ';
+  const available = new Set(Array.from(glyphs))
+  const unknown = available.has('?') ? '?' : ' '
   return Array.from(text.normalize('NFD').replace(/[̀-ͯ]/g, '')).map(c => {
     if (available.has(c)) {
-      return c;
+      return c
     }
-    const upper = c.toUpperCase();
-    return available.has(upper) ? upper : unknown;
-  });
+    const upper = c.toUpperCase()
+    return available.has(upper) ? upper : unknown
+  })
 }
 
 /**
@@ -35,54 +35,54 @@ export function layoutCells(
   offset: number,
 ): string[] {
   if (chars.length > capacity) {
-    const loop = [...chars, ' ', ' ', ' ', ' '];
+    const loop = [...chars, ' ', ' ', ' ', ' ']
     return Array.from(
       { length: capacity },
       (_, i) => loop[(offset + i) % loop.length],
-    );
+    )
   }
-  const free = capacity - chars.length;
+  const free = capacity - chars.length
   const before =
-    align === 'right' ? free : align === 'center' ? Math.floor(free / 2) : 0;
-  const after = free - before;
-  const space = (n: number) => Array.from({ length: n }, () => ' ');
+    align === 'right' ? free : align === 'center' ? Math.floor(free / 2) : 0
+  const after = free - before
+  const space = (n: number) => Array.from({ length: n }, () => ' ')
   return pad || before > 0
     ? [...space(before), ...chars, ...(pad ? space(after) : [])]
-    : chars;
+    : chars
 }
 
 type Props = {
-  font: SpriteFont;
-  text: string;
+  font: SpriteFont
+  text: string
   /** Field width in points; the text never draws outside it. */
-  width: number;
-  align?: 'left' | 'center' | 'right';
-  pad?: boolean;
+  width: number
+  align?: 'left' | 'center' | 'right'
+  pad?: boolean
   /** Scroll text that doesn't fit (default true). */
-  marquee?: boolean;
+  marquee?: boolean
   /** Animate changed cells like split-flap cards (see FlipCell). */
-  flip?: boolean;
-};
+  flip?: boolean
+}
 
 /** Text drawn with a sprite (bitmap) font. */
 export function SpriteText(props: Props): React.JSX.Element {
-  const { font, text, width, align = 'left', pad = false } = props;
-  const s = useSkinScale();
-  const [cw, ch] = font.cell;
-  const capacity = Math.max(0, Math.floor(width / (cw * s)));
-  const chars = toGlyphs(text, font.glyphs);
-  const scrolls = props.marquee !== false && chars.length > capacity;
-  const [offset, setOffset] = useState(0);
+  const { font, text, width, align = 'left', pad = false } = props
+  const s = useSkinScale()
+  const [cw, ch] = font.cell
+  const capacity = Math.max(0, Math.floor(width / (cw * s)))
+  const chars = toGlyphs(text, font.glyphs)
+  const scrolls = props.marquee !== false && chars.length > capacity
+  const [offset, setOffset] = useState(0)
   useEffect(() => {
-    setOffset(0);
+    setOffset(0)
     if (!scrolls) {
-      return;
+      return
     }
-    const timer = setInterval(() => setOffset(o => o + 1), 280);
-    return () => clearInterval(timer);
-  }, [scrolls, text]);
-  const cells = layoutCells(chars, capacity, align, pad, scrolls ? offset : 0);
-  const glyphs = Array.from(font.glyphs);
+    const timer = setInterval(() => setOffset(o => o + 1), 280)
+    return () => clearInterval(timer)
+  }, [scrolls, text])
+  const cells = layoutCells(chars, capacity, align, pad, scrolls ? offset : 0)
+  const glyphs = Array.from(font.glyphs)
   return (
     <View
       accessible
@@ -96,27 +96,27 @@ export function SpriteText(props: Props): React.JSX.Element {
       }}
     >
       {cells.map((c, i) => {
-        const index = glyphs.indexOf(c);
+        const index = glyphs.indexOf(c)
         if (index < 0) {
-          return <View key={i} style={{ width: cw * s, height: ch * s }} />;
+          return <View key={i} style={{ width: cw * s, height: ch * s }} />
         }
-        const at = glyphAt(font, index);
+        const at = glyphAt(font, index)
         return props.flip ? (
           <FlipCell key={i} font={font} at={at} />
         ) : (
           <SpriteCell key={i} image={font.image} at={at} size={[cw, ch]} />
-        );
+        )
       })}
     </View>
-  );
+  )
 }
 
 function glyphAt(font: SpriteFont, index: number): [number, number] {
-  const [cw, ch] = font.cell;
-  return [(index % font.columns) * cw, Math.floor(index / font.columns) * ch];
+  const [cw, ch] = font.cell
+  return [(index % font.columns) * cw, Math.floor(index / font.columns) * ch]
 }
 
-const FLIP_MS = 260;
+const FLIP_MS = 260
 
 /**
  * One glyph cell that flips over like a split-flap clock card when its
@@ -125,37 +125,37 @@ const FLIP_MS = 260;
  * font draws whole cards (each cell a card split across the middle).
  */
 function FlipCell(props: { font: SpriteFont; at: [number, number] }) {
-  const { font, at } = props;
-  const s = useSkinScale();
-  const [cw, ch] = font.cell;
-  const key = `${at[0]},${at[1]}`;
-  const [from, setFrom] = useState(at);
-  const shown = useRef(key);
-  const t = useRef(new Animated.Value(1)).current;
+  const { font, at } = props
+  const s = useSkinScale()
+  const [cw, ch] = font.cell
+  const key = `${at[0]},${at[1]}`
+  const [from, setFrom] = useState(at)
+  const shown = useRef(key)
+  const t = useRef(new Animated.Value(1)).current
   // A layout effect, so the flaps are reset before the new glyph paints.
   useLayoutEffect(() => {
     if (shown.current === key) {
-      return;
+      return
     }
-    shown.current = key;
-    t.setValue(0);
+    shown.current = key
+    t.setValue(0)
     const run = Animated.timing(t, {
       toValue: 1,
       duration: FLIP_MS,
       easing: Easing.in(Easing.quad),
       useNativeDriver: false, // see Needle in LevelMeter
-    });
-    run.start(({ finished }) => finished && setFrom(at));
+    })
+    run.start(({ finished }) => finished && setFrom(at))
     return () => {
       // Interrupted by the next change: flip on from this glyph.
-      run.stop();
-      setFrom(at);
-    };
+      run.stop()
+      setFrom(at)
+    }
     // `at` changes with `key`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, t]);
-  const w = cw * s;
-  const h = ch * s;
+  }, [key, t])
+  const w = cw * s
+  const h = ch * s
   const half = (glyph: [number, number], bottom: boolean) => (
     <SpriteCell
       image={font.image}
@@ -163,7 +163,7 @@ function FlipCell(props: { font: SpriteFont; at: [number, number] }) {
       size={[cw, ch]}
       style={{ position: 'absolute', left: 0, top: bottom ? -h / 2 : 0 }}
     />
-  );
+  )
   const clip = (top: number) => ({
     position: 'absolute' as const,
     left: 0,
@@ -171,7 +171,7 @@ function FlipCell(props: { font: SpriteFont; at: [number, number] }) {
     width: w,
     height: h / 2,
     overflow: 'hidden' as const,
-  });
+  })
   // Scaling a half about its own center, shifted so its middle-of-card
   // edge stays put (a fold seen head on).
   const topFold = {
@@ -191,7 +191,7 @@ function FlipCell(props: { font: SpriteFont; at: [number, number] }) {
         }),
       },
     ],
-  };
+  }
   const bottomFold = {
     transform: [
       {
@@ -209,7 +209,7 @@ function FlipCell(props: { font: SpriteFont; at: [number, number] }) {
         }),
       },
     ],
-  };
+  }
   const shadow = (range: number[], to: number[]) => ({
     position: 'absolute' as const,
     left: 0,
@@ -222,7 +222,7 @@ function FlipCell(props: { font: SpriteFont; at: [number, number] }) {
       outputRange: to,
       extrapolate: 'clamp',
     }),
-  });
+  })
   return (
     <View style={{ width: w, height: h }}>
       {/* Behind the flaps: the new top half and the old bottom half. */}
@@ -241,7 +241,7 @@ function FlipCell(props: { font: SpriteFont; at: [number, number] }) {
         </>
       )}
     </View>
-  );
+  )
 }
 
 /**
@@ -249,18 +249,18 @@ function FlipCell(props: { font: SpriteFont; at: [number, number] }) {
  * the element's text style. Positioned at the element's rect.
  */
 export function ElementText(props: {
-  element: SkinElement;
-  fonts: Record<string, SpriteFont>;
-  text: string;
-  testID?: string;
+  element: SkinElement
+  fonts: Record<string, SpriteFont>
+  text: string
+  testID?: string
 }): React.JSX.Element {
-  const { element, fonts } = props;
-  const s = useSkinScale();
-  const [, , w, h] = element.rect;
-  const font = element.font ? fonts[element.font] : undefined;
-  const pad = element.style?.pad === true;
-  const align = element.align ?? 'left';
-  const t = element.text;
+  const { element, fonts } = props
+  const s = useSkinScale()
+  const [, , w, h] = element.rect
+  const font = element.font ? fonts[element.font] : undefined
+  const pad = element.style?.pad === true
+  const align = element.align ?? 'left'
+  const t = element.text
   return (
     <View
       testID={props.testID}
@@ -292,5 +292,5 @@ export function ElementText(props: {
         </Text>
       )}
     </View>
-  );
+  )
 }

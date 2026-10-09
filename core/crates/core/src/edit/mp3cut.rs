@@ -60,7 +60,11 @@ impl Mp3Index {
 
     /// Start of presentation in the raw decoded stream.
     fn lead(&self) -> u64 {
-        if self.gapless { DECODER_DELAY + self.delay_field } else { 0 }
+        if self.gapless {
+            DECODER_DELAY + self.delay_field
+        } else {
+            0
+        }
     }
 
     /// Presentation length in frames (what Symphonia reports).
@@ -75,11 +79,15 @@ impl Mp3Index {
 
     /// All frames share one bitrate.
     pub fn is_cbr(&self) -> bool {
-        self.frames.windows(2).all(|w| w[0].bitrate_kbps == w[1].bitrate_kbps)
+        self.frames
+            .windows(2)
+            .all(|w| w[0].bitrate_kbps == w[1].bitrate_kbps)
     }
 
     pub fn bitrate_kbps(&self) -> u32 {
-        self.frames.first().map_or(self.header.bitrate_kbps, |f| f.bitrate_kbps)
+        self.frames
+            .first()
+            .map_or(self.header.bitrate_kbps, |f| f.bitrate_kbps)
     }
 
     pub fn parse(data: &[u8]) -> Result<Self, String> {
@@ -96,7 +104,9 @@ impl Mp3Index {
             if first.is_none() {
                 first = Some(h);
                 let x = h.xing_offset();
-                if bytes.len() >= x + 4 && (&bytes[x..x + 4] == b"Xing" || &bytes[x..x + 4] == b"Info") {
+                if bytes.len() >= x + 4
+                    && (&bytes[x..x + 4] == b"Xing" || &bytes[x..x + 4] == b"Info")
+                {
                     if let Some((d, p)) = lame_delay_padding(bytes, x) {
                         (delay_field, padding_field, gapless) = (d, p, true);
                     }
@@ -130,7 +140,14 @@ impl Mp3Index {
         if frames.is_empty() {
             return Err("the MP3 has no audio frames".into());
         }
-        Ok(Self { header, frames, info_frame, delay_field, padding_field, gapless })
+        Ok(Self {
+            header,
+            frames,
+            info_frame,
+            delay_field,
+            padding_field,
+            gapless,
+        })
     }
 
     /// A new MP3 holding exactly presentation frames `start..end`, or
@@ -155,7 +172,9 @@ impl Mp3Index {
         }
         let f1 = (s_b.div_ceil(spf) - 1).min(last);
         let n = f1 - f0 + 1;
-        let padding = (n * spf).saturating_sub(delay + (end - start)).min(MAX_DELAY_FIELD);
+        let padding = (n * spf)
+            .saturating_sub(delay + (end - start))
+            .min(MAX_DELAY_FIELD);
 
         let frames = &self.frames[f0 as usize..=f1 as usize];
         let audio_start = frames[0].offset;
@@ -177,13 +196,26 @@ impl Mp3Index {
         for j in 0..fs {
             cum[j + 1] = cum[j] + self.frames[j].main_len;
         }
-        let needed = (need_from..=fs).map(|j| cum[j].saturating_sub(self.frames[j].main_data_begin)).min().unwrap_or(0);
+        let needed = (need_from..=fs)
+            .map(|j| cum[j].saturating_sub(self.frames[j].main_data_begin))
+            .min()
+            .unwrap_or(0);
         // The latest frame whose main data starts at or before `needed`.
-        (0..=need_from).rev().find(|&j| cum[j] <= needed).unwrap_or(0)
+        (0..=need_from)
+            .rev()
+            .find(|&j| cum[j] <= needed)
+            .unwrap_or(0)
     }
 
     /// A Xing/Info frame with a LAME tag for `frames`.
-    fn tag_frame(&self, frames: &[FrameRef], audio: &[u8], delay: u64, padding: u64, vbr: bool) -> Vec<u8> {
+    fn tag_frame(
+        &self,
+        frames: &[FrameRef],
+        audio: &[u8],
+        delay: u64,
+        padding: u64,
+        vbr: bool,
+    ) -> Vec<u8> {
         let h = self.header;
         let x = h.xing_offset();
         // Header + side info + Xing (120) + LAME (36).
@@ -240,7 +272,11 @@ impl Mp3Index {
         // LAME extension: encoder string, revision/VBR method and lowpass
         // from the source when it has them; ReplayGain cleared (it described
         // the whole recording).
-        match self.info_frame.as_ref().filter(|f| f.len() >= needed && &f[w..w + 4] == b"LAME") {
+        match self
+            .info_frame
+            .as_ref()
+            .filter(|f| f.len() >= needed && &f[w..w + 4] == b"LAME")
+        {
             Some(src) => {
                 frame[w..w + 11].copy_from_slice(&src[w..w + 11]);
                 frame[w + 19..w + 21].copy_from_slice(&src[w + 19..w + 21]); // flags/ATH, bitrate
@@ -263,7 +299,11 @@ pub fn crc16(mut crc: u16, data: &[u8]) -> u16 {
     for &b in data {
         crc ^= u16::from(b);
         for _ in 0..8 {
-            crc = if crc & 1 != 0 { (crc >> 1) ^ 0xA001 } else { crc >> 1 };
+            crc = if crc & 1 != 0 {
+                (crc >> 1) ^ 0xA001
+            } else {
+                crc >> 1
+            };
         }
     }
     crc
@@ -294,7 +334,9 @@ fn id3v2_size(data: &[u8]) -> usize {
     if data.len() < 10 || &data[..3] != b"ID3" {
         return 0;
     }
-    let size = data[6..10].iter().fold(0usize, |acc, &b| (acc << 7) | (b & 0x7F) as usize);
+    let size = data[6..10]
+        .iter()
+        .fold(0usize, |acc, &b| (acc << 7) | (b & 0x7F) as usize);
     let footer = if data[5] & 0x10 != 0 { 10 } else { 0 };
     10 + size + footer
 }
@@ -344,10 +386,19 @@ mod tests {
         let (whole, n) = decode(&src);
         let index = Mp3Index::parse(&data).unwrap();
         assert!(index.gapless);
-        assert_eq!(Some(index.presentation_frames()), n, "our length matches Symphonia's");
+        assert_eq!(
+            Some(index.presentation_frames()),
+            n,
+            "our length matches Symphonia's"
+        );
         let total = index.presentation_frames();
         let mut skipped = 0;
-        for (a, b) in [(0, 10_000), (12_345, 100_001), (rate as u64, 2 * rate as u64 + 77), (150_000, total)] {
+        for (a, b) in [
+            (0, 10_000),
+            (12_345, 100_001),
+            (rate as u64, 2 * rate as u64 + 77),
+            (150_000, total),
+        ] {
             let Some(piece) = index.cut(&data, a, b).unwrap() else {
                 assert_eq!(quality, Quality::Vbr2, "CBR cuts are always lossless");
                 skipped += 1;
@@ -359,11 +410,28 @@ mod tests {
             assert_eq!(got_n, Some(b - a), "length of {a}..{b}");
             let want = &whole[a as usize * 2..b as usize * 2];
             assert_eq!(got.len(), want.len(), "decoded length of {a}..{b}");
-            let worst = got.iter().zip(want).map(|(x, y)| (x - y).abs()).fold(0.0, f32::max);
+            let worst = got
+                .iter()
+                .zip(want)
+                .map(|(x, y)| (x - y).abs())
+                .fold(0.0, f32::max);
             if worst >= 1e-4 {
-                let first = got.iter().zip(want).position(|(x, y)| (x - y).abs() > 1e-4).unwrap();
-                let last = got.iter().zip(want).rposition(|(x, y)| (x - y).abs() > 1e-4).unwrap();
-                eprintln!("{a}..{b}: mismatch frames {}..{} of {}", first / 2, last / 2, got.len() / 2);
+                let first = got
+                    .iter()
+                    .zip(want)
+                    .position(|(x, y)| (x - y).abs() > 1e-4)
+                    .unwrap();
+                let last = got
+                    .iter()
+                    .zip(want)
+                    .rposition(|(x, y)| (x - y).abs() > 1e-4)
+                    .unwrap();
+                eprintln!(
+                    "{a}..{b}: mismatch frames {}..{} of {}",
+                    first / 2,
+                    last / 2,
+                    got.len() / 2
+                );
             }
             assert!(worst < 1e-4, "{a}..{b} differs by up to {worst}");
             // The piece re-parses with its own tag.

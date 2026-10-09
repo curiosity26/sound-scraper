@@ -1,23 +1,23 @@
 // The library's playlist picker, its menu actions and in-panel prompts, the
 // "Add to ▾" action for checked rows, and the CD capacity bar
 // (docs/playlists-and-cd-burning-design.md §5).
-import React, { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 
-import { errorText } from './appHelpers';
-import { burnApi } from './burnModel';
-import { pickSaveFile, playlistsApi } from './native/SoundScraper';
-import { usePanelStyles, usePanelTheme } from './panelTheme';
+import { errorText } from './appHelpers'
+import { burnApi } from './burnModel'
+import { pickSaveFile, playlistsApi } from './native/SoundScraper'
+import { usePanelStyles, usePanelTheme } from './panelTheme'
 import {
   type Capacity,
   capacitySummary,
   capacityText,
   SECTORS_74,
   SECTORS_80,
-} from './playlistModel';
-import { playlists, type PlaylistsState } from './playlists';
-import { colors } from './theme';
-import { TextField } from './TextField';
+} from './playlistModel'
+import { playlists, type PlaylistsState } from './playlists'
+import { colors } from './theme'
+import { TextField } from './TextField'
 
 /** Native pop-up menu at (x, y) in the panel; resolves with the index or -1. */
 export type ShowMenu = (
@@ -25,31 +25,31 @@ export type ShowMenu = (
   checked: number,
   x: number,
   y: number,
-) => Promise<number>;
+) => Promise<number>
 
 type Prompt =
   | {
-      kind: 'name';
-      title: string;
-      value: string;
-      onDone: (name: string) => void;
+      kind: 'name'
+      title: string
+      value: string
+      onDone: (name: string) => void
     }
   | {
-      kind: 'confirm';
-      title: string;
-      body: string;
-      action: string;
-      onDone: () => void;
+      kind: 'confirm'
+      title: string
+      body: string
+      action: string
+      onDone: () => void
     }
   | {
-      kind: 'duplicates';
-      playlistId: number;
-      playlistName: string;
-      fileNames: string[];
-      already: number;
-    };
+      kind: 'duplicates'
+      playlistId: number
+      playlistName: string
+      fileNames: string[]
+      already: number
+    }
 
-const NEW = 'New Playlist…';
+const NEW = 'New Playlist…'
 
 /** Where a pressed view sits in its window, for a pop-up menu under it. */
 function menuPoint(
@@ -57,43 +57,43 @@ function menuPoint(
   then: (x: number, y: number) => void,
 ): void {
   if (!view) {
-    then(0, 0);
-    return;
+    then(0, 0)
+    return
   }
-  view.measureInWindow((x, y, _w, h) => then(x, y + h));
+  view.measureInWindow((x, y, _w, h) => then(x, y + h))
 }
 
 /** "Playlist 3": the first free default name. */
 function defaultName(state: PlaylistsState): string {
-  const taken = new Set(state.playlists.map(p => p.name.toLowerCase()));
+  const taken = new Set(state.playlists.map(p => p.name.toLowerCase()))
   for (let n = 1; ; n++) {
-    const name = `Playlist ${n}`;
+    const name = `Playlist ${n}`
     if (!taken.has(name.toLowerCase())) {
-      return name;
+      return name
     }
   }
 }
 
 export function usePlaylistControls(props: {
-  state: PlaylistsState;
-  showMenu: ShowMenu;
-  textStyle: object;
-  onMessage: (m: { text: string; isError: boolean }) => void;
+  state: PlaylistsState
+  showMenu: ShowMenu
+  textStyle: object
+  onMessage: (m: { text: string; isError: boolean }) => void
 }) {
-  const { state, showMenu, onMessage } = props;
-  const [prompt, setPrompt] = useState<Prompt | null>(null);
-  const picker = useRef<View>(null);
-  const actionsButton = useRef<View>(null);
-  const addTo = useRef<View>(null);
-  const active = state.playlists.find(p => p.id === state.activeId);
+  const { state, showMenu, onMessage } = props
+  const [prompt, setPrompt] = useState<Prompt | null>(null)
+  const picker = useRef<View>(null)
+  const actionsButton = useRef<View>(null)
+  const addTo = useRef<View>(null)
+  const active = state.playlists.find(p => p.id === state.activeId)
 
   const run = (what: string, f: () => void) => {
     try {
-      f();
+      f()
     } catch (e) {
-      onMessage({ text: `Couldn't ${what}: ${errorText(e)}`, isError: true });
+      onMessage({ text: `Couldn't ${what}: ${errorText(e)}`, isError: true })
     }
-  };
+  }
 
   const newPlaylist = (fileNames: string[] = []) =>
     setPrompt({
@@ -108,29 +108,25 @@ export function usePlaylistControls(props: {
       value: defaultName(state),
       onDone: name =>
         run('create the playlist', () => {
-          const made = playlists.create(name, fileNames);
+          const made = playlists.create(name, fileNames)
           if (fileNames.length === 0) {
-            playlists.show(made.id);
+            playlists.show(made.id)
           } else {
             onMessage({
               text: `Added to ${made.name}.`,
               isError: false,
-            });
+            })
           }
         }),
-    });
+    })
 
   const exportM3u8 = async (id: number, name: string) => {
     try {
-      const path = await pickSaveFile(
-        'Export playlist',
-        `${name}.m3u8`,
-        'm3u8',
-      );
+      const path = await pickSaveFile('Export playlist', `${name}.m3u8`, 'm3u8')
       if (!path) {
-        return;
+        return
       }
-      const missing = playlistsApi.exportM3u8(id, path);
+      const missing = playlistsApi.exportM3u8(id, path)
       onMessage({
         text:
           missing > 0
@@ -139,38 +135,38 @@ export function usePlaylistControls(props: {
               } left out.`
             : `Exported ${name}.`,
         isError: false,
-      });
+      })
     } catch (e) {
-      onMessage({ text: `Couldn't export: ${errorText(e)}`, isError: true });
+      onMessage({ text: `Couldn't export: ${errorText(e)}`, isError: true })
     }
-  };
+  }
 
   /** The playlist picker: the library, New Playlist…, then the playlists
    * (so the fixed items stay at the top however many playlists there are). */
   const openPicker = () =>
     menuPoint(picker.current, async (x, y) => {
-      const names = state.playlists.map(p => p.name);
-      const items = ['Library', NEW, ...(names.length ? ['-', ...names] : [])];
+      const names = state.playlists.map(p => p.name)
+      const items = ['Library', NEW, ...(names.length ? ['-', ...names] : [])]
       const checkedIndex =
         state.activeId === null
           ? 0
-          : 3 + state.playlists.findIndex(p => p.id === state.activeId);
-      const chosen = await showMenu(items, checkedIndex, x, y);
+          : 3 + state.playlists.findIndex(p => p.id === state.activeId)
+      const chosen = await showMenu(items, checkedIndex, x, y)
       if (chosen === 0) {
-        run('show the library', () => playlists.show(null));
+        run('show the library', () => playlists.show(null))
       } else if (chosen === 1) {
-        newPlaylist();
+        newPlaylist()
       } else if (chosen >= 3 && chosen < 3 + names.length) {
-        const id = state.playlists[chosen - 3].id;
-        run('show the playlist', () => playlists.show(id));
+        const id = state.playlists[chosen - 3].id
+        run('show the playlist', () => playlists.show(id))
       }
-    });
+    })
 
   /** The ⋯ menu beside the picker: what to do with the playlist showing. */
   const openActions = () =>
     menuPoint(actionsButton.current, async (x, y) => {
       if (!active) {
-        return;
+        return
       }
       const actions: Array<[string, () => void]> = [
         [
@@ -204,48 +200,48 @@ export function usePlaylistControls(props: {
                 run('delete the playlist', () => playlists.delete(active.id)),
             }),
         ],
-      ];
+      ]
       // A separator before Delete.
-      const items = [...actions.slice(0, 3).map(a => a[0]), '-', actions[3][0]];
-      const chosen = await showMenu(items, -1, x, y);
+      const items = [...actions.slice(0, 3).map(a => a[0]), '-', actions[3][0]]
+      const chosen = await showMenu(items, -1, x, y)
       if (chosen >= 0 && chosen < 3) {
-        actions[chosen][1]();
+        actions[chosen][1]()
       } else if (chosen === 4) {
-        actions[3][1]();
+        actions[3][1]()
       }
-    });
+    })
 
   /** Adds checked recordings to a playlist chosen from a menu. */
   const openAddTo = (fileNames: string[], at?: { x: number; y: number }) => {
     const show = async (x: number, y: number) => {
-      const others = state.playlists;
+      const others = state.playlists
       const items = [
         ...others.map(p => p.name),
         ...(others.length ? ['-'] : []),
         NEW,
-      ];
-      const chosen = await showMenu(items, -1, x, y);
+      ]
+      const chosen = await showMenu(items, -1, x, y)
       if (chosen < 0) {
-        return;
+        return
       }
       if (chosen >= others.length) {
-        newPlaylist(fileNames);
-        return;
+        newPlaylist(fileNames)
+        return
       }
-      const target = others[chosen];
-      addToPlaylist(target.id, target.name, fileNames);
-    };
-    if (at) {
-      show(at.x, at.y);
-    } else {
-      menuPoint(addTo.current, show);
+      const target = others[chosen]
+      addToPlaylist(target.id, target.name, fileNames)
     }
-  };
+    if (at) {
+      show(at.x, at.y)
+    } else {
+      menuPoint(addTo.current, show)
+    }
+  }
 
   const addToPlaylist = (id: number, name: string, fileNames: string[]) =>
     run('add to the playlist', () => {
-      const there = playlists.fileNamesIn(id);
-      const already = fileNames.filter(f => there.has(f)).length;
+      const there = playlists.fileNamesIn(id)
+      const already = fileNames.filter(f => there.has(f)).length
       if (already > 0) {
         setPrompt({
           kind: 'duplicates',
@@ -253,12 +249,12 @@ export function usePlaylistControls(props: {
           playlistName: name,
           fileNames,
           already,
-        });
-        return;
+        })
+        return
       }
-      playlists.add(id, fileNames);
-      onMessage({ text: `Added to ${name}.`, isError: false });
-    });
+      playlists.add(id, fileNames)
+      onMessage({ text: `Added to ${name}.`, isError: false })
+    })
 
   return {
     prompt,
@@ -271,19 +267,19 @@ export function usePlaylistControls(props: {
     openActions,
     openAddTo,
     addToPlaylist,
-  };
+  }
 }
 
-export type PlaylistControls = ReturnType<typeof usePlaylistControls>;
+export type PlaylistControls = ReturnType<typeof usePlaylistControls>
 
 /** The picker button: "▾ Library" or "▾ Road Trip". */
 export function PlaylistPicker(props: {
-  controls: PlaylistControls;
-  textStyle: object;
+  controls: PlaylistControls
+  textStyle: object
 }): React.JSX.Element {
-  const t = usePanelStyles();
-  const theme = usePanelTheme();
-  const { controls } = props;
+  const t = usePanelStyles()
+  const theme = usePanelTheme()
+  const { controls } = props
   return (
     <Pressable
       ref={controls.picker}
@@ -308,19 +304,19 @@ export function PlaylistPicker(props: {
       </Text>
       <Text style={[styles.pickerArrow, props.textStyle, t.text]}>▾</Text>
     </Pressable>
-  );
+  )
 }
 
 /** ⋯: rename, duplicate, export or delete the playlist showing. */
 export function PlaylistActionsButton(props: {
-  controls: PlaylistControls;
-  textStyle: object;
+  controls: PlaylistControls
+  textStyle: object
 }): React.JSX.Element | null {
-  const t = usePanelStyles();
-  const theme = usePanelTheme();
-  const { controls } = props;
+  const t = usePanelStyles()
+  const theme = usePanelTheme()
+  const { controls } = props
   if (!controls.active) {
-    return null;
+    return null
   }
   return (
     <Pressable
@@ -342,17 +338,17 @@ export function PlaylistActionsButton(props: {
         ⋯
       </Text>
     </Pressable>
-  );
+  )
 }
 
 /** "Add to ▾", for checked rows. */
 export function AddToButton(props: {
-  controls: PlaylistControls;
-  fileNames: string[];
+  controls: PlaylistControls
+  fileNames: string[]
 }): React.JSX.Element | null {
-  const t = usePanelStyles();
+  const t = usePanelStyles()
   if (props.fileNames.length === 0) {
-    return null;
+    return null
   }
   return (
     <Pressable
@@ -362,30 +358,30 @@ export function AddToButton(props: {
     >
       <Text style={[styles.link, t.link, t.cell]}>Add to ▾</Text>
     </Pressable>
-  );
+  )
 }
 
 /** The CD capacity bar with 74 and 80 minute marks, and what it means. */
 export function CapacityBar(props: {
-  capacity: Capacity;
-  textStyle: object;
+  capacity: Capacity
+  textStyle: object
   /** Beside the summary (Burn CD…). */
-  action?: React.ReactNode;
+  action?: React.ReactNode
 }): React.JSX.Element {
-  const theme = usePanelTheme();
-  const t = usePanelStyles();
-  const pc = theme?.playlist ?? {};
-  const c = props.capacity;
+  const theme = usePanelTheme()
+  const t = usePanelStyles()
+  const pc = theme?.playlist ?? {}
+  const c = props.capacity
   // The scale runs a little past 80 minutes so "too long" shows.
-  const scale = SECTORS_80 * 1.1;
+  const scale = SECTORS_80 * 1.1
   const fill =
     c.fit === 'fits74'
       ? pc.fill ?? theme?.accent ?? colors.accent
       : c.fit === 'fits80'
       ? pc.fill80 ?? '#e0a030'
-      : pc.over ?? colors.error;
-  const text = pc.text ?? theme?.text;
-  const pct = (sectors: number) => `${Math.min(100, (sectors / scale) * 100)}%`;
+      : pc.over ?? colors.error
+  const text = pc.text ?? theme?.text
+  const pct = (sectors: number) => `${Math.min(100, (sectors / scale) * 100)}%`
   return (
     <View style={styles.capacity} testID="cd-capacity">
       <View style={styles.capacityTop}>
@@ -457,33 +453,33 @@ export function CapacityBar(props: {
         {capacityText(c)}
       </Text>
     </View>
-  );
+  )
 }
 
 /** Burn CD… (a CD writer is there) or Save CD Image… (none is). */
 export function BurnButton(props: {
-  capacity: Capacity;
-  onPress: () => void;
+  capacity: Capacity
+  onPress: () => void
 }): React.JSX.Element {
-  const t = usePanelStyles();
-  const theme = usePanelTheme();
-  const [hasBurner, setHasBurner] = useState(false);
+  const t = usePanelStyles()
+  const theme = usePanelTheme()
+  const [hasBurner, setHasBurner] = useState(false)
   useEffect(() => {
     const check = () => {
       try {
-        setHasBurner(burnApi.devices().devices.some(d => d.kind !== 'image'));
+        setHasBurner(burnApi.devices().devices.some(d => d.kind !== 'image'))
       } catch {
-        setHasBurner(false);
+        setHasBurner(false)
       }
-    };
-    check();
+    }
+    check()
     // Burners can be plugged in at any time.
-    const timer = setInterval(check, 3000);
-    return () => clearInterval(timer);
-  }, []);
-  const c = props.capacity;
+    const timer = setInterval(check, 3000)
+    return () => clearInterval(timer)
+  }, [])
+  const c = props.capacity
   const disabled =
-    c.fit === 'empty' || c.fit === 'tooMany' || c.fit === 'tooLong';
+    c.fit === 'empty' || c.fit === 'tooMany' || c.fit === 'tooLong'
   return (
     <Pressable
       testID="burn-cd"
@@ -503,24 +499,24 @@ export function BurnButton(props: {
         {hasBurner ? 'Burn CD…' : 'Save CD Image…'}
       </Text>
     </Pressable>
-  );
+  )
 }
 
 /** The in-panel prompt (name a playlist, confirm a delete, duplicates). */
 export function PlaylistPrompt(props: {
-  controls: PlaylistControls;
-  textStyle: object;
-  onMessage: (m: { text: string; isError: boolean }) => void;
+  controls: PlaylistControls
+  textStyle: object
+  onMessage: (m: { text: string; isError: boolean }) => void
 }): React.JSX.Element | null {
-  const { prompt, setPrompt } = props.controls;
-  const theme = usePanelTheme();
-  const t = usePanelStyles();
+  const { prompt, setPrompt } = props.controls
+  const theme = usePanelTheme()
+  const t = usePanelStyles()
   if (!prompt) {
-    return null;
+    return null
   }
-  const bg = theme?.background ?? '#2a2522';
-  const fg = { color: theme?.text ?? '#f3ead0' };
-  const close = () => setPrompt(null);
+  const bg = theme?.background ?? '#2a2522'
+  const fg = { color: theme?.text ?? '#f3ead0' }
+  const close = () => setPrompt(null)
   const button = (label: string, onPress: () => void, accent = false) => (
     <Pressable
       key={label}
@@ -541,21 +537,21 @@ export function PlaylistPrompt(props: {
         {label}
       </Text>
     </Pressable>
-  );
+  )
 
-  let title: string;
-  let body: React.ReactNode = null;
-  let buttons: React.ReactNode[];
+  let title: string
+  let body: React.ReactNode = null
+  let buttons: React.ReactNode[]
   switch (prompt.kind) {
     case 'name': {
-      title = prompt.title;
-      const value = prompt.value;
+      title = prompt.title
+      const value = prompt.value
       const ok = () => {
         if (value.trim()) {
-          close();
-          prompt.onDone(value.trim());
+          close()
+          prompt.onDone(value.trim())
         }
-      };
+      }
       body = (
         <TextField
           testID="playlist-name"
@@ -567,31 +563,31 @@ export function PlaylistPrompt(props: {
           onKeyPress={e => e.nativeEvent.key === 'Escape' && close()}
           style={[styles.input, props.textStyle, t.input]}
         />
-      );
-      buttons = [button('Cancel', close), button('OK', ok, true)];
-      break;
+      )
+      buttons = [button('Cancel', close), button('OK', ok, true)]
+      break
     }
     case 'confirm':
-      title = prompt.title;
-      body = <Text style={[styles.body, fg]}>{prompt.body}</Text>;
+      title = prompt.title
+      body = <Text style={[styles.body, fg]}>{prompt.body}</Text>
       buttons = [
         button('Cancel', close),
         button(
           prompt.action,
           () => {
-            close();
-            prompt.onDone();
+            close()
+            prompt.onDone()
           },
           true,
         ),
-      ];
-      break;
+      ]
+      break
     case 'duplicates': {
-      const n = prompt.fileNames.length;
-      const all = prompt.already === n;
+      const n = prompt.fileNames.length
+      const all = prompt.already === n
       title = all
         ? `Already in ${prompt.playlistName}`
-        : `Some are already in ${prompt.playlistName}`;
+        : `Some are already in ${prompt.playlistName}`
       body = (
         <Text style={[styles.body, fg]}>
           {all
@@ -602,33 +598,33 @@ export function PlaylistPrompt(props: {
                 prompt.already === 1 ? 'is' : 'are'
               } already in the playlist.`}
         </Text>
-      );
+      )
       const add = (names: string[]) => {
-        close();
+        close()
         try {
           if (names.length) {
-            playlists.add(prompt.playlistId, names);
+            playlists.add(prompt.playlistId, names)
           }
           props.onMessage({
             text: `Added to ${prompt.playlistName}.`,
             isError: false,
-          });
+          })
         } catch (e) {
           props.onMessage({
             text: `Couldn't add to the playlist: ${errorText(e)}`,
             isError: true,
-          });
+          })
         }
-      };
-      const there = () => playlists.fileNamesIn(prompt.playlistId);
+      }
+      const there = () => playlists.fileNamesIn(prompt.playlistId)
       buttons = [
         button('Cancel', close),
         ...(all
           ? []
           : [
               button('Skip Them', () => {
-                const have = there();
-                add(prompt.fileNames.filter(f => !have.has(f)));
+                const have = there()
+                add(prompt.fileNames.filter(f => !have.has(f)))
               }),
             ]),
         button(
@@ -636,8 +632,8 @@ export function PlaylistPrompt(props: {
           () => add(prompt.fileNames),
           true,
         ),
-      ];
-      break;
+      ]
+      break
     }
   }
   return (
@@ -653,7 +649,7 @@ export function PlaylistPrompt(props: {
         <View style={styles.buttons}>{buttons}</View>
       </View>
     </View>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -710,4 +706,4 @@ const styles = StyleSheet.create({
   },
   buttonText: { fontSize: 12, fontWeight: '600' },
   accentText: { color: '#111' },
-});
+})

@@ -1,27 +1,27 @@
-import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React from 'react'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 
-import type { RecorderState } from './native/SoundScraper';
-import { colors } from './theme';
+import type { RecorderState } from './native/SoundScraper'
+import { colors } from './theme'
 
 type Props = {
-  state: RecorderState;
+  state: RecorderState
   /** Waiting for start to resolve (e.g. the permission prompt). */
-  starting: boolean;
-  elapsedMs: number;
+  starting: boolean
+  elapsedMs: number
   /** Linear peak level, 0..1. */
-  peak: number;
-  onRecord: () => void;
-  onPause: () => void;
-  onResume: () => void;
-  onStop: () => void;
-  textStyle: object;
-};
+  peak: number
+  onRecord: () => void
+  onPause: () => void
+  onResume: () => void
+  onStop: () => void
+  textStyle: object
+}
 
 /** Record / Pause / Resume / Stop with elapsed time and a level meter. */
 export function RecordBar(props: Props): React.JSX.Element {
-  const { state, starting, elapsedMs, peak, textStyle } = props;
-  const active = state === 'recording' || state === 'paused';
+  const { state, starting, elapsedMs, peak, textStyle } = props
+  const active = state === 'recording' || state === 'paused'
 
   return (
     <View style={styles.bar}>
@@ -68,15 +68,15 @@ export function RecordBar(props: Props): React.JSX.Element {
       </View>
       <Text style={[styles.state, textStyle]}>{stateLabel(state)}</Text>
     </View>
-  );
+  )
 }
 
 function Button(props: {
-  testID: string;
-  label: string;
-  onPress: () => void;
-  color: string;
-  disabled?: boolean;
+  testID: string
+  label: string
+  onPress: () => void
+  color: string
+  disabled?: boolean
 }) {
   return (
     <Pressable
@@ -91,42 +91,42 @@ function Button(props: {
     >
       <Text style={styles.buttonText}>{props.label}</Text>
     </Pressable>
-  );
+  )
 }
 
 export function formatElapsed(ms: number, tenths = true): string {
-  const total = Math.floor(ms / 100);
-  const seconds = Math.floor(total / 10) % 60;
-  const minutes = Math.floor(total / 600);
+  const total = Math.floor(ms / 100)
+  const seconds = Math.floor(total / 10) % 60
+  const minutes = Math.floor(total / 600)
   if (!tenths) {
     // MM:SS, like a clock (skins with flip-card digits).
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(
       2,
       '0',
-    )}`;
+    )}`
   }
-  return `${minutes}:${String(seconds).padStart(2, '0')}.${total % 10}`;
+  return `${minutes}:${String(seconds).padStart(2, '0')}.${total % 10}`
 }
 
 /** Maps a linear peak to a 0..1 meter position over a 60 dB range. */
 function meterScale(peak: number): number {
   if (peak <= 0) {
-    return 0;
+    return 0
   }
-  const db = 20 * Math.log10(peak);
-  return Math.max(0, (db + 60) / 60);
+  const db = 20 * Math.log10(peak)
+  return Math.max(0, (db + 60) / 60)
 }
 
 function stateLabel(state: RecorderState): string {
   switch (state) {
     case 'recording':
-      return 'Recording';
+      return 'Recording'
     case 'paused':
-      return 'Paused';
+      return 'Paused'
     case 'finalizing':
-      return 'Saving';
+      return 'Saving'
     default:
-      return 'Ready';
+      return 'Ready'
   }
 }
 
@@ -145,4 +145,4 @@ const styles = StyleSheet.create({
   },
   meterFill: { height: 8, backgroundColor: '#34a853' },
   state: { fontSize: 13, opacity: 0.7, minWidth: 64 },
-});
+})

@@ -1,44 +1,44 @@
 // "+ Add Recordings…" in a playlist: an in-panel sheet listing the library
 // with check boxes and search, to add recordings without leaving the
 // playlist.
-import React, { useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react'
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native'
 
-import { displayName, filterRecordings, formatDuration } from './libraryModel';
-import type { Recording } from './native/SoundScraper';
-import { usePanelStyles, usePanelTheme } from './panelTheme';
-import { colors } from './theme';
-import { TextField } from './TextField';
+import { displayName, filterRecordings, formatDuration } from './libraryModel'
+import type { Recording } from './native/SoundScraper'
+import { usePanelStyles, usePanelTheme } from './panelTheme'
+import { colors } from './theme'
+import { TextField } from './TextField'
 
 export function AddRecordingsSheet(props: {
-  playlistName: string;
-  recordings: Recording[];
+  playlistName: string
+  recordings: Recording[]
   /** File names already in the playlist (marked, still addable). */
-  already: Set<string>;
-  textStyle: object;
-  onCancel: () => void;
+  already: Set<string>
+  textStyle: object
+  onCancel: () => void
   /** In the order they were checked. */
-  onAdd: (fileNames: string[]) => void;
+  onAdd: (fileNames: string[]) => void
 }): React.JSX.Element {
-  const theme = usePanelTheme();
-  const t = usePanelStyles();
-  const [query, setQuery] = useState('');
-  const [picked, setPicked] = useState<string[]>([]);
+  const theme = usePanelTheme()
+  const t = usePanelStyles()
+  const [query, setQuery] = useState('')
+  const [picked, setPicked] = useState<string[]>([])
   const rows = useMemo(
     () => filterRecordings(props.recordings, query),
     [props.recordings, query],
-  );
-  const fg = { color: theme?.text ?? '#f3ead0' };
-  const dim = { color: (theme?.text ?? '#f3ead0') + '99' };
-  const accent = theme?.accent ?? colors.accent;
-  const border = theme?.border ?? colors.border;
+  )
+  const fg = { color: theme?.text ?? '#f3ead0' }
+  const dim = { color: (theme?.text ?? '#f3ead0') + '99' }
+  const accent = theme?.accent ?? colors.accent
+  const border = theme?.border ?? colors.border
   const toggle = (name: string) =>
     setPicked(p =>
       p.includes(name) ? p.filter(n => n !== name) : [...p, name],
-    );
+    )
   const ms = props.recordings
     .filter(r => picked.includes(r.fileName))
-    .reduce((sum, r) => sum + r.durationMs, 0);
+    .reduce((sum, r) => sum + r.durationMs, 0)
 
   return (
     <View style={styles.backdrop} testID="add-recordings">
@@ -79,7 +79,7 @@ export function AddRecordingsSheet(props: {
               </Text>
             }
             renderItem={({ item: r, index }) => {
-              const on = picked.includes(r.fileName);
+              const on = picked.includes(r.fileName)
               return (
                 <Pressable
                   testID={`add-${r.fileName}`}
@@ -108,7 +108,7 @@ export function AddRecordingsSheet(props: {
                     {formatDuration(r.durationMs)}
                   </Text>
                 </Pressable>
-              );
+              )
             }}
           />
         </View>
@@ -142,7 +142,7 @@ export function AddRecordingsSheet(props: {
         </View>
       </View>
     </View>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -194,4 +194,4 @@ const styles = StyleSheet.create({
   buttonText: { fontSize: 12, fontWeight: '600' },
   accentText: { color: '#111' },
   disabled: { opacity: 0.35 },
-});
+})

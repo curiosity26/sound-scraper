@@ -1,5 +1,5 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo, useRef, useState } from 'react'
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import {
   DEFAULT_SORT,
@@ -12,9 +12,9 @@ import {
   type Sort,
   type SortKey,
   sortRecordings,
-} from './libraryModel';
-import type { Recording } from './native/SoundScraper';
-import { usePanelStyles, usePanelTheme } from './panelTheme';
+} from './libraryModel'
+import type { Recording } from './native/SoundScraper'
+import { usePanelStyles, usePanelTheme } from './panelTheme'
 import {
   filterPlaylistRows,
   moveBy,
@@ -22,54 +22,54 @@ import {
   type PlaylistRow,
   rowName,
   sortPlaylistRows,
-} from './playlistModel';
-import { SkinScrollbar } from './skin/SkinScrollbar';
-import { colors } from './theme';
-import { TextField } from './TextField';
+} from './playlistModel'
+import { SkinScrollbar } from './skin/SkinScrollbar'
+import { colors } from './theme'
+import { TextField } from './TextField'
 
 /** A playlist shown in place of the whole library. */
 export type PlaylistView = {
-  rows: PlaylistRow[];
+  rows: PlaylistRow[]
   /** The row loaded for playback (a recording can appear twice). */
-  playingItemId: number | null;
+  playingItemId: number | null
   /** The row shown in the details panel. */
-  selectedItemId: number | null;
-  onSelectItem: (row: PlaylistRow) => void;
+  selectedItemId: number | null
+  onSelectItem: (row: PlaylistRow) => void
   /** The new order, every item id. */
-  onReorder: (itemIds: number[]) => void;
-  onRemove: (itemIds: number[]) => void;
+  onReorder: (itemIds: number[]) => void
+  onRemove: (itemIds: number[]) => void
   /** Index (in `rows`) of the first track past an 80-minute CD, or -1. */
-  firstOver: number;
-};
+  firstOver: number
+}
 
 type Props = {
-  recordings: Recording[];
+  recordings: Recording[]
   /** The row shown in the details panel. */
-  selected?: string;
+  selected?: string
   /** The recording loaded for playback (marked ▶). */
-  loaded?: string;
+  loaded?: string
   /** A row was clicked: show it in the details panel. */
-  onSelect: (fileName: string) => void;
+  onSelect: (fileName: string) => void
   /** Opens the details panel for these (checked) recordings. */
-  onEditTags: (fileNames: string[]) => void;
+  onEditTags: (fileNames: string[]) => void
   /**
    * Checked rows (multi-select for bulk tag edits): file names in the
    * library, `#<item id>` in a playlist (see rowKey).
    */
-  checked: Set<string>;
-  onCheckedChange: (checked: Set<string>) => void;
-  textStyle: object;
-  isDark: boolean;
+  checked: Set<string>
+  onCheckedChange: (checked: Set<string>) => void
+  textStyle: object
+  isDark: boolean
   /** In a skinned panel: no heading or top margin (the title shows the count). */
-  compact?: boolean;
+  compact?: boolean
   /** Shows a playlist instead of the library. */
-  playlist?: PlaylistView;
+  playlist?: PlaylistView
   /** Leading toolbar content (the playlist picker). */
-  toolbarStart?: React.ReactNode;
+  toolbarStart?: React.ReactNode
   /** Toolbar actions shown while rows are checked ("Add to ▾"). */
-  checkedActions?: React.ReactNode;
+  checkedActions?: React.ReactNode
   /** Under the table (the CD capacity bar). */
-  footer?: React.ReactNode;
+  footer?: React.ReactNode
   /**
    * A row was right-clicked at (x, y) in the window: its file name, and its
    * item id in a playlist.
@@ -78,8 +78,8 @@ type Props = {
     target: { fileName: string; itemId?: number; key: string },
     x: number,
     y: number,
-  ) => void;
-};
+  ) => void
+}
 
 /** Columns that fit a table `width` points wide (0 = not measured yet). */
 export function visibleColumns(width: number): SortKey[] {
@@ -87,7 +87,7 @@ export function visibleColumns(width: number): SortKey[] {
     key =>
       width === 0 ||
       (key === 'artist' ? width >= 620 : key === 'size' ? width >= 470 : true),
-  );
+  )
 }
 
 const COLUMNS: { key: SortKey; label: string; flex: number }[] = [
@@ -96,59 +96,59 @@ const COLUMNS: { key: SortKey; label: string; flex: number }[] = [
   { key: 'date', label: 'Date recorded', flex: 2 },
   { key: 'size', label: 'Size', flex: 1 },
   { key: 'artist', label: 'Artist / Album', flex: 2 },
-];
+]
 
 /** The key a row is checked under. */
 export function rowKey(row: Row): string {
-  return row.itemId === undefined ? row.fileName : `#${row.itemId}`;
+  return row.itemId === undefined ? row.fileName : `#${row.itemId}`
 }
 
 type Row = {
-  fileName: string;
+  fileName: string
   /** Missing from the library (a playlist row whose file is gone). */
-  recording?: Recording;
-  itemId?: number;
-  position?: number;
-  name: string;
+  recording?: Recording
+  itemId?: number
+  position?: number
+  name: string
   /** Index in the playlist's own order. */
-  index?: number;
-};
+  index?: number
+}
 
 /** What the row needs from a press or pointer event's native event. */
-type MouseLike = { button?: number; pageX?: number; pageY?: number };
+type MouseLike = { button?: number; pageX?: number; pageY?: number }
 
-const SORT_POSITION: Sort = { key: 'position', ascending: true };
+const SORT_POSITION: Sort = { key: 'position', ascending: true }
 
 /** Presses this close to the list's left edge grab a row's ≡ handle. */
-const HANDLE_HIT = 28;
+const HANDLE_HIT = 28
 
 /**
  * Recordings with sort, search, inline rename, Show in Finder and Trash; or
  * a playlist's rows, in its order, with drag handles to reorder them.
  */
 export function LibraryTable(props: Props): React.JSX.Element {
-  const { recordings, textStyle, isDark, playlist } = props;
-  const t = usePanelStyles();
-  const theme = usePanelTheme();
-  const scrollbar = theme?.scrollbar;
-  const pc = theme?.playlist ?? {};
-  const list = useRef<FlatList<Row>>(null);
-  const [scroll, setScroll] = useState({ viewport: 0, content: 0, offset: 0 });
-  const [width, setWidth] = useState(0);
-  const shown = visibleColumns(width);
-  const [query, setQuery] = useState('');
-  const [librarySort, setLibrarySort] = useState<Sort>(DEFAULT_SORT);
-  const [playlistSort, setPlaylistSort] = useState<Sort>(SORT_POSITION);
-  const sort = playlist ? playlistSort : librarySort;
-  const setSort = playlist ? setPlaylistSort : setLibrarySort;
-  const { selected } = props;
+  const { recordings, textStyle, isDark, playlist } = props
+  const t = usePanelStyles()
+  const theme = usePanelTheme()
+  const scrollbar = theme?.scrollbar
+  const pc = theme?.playlist ?? {}
+  const list = useRef<FlatList<Row>>(null)
+  const [scroll, setScroll] = useState({ viewport: 0, content: 0, offset: 0 })
+  const [width, setWidth] = useState(0)
+  const shown = visibleColumns(width)
+  const [query, setQuery] = useState('')
+  const [librarySort, setLibrarySort] = useState<Sort>(DEFAULT_SORT)
+  const [playlistSort, setPlaylistSort] = useState<Sort>(SORT_POSITION)
+  const sort = playlist ? playlistSort : librarySort
+  const setSort = playlist ? setPlaylistSort : setLibrarySort
+  const { selected } = props
 
   const rows: Row[] = useMemo(() => {
     if (playlist) {
       const sorted = sortPlaylistRows(
         filterPlaylistRows(playlist.rows, query),
         sort,
-      );
+      )
       return sorted.map(r => ({
         fileName: r.item.fileName,
         recording: r.recording,
@@ -156,135 +156,135 @@ export function LibraryTable(props: Props): React.JSX.Element {
         position: r.position,
         name: rowName(r),
         index: r.position - 1,
-      }));
+      }))
     }
     return sortRecordings(filterRecordings(recordings, query), sort).map(r => ({
       fileName: r.fileName,
       recording: r,
       name: displayName(r),
-    }));
-  }, [recordings, playlist, query, sort]);
+    }))
+  }, [recordings, playlist, query, sort])
 
-  const total = playlist ? playlist.rows.length : recordings.length;
-  const { checked, onCheckedChange } = props;
-  const allChecked = rows.length > 0 && rows.every(r => checked.has(rowKey(r)));
+  const total = playlist ? playlist.rows.length : recordings.length
+  const { checked, onCheckedChange } = props
+  const allChecked = rows.length > 0 && rows.every(r => checked.has(rowKey(r)))
   const toggle = (key: string) => {
-    const next = new Set(checked);
+    const next = new Set(checked)
     if (next.has(key)) {
-      next.delete(key);
+      next.delete(key)
     } else {
-      next.add(key);
+      next.add(key)
     }
-    onCheckedChange(next);
-  };
+    onCheckedChange(next)
+  }
   const toggleAll = () =>
-    onCheckedChange(allChecked ? new Set() : new Set(rows.map(rowKey)));
-  const checkedRows = rows.filter(r => checked.has(rowKey(r)));
+    onCheckedChange(allChecked ? new Set() : new Set(rows.map(rowKey)))
+  const checkedRows = rows.filter(r => checked.has(rowKey(r)))
   const checkedNames = [
     ...new Set(checkedRows.filter(r => r.recording).map(r => r.fileName)),
-  ];
+  ]
 
   // Reordering: only in the playlist's own order, unfiltered.
   const canReorder =
     playlist !== undefined &&
     sort.key === 'position' &&
     sort.ascending &&
-    query.trim() === '';
-  const order = playlist?.rows.map(r => r.item.id) ?? [];
+    query.trim() === ''
+  const order = playlist?.rows.map(r => r.item.id) ?? []
   const checkedItemIds = checkedRows
     .map(r => r.itemId)
-    .filter((id): id is number => id !== undefined);
+    .filter((id): id is number => id !== undefined)
 
   // Dragging a row by its handle: the rows move together (all checked rows,
   // if the dragged one is checked), landing before `drag.target`. The list
   // box captures presses in the handle column (before the scroll view and
   // the row see them), and works out the row from where the press was.
-  const rowHeight = useRef(0);
-  const box = useRef<View>(null);
-  const boxAt = useRef({ x: 0, y: 0 });
+  const rowHeight = useRef(0)
+  const box = useRef<View>(null)
+  const boxAt = useRef({ x: 0, y: 0 })
   const [drag, setDragState] = useState<{
-    ids: number[];
-    from: number;
-    target: number;
-  } | null>(null);
-  const dragRef = useRef(drag);
+    ids: number[]
+    from: number
+    target: number
+  } | null>(null)
+  const dragRef = useRef(drag)
   const setDrag = (d: typeof drag) => {
-    dragRef.current = d;
-    setDragState(d);
-  };
-  const dragStart = useRef(0);
+    dragRef.current = d
+    setDragState(d)
+  }
+  const dragStart = useRef(0)
   const measureBox = () =>
     box.current?.measure((_x, _y, _w, _h, pageX, pageY) => {
-      boxAt.current = { x: pageX, y: pageY };
-    });
+      boxAt.current = { x: pageX, y: pageY }
+    })
   const inHandle = (pageX: number) =>
-    canReorder && pageX - boxAt.current.x < HANDLE_HIT;
+    canReorder && pageX - boxAt.current.x < HANDLE_HIT
   const rowAt = (pageY: number): Row | undefined => {
     if (rowHeight.current <= 0) {
-      return undefined;
+      return undefined
     }
     const i = Math.floor(
       (pageY - boxAt.current.y + scroll.offset) / rowHeight.current,
-    );
-    return rows[i];
-  };
+    )
+    return rows[i]
+  }
   const beginDrag = (pageY: number) => {
-    const row = rowAt(pageY);
+    const row = rowAt(pageY)
     if (!row || row.itemId === undefined || row.index === undefined) {
-      return;
+      return
     }
-    const key = rowKey(row);
+    const key = rowKey(row)
     const ids =
       checked.has(key) && checkedItemIds.length > 0
         ? checkedItemIds
-        : [row.itemId];
-    dragStart.current = pageY;
-    setDrag({ ids, from: row.index, target: row.index });
-  };
+        : [row.itemId]
+    dragStart.current = pageY
+    setDrag({ ids, from: row.index, target: row.index })
+  }
   const moveDrag = (pageY: number) => {
-    const d = dragRef.current;
+    const d = dragRef.current
     if (!d || rowHeight.current <= 0) {
-      return;
+      return
     }
-    const delta = (pageY - dragStart.current) / rowHeight.current;
+    const delta = (pageY - dragStart.current) / rowHeight.current
     // Moving down lands after the row under the pointer.
-    const raw = d.from + Math.round(delta) + (delta > 0 ? 1 : 0);
-    const target = Math.max(0, Math.min(order.length, raw));
+    const raw = d.from + Math.round(delta) + (delta > 0 ? 1 : 0)
+    const target = Math.max(0, Math.min(order.length, raw))
     if (target !== d.target) {
-      setDrag({ ...d, target });
+      setDrag({ ...d, target })
     }
-  };
+  }
   const endDrag = () => {
-    const d = dragRef.current;
+    const d = dragRef.current
     if (d && playlist) {
-      const next = moveItems(order, d.ids, d.target);
+      const next = moveItems(order, d.ids, d.target)
       if (next.some((id, i) => id !== order[i])) {
-        playlist.onReorder(next);
+        playlist.onReorder(next)
       }
     }
-    setDrag(null);
-  };
+    setDrag(null)
+  }
 
   // Right-click: the same menu as the details panel's gear. Both the press
   // and (on Windows) the pointer event may report it; show the menu once.
-  const lastMenu = useRef(0);
+  const lastMenu = useRef(0)
   const rightClick = (row: Row, e: MouseLike) => {
     if (e.button !== 2 || !props.onContextMenu) {
-      return;
+      return
     }
     if (Date.now() - lastMenu.current < 600) {
-      return;
+      return
     }
-    lastMenu.current = Date.now();
+    lastMenu.current = Date.now()
     props.onContextMenu(
       { fileName: row.fileName, itemId: row.itemId, key: rowKey(row) },
       e.pageX ?? 0,
       e.pageY ?? 0,
-    );
-  };
+    )
+  }
 
-  const columns = COLUMNS.filter(c => shown.includes(c.key));
-  const accent = theme?.accent ?? colors.accent;
+  const columns = COLUMNS.filter(c => shown.includes(c.key))
+  const accent = theme?.accent ?? colors.accent
 
   return (
     <View
@@ -318,8 +318,8 @@ export function LibraryTable(props: Props): React.JSX.Element {
               <Pressable
                 testID="playlist-remove"
                 onPress={() => {
-                  playlist.onRemove(checkedItemIds);
-                  onCheckedChange(new Set());
+                  playlist.onRemove(checkedItemIds)
+                  onCheckedChange(new Set())
                 }}
               >
                 <Text style={[styles.toolbarLink, t.link, t.cell]}>Remove</Text>
@@ -405,16 +405,16 @@ export function LibraryTable(props: Props): React.JSX.Element {
         ref={box}
         style={[styles.listBox, t.table]}
         onLayout={e => {
-          const viewport = e.nativeEvent.layout.height;
-          setScroll(v => ({ ...v, viewport }));
-          measureBox();
+          const viewport = e.nativeEvent.layout.height
+          setScroll(v => ({ ...v, viewport }))
+          measureBox()
         }}
         onStartShouldSetResponderCapture={e => {
-          measureBox();
+          measureBox()
           return (
             inHandle(e.nativeEvent.pageX) &&
             rowAt(e.nativeEvent.pageY) !== undefined
-          );
+          )
         }}
         onResponderTerminationRequest={() => false}
         onResponderGrant={e => beginDrag(e.nativeEvent.pageY)}
@@ -432,8 +432,8 @@ export function LibraryTable(props: Props): React.JSX.Element {
             setScroll(v => ({ ...v, content }))
           }
           onScroll={e => {
-            const offset = e.nativeEvent.contentOffset.y;
-            setScroll(v => ({ ...v, offset }));
+            const offset = e.nativeEvent.contentOffset.y
+            setScroll(v => ({ ...v, offset }))
           }}
           scrollEventThrottle={16}
           keyExtractor={rowKey}
@@ -449,20 +449,20 @@ export function LibraryTable(props: Props): React.JSX.Element {
             </Text>
           }
           renderItem={({ item: row, index }) => {
-            const r = row.recording;
+            const r = row.recording
             const isSelected = playlist
               ? row.itemId === playlist.selectedItemId
-              : row.fileName === selected;
+              : row.fileName === selected
             const isLoaded = playlist
               ? row.itemId === playlist.playingItemId ||
                 (playlist.playingItemId === null &&
                   row.fileName === props.loaded)
-              : row.fileName === props.loaded;
+              : row.fileName === props.loaded
             const isOver =
               playlist !== undefined &&
               playlist.firstOver >= 0 &&
               row.index !== undefined &&
-              row.index >= playlist.firstOver;
+              row.index >= playlist.firstOver
             const cellText = [
               t.cell,
               textStyle,
@@ -472,15 +472,15 @@ export function LibraryTable(props: Props): React.JSX.Element {
                 color: pc.missing ?? '#888',
                 fontStyle: 'italic' as const,
               },
-            ];
-            const key = rowKey(row);
+            ]
+            const key = rowKey(row)
             return (
               <Pressable
                 testID={`recording-${key}`}
                 onLayout={
                   index === 0
                     ? e => {
-                        rowHeight.current = e.nativeEvent.layout.height;
+                        rowHeight.current = e.nativeEvent.layout.height
                       }
                     : undefined
                 }
@@ -493,10 +493,10 @@ export function LibraryTable(props: Props): React.JSX.Element {
                   // in the row's own coordinates.
                   onAuxClick: (e: {
                     nativeEvent: {
-                      button?: number;
-                      clientX?: number;
-                      clientY?: number;
-                    };
+                      button?: number
+                      clientX?: number
+                      clientY?: number
+                    }
                   }) =>
                     rightClick(row, {
                       button: e.nativeEvent.button ?? 2,
@@ -510,15 +510,15 @@ export function LibraryTable(props: Props): React.JSX.Element {
                 }}
                 onPress={() => {
                   if (!r || Date.now() - lastMenu.current < 600) {
-                    return;
+                    return
                   }
                   if (playlist) {
                     const source = playlist.rows.find(
                       p => p.item.id === row.itemId,
-                    );
-                    source && playlist.onSelectItem(source);
+                    )
+                    source && playlist.onSelectItem(source)
                   } else {
-                    props.onSelect(row.fileName);
+                    props.onSelect(row.fileName)
                   }
                 }}
                 style={[
@@ -612,7 +612,7 @@ export function LibraryTable(props: Props): React.JSX.Element {
                   </Text>
                 )}
               </Pressable>
-            );
+            )
           }}
         />
         {drag && rowHeight.current > 0 && (
@@ -641,7 +641,7 @@ export function LibraryTable(props: Props): React.JSX.Element {
       </View>
       {props.footer}
     </View>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -706,4 +706,4 @@ const styles = StyleSheet.create({
   empty: { padding: 16, opacity: 0.6, fontSize: 13 },
   listBox: { flex: 1 },
   rootCompact: { marginTop: 0 },
-});
+})

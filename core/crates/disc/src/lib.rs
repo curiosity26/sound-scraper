@@ -272,9 +272,13 @@ pub fn drives() -> Vec<Device> {
 /// The OS burner for a drive from `drives()`.
 pub fn drive_burner(id: &str) -> Option<Box<dyn Burner>> {
     #[cfg(target_os = "macos")]
-    return Some(Box::new(macos::DiscRecordingBurner { device_id: id.to_string() }));
+    return Some(Box::new(macos::DiscRecordingBurner {
+        device_id: id.to_string(),
+    }));
     #[cfg(target_os = "windows")]
-    return Some(Box::new(windows::ImapiBurner { device_id: id.to_string() }));
+    return Some(Box::new(windows::ImapiBurner {
+        device_id: id.to_string(),
+    }));
     #[allow(unreachable_code)]
     {
         let _ = id;

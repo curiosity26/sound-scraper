@@ -1,20 +1,20 @@
 // Layout here comes from skin data (rects, sizes), so styles are inline.
 /* eslint-disable react-native/no-inline-styles */
-import React, { useRef } from 'react';
-import { type GestureResponderEvent, View } from 'react-native';
+import React, { useRef } from 'react'
+import { type GestureResponderEvent, View } from 'react-native'
 
-import { NineSlice } from './NineSlice';
-import { useSkinScale } from './SkinImage';
-import type { FramePanel } from './types';
+import { NineSlice } from './NineSlice'
+import { useSkinScale } from './SkinImage'
+import type { FramePanel } from './types'
 
 type Props = {
-  scrollbar: NonNullable<FramePanel['scrollbar']>;
+  scrollbar: NonNullable<FramePanel['scrollbar']>
   /** Visible height, content height and scroll offset, in points. */
-  viewport: number;
-  content: number;
-  offset: number;
-  onScrollTo: (offset: number) => void;
-};
+  viewport: number
+  content: number
+  offset: number
+  onScrollTo: (offset: number) => void
+}
 
 /** Where the thumb goes: [top, length] in a track `track` points long. */
 export function thumbGeometry(
@@ -25,12 +25,12 @@ export function thumbGeometry(
   minLength: number,
 ): [number, number] {
   if (content <= viewport || track <= 0) {
-    return [0, track];
+    return [0, track]
   }
-  const length = Math.max(minLength, (track * viewport) / content);
-  const travel = track - length;
-  const ratio = Math.min(1, Math.max(0, offset / (content - viewport)));
-  return [travel * ratio, length];
+  const length = Math.max(minLength, (track * viewport) / content)
+  const travel = track - length
+  const ratio = Math.min(1, Math.max(0, offset / (content - viewport)))
+  return [travel * ratio, length]
 }
 
 /**
@@ -38,41 +38,41 @@ export function thumbGeometry(
  * own indicator is hidden. Drag the thumb, or click the track to jump.
  */
 export function SkinScrollbar(props: Props): React.JSX.Element | null {
-  const { scrollbar, viewport, content, offset } = props;
-  const s = useSkinScale();
-  const width = scrollbar.track[2] * s;
-  const minThumb = scrollbar.thumb[3] * s * 0.6;
+  const { scrollbar, viewport, content, offset } = props
+  const s = useSkinScale()
+  const width = scrollbar.track[2] * s
+  const minThumb = scrollbar.thumb[3] * s * 0.6
   const [top, length] = thumbGeometry(
     viewport,
     viewport,
     content,
     offset,
     minThumb,
-  );
-  const grab = useRef(0);
+  )
+  const grab = useRef(0)
   if (content <= viewport) {
-    return null;
+    return null
   }
-  const travel = viewport - length;
+  const travel = viewport - length
   const scrollFor = (thumbTop: number) =>
     travel > 0
       ? (Math.min(travel, Math.max(0, thumbTop)) / travel) *
         (content - viewport)
-      : 0;
+      : 0
 
   const onGrant = (e: GestureResponderEvent) => {
-    const y = e.nativeEvent.locationY;
+    const y = e.nativeEvent.locationY
     if (y >= top && y <= top + length) {
-      grab.current = y - top;
+      grab.current = y - top
     } else {
-      grab.current = length / 2;
-      props.onScrollTo(scrollFor(y - grab.current));
+      grab.current = length / 2
+      props.onScrollTo(scrollFor(y - grab.current))
     }
-  };
+  }
   const onMove = (e: GestureResponderEvent) =>
-    props.onScrollTo(scrollFor(e.nativeEvent.locationY - grab.current));
+    props.onScrollTo(scrollFor(e.nativeEvent.locationY - grab.current))
 
-  const thumbSlice = scrollbar.thumbSlice ?? [0, 0, 0, 0];
+  const thumbSlice = scrollbar.thumbSlice ?? [0, 0, 0, 0]
   return (
     <View
       testID="skin-scrollbar"
@@ -110,5 +110,5 @@ export function SkinScrollbar(props: Props): React.JSX.Element | null {
         />
       </View>
     </View>
-  );
+  )
 }

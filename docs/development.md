@@ -128,6 +128,24 @@ cargo build            # also regenerates include/sound_scraper.h
 
 Commit the regenerated header together with changes to `ffi.rs`.
 
+## Code style
+
+The Lint workflow runs these on every pull request; run them before pushing.
+
+```sh
+cd app
+npm run lint           # ESLint (@react-native) + Prettier, no semicolons
+npm run format         # fix lint and formatting in place
+npm run typecheck
+
+cd core
+cargo fmt --all
+cargo clippy --workspace --all-targets -- -D warnings
+```
+
+Clippy runs on Linux (needs `libasound2-dev`), macOS and Windows in CI,
+because the capture backends only compile on their own OS.
+
 ## macOS
 
 Requirements: Xcode 16+ (tested with 26.6), CocoaPods, Rust via rustup with the Apple targets:

@@ -92,7 +92,14 @@ impl Analyzer {
                 }
             })
             .ok();
-        (Self { running, thread, hub }, Tap { producer })
+        (
+            Self {
+                running,
+                thread,
+                hub,
+            },
+            Tap { producer },
+        )
     }
 }
 
@@ -130,7 +137,9 @@ impl State {
         let fft = RealFftPlanner::<f32>::new().plan_fft_forward(WINDOW);
         let spectrum = fft.make_output_vec();
         let window = (0..WINDOW)
-            .map(|i| 0.5 - 0.5 * (2.0 * std::f32::consts::PI * i as f32 / (WINDOW - 1) as f32).cos())
+            .map(|i| {
+                0.5 - 0.5 * (2.0 * std::f32::consts::PI * i as f32 / (WINDOW - 1) as f32).cos()
+            })
             .collect();
         Self {
             history: vec![0.0; WINDOW],
@@ -202,25 +211,38 @@ impl State {
         self.count = 0;
 
         // Waveform.
-        f.waveform.copy_from_slice(&self.history[WINDOW - WAVEFORM..]);
+        f.waveform
+            .copy_from_slice(&self.history[WINDOW - WAVEFORM..]);
 
         // Spectrum.
         for (i, s) in self.scratch_in.iter_mut().enumerate() {
             *s = self.history[i] * self.window[i];
         }
-        if self.fft.process(&mut self.scratch_in, &mut self.spectrum).is_err() {
+        if self
+            .fft
+            .process(&mut self.scratch_in, &mut self.spectrum)
+            .is_err()
+        {
             return;
         }
         // A full-scale sine gives |X| = N/4 with a Hann window.
         let scale = 4.0 / WINDOW as f32;
         let mut flux = 0.0;
         for (b, &(start, end)) in self.band_bins.iter().enumerate() {
-            let mag = self.spectrum[start..end].iter().map(|c| c.norm()).fold(0.0f32, f32::max) * scale;
+            let mag = self.spectrum[start..end]
+                .iter()
+                .map(|c| c.norm())
+                .fold(0.0f32, f32::max)
+                * scale;
             let db = 20.0 * mag.max(1e-9).log10();
             let level = ((db - FLOOR_DB) / -FLOOR_DB).clamp(0.0, 1.0);
             let previous = f.bands[b];
             flux += (level - previous).max(0.0);
-            f.bands[b] = if level >= previous { level } else { (previous - BAND_FALL * dt).max(level) };
+            f.bands[b] = if level >= previous {
+                level
+            } else {
+                (previous - BAND_FALL * dt).max(level)
+            };
             if f.bands[b] >= f.band_peaks[b] {
                 f.band_peaks[b] = f.bands[b];
                 self.peak_times[b] = now;
@@ -230,8 +252,14 @@ impl State {
         }
 
         // Onset: flux well above its recent average.
-        let ratio = if self.flux_avg > 1e-4 { flux / self.flux_avg } else { 0.0 };
-        f.onset = ((ratio - 1.3) / 1.7).clamp(0.0, 1.0).max(f.onset - 4.0 * dt);
+        let ratio = if self.flux_avg > 1e-4 {
+            flux / self.flux_avg
+        } else {
+            0.0
+        };
+        f.onset = ((ratio - 1.3) / 1.7)
+            .clamp(0.0, 1.0)
+            .max(f.onset - 4.0 * dt);
         self.flux_avg = self.flux_avg * 0.9 + flux * 0.1;
     }
 }
@@ -247,7 +275,9 @@ fn band_bins(sample_rate: u32) -> Vec<(usize, usize)> {
     for b in 0..BANDS {
         let lo = LOW_HZ * (high / LOW_HZ).powf(b as f32 / BANDS as f32);
         let hi = LOW_HZ * (high / LOW_HZ).powf((b + 1) as f32 / BANDS as f32);
-        let start = ((lo / bin_hz).floor() as usize).max(last_end.min(max_bin - 1)).max(1);
+        let start = ((lo / bin_hz).floor() as usize)
+            .max(last_end.min(max_bin - 1))
+            .max(1);
         let end = ((hi / bin_hz).ceil() as usize).max(start + 1).min(max_bin);
         bins.push((start, end));
         last_end = end;
@@ -262,14 +292,20 @@ mod tests {
     fn sine(freq: f32, rate: u32, frames: usize, amp: f32, phase0: usize) -> Vec<f32> {
         (0..frames)
             .flat_map(|i| {
-                let s = amp * (2.0 * std::f32::consts::PI * freq * (i + phase0) as f32 / rate as f32).sin();
+                let s = amp
+                    * (2.0 * std::f32::consts::PI * freq * (i + phase0) as f32 / rate as f32).sin();
                 [s, s * 0.5]
             })
             .collect()
     }
 
     fn loudest_band(f: &Frame) -> usize {
-        f.bands.iter().enumerate().max_by(|a, b| a.1.total_cmp(b.1)).unwrap().0
+        f.bands
+            .iter()
+            .enumerate()
+            .max_by(|a, b| a.1.total_cmp(b.1))
+            .unwrap()
+            .0
     }
 
     #[test]
@@ -281,10 +317,17 @@ mod tests {
         let band = loudest_band(f);
         let (start, end) = band_bins(48_000)[band];
         let bin_hz = 48_000.0 / WINDOW as f32;
-        assert!((start as f32 * bin_hz) <= 1100.0 && (end as f32 * bin_hz) >= 900.0, "band {band}: {start}..{end}");
+        assert!(
+            (start as f32 * bin_hz) <= 1100.0 && (end as f32 * bin_hz) >= 900.0,
+            "band {band}: {start}..{end}"
+        );
         assert!(f.bands[band] > 0.8, "{}", f.bands[band]);
         assert!(f.bands[0] < 0.3, "low band stays dark: {}", f.bands[0]);
-        assert!((f.peak[0] - 0.5).abs() < 0.01 && (f.peak[1] - 0.25).abs() < 0.01, "{:?}", f.peak);
+        assert!(
+            (f.peak[0] - 0.5).abs() < 0.01 && (f.peak[1] - 0.25).abs() < 0.01,
+            "{:?}",
+            f.peak
+        );
         assert!((f.rms[0] - 0.5 / 2f32.sqrt()).abs() < 0.01, "{:?}", f.rms);
         assert!(f.waveform.iter().any(|s| s.abs() > 0.3));
     }
@@ -309,7 +352,11 @@ mod tests {
         s.push(&sine(440.0, 48_000, 480, 0.8, 0));
         s.analyze(t0 + Duration::from_millis(717));
         s.analyze(t0 + Duration::from_millis(734));
-        assert!(s.frame.peak[0] > 0.5 && s.frame.peak[0] < 0.8, "{:?}", s.frame.peak);
+        assert!(
+            s.frame.peak[0] > 0.5 && s.frame.peak[0] < 0.8,
+            "{:?}",
+            s.frame.peak
+        );
     }
 
     #[test]
@@ -321,7 +368,9 @@ mod tests {
             s.analyze(t0 + TICK * i as u32);
         }
         assert!(s.frame.onset < 0.2);
-        let noise: Vec<f32> = (0..1600).map(|i| if i % 3 == 0 { 0.9 } else { -0.7 }).collect();
+        let noise: Vec<f32> = (0..1600)
+            .map(|i| if i % 3 == 0 { 0.9 } else { -0.7 })
+            .collect();
         s.push(&noise);
         s.analyze(t0 + TICK * 21);
         assert!(s.frame.onset > 0.5, "{}", s.frame.onset);
