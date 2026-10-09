@@ -60,7 +60,7 @@ impl SilenceTrimmer {
     /// Takes a chunk; appends what should be encoded now to `out`.
     pub fn push(&mut self, stereo: &[f32], out: &mut Vec<f32>) {
         let audible = |f: &[f32]| f.iter().any(|s| s.abs() > THRESHOLD);
-        let frames: Vec<&[f32]> = stereo.chunks_exact(2).collect();
+        let frames: Vec<&[f32]> = stereo.as_chunks::<2>().0.iter().map(|f| &f[..]).collect();
         let Some(first) = frames.iter().position(|f| audible(f)) else {
             self.hold(stereo);
             return;

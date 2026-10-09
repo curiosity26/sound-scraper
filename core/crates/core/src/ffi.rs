@@ -2162,7 +2162,7 @@ mod tests {
         let mut buf = vec![0u8; 16 * 8 * 4];
         assert!(!unsafe { ss_vis_render(vis, 16, 8, 1.0, buf.as_mut_ptr(), buf.len()) });
         assert!(
-            buf.chunks_exact(4).any(|p| p == [0, 255, 0, 255]),
+            buf.as_chunks::<4>().0.contains(&[0, 255, 0, 255]),
             "idle line drawn"
         );
         assert!(!unsafe { ss_vis_render(vis, 16, 8, 1.0, buf.as_mut_ptr(), 10) });

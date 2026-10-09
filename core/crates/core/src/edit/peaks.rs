@@ -51,7 +51,7 @@ impl Peaks {
             if cancel.load(Ordering::Relaxed) {
                 return Err("cancelled".into());
             }
-            for f in buf.chunks_exact(2) {
+            for f in buf.as_chunks::<2>().0 {
                 lo = lo.min(f[0]).min(f[1]);
                 hi = hi.max(f[0]).max(f[1]);
                 sq += (f64::from(f[0]) * f64::from(f[0]) + f64::from(f[1]) * f64::from(f[1])) / 2.0;

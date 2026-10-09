@@ -176,10 +176,11 @@ impl State {
         let frames = samples.len() / 2;
         let keep = frames.min(WINDOW);
         self.history.drain(..keep);
-        for pair in samples.chunks_exact(2).skip(frames - keep) {
-            self.history.push((pair[0] + pair[1]) * 0.5);
+        let (pairs, _) = samples.as_chunks::<2>();
+        for [l, r] in pairs.iter().skip(frames - keep) {
+            self.history.push((l + r) * 0.5);
         }
-        for pair in samples.chunks_exact(2) {
+        for pair in pairs {
             for (ch, &s) in pair.iter().enumerate() {
                 self.peak[ch] = self.peak[ch].max(s.abs());
                 self.sum_sq[ch] += f64::from(s * s);

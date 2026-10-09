@@ -205,7 +205,7 @@ impl Editor {
     ) -> bool {
         let style = self.apply_style(style_json);
         let (w, h) = (width as usize, height as usize);
-        for px in rgba.chunks_exact_mut(4) {
+        for px in rgba.as_chunks_mut::<4>().0 {
             px.copy_from_slice(&premultiply(style.background));
         }
         let mid = h / 2;
@@ -332,7 +332,7 @@ fn sample_range(first: u64, samples: &[f32], a: f64, b: f64) -> Option<(f32, f32
         return None;
     }
     let (mut lo, mut hi, mut sq) = (f32::MAX, f32::MIN, 0f64);
-    for f in samples[i * 2..j * 2].chunks_exact(2) {
+    for f in samples[i * 2..j * 2].as_chunks::<2>().0 {
         lo = lo.min(f[0]).min(f[1]);
         hi = hi.max(f[0]).max(f[1]);
         sq += (f64::from(f[0]).powi(2) + f64::from(f[1]).powi(2)) / 2.0;

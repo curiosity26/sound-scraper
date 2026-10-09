@@ -540,7 +540,10 @@ where
                     stereo.extend_from_slice(a);
                     stereo.extend_from_slice(b);
                     chunk.commit_all();
-                    for (out, lr) in data.chunks_exact_mut(channels).zip(stereo.chunks_exact(2)) {
+                    for (out, lr) in data
+                        .chunks_exact_mut(channels)
+                        .zip(stereo.as_chunks::<2>().0)
+                    {
                         if channels == 1 {
                             out[0] = T::from_sample((lr[0] + lr[1]) * 0.5);
                         } else {
@@ -890,7 +893,7 @@ impl Stereo {
     /// Consumes `input` (interleaved) and appends resampled frames to `out`;
     /// `flush` pushes out the remainder at the end of the file.
     pub(crate) fn process(&mut self, input: &mut Vec<f32>, out: &mut Vec<f32>, flush: bool) {
-        for lr in input.chunks_exact(2) {
+        for lr in input.as_chunks::<2>().0 {
             self.input[0].push(lr[0]);
             self.input[1].push(lr[1]);
         }

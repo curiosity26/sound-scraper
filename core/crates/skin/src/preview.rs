@@ -133,7 +133,7 @@ pub fn visualize(preset: &Value, w: u32, h: u32, scale: u32) -> RgbaImage {
     renderer.render(Some(&frame), w, h, scale as f32, &mut buf);
     renderer.render(Some(&frame), w, h, scale as f32, &mut buf);
     // Premultiplied → straight alpha.
-    for px in buf.chunks_exact_mut(4) {
+    for px in buf.as_chunks_mut::<4>().0 {
         let a = px[3] as u32;
         if a > 0 && a < 255 {
             for c in &mut px[..3] {

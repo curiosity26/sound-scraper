@@ -466,7 +466,7 @@ mod tests {
     }
 
     fn lit(buf: &[u8]) -> usize {
-        buf.chunks_exact(4).filter(|p| p[3] > 0).count()
+        buf.as_chunks::<4>().0.iter().filter(|p| p[3] > 0).count()
     }
 
     #[test]
