@@ -88,7 +88,9 @@ Without a CD writer, the button reads **Save CD Image…** and writes the playli
 
 ## Skins
 
-The whole player is skinnable. Open **SETTINGS** › **Skin** to switch skins, **Install skin…** to add a `.sskin` file, or **New skin from template…** to start your own. Skins you leave out a part of fall back to the Default skin.
+The whole player is skinnable. Open **SETTINGS** › **Skin** to switch skins, **Install skin…** to add a `.sskin` file, or **New skin from template…** to start your own. You can also double-click a `.sskin` file, or drop it on any Sound Scraper window, to install it. Anything a skin leaves out falls back to the Default skin.
+
+<img src="docs/images/skins.png" alt="Settings, Skin tab: the Default and Hi-Fi '74 skins" width="360">
 
 - Drag a panel by its title bar. Panels snap to each other and dock; dragging the main panel moves everything docked to it (hold Option on macOS to drag freely).
 - Double-click the title bar for the one-line "shade" mode, and use Window › Double Size (⌘D) to draw the player at twice the size.
@@ -97,6 +99,8 @@ The whole player is skinnable. Open **SETTINGS** › **Skin** to switch skins, *
 Skin authors: the format is described in [docs/skins.md](docs/skins.md), and [skins/hifi74](skins/hifi74) is a full example skin you can load with **Use skin folder…**.
 
 ## Settings
+
+<img src="docs/images/settings.png" alt="The Settings panel" width="300" align="right">
 
 **SETTINGS** also holds the recordings folder, MP3 quality (128 to 320 kbps, or VBR V0/V2), silence trimming, the default ID3 version and lossless masters. Sound Scraper remembers the last source you recorded from. **About** lists the open-source components it uses.
 
