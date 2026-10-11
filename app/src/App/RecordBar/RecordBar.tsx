@@ -1,9 +1,9 @@
 import type { FC } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 
+import { useAppearance } from '@/App/useAppearance'
 import { useCaptureSources } from '@/App/useCaptureSources'
 import { useRecorderSession } from '@/App/useRecorderSession'
-import { useTextStyle } from '@/App/useTextStyle'
 import type { RecorderState } from '@/native/types'
 import { formatElapsed } from '@/recorder/formatElapsed'
 import { meterScale } from '@/skin/meterScale'
@@ -16,7 +16,7 @@ export const RecordBar: FC = () => {
   const { state, starting, elapsedMs, peak, active, ...recorder } =
     useRecorderSession()
   const { selectedApp } = useCaptureSources()
-  const { textStyle } = useTextStyle()
+  const { textStyle } = useAppearance()
 
   return (
     <View style={styles.bar}>

@@ -1,9 +1,9 @@
 import type { FC } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 
+import { useAppearance } from '@/App/useAppearance'
 import { useCaptureSources } from '@/App/useCaptureSources'
 import { useRecorderSession } from '@/App/useRecorderSession'
-import { useTextStyle } from '@/App/useTextStyle'
 import { colors } from '@/theme/colors'
 
 import { SourceRow } from './SourceRow'
@@ -12,7 +12,7 @@ import { SourceRow } from './SourceRow'
 export const SourcePicker: FC = () => {
   const { apps, selectedPid, select, refresh } = useCaptureSources()
   const recorder = useRecorderSession()
-  const { textStyle } = useTextStyle()
+  const { textStyle } = useAppearance()
   const disabled = recorder.state !== 'idle' || recorder.starting
   return (
     <View style={disabled && styles.disabled}>

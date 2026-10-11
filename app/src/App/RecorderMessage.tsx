@@ -3,13 +3,13 @@ import { StyleSheet, Text } from 'react-native'
 
 import { colors } from '@/theme/colors'
 
+import { useAppearance } from './useAppearance'
 import { useRecorderSession } from './useRecorderSession'
-import { useTextStyle } from './useTextStyle'
 
 /** The latest recorder or library message, if any. */
 export const RecorderMessage: FC = () => {
   const { message } = useRecorderSession()
-  const { textStyle } = useTextStyle()
+  const { textStyle } = useAppearance()
   if (!message) {
     return null
   }

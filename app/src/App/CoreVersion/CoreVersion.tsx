@@ -1,7 +1,7 @@
 import type { FC } from 'react'
 import { StyleSheet, Text } from 'react-native'
 
-import { useTextStyle } from '@/App/useTextStyle'
+import { useAppearance } from '@/App/useAppearance'
 import { colors } from '@/theme/colors'
 
 import { useCoreVersion } from './useCoreVersion'
@@ -9,7 +9,7 @@ import { useCoreVersion } from './useCoreVersion'
 /** The Rust core's version, or why the bridge couldn't be reached. */
 export const CoreVersion: FC = () => {
   const { version, error } = useCoreVersion()
-  const { textStyle } = useTextStyle()
+  const { textStyle } = useAppearance()
   return version ? (
     <Text style={[styles.caption, textStyle]} testID="core-version">
       Rust core v{version}
