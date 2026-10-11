@@ -1,16 +1,16 @@
 import { type FC, useEffect, useRef, useState } from 'react'
 import { Text, View } from 'react-native'
 
-import { DetailsPane } from '@/library/DetailsPane'
+import { DetailsPane } from '@/components/DetailsPane'
+import { SkinPanelFrame } from '@/components/SkinPanelFrame'
+import { usePanelText } from '@/hooks/usePanelText'
 import { refreshLibraryViews } from '@/library/refreshLibraryViews'
 import { selection } from '@/library/selection'
 import { playback } from '@/playback/playback'
-import { SkinPanelFrame } from '@/skin/SkinPanelFrame'
 import { windows } from '@/skin/windows'
 
 import { Skinned } from './Skinned'
 import { styles } from './styles'
-import { usePanelText } from './usePanelText'
 
 type DetailsContentProps = {
   readonly menuRef: { current?: (x: number, y: number) => void }

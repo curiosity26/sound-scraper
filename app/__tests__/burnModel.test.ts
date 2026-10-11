@@ -1,11 +1,11 @@
-import { fitLine } from '@/burn/fitLine'
-import { formatClock } from '@/burn/formatClock'
-import { readiness } from '@/burn/readiness'
-import { speedText } from '@/burn/speedText'
 import type { Device } from '@/burn/types'
+import { fitLine } from '@/components/BurnPanel/fitLine'
+import { formatClock } from '@/components/BurnPanel/formatClock'
+import { readiness } from '@/components/BurnPanel/readiness'
+import { speedText } from '@/components/BurnPanel/speedText'
+import { playlistRows } from '@/components/LibraryScreen/playlistRows'
 import { SECTORS_74 } from '@/playlists/constants'
 import { discCapacity } from '@/playlists/discCapacity'
-import { playlistRows } from '@/playlists/playlistRows'
 
 jest.mock('@/native/NativeSoundScraper', () => ({
   __esModule: true,

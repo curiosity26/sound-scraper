@@ -6,17 +6,17 @@ import { act } from 'react'
 import { create } from 'react-test-renderer'
 
 import { App } from '@/App'
+import { coverUri } from '@/components/DetailsPane/coverUri'
+import { mergeCovers } from '@/components/DetailsPane/mergeCovers'
+import { mergeTags } from '@/components/DetailsPane/mergeTags'
+import { validateTag } from '@/components/DetailsPane/validateTag'
+import { nextSort } from '@/components/LibraryScreen/LibraryTable/nextSort'
+import { sortRecordings } from '@/components/LibraryScreen/LibraryTable/sortRecordings'
 import { filterRecordings } from '@/library/filterRecordings'
 import { formatDuration } from '@/library/formatDuration'
 import { formatSize } from '@/library/formatSize'
-import { nextSort } from '@/library/nextSort'
-import { sortRecordings } from '@/library/sortRecordings'
 import { formatElapsed } from '@/recorder/formatElapsed'
 import { buildEdit } from '@/tags/buildEdit'
-import { coverUri } from '@/tags/coverUri'
-import { mergeCovers } from '@/tags/mergeCovers'
-import { mergeTags } from '@/tags/mergeTags'
-import { validateTag } from '@/tags/validateTag'
 
 jest.mock('@/native/NativeSoundScraper', () => ({
   __esModule: true,

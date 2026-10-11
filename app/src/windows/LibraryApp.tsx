@@ -2,14 +2,14 @@ import { type FC, useCallback, useState } from 'react'
 import { Text, View } from 'react-native'
 
 import { openBurnPanel } from '@/burn/openBurnPanel'
-import { LibraryScreen } from '@/library/LibraryScreen'
+import { LibraryScreen } from '@/components/LibraryScreen'
+import { SkinPanelFrame } from '@/components/SkinPanelFrame'
+import { usePanelText } from '@/hooks/usePanelText'
 import type { Message } from '@/recorder/types'
-import { SkinPanelFrame } from '@/skin/SkinPanelFrame'
 import { windows } from '@/skin/windows'
 
 import { Skinned } from './Skinned'
 import { styles } from './styles'
-import { usePanelText } from './usePanelText'
 
 type LibraryContentProps = {
   readonly onCount: (n: number, playlistName?: string) => void

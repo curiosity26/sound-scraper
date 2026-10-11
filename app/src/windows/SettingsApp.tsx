@@ -1,18 +1,18 @@
 import { type FC, useEffect, useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 
+import { AboutPanel } from '@/components/AboutPanel'
+import { SettingsPanel } from '@/components/SettingsPanel'
+import { SkinChooser } from '@/components/SkinChooser'
+import { SkinPanelFrame } from '@/components/SkinPanelFrame'
+import { usePanelText } from '@/hooks/usePanelText'
+import { useSkin } from '@/hooks/useSkin'
 import { refreshLibraryViews } from '@/library/refreshLibraryViews'
-import { AboutPanel } from '@/settings/AboutPanel'
-import { SettingsPanel } from '@/settings/SettingsPanel'
 import { settingsTab } from '@/skin/settingsTab'
-import { SkinChooser } from '@/skin/SkinChooser'
-import { SkinPanelFrame } from '@/skin/SkinPanelFrame'
-import { useSkin } from '@/skin/useSkin'
 import { colors } from '@/theme/colors'
 
 import { Skinned } from './Skinned'
 import { styles } from './styles'
-import { usePanelText } from './usePanelText'
 
 const SettingsContent: FC = () => {
   const { fg } = usePanelText('settings')

@@ -1,18 +1,18 @@
 import { type FC, useEffect, useState } from 'react'
 import { Text, View } from 'react-native'
 
-import { EditorPanel } from '@/editor/EditorPanel'
+import { EditorPanel } from '@/components/EditorPanel'
+import { SkinPanelFrame } from '@/components/SkinPanelFrame'
+import { usePanelText } from '@/hooks/usePanelText'
+import { useSkin } from '@/hooks/useSkin'
 import { refreshLibraryViews } from '@/library/refreshLibraryViews'
 import { selection } from '@/library/selection'
 import { playback } from '@/playback/playback'
 import { editorTarget } from '@/skin/editorTarget'
-import { SkinPanelFrame } from '@/skin/SkinPanelFrame'
-import { useSkin } from '@/skin/useSkin'
 import { windows } from '@/skin/windows'
 
 import { Skinned } from './Skinned'
 import { styles } from './styles'
-import { usePanelText } from './usePanelText'
 
 const EditorContent: FC = () => {
   const { fg } = usePanelText('editor')

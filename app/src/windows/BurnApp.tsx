@@ -1,9 +1,9 @@
 import { type FC, useEffect, useState } from 'react'
 import { View } from 'react-native'
 
-import { BurnPanel } from '@/burn/BurnPanel'
+import { BurnPanel } from '@/components/BurnPanel'
+import { SkinPanelFrame } from '@/components/SkinPanelFrame'
 import { burnTarget } from '@/skin/burnTarget'
-import { SkinPanelFrame } from '@/skin/SkinPanelFrame'
 
 import { Skinned } from './Skinned'
 import { styles } from './styles'
