@@ -1,0 +1,1 @@
+export { SetupFooter } from './SetupFooter'

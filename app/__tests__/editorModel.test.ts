@@ -1,38 +1,37 @@
-import {
-  applyProposals,
-  stepIn,
-  addSplice,
-  adjacentSplice,
-  clampZoom,
-  deletedAt,
-  deleteRegion,
-  editsFromJson,
-  editsToJson,
-  emptyEdits,
-  formatTime,
-  history,
-  moveSplice,
-  removeSplice,
-  renameSplice,
-  restoreRegion,
-  rulerSteps,
-  snap,
-  zoomScroll,
-} from '../src/editorModel'
+import { addSplice } from '@/features/editor/components/EditorPanel/model/addSplice'
+import { adjacentSplice } from '@/features/editor/components/EditorPanel/model/adjacentSplice'
+import { applyProposals } from '@/features/editor/components/EditorPanel/model/applyProposals'
+import { clampZoom } from '@/features/editor/components/EditorPanel/model/clampZoom'
+import { deletedAt } from '@/features/editor/components/EditorPanel/model/deletedAt'
+import { deleteRegion } from '@/features/editor/components/EditorPanel/model/deleteRegion'
+import { editsFromList } from '@/features/editor/components/EditorPanel/model/editsFromList'
+import { editsToList } from '@/features/editor/components/EditorPanel/model/editsToList'
+import { emptyEdits } from '@/features/editor/components/EditorPanel/model/emptyEdits'
+import { formatTime } from '@/features/editor/components/EditorPanel/model/formatTime'
+import { history } from '@/features/editor/components/EditorPanel/model/history'
+import { moveSplice } from '@/features/editor/components/EditorPanel/model/moveSplice'
+import { removeSplice } from '@/features/editor/components/EditorPanel/model/removeSplice'
+import { renameSplice } from '@/features/editor/components/EditorPanel/model/renameSplice'
+import { restoreRegion } from '@/features/editor/components/EditorPanel/model/restoreRegion'
+import { rulerSteps } from '@/features/editor/components/EditorPanel/model/rulerSteps'
+import { snap } from '@/features/editor/components/EditorPanel/model/snap'
+import { zoomScroll } from '@/features/editor/components/EditorPanel/model/zoomScroll'
+import { editorCore } from '@/features/editor/editorCore'
+import { stepIn } from '@/shared/utils/stepIn'
 
 test('splices stay sorted and get default names', () => {
   let e = emptyEdits('Album')
   const a = addSplice(e, 5000)
   e = a.edits
-  expect(e.splices[0].name).toBe('Track 2')
+  expect(e.splices[0]?.name).toBe('Track 2')
   const b = addSplice(e, 2000)
   e = b.edits
   expect(e.splices.map(s => s.atMs)).toEqual([2000, 5000])
-  expect(b.edits.splices[0].name).toBe('Track 2')
+  expect(b.edits.splices[0]?.name).toBe('Track 2')
   e = moveSplice(e, b.id, 9000)
   expect(e.splices.map(s => s.atMs)).toEqual([5000, 9000])
   e = renameSplice(e, a.id, 'Song')
-  expect(e.splices[0].name).toBe('Song')
+  expect(e.splices[0]?.name).toBe('Song')
   expect(adjacentSplice(e, 6000, 1)?.atMs).toBe(9000)
   expect(adjacentSplice(e, 6000, -1)?.atMs).toBe(5000)
   e = removeSplice(e, a.id)
@@ -47,23 +46,37 @@ test('deleted regions merge and restore', () => {
   expect(e.deleted.map(r => [r.startMs, r.endMs])).toEqual([[1000, 6000]])
   expect(deletedAt(e, 4000)).toBeDefined()
   expect(deletedAt(e, 6000)).toBeUndefined()
-  e = restoreRegion(e, e.deleted[0].id)
+  e = restoreRegion(e, e.deleted[0]?.id ?? -1)
   expect(e.deleted).toEqual([])
 })
 
-test('json round trip drops ids and survives junk', () => {
+// The draft the core keeps (what NativeEditor.loadDraft answers).
+const mockDraft = { json: 'null' }
+jest.mock('@/bridge/NativeEditor', () => ({
+  __esModule: true,
+  default: { loadDraft: () => mockDraft.json },
+}))
+
+test('edit list round trip drops ids and survives junk', () => {
   const e = addSplice(deleteRegion(emptyEdits('A'), 1, 2), 10, 'B').edits
-  const back = editsFromJson(editsToJson(e), 'ignored')
-  expect(JSON.parse(editsToJson(back))).toEqual(JSON.parse(editsToJson(e)))
-  expect(editsFromJson('null', 'T')).toEqual(emptyEdits('T'))
-  expect(editsFromJson('{bad', 'T')).toEqual(emptyEdits('T'))
+  const back = editsFromList(editsToList(e), 'ignored')
+  expect(editsToList(back)).toEqual(editsToList(e))
+  expect(editsFromList(null, 'T')).toEqual(emptyEdits('T'))
+  mockDraft.json = JSON.stringify(editsToList(e))
+  expect(editorCore.loadDraft('a.mp3')).toEqual(editsToList(e))
+  mockDraft.json = 'null'
+  expect(editorCore.loadDraft('a.mp3')).toBeNull()
+  mockDraft.json = '{bad'
+  expect(editorCore.loadDraft('a.mp3')).toBeNull()
+  mockDraft.json = '{"firstName":"A","splices":[{"atMs":"x"}],"deleted":[]}'
+  expect(editorCore.loadDraft('a.mp3')).toBeNull()
 })
 
 test('undo and redo', () => {
   let h = history.start(emptyEdits('a'))
   const one = addSplice(h.present, 1).edits
   h = history.push(h, one)
-  h = history.push(h, removeSplice(one, one.splices[0].id))
+  h = history.push(h, removeSplice(one, one.splices[0]?.id ?? -1))
   h = history.undo(h)
   expect(h.present).toBe(one)
   h = history.undo(h)

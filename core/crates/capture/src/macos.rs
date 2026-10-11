@@ -707,13 +707,17 @@ mod tests {
 
     #[test]
     fn fills_quiet_stretches_up_to_wall_clock_time() {
-        let (ctx, rx) = context(Instant::now() - Duration::from_millis(500));
+        let started = Instant::now() - Duration::from_millis(500);
+        let (ctx, rx) = context(started);
         ctx.fill_silence();
+        // A slow machine can take a while to get here, so the most frames
+        // allowed is however long has really passed, not a fixed 0.5 s.
+        let most = (started.elapsed().as_secs_f64() * 48_000.0) as usize + 500;
         let chunk = rx.try_recv().expect("a silence chunk");
         let frames = chunk.samples.len() / 2;
         assert!(
-            (23_500..=25_500).contains(&frames),
-            "about 0.5 s of frames, got {frames}"
+            (23_500..=most).contains(&frames),
+            "about 0.5 s of frames (at most {most}), got {frames}"
         );
         assert!(chunk.samples.iter().all(|&s| s == 0.0));
         // Just filled: no second chunk until another gap opens.

@@ -10,33 +10,51 @@ use tiny_skia::{
 use crate::Frame;
 
 /// A skin's visualizer preset (skin.json `visualizer.presets[]`), with
-/// colors already resolved.
+/// colors already resolved. Every field may be left out (`ss_vis_set_preset`).
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 #[serde(default, rename_all = "camelCase")]
+#[cfg_attr(
+    feature = "ts",
+    derive(ts_rs::TS),
+    ts(export, rename = "VisualizerPreset")
+)]
 pub struct Preset {
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub name: String,
     /// "bars", "scope", "mirror", "radial" or "fire".
+    #[cfg_attr(feature = "ts", ts(type = "\"bars\" | \"scope\" | \"mirror\" | \"radial\" | \"fire\"", optional = nullable))]
     pub style: String,
     /// Bars (1..=64).
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub bands: usize,
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub color: String,
     /// Colors from the bottom (quiet) to the top (loud) of the bars;
     /// overrides `color` when given.
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub gradient: Vec<String>,
     /// Falling peak markers; none when empty.
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub peak: String,
     /// Gap between bars, in skin points.
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub gap: f32,
     /// Line width for scope/radial, in skin points.
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub line_width: f32,
     /// Fill behind the visualizer; transparent when empty.
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub background: String,
     /// Idle look: grid lines every 8 points, and a flat line.
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub grid: String,
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub line: String,
     /// Fire: how much of the trail survives each frame (0..1).
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub decay: f32,
     /// Bar heights jump with the onset (beat) signal, 0..1.
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub beat: f32,
 }
 

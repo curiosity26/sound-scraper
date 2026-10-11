@@ -14,6 +14,7 @@ use std::{
 };
 
 use crate::{
+    bridge::{EditorTrack, MastersUsage, Reply, SavedTracks, WaveformStatus, to_sorted_json},
     capture_test,
     library::{Library, Recording},
     player::{Player, PlayerEvent, PlayerState, PlayerStatus},
@@ -1181,11 +1182,8 @@ pub unsafe extern "C" fn ss_library_write_tags(
 /// plus `"effectiveRecordingsDir"`. Free with `ss_string_free`.
 #[unsafe(no_mangle)]
 pub extern "C" fn ss_settings_get() -> *mut c_char {
-    let s = settings::load();
-    let mut json = serde_json::to_value(&s).unwrap_or_default();
-    json["effectiveRecordingsDir"] =
-        serde_json::Value::String(s.recordings_dir().to_string_lossy().into_owned());
-    c_string(&json.to_string()).into_raw()
+    let stored = settings::StoredSettings::from(settings::load());
+    c_string(&to_sorted_json(&stored).unwrap_or_default()).into_raw()
 }
 
 /// Validates and saves settings JSON (unknown keys are ignored; missing
@@ -1498,7 +1496,16 @@ pub unsafe extern "C" fn ss_layout_save(json: *const c_char) -> SsStatus {
 /// Serializes a skin result as JSON for the UI, or records the error and
 /// returns NULL.
 fn json_or_null<T: serde::Serialize>(result: Result<T, String>) -> *mut c_char {
-    match result.and_then(|v| serde_json::to_string(&v).map_err(|e| e.to_string())) {
+    text_or_null(result.and_then(|v| serde_json::to_string(&v).map_err(|e| e.to_string())))
+}
+
+/// As `json_or_null`, with object keys sorted (see `bridge::to_sorted_json`).
+fn sorted_json_or_null<T: serde::Serialize>(result: Result<T, String>) -> *mut c_char {
+    text_or_null(result.and_then(|v| to_sorted_json(&v)))
+}
+
+fn text_or_null(result: Result<String, String>) -> *mut c_char {
+    match result {
         Ok(json) => c_string(&json).into_raw(),
         Err(e) => {
             fail(e);
@@ -1683,11 +1690,16 @@ pub unsafe extern "C" fn ss_playlists(request_json: *const c_char) -> *mut c_cha
         }
         guard.as_mut().unwrap().handle(request)
     });
-    let answer = match result {
-        Ok(ok) => serde_json::json!({ "ok": ok }),
-        Err(error) => serde_json::json!({ "error": error }),
-    };
-    c_string(&answer.to_string()).into_raw()
+    reply(result)
+}
+
+/// `{"ok": answer}` or `{"error": message}`, as JSON to free with
+/// `ss_string_free`.
+fn reply<T: serde::Serialize>(result: Result<T, String>) -> *mut c_char {
+    let json = to_sorted_json(&Reply::from(result))
+        .or_else(|error| to_sorted_json(&Reply::<()>::Error { error }))
+        .unwrap_or_default();
+    c_string(&json).into_raw()
 }
 
 // ------------------------------------------------------------ CD burning
@@ -1708,11 +1720,7 @@ pub unsafe extern "C" fn ss_burn(request_json: *const c_char) -> *mut c_char {
             serde_json::from_str(text?).map_err(|e| format!("invalid burn request: {e}"))?;
         crate::burn::handle(request)
     });
-    let answer = match result {
-        Ok(ok) => serde_json::json!({ "ok": ok }),
-        Err(error) => serde_json::json!({ "error": error }),
-    };
-    c_string(&answer.to_string()).into_raw()
+    reply(result)
 }
 
 // ------------------------------------------------------------ track editor
@@ -1780,7 +1788,7 @@ pub extern "C" fn ss_editor_close(id: u64) {
 #[unsafe(no_mangle)]
 pub extern "C" fn ss_editor_status(id: u64) -> *mut c_char {
     use crate::edit::editor::Status as S;
-    json_or_null(catch("reading the editor", || {
+    sorted_json_or_null(catch("reading the editor", || {
         let editor = editor(id)?;
         let grid = editor.frame_grid();
         let name = editor
@@ -1791,16 +1799,15 @@ pub extern "C" fn ss_editor_status(id: u64) -> *mut c_char {
             .into_owned();
         let master = crate::masters::find(&name).is_some();
         Ok(match editor.status() {
-            S::Loading(p) => serde_json::json!({ "state": "loading", "progress": p }),
-            S::Ready { rate, frames } => serde_json::json!({
-                "state": "ready",
-                "rate": rate,
-                "durationMs": frames as f64 * 1000.0 / f64::from(rate),
-                "frameMs": grid.map(|g| g.0),
-                "frameOffsetMs": grid.map(|g| g.1),
-                "master": master,
-            }),
-            S::Failed(message) => serde_json::json!({ "state": "failed", "message": message }),
+            S::Loading(progress) => WaveformStatus::Loading { progress },
+            S::Ready { rate, frames } => WaveformStatus::Ready {
+                rate,
+                duration_ms: frames as f64 * 1000.0 / f64::from(rate),
+                frame_ms: grid.map(|g| g.0),
+                frame_offset_ms: grid.map(|g| g.1),
+                master,
+            },
+            S::Failed(message) => WaveformStatus::Failed { message },
         })
     }))
 }
@@ -1855,7 +1862,7 @@ pub unsafe extern "C" fn ss_editor_render(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ss_editor_tracks(id: u64, edits_json: *const c_char) -> *mut c_char {
     use crate::edit::editor::Status as S;
-    json_or_null(catch("planning the tracks", || {
+    sorted_json_or_null(catch("planning the tracks", || {
         let edits: crate::edit::edits::EditList =
             serde_json::from_str(unsafe { arg_str(edits_json, "edits_json")? })
                 .map_err(|e| format!("invalid edits: {e}"))?;
@@ -1866,13 +1873,11 @@ pub unsafe extern "C" fn ss_editor_tracks(id: u64, edits_json: *const c_char) ->
         Ok(edits
             .plan(rate, frames)
             .iter()
-            .map(|t| {
-                serde_json::json!({
-                    "name": t.name,
-                    "startMs": ms(t.start),
-                    "durationMs": ms(t.frames()),
-                    "reencode": t.segments.len() > 1,
-                })
+            .map(|t| EditorTrack {
+                name: t.name.clone(),
+                start_ms: ms(t.start),
+                duration_ms: ms(t.frames()),
+                reencode: t.segments.len() > 1,
             })
             .collect::<Vec<_>>())
     }))
@@ -1902,9 +1907,9 @@ pub unsafe extern "C" fn ss_editor_detect(id: u64, options_json: *const c_char) 
 /// `ss_string_free`.
 #[unsafe(no_mangle)]
 pub extern "C" fn ss_masters_usage() -> *mut c_char {
-    json_or_null(catch("reading masters", || {
+    sorted_json_or_null(catch("reading masters", || {
         let (count, bytes) = crate::masters::usage();
-        Ok(serde_json::json!({ "count": count, "bytes": bytes }))
+        Ok(MastersUsage { count, bytes })
     }))
 }
 
@@ -2028,11 +2033,19 @@ pub unsafe extern "C" fn ss_editor_save(
             }
         }
     }
-    json_or_null(Ok(serde_json::json!({
-        "files": files.iter().map(|p| p.file_name().unwrap_or_default().to_string_lossy().into_owned()).collect::<Vec<_>>(),
-        "reencoded": saved.reencoded,
-        "fromMaster": saved.from_master,
-    })))
+    sorted_json_or_null(Ok(SavedTracks {
+        files: files
+            .iter()
+            .map(|p| {
+                p.file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect(),
+        reencoded: saved.reencoded,
+        from_master: saved.from_master,
+    }))
 }
 
 /// "Name (2).mp3" → "Name"; None without a counter.

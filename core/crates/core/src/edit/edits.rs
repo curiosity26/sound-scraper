@@ -10,6 +10,7 @@ use crate::paths;
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct EditList {
     /// The name of the first track (the one starting at 0).
     pub first_name: String,
@@ -21,6 +22,7 @@ pub struct EditList {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct Splice {
     pub at_ms: f64,
     pub name: String,
@@ -28,6 +30,7 @@ pub struct Splice {
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct Region {
     pub start_ms: f64,
     pub end_ms: f64,

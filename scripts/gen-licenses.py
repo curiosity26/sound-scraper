@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Collects third-party license texts into app/src/licenses.json for the
+"""Collects third-party license texts into app/src/features/settings/licenses.json for the
 About screen: Rust crates (cargo metadata) and production JS packages
 (npm ls --omit=dev). Identical texts are stored once. Re-run after
 dependency changes:  python3 scripts/gen-licenses.py
@@ -7,7 +7,7 @@ dependency changes:  python3 scripts/gen-licenses.py
 import hashlib, json, os, re, subprocess, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.path.join(ROOT, 'app', 'src', 'licenses.json')
+OUT = os.path.join(ROOT, 'app', 'src', 'features', 'settings', 'licenses.json')
 LICENSE_FILE = re.compile(r'^(LICEN[CS]E|COPYING|NOTICE)([-._].*)?$', re.I)
 
 texts = {}

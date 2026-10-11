@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 const SCHEMA_VERSION: i64 = 1;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct Playlist {
     pub id: i64,
     pub name: String,
@@ -22,6 +23,7 @@ pub struct Playlist {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, rename = "PlaylistItem"))]
 pub struct Item {
     /// Stable within its playlist (a recording can appear more than once).
     pub id: i64,
@@ -411,6 +413,11 @@ fn stem(file_name: &str) -> String {
 /// One request from the UI (`ss_playlists`), as JSON with an `op` field.
 #[derive(Debug, Deserialize)]
 #[serde(tag = "op", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[cfg_attr(
+    feature = "ts",
+    derive(ts_rs::TS),
+    ts(export, rename = "PlaylistsRequest")
+)]
 pub enum Request {
     List,
     Items {
@@ -419,6 +426,7 @@ pub enum Request {
     Create {
         name: String,
         #[serde(default)]
+        #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
         file_names: Vec<String>,
     },
     Rename {
@@ -453,30 +461,66 @@ pub enum Request {
     },
 }
 
+/// What a playlists request answers: the `ok` of `ss_playlists`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(untagged)]
+#[cfg_attr(
+    feature = "ts",
+    derive(ts_rs::TS),
+    ts(export, rename = "PlaylistsAnswer")
+)]
+pub enum Answer {
+    /// `list`.
+    Playlists(Vec<Playlist>),
+    /// `items` and `add`.
+    Items(Vec<Item>),
+    /// `create`, `rename` and `duplicate`.
+    Playlist(Playlist),
+    /// `active`: the active playlist's id, if any. (Typed as a number for
+    /// TypeScript: `Done` already adds the `null`.)
+    Active(#[cfg_attr(feature = "ts", ts(as = "i64"))] Option<i64>),
+    /// `exportM3u8`.
+    Exported(ExportAnswer),
+    /// `delete`, `remove`, `setOrder` and `setActive`: `null`.
+    Done,
+}
+
+/// The answer to `exportM3u8`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+pub struct ExportAnswer {
+    /// Items left out because their recording is gone.
+    pub missing: usize,
+}
+
 impl Playlists {
-    /// Runs a UI request; the answer is JSON.
-    pub fn handle(&mut self, request: Request) -> Result<serde_json::Value, String> {
-        use serde_json::{Value, json, to_value};
-        let v = |r: Result<Value, serde_json::Error>| r.map_err(|e| e.to_string());
-        match request {
-            Request::List => v(to_value(self.list()?)),
-            Request::Items { id } => v(to_value(self.items(id)?)),
-            Request::Create { name, file_names } => v(to_value(self.create(&name, &file_names)?)),
-            Request::Rename { id, name } => v(to_value(self.rename(id, &name)?)),
-            Request::Duplicate { id } => v(to_value(self.duplicate(id)?)),
-            Request::Delete { id } => self.delete(id).map(|()| Value::Null),
-            Request::Add { id, file_names } => v(to_value(self.add(id, &file_names)?)),
-            Request::Remove { id, item_ids } => self.remove(id, &item_ids).map(|()| Value::Null),
-            Request::SetOrder { id, item_ids } => {
-                self.set_order(id, &item_ids).map(|()| Value::Null)
+    /// Runs a UI request.
+    pub fn handle(&mut self, request: Request) -> Result<Answer, String> {
+        Ok(match request {
+            Request::List => Answer::Playlists(self.list()?),
+            Request::Items { id } => Answer::Items(self.items(id)?),
+            Request::Create { name, file_names } => {
+                Answer::Playlist(self.create(&name, &file_names)?)
             }
-            Request::Active => Ok(json!(self.active()?)),
-            Request::SetActive { id } => self.set_active(id).map(|()| Value::Null),
+            Request::Rename { id, name } => Answer::Playlist(self.rename(id, &name)?),
+            Request::Duplicate { id } => Answer::Playlist(self.duplicate(id)?),
+            Request::Delete { id } => self.delete(id).map(|()| Answer::Done)?,
+            Request::Add { id, file_names } => Answer::Items(self.add(id, &file_names)?),
+            Request::Remove { id, item_ids } => {
+                self.remove(id, &item_ids).map(|()| Answer::Done)?
+            }
+            Request::SetOrder { id, item_ids } => {
+                self.set_order(id, &item_ids).map(|()| Answer::Done)?
+            }
+            Request::Active => Answer::Active(self.active()?),
+            Request::SetActive { id } => self.set_active(id).map(|()| Answer::Done)?,
             Request::ExportM3u8 { id, path } => {
                 let dir = crate::settings::load().recordings_dir();
-                Ok(json!({ "missing": self.export_m3u8(id, &dir, Path::new(&path))? }))
+                Answer::Exported(ExportAnswer {
+                    missing: self.export_m3u8(id, &dir, Path::new(&path))?,
+                })
             }
-        }
+        })
     }
 }
 
@@ -600,13 +644,57 @@ mod tests {
         let (_dir, mut p) = open();
         let req: Request =
             serde_json::from_str(r#"{"op":"create","name":"Mix","fileNames":["a.mp3"]}"#).unwrap();
-        let made = p.handle(req).unwrap();
+        let json = |a: Answer| serde_json::to_value(a).unwrap();
+        let made = json(p.handle(req).unwrap());
         assert_eq!(made["name"], "Mix");
         let id = made["id"].as_i64().unwrap();
         let req: Request = serde_json::from_str(&format!(r#"{{"op":"items","id":{id}}}"#)).unwrap();
-        assert_eq!(p.handle(req).unwrap()[0]["fileName"], "a.mp3");
+        assert_eq!(json(p.handle(req).unwrap())[0]["fileName"], "a.mp3");
         let req: Request = serde_json::from_str(r#"{"op":"setActive","id":null}"#).unwrap();
-        assert!(p.handle(req).unwrap().is_null());
+        assert!(json(p.handle(req).unwrap()).is_null());
+    }
+
+    /// The answers serialize as the `serde_json::json!` values they replaced.
+    #[test]
+    fn answers_keep_their_json() {
+        use serde_json::{Value, json, to_string, to_value};
+        let playlist = Playlist {
+            id: 3,
+            name: "Mix".into(),
+            count: 2,
+        };
+        let item = Item {
+            id: 7,
+            file_name: "a.mp3".into(),
+        };
+        let cases = [
+            (
+                Answer::Playlists(vec![playlist.clone()]),
+                to_value(vec![playlist.clone()]).unwrap(),
+            ),
+            (
+                Answer::Items(vec![item.clone()]),
+                to_value(vec![item]).unwrap(),
+            ),
+            (
+                Answer::Playlist(playlist.clone()),
+                to_value(playlist).unwrap(),
+            ),
+            (Answer::Active(Some(3)), json!(Some(3))),
+            (Answer::Active(None), json!(None::<i64>)),
+            (
+                Answer::Exported(ExportAnswer { missing: 2 }),
+                json!({ "missing": 2usize }),
+            ),
+            (Answer::Done, Value::Null),
+        ];
+        for (answer, old) in cases {
+            // Byte for byte, as `ss_playlists` writes it (through a Value).
+            assert_eq!(to_value(&answer).unwrap().to_string(), old.to_string());
+            // And the same JSON when serialized directly.
+            let direct: Value = serde_json::from_str(&to_string(&answer).unwrap()).unwrap();
+            assert_eq!(direct, old);
+        }
     }
 
     #[test]

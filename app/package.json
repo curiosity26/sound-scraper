@@ -8,6 +8,7 @@
     "windows": "npx @react-native-community/cli run-windows",
     "core:build": "cargo build --manifest-path ../core/Cargo.toml",
     "core:test": "cargo test --manifest-path ../core/Cargo.toml",
+    "bridge:types": "node scripts/gen-bridge-types.js",
     "codegen:windows": "react-native codegen-windows",
     "lint": "eslint .",
     "test": "jest",
@@ -16,7 +17,9 @@
     "format": "eslint . --fix"
   },
   "dependencies": {
+    "core-js": "3.50.0",
     "react": "19.2.0",
+    "react-error-boundary": "6.1.6",
     "react-native": "0.83.10",
     "react-native-macos": "0.83.0",
     "react-native-windows": "0.83.2"
@@ -36,8 +39,12 @@
     "@types/jest": "^29.5.13",
     "@types/react": "^19.2.0",
     "@types/react-test-renderer": "^19.1.0",
+    "babel-plugin-module-resolver": "^5.0.3",
     "eslint": "^8.19.0",
+    "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-prettier": "4.2.1",
+    "eslint-plugin-react-refresh": "^0.4.26",
+    "eslint-plugin-sound-scraper": "file:eslint-rules",
     "jest": "^29.6.3",
     "prettier": "2.8.8",
     "react-test-renderer": "19.2.0",
@@ -56,7 +63,7 @@
   "codegenConfig": {
     "name": "SoundScraperSpec",
     "type": "modules",
-    "jsSrcsDir": "src/native",
+    "jsSrcsDir": "src/bridge",
     "ios": {
       "modulesProvider": {
         "SoundScraper": "RCTSoundScraper",

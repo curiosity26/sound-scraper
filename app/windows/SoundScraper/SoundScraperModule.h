@@ -70,7 +70,7 @@ class SerialQueue {
 
 REACT_TURBO_MODULE(SoundScraperModule, L"SoundScraper")
 struct SoundScraperModule {
-  // Compile-time check against the shared TS spec (src/native/NativeSoundScraper.ts).
+  // Compile-time check against the shared TS spec (src/bridge/NativeSoundScraper.ts).
   using ModuleSpec = SoundScraperCodegen::SoundScraperSpec;
   using AudioApp = SoundScraperCodegen::SoundScraperSpec_AudioApp;
   using CaptureReport = SoundScraperCodegen::SoundScraperSpec_CaptureReport;

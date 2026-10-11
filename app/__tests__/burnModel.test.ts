@@ -1,33 +1,31 @@
-import {
-  type Device,
-  fitLine,
-  formatClock,
-  readiness,
-  speedText,
-} from '../src/burnModel'
-import { discCapacity, playlistRows, SECTORS_74 } from '../src/playlistModel'
+import type { Device } from '@/bridge/generated'
+import { formatClock } from '@/features/burn/components/BurnPanel/Progress/formatClock'
+import { speedText } from '@/features/burn/components/BurnPanel/Progress/speedText'
+import { fitLine } from '@/features/burn/components/BurnPanel/Setup/fitLine'
+import { readiness } from '@/features/burn/components/BurnPanel/Setup/readiness'
+import { playlistRows } from '@/features/library/components/LibraryScreen/LibraryBody/playlistRows'
+import { SECTORS_74 } from '@/features/playlists/constants'
+import { discCapacity } from '@/features/playlists/discCapacity'
 
-jest.mock('../src/native/NativeSoundScraper', () => ({
+jest.mock('@/bridge/NativeSoundScraper', () => ({
   __esModule: true,
   default: {},
 }))
 
-function device(
+const device = (
   state: string,
   capacity: number | null,
   kind = 'drive',
-): Device {
-  return {
-    id: 'd',
-    name: 'Drive',
-    kind,
-    media: { state, kind: 'CD-R', capacity, label: 'label' },
-    speeds: [],
-    canTest: true,
-    gapless: true,
-    cdText: true,
-  }
-}
+): Device => ({
+  id: 'd',
+  name: 'Drive',
+  kind,
+  media: { state, kind: 'CD-R', capacity, label: 'label' },
+  speeds: [],
+  canTest: true,
+  gapless: true,
+  cdText: true,
+})
 
 const minutes = (m: number) =>
   discCapacity(

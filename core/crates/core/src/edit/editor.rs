@@ -68,8 +68,15 @@ impl Default for Style {
     }
 }
 
+/// `ss_editor_render`'s `style_json`: colors as "#rrggbb[aa]", and the
+/// vertical zoom (default 1).
 #[derive(Deserialize, Default)]
 #[serde(default)]
+#[cfg_attr(
+    feature = "ts",
+    derive(ts_rs::TS),
+    ts(export, rename = "WaveformStyle", optional_fields = nullable)
+)]
 struct StyleJson {
     background: Option<String>,
     wave: Option<String>,

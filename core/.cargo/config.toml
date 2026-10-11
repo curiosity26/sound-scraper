@@ -1,0 +1,7 @@
+# Settings for the TypeScript bindings of the JS bridge (the `ts` features;
+# see app/scripts/gen-bridge-types.js).
+[env]
+# One .ts file per bridge type, in the app.
+TS_RS_EXPORT_DIR = { value = "../app/src/bridge/generated", relative = true }
+# u64/i64 cross the bridge as JSON numbers, which JS parses as `number`.
+TS_RS_LARGE_INT = "number"
