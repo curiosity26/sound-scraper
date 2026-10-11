@@ -1,1 +1,0 @@
-export { CoreVersion } from './CoreVersion'

@@ -1,13 +1,13 @@
-import { playlistRows } from '@/components/LibraryScreen/LibraryBody/playlistRows'
-import type { Device } from '@/native/bridge'
-import { SECTORS_74 } from '@/playlists/constants'
-import { discCapacity } from '@/playlists/discCapacity'
-import { formatClock } from '@/windows/BurnApp/BurnPanel/Progress/formatClock'
-import { speedText } from '@/windows/BurnApp/BurnPanel/Progress/speedText'
-import { fitLine } from '@/windows/BurnApp/BurnPanel/Setup/fitLine'
-import { readiness } from '@/windows/BurnApp/BurnPanel/Setup/readiness'
+import type { Device } from '@/bridge/generated'
+import { formatClock } from '@/features/burn/components/BurnPanel/Progress/formatClock'
+import { speedText } from '@/features/burn/components/BurnPanel/Progress/speedText'
+import { fitLine } from '@/features/burn/components/BurnPanel/Setup/fitLine'
+import { readiness } from '@/features/burn/components/BurnPanel/Setup/readiness'
+import { playlistRows } from '@/features/library/components/LibraryScreen/LibraryBody/playlistRows'
+import { SECTORS_74 } from '@/features/playlists/constants'
+import { discCapacity } from '@/features/playlists/discCapacity'
 
-jest.mock('@/native/NativeSoundScraper', () => ({
+jest.mock('@/bridge/NativeSoundScraper', () => ({
   __esModule: true,
   default: {},
 }))

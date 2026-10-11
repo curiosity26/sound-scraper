@@ -1,1 +1,0 @@
-export { SettingsApp } from './SettingsApp'

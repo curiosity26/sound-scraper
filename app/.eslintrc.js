@@ -19,7 +19,7 @@ const STYLE_SYNTAX = [
   {
     selector:
       'CallExpression[callee.property.name=/^(sort|reverse|splice)$/][arguments.length<=2]',
-    // Hermes gets these from src/polyfills/es2023.ts.
+    // Hermes gets these from src/shared/polyfills/es2023.ts.
     message: 'Use the non-mutating toSorted, toReversed or toSpliced instead.',
   },
   {
@@ -141,7 +141,7 @@ module.exports = {
       },
       rules: {
         ...TS_RULES,
-        // Data from the core has generated types (src/native/bridge);
+        // Data from the core has generated types (src/bridge/generated);
         // `unknown` is only for a type guard's input and caught errors.
         'sound-scraper/no-unknown-shape': 'error',
         'no-restricted-syntax': ['error', ...STYLE_SYNTAX],
@@ -167,7 +167,7 @@ module.exports = {
       // React Native codegen reads these specs literally: it requires an
       // `interface Spec extends TurboModule` (or props interface) and a
       // default export of the registry lookup.
-      files: ['src/native/Native*.ts', 'src/**/*NativeComponent.ts'],
+      files: ['src/bridge/Native*.ts', 'src/**/*NativeComponent.ts'],
       rules: {
         '@typescript-eslint/consistent-type-definitions': 'off',
         'import/no-default-export': 'off',
@@ -183,9 +183,9 @@ module.exports = {
       // Caught errors have no known shape, and the guard helpers take any
       // guard.
       files: [
-        'src/utils/guards/**',
-        'src/utils/errorText.ts',
-        'src/components/AsyncBoundary/ErrorFallback.tsx',
+        'src/shared/utils/guards/**',
+        'src/shared/utils/errorText.ts',
+        'src/shared/components/AsyncBoundary/ErrorFallback.tsx',
       ],
       rules: {
         'no-restricted-syntax': ['error', ...STYLE_SYNTAX, ...COMPONENT_SYNTAX],

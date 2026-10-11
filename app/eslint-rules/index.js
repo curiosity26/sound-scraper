@@ -182,7 +182,7 @@ const noUnknownShape = {
           context.report({
             node,
             message:
-              "Say what the data is: use the generated bridge types (src/native/bridge) or a domain type, and narrow input with a type guard. `unknown` is only for a guard's parameter or a caught error.",
+              "Say what the data is: use the generated bridge types (src/bridge/generated) or a domain type, and narrow input with a type guard. `unknown` is only for a guard's parameter or a caught error.",
           })
       },
     }

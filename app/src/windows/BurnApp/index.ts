@@ -1,1 +1,0 @@
-export { BurnApp } from './BurnApp'

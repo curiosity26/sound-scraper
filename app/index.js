@@ -3,36 +3,28 @@
  */
 
 // First, so every module sees the ES2023 built-ins Hermes lacks.
-import './src/polyfills/es2023'
+import './src/shared/polyfills/es2023'
 
 import { AppRegistry } from 'react-native'
 
 import { name as appName } from './app.json'
-import { App } from './src/App'
-import { exposeDevConsole } from './src/native/exposeDevConsole'
-import { skinsAvailable } from './src/skin/skinsAvailable'
 import {
-  BurnApp,
-  DetailsApp,
-  EditorApp,
-  LibraryApp,
-  MainApp,
-  SettingsApp,
-} from './src/windows'
+  BurnWindow,
+  DetailsWindow,
+  EditorWindow,
+  LibraryWindow,
+  MainWindow,
+  SettingsWindow,
+} from './src/roots'
+import { exposeDevConsole } from './src/roots/devConsole/exposeDevConsole'
 
 exposeDevConsole()
 
-if (skinsAvailable) {
-  // The skinned main panel, with the library, settings and details in
-  // their own windows (SkinWindows.swift on macOS, WindowManager.cpp on
-  // Windows).
-  AppRegistry.registerComponent(appName, () => MainApp)
-  AppRegistry.registerComponent('SoundScraperLibrary', () => LibraryApp)
-  AppRegistry.registerComponent('SoundScraperSettings', () => SettingsApp)
-  AppRegistry.registerComponent('SoundScraperDetails', () => DetailsApp)
-  AppRegistry.registerComponent('SoundScraperEditor', () => EditorApp)
-  AppRegistry.registerComponent('SoundScraperBurn', () => BurnApp)
-} else {
-  // No native skin support: the plain single-window UI.
-  AppRegistry.registerComponent(appName, () => App)
-}
+// The skinned main panel, with the library, settings and details in their
+// own windows (SkinWindows.swift on macOS, WindowManager.cpp on Windows).
+AppRegistry.registerComponent(appName, () => MainWindow)
+AppRegistry.registerComponent('SoundScraperLibrary', () => LibraryWindow)
+AppRegistry.registerComponent('SoundScraperSettings', () => SettingsWindow)
+AppRegistry.registerComponent('SoundScraperDetails', () => DetailsWindow)
+AppRegistry.registerComponent('SoundScraperEditor', () => EditorWindow)
+AppRegistry.registerComponent('SoundScraperBurn', () => BurnWindow)

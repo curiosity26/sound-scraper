@@ -6,30 +6,42 @@ import { act, type FC, type ReactElement } from 'react'
 import { Image } from 'react-native'
 import { create, type ReactTestRenderer } from 'react-test-renderer'
 
-import { DetailsPane } from '@/components/DetailsPane'
-import { thumbGeometry } from '@/components/LibraryScreen/LibraryBody/LibraryTable/RowList/SkinScrollbar/thumbGeometry'
-import { visibleColumns } from '@/components/LibraryScreen/LibraryBody/LibraryTable/visibleColumns'
-import { NineSlice } from '@/components/NineSlice'
-import { imageSource } from '@/components/SkinImage/imageSource'
-import { SkinPanelFrame } from '@/components/SkinPanelFrame'
-import { layoutCells } from '@/components/SpriteText/layoutCells'
-import { toGlyphs } from '@/components/SpriteText/toGlyphs'
-import { usePanelStyles } from '@/hooks/usePanelStyles'
-import type { ImageRef, ResolvedElement, ResolvedSkin } from '@/native/bridge'
-import NativeSkins from '@/native/NativeSkins'
+import type {
+  ImageRef,
+  ResolvedElement,
+  ResolvedSkin,
+} from '@/bridge/generated'
+import NativeSkins from '@/bridge/NativeSkins'
 import NativeSoundScraper, {
   type RecorderEvent,
-} from '@/native/NativeSoundScraper'
-import { playback } from '@/playback/playback'
-import { buttonState } from '@/skin/buttonState'
-import { isJsonValue } from '@/skin/guards/isJsonValue'
-import { isFolderSkin } from '@/skin/isFolderSkin'
-import { isSkinArchive } from '@/skin/isSkinArchive'
-import { openSkinFiles } from '@/skin/openSkinFiles'
-import { pendingInstall } from '@/skin/pendingInstall'
-import { settingsTab } from '@/skin/settingsTab'
-import { SkinScale } from '@/skin/SkinScale'
-import { skinStore } from '@/skin/skinStore'
+} from '@/bridge/NativeSoundScraper'
+import { thumbGeometry } from '@/features/library/components/LibraryScreen/LibraryBody/LibraryTable/RowList/SkinScrollbar/thumbGeometry'
+import { visibleColumns } from '@/features/library/components/LibraryScreen/LibraryBody/LibraryTable/visibleColumns'
+import { playback } from '@/features/playback/playback'
+import { MainPanel } from '@/features/recorder/components/MainPanel'
+import { needleAngle } from '@/features/recorder/components/MainPanel/LevelMeter/NeedleMeter/needleAngle'
+import { animationPlays } from '@/features/recorder/components/MainPanel/SkinAnimation/animationPlays'
+import { animationRate } from '@/features/recorder/components/MainPanel/SkinAnimation/animationRate'
+import { seekGeometry } from '@/features/recorder/components/MainPanel/SkinSeek/seekGeometry'
+import { thumbSize } from '@/features/recorder/components/MainPanel/SkinSeek/thumbSize'
+import { nextPreset } from '@/features/recorder/components/MainPanel/Visualizer/nextPreset'
+import { settingsTab } from '@/features/settings/settingsTab'
+import { buttonState } from '@/features/skins/buttonState'
+import { NineSlice } from '@/features/skins/components/NineSlice'
+import { imageSource } from '@/features/skins/components/SkinImage/imageSource'
+import { SkinProvider } from '@/features/skins/components/Skinned/SkinProvider'
+import { SkinPanelFrame } from '@/features/skins/components/SkinPanelFrame'
+import { layoutCells } from '@/features/skins/components/SpriteText/layoutCells'
+import { toGlyphs } from '@/features/skins/components/SpriteText/toGlyphs'
+import { isJsonValue } from '@/features/skins/guards/isJsonValue'
+import { isFolderSkin } from '@/features/skins/isFolderSkin'
+import { isSkinArchive } from '@/features/skins/isSkinArchive'
+import { openSkinFiles } from '@/features/skins/openSkinFiles'
+import { pendingInstall } from '@/features/skins/pendingInstall'
+import { SkinScale } from '@/features/skins/SkinScale'
+import { skinStore } from '@/features/skins/skinStore'
+import { DetailsPane } from '@/features/tags/components/DetailsPane'
+import { usePanelStyles } from '@/shared/hooks/usePanelStyles'
 import {
   type Guard,
   isBoolean,
@@ -37,20 +49,12 @@ import {
   isRecordOf,
   isShape,
   isString,
-} from '@/utils/guards'
-import { isDarkColor } from '@/utils/isDarkColor'
-import { MainPanel } from '@/windows/MainApp/MainPanel'
-import { needleAngle } from '@/windows/MainApp/MainPanel/LevelMeter/NeedleMeter/needleAngle'
-import { animationPlays } from '@/windows/MainApp/MainPanel/SkinAnimation/animationPlays'
-import { animationRate } from '@/windows/MainApp/MainPanel/SkinAnimation/animationRate'
-import { seekGeometry } from '@/windows/MainApp/MainPanel/SkinSeek/seekGeometry'
-import { thumbSize } from '@/windows/MainApp/MainPanel/SkinSeek/thumbSize'
-import { nextPreset } from '@/windows/MainApp/MainPanel/Visualizer/nextPreset'
-import { SkinProvider } from '@/windows/Skinned/SkinProvider'
+} from '@/shared/utils/guards'
+import { isDarkColor } from '@/shared/utils/isDarkColor'
 
 // jest.mock is hoisted above the imports, so each mock is built inside its
 // factory and reached through the (mocked) module below.
-jest.mock('@/native/NativeSkins', () => ({
+jest.mock('@/bridge/NativeSkins', () => ({
   __esModule: true,
   default: {
     onWindowEvent: () => ({ remove: jest.fn() }),
@@ -63,7 +67,7 @@ jest.mock('@/native/NativeSkins', () => ({
     inspectSkin: jest.fn(),
   },
 }))
-jest.mock('@/native/NativeSoundScraper', () => ({
+jest.mock('@/bridge/NativeSoundScraper', () => ({
   __esModule: true,
   default: {
     listAudioApps: () => [],

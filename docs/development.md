@@ -15,13 +15,15 @@ core/                         Rust workspace
   scripts/build-apple.sh      builds/lipos the static lib for Xcode
 app/                          React Native 0.83 (TypeScript)
   src/                        one export per file (imported as `@/...`)
-    App/                      the plain (unskinned) UI
-    windows/                  the skinned UI's windows (MainApp, LibraryApp, ...), each holding the components only it uses
-    components/               components used by several windows; one with its own children, hooks or helpers is a folder with an index.ts
-    hooks/                    hooks shared by several components
-    native/                   NativeSoundScraper.ts (shared Turbo Module spec) + one file per wrapper (recorder, player, library, ...)
-    library/ playlists/ tags/ recorder/ playback/ burn/ skin/ theme/   non-React domain code and stores
-    utils/ polyfills/
+    bridge/                   everything that crosses into native code: the Turbo Module specs (Native*.ts, codegen reads this folder),
+                              generated/ (TS types written from the Rust bridge types by `npm run bridge:types`), parseNative, requestReply
+    features/<feature>/       one folder per feature: recorder, playback, library, playlists, burn, editor, tags, settings, skins
+                              the feature's calls into the bridge (library.ts, burnApi.ts, ...), guards/ for its native data,
+                              non-React logic and stores, hooks/ shared inside the feature, components/ (a component with its own
+                              children, hooks or helpers is a folder with an index.ts)
+    roots/                    one React root per OS window (MainWindow, LibraryWindow, SettingsWindow, DetailsWindow, EditorWindow,
+                              BurnWindow), registered in index.js; only the glue that window needs, plus the dev console
+    shared/                   used by several features and tied to none: components, hooks, theme, utils (incl. guard helpers), polyfills
   eslint-rules/               project ESLint rules (hook limits, no fetching in components)
   macos/                      react-native-macos 0.83 project
     SoundScraper-macOS/RCTSoundScraper.{h,mm}   Objective-C++ module over sound_scraper.h
@@ -30,7 +32,7 @@ app/                          React Native 0.83 (TypeScript)
     SoundScraper/SoundScraperCore.props         runs cargo and links sound_scraper_core.lib
 ```
 
-The chain: `src/App/App.tsx` → `src/native/recorder.ts` (and its siblings) → Turbo Module `SoundScraper` → native module → `ss_*` functions in the Rust static library.
+The chain: a feature's component → its bridge calls (e.g. `src/features/recorder/recorder.ts`) → Turbo Module `SoundScraper` (spec in `src/bridge/`) → native module → `ss_*` functions in the Rust static library.
 
 ## Skins (phase 1, macOS)
 
@@ -45,11 +47,11 @@ The main window is a skinned, frameless panel (WinAMP style). A skin is a folder
 - **Visualizer (phase 2):** while recording or paused, the encoder thread feeds a lock-free ring that an analyzer thread (`core/crates/vis`, ~60 Hz) turns into spectrum bands with falling peaks, a waveform, L/R levels and a beat value. The native `SSVisualizerView` has the core draw each frame with tiny-skia on every display refresh (no JS per frame) in the skin preset's style: bars, scope, mirror, radial or fire. Click the visualizer to cycle the skin's presets. Idle, it shows the preset's grid and flat line. The level meters read the same analysis (left/right).
 - **Animations:** `animations` in a layout are sprite-frame loops (`frames`, `fps`, `play`: recording/active/always, `speed`: constant/level). The Default skin's tape reels spin while recording and stop when paused or idle.
 
-C API: `ss_skin_load`, `ss_skin_load_current`, `ss_skin_install`, `ss_skins_list`, `ss_skin_remove` (JSON in and out); `ss_vis_create`, `ss_vis_set_preset`, `ss_vis_render`, `ss_vis_is_live`, `ss_vis_destroy`; `ss_layout_drag_begin`, `ss_layout_resize_begin`, `ss_layout_gesture_update`, `ss_layout_gesture_end`, `ss_layout_analyze`, `ss_layout_load`, `ss_layout_save`. Windows keeps the plain UI until skins are ported.
+C API: `ss_skin_load`, `ss_skin_load_current`, `ss_skin_install`, `ss_skins_list`, `ss_skin_remove` (JSON in and out); `ss_vis_create`, `ss_vis_set_preset`, `ss_vis_render`, `ss_vis_is_live`, `ss_vis_destroy`; `ss_layout_drag_begin`, `ss_layout_resize_begin`, `ss_layout_gesture_update`, `ss_layout_gesture_end`, `ss_layout_analyze`, `ss_layout_load`, `ss_layout_save`.
 
 ## Recording (milestone 2)
 
-The app's RecordBar records the selected source to MP3 (192 kbps CBR, at the device's sample rate):
+The main panel's Record button records the selected source to MP3 (192 kbps CBR, at the device's sample rate):
 
 - **Record** creates `~/Music/Sound Scraper/<Source> YYYY-MM-DD HH-MM.mp3.part` and starts encoding on its own thread. A bounded queue sits between capture and the encoder, so a slow disk drops audio instead of blocking the audio callback.
 - **Pause** keeps the capture, encoder and file open and drops incoming audio. Resuming continues the same file, so the gap is simply absent, and elapsed time excludes paused time.
@@ -70,7 +72,7 @@ C API (on the recorder handle): `ss_player_load/unload/play/pause/stop/seek`, `s
 
 ## Library (milestone 3)
 
-Below the RecordBar, the library lists the `.mp3` files in `~/Music/Sound Scraper`: name, duration, date recorded, size and artist/album. Click a column header to sort (click again to reverse), and type in the search box to filter by name, title, artist or album. Select a row for **Rename**, **Edit tags**, **Show in Finder** (Explorer on Windows) and **Move to Trash** (Recycle Bin).
+The library lists the `.mp3` files in `~/Music/Sound Scraper`: name, duration, date recorded, size and artist/album. Click a column header to sort (click again to reverse), and type in the search box to filter by name, title, artist or album. Select a row for **Rename**, **Edit tags**, **Show in Finder** (Explorer on Windows) and **Move to Trash** (Recycle Bin).
 
 - The folder is the source of truth. A SQLite index (`~/Library/Application Support/Sound Scraper/library.db` on macOS, `%APPDATA%\Sound Scraper\library.db` on Windows) caches duration and tags, keyed by file name and invalidated by size and mtime. It's rebuilt if missing or outdated.
 - A folder watcher (kqueue on macOS, ReadDirectoryChangesW on Windows) refreshes the list about 0.3 s after outside changes.
@@ -99,7 +101,7 @@ C API: `ss_library_read_tags`/`ss_tags_free` and `ss_library_write_tags` (an `Ss
 - **Default ID3 version:** 2.4 or 2.3, the tag editor's starting choice.
 - **Last capture source:** remembered by bundle ID or executable path and re-selected at launch if that app has audio.
 
-**About** lists the third-party licenses, LAME first with its LGPL notice. Regenerate the list after dependency changes with `python3 scripts/gen-licenses.py` (writes `app/src/licenses.json`).
+**About** lists the third-party licenses, LAME first with its LGPL notice. Regenerate the list after dependency changes with `python3 scripts/gen-licenses.py` (writes `app/src/features/settings/licenses.json`).
 
 ## Capture test (milestone 1)
 
@@ -147,23 +149,24 @@ and `@/` imports for anything outside the file's folder. Folders keep shared
 types in `types.ts` and shared constants in `constants.ts`. ESLint
 (`app/.eslintrc.js`, typescript-eslint `strict-type-checked` plus the guide's
 rules) enforces most of it. `lib` is ES2023; Hermes lacks some of its built-ins, so
-`app/src/polyfills/es2023.ts` adds them with core-js. Raise `lib` only
+`app/src/shared/polyfills/es2023.ts` adds them with core-js. Raise `lib` only
 together with that list. The React Native codegen specs
-(`src/native/Native*.ts`, `src/**/*NativeComponent.ts`) keep the
+(`src/bridge/Native*.ts`, `src/**/*NativeComponent.ts`) keep the
 `interface` and default export that codegen requires.
 
 Components call hooks and render. A component may hold up to two
 `useState`/`useReducer` and one `useEffect` itself
 (`sound-scraper/max-component-hooks`); beyond that, its state and effects go
 in `use<Domain>` hooks (one per file, returning a readonly `<Hook>Result`),
-in the component's folder or in `src/hooks/` when shared. A component calls
+in the component's folder, in the feature's `hooks/` when several of its
+components share them, or in `src/shared/hooks/` across features. A component calls
 the hooks whose results it uses rather than taking them as props from its
 parent; state several components share lives in a store (read with
 `useSyncExternalStore`) or a per-window context. Children, hooks and helpers
 used by only one component nest in that component's folder. Components never
 fetch in an effect (`sound-scraper/no-effect-fetch`): simple display reads
 use `use()` under `AsyncBoundary` (`react-error-boundary` + `Suspense`) with
-a stable promise (`@/utils/promiseCache`, or held in state and refreshed in
+a stable promise (`@/shared/utils/promiseCache`, or held in state and refreshed in
 `startTransition`); reads tangled with edits or polling live in a hook
 instead. Error boundaries only catch render errors, so user actions keep
 their own try/catch, and in dev the red box shows even for caught errors.
@@ -227,7 +230,7 @@ Keep the clone on a local disk with a short path (e.g. `C:\src\SoundScraper`). D
 cd C:\src\SoundScraper\app
 $env:NODE_OPTIONS = "-r $PWD\scripts\rnw-cli-shim.js"
 npm ci
-npm run codegen:windows          # after changing src/native/NativeSoundScraper.ts
+npm run codegen:windows          # after changing src/bridge/NativeSoundScraper.ts
 
 # Terminal 1: Metro (Debug builds load JS from it)
 npx react-native start
@@ -276,6 +279,6 @@ LAME (LGPL) is linked **dynamically**. `core/vendor/mp3lame-sys` is a fork of `m
 ## Changing the native API
 
 1. Add the function to `core/crates/core/src/ffi.rs`, then run `cargo build` to regenerate the header.
-2. Add the method to `app/src/native/NativeSoundScraper.ts`.
+2. Add the method to `app/src/bridge/NativeSoundScraper.ts`.
 3. Implement it in `RCTSoundScraper.mm` (macOS) and `SoundScraperModule.h` (Windows). Both only marshal arguments.
 4. Re-run codegen: `pod install` (macOS) and `npm run codegen:windows` (Windows).

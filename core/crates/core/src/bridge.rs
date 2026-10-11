@@ -1,7 +1,7 @@
 //! JSON payloads of the C ABI ([`crate::ffi`]) that have no home elsewhere.
 //! With the `ts` feature, these and the other bridge types (settings,
 //! playlists, burning, the track editor, skins) export TypeScript bindings
-//! to `app/src/native/bridge` (see `app/scripts/gen-bridge-types.js`).
+//! to `app/src/bridge/generated` (see `app/scripts/gen-bridge-types.js`).
 
 use serde::Serialize;
 

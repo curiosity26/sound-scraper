@@ -1,7 +1,7 @@
 # Code-quality checks for every pull request and push to main: ESLint
 # (React Native config + Prettier), TypeScript, Jest, cargo fmt, clippy with
 # warnings denied, the Rust tests, and that the generated bridge types
-# (app/src/native/bridge) match the Rust definitions. Clippy runs on each OS
+# (app/src/bridge/generated) match the Rust definitions. Clippy runs on each OS
 # because the capture backends are platform-specific code.
 name: Lint
 
@@ -86,8 +86,8 @@ jobs:
       - name: Check the generated types are up to date
         run: |
           # Count new files too.
-          git add --intent-to-add app/src/native/bridge
-          if ! git diff --exit-code -- app/src/native/bridge; then
-            echo "::error::app/src/native/bridge doesn't match the Rust bridge types. Run \`npm run bridge:types\` in app/ and commit the result."
+          git add --intent-to-add app/src/bridge/generated
+          if ! git diff --exit-code -- app/src/bridge/generated; then
+            echo "::error::app/src/bridge/generated doesn't match the Rust bridge types. Run \`npm run bridge:types\` in app/ and commit the result."
             exit 1
           fi

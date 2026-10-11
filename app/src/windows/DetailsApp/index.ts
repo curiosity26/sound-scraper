@@ -1,1 +1,0 @@
-export { DetailsApp } from './DetailsApp'

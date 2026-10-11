@@ -7,7 +7,7 @@ import {
   isOptional,
   isShape,
   isString,
-} from '@/utils/guards'
+} from '@/shared/utils/guards'
 
 type Track = {
   title: string

@@ -1,4 +1,4 @@
-// Regenerates src/native/bridge: TypeScript types for every JSON payload
+// Regenerates src/bridge/generated: TypeScript types for every JSON payload
 // that crosses the Rust core's C ABI (core/crates/core/src/ffi.rs), written
 // by ts-rs from the Rust definitions (the `ts` cargo features). Don't edit
 // the generated files; change the Rust types and run `npm run bridge:types`.
@@ -13,7 +13,7 @@ const prettier = require('prettier')
 
 const appDir = path.resolve(__dirname, '..')
 const coreDir = path.resolve(appDir, '..', 'core')
-const bridgeDir = path.join(appDir, 'src', 'native', 'bridge')
+const bridgeDir = path.join(appDir, 'src', 'bridge', 'generated')
 
 fs.rmSync(bridgeDir, { recursive: true, force: true })
 fs.mkdirSync(bridgeDir, { recursive: true })

@@ -1,1 +1,0 @@
-export { MainApp } from './MainApp'

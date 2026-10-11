@@ -1,23 +1,23 @@
-import { editorCore } from '@/native/editorCore'
-import { stepIn } from '@/utils/stepIn'
-import { addSplice } from '@/windows/EditorApp/EditorPanel/model/addSplice'
-import { adjacentSplice } from '@/windows/EditorApp/EditorPanel/model/adjacentSplice'
-import { applyProposals } from '@/windows/EditorApp/EditorPanel/model/applyProposals'
-import { clampZoom } from '@/windows/EditorApp/EditorPanel/model/clampZoom'
-import { deletedAt } from '@/windows/EditorApp/EditorPanel/model/deletedAt'
-import { deleteRegion } from '@/windows/EditorApp/EditorPanel/model/deleteRegion'
-import { editsFromList } from '@/windows/EditorApp/EditorPanel/model/editsFromList'
-import { editsToList } from '@/windows/EditorApp/EditorPanel/model/editsToList'
-import { emptyEdits } from '@/windows/EditorApp/EditorPanel/model/emptyEdits'
-import { formatTime } from '@/windows/EditorApp/EditorPanel/model/formatTime'
-import { history } from '@/windows/EditorApp/EditorPanel/model/history'
-import { moveSplice } from '@/windows/EditorApp/EditorPanel/model/moveSplice'
-import { removeSplice } from '@/windows/EditorApp/EditorPanel/model/removeSplice'
-import { renameSplice } from '@/windows/EditorApp/EditorPanel/model/renameSplice'
-import { restoreRegion } from '@/windows/EditorApp/EditorPanel/model/restoreRegion'
-import { rulerSteps } from '@/windows/EditorApp/EditorPanel/model/rulerSteps'
-import { snap } from '@/windows/EditorApp/EditorPanel/model/snap'
-import { zoomScroll } from '@/windows/EditorApp/EditorPanel/model/zoomScroll'
+import { addSplice } from '@/features/editor/components/EditorPanel/model/addSplice'
+import { adjacentSplice } from '@/features/editor/components/EditorPanel/model/adjacentSplice'
+import { applyProposals } from '@/features/editor/components/EditorPanel/model/applyProposals'
+import { clampZoom } from '@/features/editor/components/EditorPanel/model/clampZoom'
+import { deletedAt } from '@/features/editor/components/EditorPanel/model/deletedAt'
+import { deleteRegion } from '@/features/editor/components/EditorPanel/model/deleteRegion'
+import { editsFromList } from '@/features/editor/components/EditorPanel/model/editsFromList'
+import { editsToList } from '@/features/editor/components/EditorPanel/model/editsToList'
+import { emptyEdits } from '@/features/editor/components/EditorPanel/model/emptyEdits'
+import { formatTime } from '@/features/editor/components/EditorPanel/model/formatTime'
+import { history } from '@/features/editor/components/EditorPanel/model/history'
+import { moveSplice } from '@/features/editor/components/EditorPanel/model/moveSplice'
+import { removeSplice } from '@/features/editor/components/EditorPanel/model/removeSplice'
+import { renameSplice } from '@/features/editor/components/EditorPanel/model/renameSplice'
+import { restoreRegion } from '@/features/editor/components/EditorPanel/model/restoreRegion'
+import { rulerSteps } from '@/features/editor/components/EditorPanel/model/rulerSteps'
+import { snap } from '@/features/editor/components/EditorPanel/model/snap'
+import { zoomScroll } from '@/features/editor/components/EditorPanel/model/zoomScroll'
+import { editorCore } from '@/features/editor/editorCore'
+import { stepIn } from '@/shared/utils/stepIn'
 
 test('splices stay sorted and get default names', () => {
   let e = emptyEdits('Album')
@@ -52,7 +52,7 @@ test('deleted regions merge and restore', () => {
 
 // The draft the core keeps (what NativeEditor.loadDraft answers).
 const mockDraft = { json: 'null' }
-jest.mock('@/native/NativeEditor', () => ({
+jest.mock('@/bridge/NativeEditor', () => ({
   __esModule: true,
   default: { loadDraft: () => mockDraft.json },
 }))

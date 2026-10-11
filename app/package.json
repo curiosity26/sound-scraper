@@ -63,7 +63,7 @@
   "codegenConfig": {
     "name": "SoundScraperSpec",
     "type": "modules",
-    "jsSrcsDir": "src/native",
+    "jsSrcsDir": "src/bridge",
     "ios": {
       "modulesProvider": {
         "SoundScraper": "RCTSoundScraper",
