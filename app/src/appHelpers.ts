@@ -38,18 +38,6 @@ export function rememberSource(app: AudioApp | undefined) {
   settings.set({ ...current, lastSource }).catch(() => {})
 }
 
-export function errorText(e: unknown): string {
-  // Native rejections arrive as Error on macOS but as plain
-  // {code, message} objects on Windows.
-  if (e instanceof Error) {
-    return e.message
-  }
-  if (e && typeof e === 'object' && 'message' in e) {
-    return String((e as { message: unknown }).message)
-  }
-  return String(e)
-}
-
 export function safeList(): AudioApp[] {
   try {
     return listAudioApps()
