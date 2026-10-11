@@ -24,6 +24,7 @@ use crate::{
 /// The pretend disc in the simulated drive.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub enum SimMedia {
     Blank74,
     Blank80,
@@ -36,6 +37,7 @@ pub enum SimMedia {
 /// Something to go wrong, for trying the failure paths.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub enum SimFault {
     None,
     /// The drive ran out of data while writing this track (1-based).
@@ -54,6 +56,7 @@ pub enum SimFault {
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct SimSettings {
     pub media: SimMedia,
     pub fault: SimFault,

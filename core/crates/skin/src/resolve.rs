@@ -22,6 +22,7 @@ use crate::{
 /// Retina displays and double-size mode.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct ImageRef {
     pub path: PathBuf,
     pub path2x: Option<PathBuf>,
@@ -32,6 +33,7 @@ pub struct ImageRef {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct ResolvedSkin {
     pub id: String,
     pub name: String,
@@ -55,6 +57,7 @@ pub struct ResolvedSkin {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct ResolvedFont {
     pub image: ImageRef,
     pub glyphs: String,
@@ -65,6 +68,7 @@ pub struct ResolvedFont {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct ResolvedPanels {
     pub main: ResolvedMain,
     pub library: ResolvedFramePanel,
@@ -76,6 +80,7 @@ pub struct ResolvedPanels {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct ResolvedMain {
     #[serde(flatten)]
     pub layout: ResolvedLayout,
@@ -84,6 +89,7 @@ pub struct ResolvedMain {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct ResolvedLayout {
     pub size: [i64; 2],
     pub background: Option<ImageRef>,
@@ -94,23 +100,31 @@ pub struct ResolvedLayout {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct ResolvedAnimation {
     pub name: Option<String>,
     pub rect: Rect,
     pub sprite: ResolvedSprite,
     pub frames: Vec<String>,
     pub fps: f64,
+    #[cfg_attr(
+        feature = "ts",
+        ts(type = "\"recording\" | \"playing\" | \"rolling\" | \"active\" | \"always\"")
+    )]
     pub play: String,
+    #[cfg_attr(feature = "ts", ts(type = "\"constant\" | \"level\""))]
     pub speed: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct ResolvedElement {
     pub rect: Rect,
     pub sprite: Option<ResolvedSprite>,
     pub font: Option<String>,
     pub text: Option<ResolvedText>,
+    #[cfg_attr(feature = "ts", ts(type = "\"left\" | \"center\" | \"right\" | null"))]
     pub align: Option<String>,
     pub style: Option<serde_json::Map<String, Value>>,
     /// Taken from the Default skin because this skin doesn't define it.
@@ -119,6 +133,7 @@ pub struct ResolvedElement {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct ResolvedSprite {
     pub image: ImageRef,
     pub states: BTreeMap<String, [i64; 2]>,
@@ -126,16 +141,19 @@ pub struct ResolvedSprite {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct ResolvedText {
     pub color: Option<String>,
     pub size: Option<f64>,
     pub family: Option<String>,
+    #[cfg_attr(feature = "ts", ts(type = "\"normal\" | \"bold\" | null"))]
     pub weight: Option<String>,
     pub uppercase: bool,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct ResolvedFramePanel {
     pub min_size: Option<[i64; 2]>,
     pub resizable: bool,
@@ -154,6 +172,7 @@ pub struct ResolvedFramePanel {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct ResolvedTitle {
     pub font: Option<String>,
     pub offset: [i64; 2],
@@ -164,6 +183,7 @@ pub struct ResolvedTitle {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct ResolvedClose {
     pub offset: [i64; 2],
     pub size: [i64; 2],
@@ -172,6 +192,7 @@ pub struct ResolvedClose {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct ResolvedFrame {
     pub image: ImageRef,
     pub slice: [i64; 4],
@@ -179,6 +200,7 @@ pub struct ResolvedFrame {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct ResolvedScrollbar {
     pub image: ImageRef,
     pub track: Rect,
@@ -188,7 +210,9 @@ pub struct ResolvedScrollbar {
 
 #[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct ResolvedVisualizer {
+    #[cfg_attr(feature = "ts", ts(as = "Vec<serde_json::Map<String, Value>>"))]
     pub presets: Vec<Value>,
 }
 

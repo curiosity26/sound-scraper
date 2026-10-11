@@ -8,6 +8,7 @@
     "windows": "npx @react-native-community/cli run-windows",
     "core:build": "cargo build --manifest-path ../core/Cargo.toml",
     "core:test": "cargo test --manifest-path ../core/Cargo.toml",
+    "bridge:types": "node scripts/gen-bridge-types.js",
     "codegen:windows": "react-native codegen-windows",
     "lint": "eslint .",
     "test": "jest",

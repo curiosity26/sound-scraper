@@ -29,6 +29,7 @@ mod builtin {
 /// A skin in the list for the skin chooser.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct SkinSummary {
     pub id: String,
     pub name: String,
@@ -43,6 +44,7 @@ pub struct SkinSummary {
 /// A `.sskin` looked at before installing it (the install card).
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct SkinInspection {
     pub id: String,
     pub name: String,

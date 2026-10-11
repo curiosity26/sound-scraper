@@ -215,6 +215,7 @@ fn read_full(file: &mut File, buf: &mut [u8]) -> io::Result<()> {
 /// What a destination can do and what's in it.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct Device {
     /// "image", "sim", or the OS's id for a drive.
     pub id: String,
@@ -233,6 +234,7 @@ pub struct Device {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct Media {
     /// "none" | "blank" | "erasable" (a CD-RW with something on it) |
     /// "unusable" | "image"

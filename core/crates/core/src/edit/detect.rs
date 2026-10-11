@@ -8,14 +8,19 @@ use super::peaks::{BUCKET, Peaks};
 
 #[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct DetectOptions {
     /// Quieter than this (RMS, dBFS) is silence.
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub threshold_db: f64,
     /// Silences shorter than this are pauses inside a song.
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub min_gap_ms: f64,
     /// No track shorter than this.
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub min_track_ms: f64,
     /// Propose deleting each gap (keeping a short margin either side).
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub remove_gaps: bool,
 }
 
@@ -33,6 +38,7 @@ impl Default for DetectOptions {
 /// A proposed splice in a gap, all in ms.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct Proposal {
     pub at_ms: f64,
     pub gap_start_ms: f64,

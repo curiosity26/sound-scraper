@@ -27,39 +27,51 @@ use crate::player::{Source, Stereo};
 /// One recording to burn, as the UI knows it.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct BurnTrack {
     pub path: String,
     pub title: String,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(optional = nullable))]
     pub performer: Option<String>,
     /// From the library, for progress while decoding.
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub duration_ms: u64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, rename = "BurnOptions"))]
 pub struct BurnRequest {
     pub device_id: String,
     /// The album title (the playlist's name).
     pub title: String,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(optional = nullable))]
     pub performer: Option<String>,
     pub tracks: Vec<BurnTrack>,
     #[serde(default = "two")]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub gap_seconds: u32,
     #[serde(default = "yes")]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub cd_text: bool,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub test_write: bool,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub speed: u32,
     #[serde(default = "yes")]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub eject: bool,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(as = "Option<_>", optional))]
     pub erase: bool,
     /// For the image: the `.cue` to write.
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(optional = nullable))]
     pub image_path: Option<String>,
 }
 
@@ -73,10 +85,19 @@ fn yes() -> bool {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(
+    feature = "ts",
+    derive(ts_rs::TS),
+    ts(export, rename = "BurnTrackStatus")
+)]
 pub struct TrackStatus {
     pub title: String,
     pub duration_ms: u64,
     /// "waiting" | "preparing" | "ready" | "writing" | "done" | "failed"
+    #[cfg_attr(
+        feature = "ts",
+        ts(type = "\"waiting\" | \"preparing\" | \"ready\" | \"writing\" | \"done\" | \"failed\"")
+    )]
     pub state: &'static str,
     /// 0..1 through the current step (decoding, then writing).
     pub progress: f64,
@@ -84,6 +105,7 @@ pub struct TrackStatus {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, rename = "BurnLogLine"))]
 pub struct LogLine {
     pub at_ms: u64,
     pub text: String,
@@ -91,8 +113,13 @@ pub struct LogLine {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, rename = "BurnStatus"))]
 pub struct Status {
     /// "preparing" | "writing" | "done" | "failed" | "cancelled"
+    #[cfg_attr(
+        feature = "ts",
+        ts(type = "\"preparing\" | \"writing\" | \"done\" | \"failed\" | \"cancelled\"")
+    )]
     pub state: &'static str,
     /// What's happening, in words ("Writing track 3 of 12").
     pub phase: String,
@@ -695,6 +722,7 @@ impl Dither {
 /// One request from the UI (`ss_burn`), as JSON with an `op`.
 #[derive(Debug, Deserialize)]
 #[serde(tag = "op", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, rename = "BurnRequest"))]
 pub enum Request {
     Devices,
     Start(BurnRequest),
@@ -707,8 +735,10 @@ pub enum Request {
     Close {
         id: u64,
     },
+    /// The simulated recorder's settings (simulator builds only).
     #[cfg(feature = "simulator")]
     SimSettings,
+    /// Simulator builds only.
     #[cfg(feature = "simulator")]
     SetSimSettings {
         settings: disc::sim::SimSettings,
@@ -724,28 +754,58 @@ pub enum Request {
     },
 }
 
-pub fn handle(request: Request) -> Result<serde_json::Value, String> {
-    use serde_json::{Value, json, to_value};
-    let v = |r: Result<Value, serde_json::Error>| r.map_err(|e| e.to_string());
+/// What a burning request answers: the `ok` of `ss_burn`.
+#[derive(Debug, Clone, Serialize)]
+#[serde(untagged)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, rename = "BurnAnswer"))]
+pub enum Answer {
+    /// `devices`.
+    Devices(DevicesAnswer),
+    /// `start`: the job's id.
+    Started(u64),
+    /// `status`.
+    Status(Box<Status>),
+    /// `simSettings` (simulator builds).
+    #[cfg(feature = "simulator")]
+    SimSettings(disc::sim::SimSettings),
+    /// `cancel`, `close`, `setSimSettings`, `reveal` and `saveLog`: `null`.
+    Done,
+}
+
+/// The answer to `devices`.
+#[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+pub struct DevicesAnswer {
+    /// The drives, then the simulated recorder (simulator builds), then the
+    /// image.
+    pub devices: Vec<Device>,
+    /// Whether this is a simulator build.
+    pub simulator: bool,
+}
+
+pub fn handle(request: Request) -> Result<Answer, String> {
     match request {
-        Request::Devices => Ok(json!({ "devices": devices(), "simulator": simulator_enabled() })),
-        Request::Start(r) => Ok(json!(start(r)?)),
-        Request::Status { id } => v(to_value(status(id)?)),
-        Request::Cancel { id } => cancel(id).map(|()| Value::Null),
+        Request::Devices => Ok(Answer::Devices(DevicesAnswer {
+            devices: devices(),
+            simulator: simulator_enabled(),
+        })),
+        Request::Start(r) => start(r).map(Answer::Started),
+        Request::Status { id } => status(id).map(|s| Answer::Status(Box::new(s))),
+        Request::Cancel { id } => cancel(id).map(|()| Answer::Done),
         Request::Close { id } => {
             close(id);
-            Ok(Value::Null)
+            Ok(Answer::Done)
         }
         #[cfg(feature = "simulator")]
-        Request::SimSettings => v(to_value(disc::sim::settings())),
+        Request::SimSettings => Ok(Answer::SimSettings(disc::sim::settings())),
         #[cfg(feature = "simulator")]
         Request::SetSimSettings { settings } => {
             disc::sim::set_settings(settings);
-            Ok(Value::Null)
+            Ok(Answer::Done)
         }
-        Request::SaveLog { id, path } => save_log(id, Path::new(&path)).map(|()| Value::Null),
+        Request::SaveLog { id, path } => save_log(id, Path::new(&path)).map(|()| Answer::Done),
         Request::Reveal { path } => {
-            crate::library::reveal_in_file_manager(Path::new(&path)).map(|()| Value::Null)
+            crate::library::reveal_in_file_manager(Path::new(&path)).map(|()| Answer::Done)
         }
     }
 }
@@ -892,6 +952,63 @@ mod tests {
         assert_eq!(s.tracks[0].state, "failed");
         assert!(s.message.unwrap().starts_with("Bad:"));
         assert!(!cue.exists());
+    }
+
+    /// The answers serialize as the `serde_json::json!` values they replaced,
+    /// byte for byte through a Value (as `ss_burn` writes them) and as the
+    /// same JSON when serialized directly.
+    #[test]
+    fn answers_keep_their_json() {
+        use serde_json::{Value, json, to_string, to_value};
+        let status = Status {
+            state: "writing",
+            phase: "Writing track 1 of 1".into(),
+            destination: "Image".into(),
+            kind: "image".into(),
+            tracks: vec![TrackStatus {
+                title: "A".into(),
+                duration_ms: 1000,
+                state: "writing",
+                progress: 0.5,
+            }],
+            overall: 0.25,
+            elapsed_ms: 1200,
+            remaining_ms: Some(3000),
+            speed_x: None,
+            buffer: Some(1.0),
+            log: vec![LogLine {
+                at_ms: 0,
+                text: "Started".into(),
+            }],
+            message: None,
+            output: None,
+            test_write: false,
+        };
+        let mut cases = vec![
+            (
+                Answer::Devices(DevicesAnswer {
+                    devices: devices(),
+                    simulator: simulator_enabled(),
+                }),
+                json!({ "devices": devices(), "simulator": simulator_enabled() }),
+            ),
+            (Answer::Started(5), json!(5u64)),
+            (
+                Answer::Status(Box::new(status.clone())),
+                to_value(status).unwrap(),
+            ),
+            (Answer::Done, Value::Null),
+        ];
+        #[cfg(feature = "simulator")]
+        cases.push((
+            Answer::SimSettings(disc::sim::settings()),
+            to_value(disc::sim::settings()).unwrap(),
+        ));
+        for (answer, old) in cases.drain(..) {
+            assert_eq!(to_value(&answer).unwrap().to_string(), old.to_string());
+            let direct: Value = serde_json::from_str(&to_string(&answer).unwrap()).unwrap();
+            assert_eq!(direct, old);
+        }
     }
 
     #[test]

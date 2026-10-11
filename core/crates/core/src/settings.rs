@@ -10,6 +10,7 @@ use crate::{paths, tags::TagVersion};
 /// MP3 encoding quality (docs/design.md §4).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub enum Quality {
     Cbr128,
     #[default]
@@ -26,6 +27,7 @@ pub enum Quality {
 /// rather than PID so it survives app restarts.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub enum SourceRef {
     System,
     App {
@@ -37,6 +39,7 @@ pub enum SourceRef {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct Settings {
     /// Format version of the saved file (see `load_from`).
     pub version: u32,
@@ -44,6 +47,7 @@ pub struct Settings {
     pub recordings_dir: Option<PathBuf>,
     pub quality: Quality,
     /// "2.4" or "2.3".
+    #[cfg_attr(feature = "ts", ts(type = "\"2.4\" | \"2.3\""))]
     pub id3_version: String,
     pub last_source: Option<SourceRef>,
     /// Skin id, or an absolute path to an unpacked skin folder (for skin
@@ -61,6 +65,27 @@ pub struct Settings {
     pub master_budget_gb: u32,
     /// Masters not edited for this many days are removed.
     pub master_max_age_days: u32,
+}
+
+/// The settings as `ss_settings_get` returns them: with the folder
+/// recordings actually go to.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+pub struct StoredSettings {
+    #[serde(flatten)]
+    pub settings: Settings,
+    /// `recordings_dir`, or the default folder when that's `None`.
+    pub effective_recordings_dir: String,
+}
+
+impl From<Settings> for StoredSettings {
+    fn from(settings: Settings) -> Self {
+        Self {
+            effective_recordings_dir: settings.recordings_dir().to_string_lossy().into_owned(),
+            settings,
+        }
+    }
 }
 
 impl Default for Settings {

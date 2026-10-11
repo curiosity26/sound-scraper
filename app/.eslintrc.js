@@ -141,6 +141,9 @@ module.exports = {
       },
       rules: {
         ...TS_RULES,
+        // Data from the core has generated types (src/native/bridge);
+        // `unknown` is only for a type guard's input and caught errors.
+        'sound-scraper/no-unknown-shape': 'error',
         'no-restricted-syntax': ['error', ...STYLE_SYNTAX],
       },
     },
@@ -174,6 +177,19 @@ module.exports = {
             s => s.selector !== 'ExportDefaultDeclaration',
           ),
         ],
+      },
+    },
+    {
+      // Caught errors have no known shape, and the guard helpers take any
+      // guard.
+      files: [
+        'src/utils/guards/**',
+        'src/utils/errorText.ts',
+        'src/components/AsyncBoundary/ErrorFallback.tsx',
+      ],
+      rules: {
+        'no-restricted-syntax': ['error', ...STYLE_SYNTAX, ...COMPONENT_SYNTAX],
+        'sound-scraper/no-unknown-shape': 'off',
       },
     },
     {

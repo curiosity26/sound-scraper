@@ -148,8 +148,50 @@ const noEffectFetch = {
   },
 }
 
+// `unknown` is for values whose shape isn't known yet: a type guard's
+// input (`(value: unknown): value is X`) and caught errors. Anywhere else a
+// type should say what the data is.
+const noUnknownShape = {
+  meta: {
+    type: 'problem',
+    docs: {
+      description:
+        'Allow `unknown` only as a type guard parameter or a caught error.',
+    },
+    schema: [],
+  },
+  create(context) {
+    const isGuard = fn =>
+      fn.returnType?.typeAnnotation.type === 'TSTypePredicate'
+    const allowed = node => {
+      for (let n = node.parent; n; n = n.parent) {
+        if (n.type === 'CatchClause') return true
+        if (isFunction(n) || n.type === 'TSFunctionType') {
+          return isGuard(n) && n.params.some(p => within(node, p))
+        }
+      }
+      return false
+    }
+    const within = (node, ancestor) => {
+      for (let n = node; n; n = n.parent) if (n === ancestor) return true
+      return false
+    }
+    return {
+      TSUnknownKeyword(node) {
+        if (!allowed(node))
+          context.report({
+            node,
+            message:
+              "Say what the data is: use the generated bridge types (src/native/bridge) or a domain type, and narrow input with a type guard. `unknown` is only for a guard's parameter or a caught error.",
+          })
+      },
+    }
+  },
+}
+
 module.exports = {
   rules: {
+    'no-unknown-shape': noUnknownShape,
     'max-component-hooks': maxComponentHooks,
     'no-effect-fetch': noEffectFetch,
   },
