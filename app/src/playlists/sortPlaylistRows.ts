@@ -9,7 +9,7 @@ export const sortPlaylistRows = (
   sort: Sort,
 ): readonly PlaylistRow[] => {
   if (sort.key === 'position') {
-    return sort.ascending ? rows : rows.toReversed()
+    return sort.ascending ? rows : [...rows].reverse()
   }
   const present = rows.flatMap(r =>
     r.recording ? [{ row: r, recording: r.recording }] : [],

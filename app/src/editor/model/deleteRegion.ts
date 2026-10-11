@@ -18,5 +18,5 @@ export const deleteRegion = (e: Edits, a: number, b: number): Edits => {
     }
   }
   kept.push({ id: newId(), startMs: start, endMs: end })
-  return { ...e, deleted: kept.toSorted((x, y) => x.startMs - y.startMs) }
+  return { ...e, deleted: [...kept].sort((x, y) => x.startMs - y.startMs) }
 }

@@ -25,7 +25,7 @@ export const sortBy = <T>(
     }
   }
   const dir = sort.ascending ? 1 : -1
-  return items.toSorted((x, y) => {
+  return [...items].sort((x, y) => {
     const [a, b] = [of(x), of(y)]
     const [va, vb] = [value(a), value(b)]
     if (va < vb) {
