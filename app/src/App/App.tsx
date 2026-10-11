@@ -1,26 +1,20 @@
 import { type FC, useState } from 'react'
-import { Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { AboutPanel } from '@/components/AboutPanel'
 import { LibraryScreen } from '@/components/LibraryScreen'
 import { SettingsPanel } from '@/components/SettingsPanel'
-import { refreshLibraryViews } from '@/library/refreshLibraryViews'
 import { colors } from '@/theme/colors'
-import { text } from '@/theme/text'
 
-import { panelStyles } from './panelStyles'
+import { CoreVersion } from './CoreVersion'
 import { RecordBar } from './RecordBar'
+import { RecorderMessage } from './RecorderMessage'
+import { recorderSession } from './recorderSession'
 import { SourcePicker } from './SourcePicker'
-import { useCaptureSources } from './useCaptureSources'
-import { useCoreVersion } from './useCoreVersion'
-import { useRecorderSession } from './useRecorderSession'
+import { useTextStyle } from './useTextStyle'
 
 export const App: FC = () => {
-  const isDark = useColorScheme() === 'dark'
-  const fg = isDark ? text.dark : text.light
-  const { version, error } = useCoreVersion()
-  const sources = useCaptureSources()
-  const recorder = useRecorderSession()
+  const { isDark, textStyle: fg } = useTextStyle()
   const [overlay, setOverlay] = useState<'settings' | 'about'>()
 
   return (
@@ -46,70 +40,26 @@ export const App: FC = () => {
           </Pressable>
         </View>
       </View>
-      {version ? (
-        <Text style={[styles.caption, fg]} testID="core-version">
-          Rust core v{version}
-        </Text>
-      ) : (
-        <Text style={[styles.caption, styles.error]}>
-          Core bridge unavailable: {error}
-        </Text>
-      )}
-
-      <SourcePicker
-        apps={sources.apps}
-        selectedPid={sources.selectedPid}
-        onSelect={sources.select}
-        onRefresh={sources.refresh}
-        disabled={recorder.state !== 'idle' || recorder.starting}
-        textStyle={fg}
-      />
-
-      <RecordBar
-        state={recorder.state}
-        starting={recorder.starting}
-        elapsedMs={recorder.elapsedMs}
-        peak={recorder.peak}
-        onRecord={() => {
-          void recorder.record(sources.selectedApp)
-        }}
-        onPause={recorder.pause}
-        onResume={recorder.resume}
-        onStop={() => {
-          void recorder.stop()
-        }}
-        textStyle={fg}
-      />
-
-      {recorder.message && (
-        <Text
-          testID="recorder-message"
-          selectable
-          style={[styles.message, fg, recorder.message.isError && styles.error]}
-        >
-          {recorder.message.text}
-        </Text>
-      )}
+      <CoreVersion />
+      <SourcePicker />
+      <RecordBar />
+      <RecorderMessage />
 
       <LibraryScreen
-        onMessage={recorder.setMessage}
+        onMessage={recorderSession.setMessage}
         textStyle={fg}
         isDark={isDark}
       />
 
       {overlay && (
         <View
-          style={[
-            panelStyles.overlay,
-            isDark ? styles.rootDark : styles.rootLight,
-          ]}
+          style={[styles.overlay, isDark ? styles.rootDark : styles.rootLight]}
         >
           {overlay === 'settings' ? (
             <SettingsPanel
               onClose={() => {
                 setOverlay(undefined)
               }}
-              onFolderChanged={refreshLibraryViews}
               textStyle={fg}
             />
           ) : (
@@ -131,9 +81,16 @@ const styles = StyleSheet.create({
   rootLight: { backgroundColor: '#ffffff' },
   rootDark: { backgroundColor: '#1e1e1e' },
   title: { fontSize: 28, fontWeight: '600' },
-  caption: { fontSize: 14, marginTop: 4, marginBottom: 20, opacity: 0.7 },
-  message: { marginTop: 12, fontSize: 13, lineHeight: 18 },
-  error: { color: colors.error },
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    width: 380,
+    padding: 20,
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderLeftColor: colors.border,
+  },
   titleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

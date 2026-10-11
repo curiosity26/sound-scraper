@@ -105,13 +105,3 @@ export type BurnJob = {
   readonly target: Target
   readonly started: number
 }
-
-/** The burn panel's colors, from the skin's panel theme. */
-export type BurnTheme = {
-  readonly text: string
-  readonly dim: string
-  readonly border: string
-  readonly accent: string
-  readonly background: string
-  readonly c: (name: string, fallback: string) => string
-}

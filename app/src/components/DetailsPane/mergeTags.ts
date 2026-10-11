@@ -1,7 +1,10 @@
 import type { Tags } from '@/native/types'
 import type { Field, Merged } from '@/tags/types'
 
-import { fieldText } from './fieldText'
+const fieldText = (tags: Tags, field: Field): string => {
+  const v = field === 'track' ? tags.track : tags[field]
+  return v == null ? '' : String(v)
+}
 
 /** Shared values for each field; differing values become 'mixed'. */
 export const mergeTags = (all: readonly Tags[]): Record<Field, Merged> => {

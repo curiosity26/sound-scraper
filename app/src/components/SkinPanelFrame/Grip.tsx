@@ -3,18 +3,18 @@
 import React, { type FC } from 'react'
 import { View } from 'react-native'
 
+import { useSkinScale } from '@/hooks/useSkinScale'
 import type { Rect } from '@/skin/types'
 
 export type GripProps = {
   readonly rect: Rect
   readonly color: string
-  readonly scale: number
 }
 
 /** A staircase of dots in the resize corner. */
 export const Grip: FC<GripProps> = props => {
   const [x, y, w, h] = props.rect
-  const s = props.scale
+  const s = useSkinScale()
   const dots = []
   for (let row = 0; row < 3; row++) {
     for (let col = 0; col < 3; col++) {

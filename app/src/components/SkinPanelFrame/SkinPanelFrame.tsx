@@ -11,9 +11,9 @@ import { useSkinScale } from '@/hooks/useSkinScale'
 import type { PanelName } from '@/skin/types'
 import { windows } from '@/skin/windows'
 import { PanelThemeProvider } from '@/theme/PanelThemeProvider'
-import { themeFromPanel } from '@/theme/themeFromPanel'
 
 import { Grip } from './Grip'
+import { themeFromPanel } from './themeFromPanel'
 import { TitleButton } from './TitleButton'
 import { usePanelChrome } from './usePanelChrome'
 
@@ -129,7 +129,7 @@ export const SkinPanelFrame: FC<SkinPanelFrameProps> = props => {
           {props.children}
         </View>
       </PanelThemeProvider>
-      {grip && <Grip rect={grip} color={theme.accent ?? '#888888'} scale={s} />}
+      {grip && <Grip rect={grip} color={theme.accent ?? '#888888'} />}
       {grip && <DragSurface panel={props.panel} drag={[]} grip={grip} />}
     </View>
   )

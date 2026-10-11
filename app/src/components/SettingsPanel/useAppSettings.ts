@@ -1,5 +1,6 @@
 import { useState } from 'react'
 
+import { refreshLibraryViews } from '@/library/refreshLibraryViews'
 import { settings } from '@/native/settings'
 import type { Settings, StoredSettings } from '@/native/types'
 import { errorText } from '@/utils/errorText'
@@ -14,10 +15,11 @@ export type UseAppSettingsResult = {
   readonly chooseFolder: () => Promise<void>
 }
 
-/** The app settings; each change is saved right away by the Rust core. */
-export const useAppSettings = (
-  onFolderChanged: () => void,
-): UseAppSettingsResult => {
+/**
+ * The app settings; each change is saved right away by the Rust core. A new
+ * recordings folder refreshes every library view.
+ */
+export const useAppSettings = (): UseAppSettingsResult => {
   const [current, setCurrent] = useState(() => settings.get())
   const [error, setError] = useState<string>()
 
@@ -29,7 +31,7 @@ export const useAppSettings = (
       await settings.set(next)
       setCurrent(settings.get())
       if ('recordingsDir' in patch) {
-        onFolderChanged()
+        refreshLibraryViews()
       }
     } catch (e) {
       setError(errorText(e))

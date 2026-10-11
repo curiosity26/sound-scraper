@@ -1,21 +1,27 @@
 import type { FC } from 'react'
-import { Platform, Pressable, ScrollView, Text, View } from 'react-native'
+import {
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native'
 
 import { usePanelStyles } from '@/hooks/usePanelStyles'
 import { editorAvailable } from '@/native/editorAvailable'
+import { colors } from '@/theme/colors'
 
 import { Choice } from './Choice'
 import { QUALITIES } from './constants'
 import { Masters } from './Masters'
-import { styles } from './styles'
+import { settingsStyles } from './styles'
 import { useAppSettings } from './useAppSettings'
 
 export type SettingsPanelProps = {
   /** Shows a heading with Done (the overlay in the plain UI); the skinned
    * window has its own title and close button. */
   readonly onClose?: () => void
-  /** Called after a change that affects the library (folder). */
-  readonly onFolderChanged: () => void
   readonly textStyle: object
 }
 
@@ -23,9 +29,7 @@ export type SettingsPanelProps = {
 export const SettingsPanel: FC<SettingsPanelProps> = props => {
   const { textStyle } = props
   const t = usePanelStyles()
-  const { current, error, save, chooseFolder } = useAppSettings(
-    props.onFolderChanged,
-  )
+  const { current, error, save, chooseFolder } = useAppSettings()
 
   return (
     <View style={styles.panel}>
@@ -33,23 +37,25 @@ export const SettingsPanel: FC<SettingsPanelProps> = props => {
         <View style={styles.header}>
           <Text style={[styles.heading, textStyle]}>Settings</Text>
           <Pressable onPress={props.onClose} testID="close-settings">
-            <Text style={[styles.link, t.link]}>Done</Text>
+            <Text style={[settingsStyles.link, t.link]}>Done</Text>
           </Pressable>
         </View>
       )}
       <ScrollView>
-        <Text style={[styles.section, textStyle]}>Recordings folder</Text>
+        <Text style={[settingsStyles.section, textStyle]}>
+          Recordings folder
+        </Text>
         <Text selectable style={[styles.path, textStyle]}>
           {current.effectiveRecordingsDir}
         </Text>
-        <View style={styles.row}>
+        <View style={settingsStyles.row}>
           <Pressable
             onPress={() => {
               void chooseFolder()
             }}
             testID="choose-folder"
           >
-            <Text style={[styles.link, t.link]}>Choose…</Text>
+            <Text style={[settingsStyles.link, t.link]}>Choose…</Text>
           </Pressable>
           {current.recordingsDir !== null && (
             <Pressable
@@ -57,12 +63,12 @@ export const SettingsPanel: FC<SettingsPanelProps> = props => {
                 void save({ recordingsDir: null })
               }}
             >
-              <Text style={[styles.link, t.link]}>Use default</Text>
+              <Text style={[settingsStyles.link, t.link]}>Use default</Text>
             </Pressable>
           )}
         </View>
 
-        <Text style={[styles.section, textStyle]}>MP3 quality</Text>
+        <Text style={[settingsStyles.section, textStyle]}>MP3 quality</Text>
         {QUALITIES.map(q => (
           <Choice
             key={q.value}
@@ -76,19 +82,19 @@ export const SettingsPanel: FC<SettingsPanelProps> = props => {
           />
         ))}
 
-        <Text style={[styles.section, textStyle]}>Silence</Text>
+        <Text style={[settingsStyles.section, textStyle]}>Silence</Text>
         <Pressable
           onPress={() => {
             void save({ trimSilence: current.trimSilence === false })
           }}
-          style={styles.choice}
+          style={settingsStyles.choice}
           testID="trim-silence"
         >
-          <Text style={[styles.choiceLabel, textStyle]}>
+          <Text style={[settingsStyles.choiceLabel, textStyle]}>
             {current.trimSilence !== false ? '☑ ' : '☐ '}
             Trim silence
           </Text>
-          <Text style={[styles.choiceDetail, textStyle]}>
+          <Text style={[settingsStyles.choiceDetail, textStyle]}>
             Cuts the quiet before the first and after the last sound of a
             recording · default
           </Text>
@@ -98,7 +104,7 @@ export const SettingsPanel: FC<SettingsPanelProps> = props => {
           <Masters current={current} save={save} textStyle={textStyle} />
         )}
 
-        <Text style={[styles.section, textStyle]}>Tags</Text>
+        <Text style={[settingsStyles.section, textStyle]}>Tags</Text>
         <Choice
           selected={current.id3Version === '2.4'}
           label="ID3v2.4"
@@ -126,7 +132,7 @@ export const SettingsPanel: FC<SettingsPanelProps> = props => {
           textStyle={textStyle}
         />
 
-        <Text style={[styles.note, textStyle]}>
+        <Text style={[settingsStyles.note, textStyle]}>
           The last capture source you recorded is remembered and selected again
           when Sound Scraper starts.
         </Text>
@@ -135,3 +141,16 @@ export const SettingsPanel: FC<SettingsPanelProps> = props => {
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  panel: { flex: 1 },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  heading: { fontSize: 18, fontWeight: '600' },
+  path: { fontSize: 12, opacity: 0.8, marginBottom: 6 },
+  error: { color: colors.error, fontSize: 12, marginTop: 8 },
+})

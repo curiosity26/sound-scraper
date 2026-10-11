@@ -16,8 +16,8 @@ core/                         Rust workspace
 app/                          React Native 0.83 (TypeScript)
   src/                        one export per file (imported as `@/...`)
     App/                      the plain (unskinned) UI
-    windows/                  roots of the skinned UI's windows (MainApp, LibraryApp, ...)
-    components/               components; one with its own children, hooks or helpers is a folder with an index.ts
+    windows/                  the skinned UI's windows (MainApp, LibraryApp, ...), each holding the components only it uses
+    components/               components used by several windows; one with its own children, hooks or helpers is a folder with an index.ts
     hooks/                    hooks shared by several components
     native/                   NativeSoundScraper.ts (shared Turbo Module spec) + one file per wrapper (recorder, player, library, ...)
     library/ playlists/ tags/ recorder/ playback/ burn/ skin/ theme/   non-React domain code and stores
@@ -156,7 +156,11 @@ Components call hooks and render. A component may hold up to two
 `useState`/`useReducer` and one `useEffect` itself
 (`sound-scraper/max-component-hooks`); beyond that, its state and effects go
 in `use<Domain>` hooks (one per file, returning a readonly `<Hook>Result`),
-in the component's folder or in `src/hooks/` when shared. Components never
+in the component's folder or in `src/hooks/` when shared. A component calls
+the hooks whose results it uses rather than taking them as props from its
+parent; state several components share lives in a store (read with
+`useSyncExternalStore`) or a per-window context. Children, hooks and helpers
+used by only one component nest in that component's folder. Components never
 fetch in an effect (`sound-scraper/no-effect-fetch`): simple display reads
 use `use()` under `AsyncBoundary` (`react-error-boundary` + `Suspense`) with
 a stable promise (`@/utils/promiseCache`, or held in state and refreshed in

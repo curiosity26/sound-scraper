@@ -1,8 +1,8 @@
 import type { FC } from 'react'
 
-import { MainPanel } from '@/components/MainPanel'
 import { Skinned } from '@/windows/Skinned'
 
+import { MainPanel } from './MainPanel'
 import { useFolderLiveReload } from './useFolderLiveReload'
 import { useMainMenuCommands } from './useMainMenuCommands'
 

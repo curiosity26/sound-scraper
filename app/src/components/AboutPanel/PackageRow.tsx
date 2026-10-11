@@ -3,6 +3,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { colors } from '@/theme/colors'
 
+import { licenseData } from './licenseData'
 import type { Pkg } from './types'
 
 export type PackageRowProps = {
@@ -10,8 +11,6 @@ export type PackageRowProps = {
   /** Its license text is showing. */
   readonly open: boolean
   readonly onToggle: () => void
-  /** License texts by id (the package's `texts`). */
-  readonly licenseTexts: Readonly<Record<string, string>>
   readonly textStyle: object
 }
 
@@ -44,7 +43,7 @@ export const PackageRow: FC<PackageRowProps> = props => {
           ) : (
             pkg.texts.map(t => (
               <Text key={t} selectable style={[styles.licenseText, textStyle]}>
-                {props.licenseTexts[t]}
+                {licenseData.texts[t]}
               </Text>
             ))
           )}

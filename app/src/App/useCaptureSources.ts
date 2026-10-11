@@ -1,32 +1,26 @@
-import { useState } from 'react'
+import { useSyncExternalStore } from 'react'
 
 import type { AudioApp } from '@/native/types'
-import { rememberedPid } from '@/recorder/rememberedPid'
-import { safeList } from '@/recorder/safeList'
 
-export type UseCaptureSourcesResult = {
-  readonly apps: readonly AudioApp[]
-  /** 0 = all system audio. */
-  readonly selectedPid: number
+import { type CaptureSources, captureSources } from './captureSources'
+
+export type UseCaptureSourcesResult = CaptureSources & {
   /** The selected app, or undefined for all system audio. */
   readonly selectedApp: AudioApp | undefined
   readonly select: (pid: number) => void
-  /** Lists the apps again. */
   readonly refresh: () => void
 }
 
-/** The apps that can be recorded and the chosen one (remembered from the
- * last recording). */
+/** The apps that can be recorded and the chosen one. */
 export const useCaptureSources = (): UseCaptureSourcesResult => {
-  const [apps, setApps] = useState<AudioApp[]>(() => safeList())
-  const [selectedPid, setSelectedPid] = useState(() => rememberedPid(apps))
+  const sources = useSyncExternalStore(
+    captureSources.subscribe,
+    captureSources.get,
+  )
   return {
-    apps,
-    selectedPid,
-    selectedApp: apps.find(a => a.pid === selectedPid),
-    select: setSelectedPid,
-    refresh: () => {
-      setApps(safeList())
-    },
+    ...sources,
+    selectedApp: sources.apps.find(a => a.pid === sources.selectedPid),
+    select: captureSources.select,
+    refresh: captureSources.refresh,
   }
 }

@@ -9,9 +9,3 @@ export type BurnTarget = {
   name: string
   tracks: BurnTrackInput[]
 }
-
-/**
- * A right-clicked row: its file name, its item id in a playlist, and the key
- * it's checked under (see LibraryTable's rowKey).
- */
-export type RowTarget = { fileName: string; itemId?: number; key: string }

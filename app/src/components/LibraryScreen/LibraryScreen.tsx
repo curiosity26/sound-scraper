@@ -6,6 +6,7 @@ import type { ShowMenu } from '@/library/types'
 import type { ShowCheckedMenu } from '@/playlists/types'
 
 import { LibraryBody } from './LibraryBody'
+import { LibraryScreenContext } from './LibraryScreenContext'
 import type { BurnTarget, OnMessage } from './types'
 import { useRecordingList } from './useRecordingList'
 
@@ -33,19 +34,24 @@ export type LibraryScreenProps = {
   readonly onBurn?: (target: BurnTarget) => void
 }
 
-/** The recordings table with rename/trash/reveal and the tag editor. */
+/**
+ * The recordings table with rename/trash/reveal and the tag editor. Its
+ * parts read these props from LibraryScreenContext (useLibraryScreen).
+ */
 export const LibraryScreen: FC<LibraryScreenProps> = props => {
   const { recordings, retry } = useRecordingList(props.onMessage)
   return (
-    <View style={styles.libraryRow}>
-      <AsyncBoundary
-        what="read the library"
-        resetKeys={[recordings]}
-        onReset={retry}
-      >
-        <LibraryBody {...props} recordings={recordings} />
-      </AsyncBoundary>
-    </View>
+    <LibraryScreenContext value={props}>
+      <View style={styles.libraryRow}>
+        <AsyncBoundary
+          what="read the library"
+          resetKeys={[recordings]}
+          onReset={retry}
+        >
+          <LibraryBody recordings={recordings} />
+        </AsyncBoundary>
+      </View>
+    </LibraryScreenContext>
   )
 }
 
