@@ -1,4 +1,6 @@
-* text=auto
+# LF everywhere, whatever core.autocrlf says, so Prettier's lint passes on
+# Windows checkouts too.
+* text=auto eol=lf
 # Visual Studio expects CRLF in its project files.
 *.sln text eol=crlf
 *.vcxproj text eol=crlf
@@ -7,5 +9,7 @@
 *.props text eol=crlf
 *.targets text eol=crlf
 *.appxmanifest text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
 *.png binary
 *.ico binary

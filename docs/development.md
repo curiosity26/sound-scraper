@@ -147,6 +147,9 @@ together with that list. The React Native codegen specs
 `interface` and default export that codegen requires.
 
 The Lint workflow runs these on every pull request; run them before pushing.
+`.gitattributes` checks text files out with LF on every OS (Prettier
+rejects CRLF). A Windows clone made before that rule needs one refresh:
+`git rm -rq --cached . && git reset --hard` (with no local changes).
 
 ```sh
 cd app
