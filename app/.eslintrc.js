@@ -141,7 +141,6 @@ module.exports = {
       },
       rules: {
         ...TS_RULES,
-        'sound-scraper/no-effect-fetch': 'error',
         'no-restricted-syntax': ['error', ...STYLE_SYNTAX],
       },
     },
@@ -149,6 +148,9 @@ module.exports = {
       files: ['*.tsx'],
       rules: {
         'react-refresh/only-export-components': 'error',
+        // Components don't fetch: they read with use() under <Suspense>, or
+        // call a use<Domain> hook when that reads cleaner.
+        'sound-scraper/no-effect-fetch': 'error',
         // A couple of useState calls or one simple effect read fine inline;
         // past that, the component should call a use<Domain> hook instead.
         'sound-scraper/max-component-hooks': [
