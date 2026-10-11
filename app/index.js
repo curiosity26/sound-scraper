@@ -2,6 +2,9 @@
  * @format
  */
 
+// First, so every module sees the ES2023 built-ins Hermes lacks.
+import './src/polyfills/es2023'
+
 import { AppRegistry } from 'react-native'
 
 import { name as appName } from './app.json'

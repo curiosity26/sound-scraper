@@ -18,11 +18,9 @@ const STYLE_SYNTAX = [
   },
   {
     selector:
-      "CallExpression[callee.property.name=/^(sort|reverse|splice)$/][arguments.length<=2]:not([callee.object.type='ArrayExpression'])",
-    // Hermes has no toSorted/toReversed/toSpliced/with (ES2023), and the
-    // tsconfig lib stops at ES2022 so tsc rejects them.
-    message:
-      'Sort, reverse or splice a copy (`[...items].sort(...)`), never the original array.',
+      'CallExpression[callee.property.name=/^(sort|reverse|splice)$/][arguments.length<=2]',
+    // Hermes gets these from src/polyfills/es2023.ts.
+    message: 'Use the non-mutating toSorted, toReversed or toSpliced instead.',
   },
   {
     selector:

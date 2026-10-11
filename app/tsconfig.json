@@ -6,7 +6,7 @@
     "noUncheckedIndexedAccess": true,
     "verbatimModuleSyntax": true,
     "erasableSyntaxOnly": true,
-    "lib": ["ES2022"],
+    "lib": ["ES2023"],
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]

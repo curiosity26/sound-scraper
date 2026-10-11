@@ -10,5 +10,5 @@ export const adjacentSplice = (
   const s = sortSplices(e.splices)
   return dir > 0
     ? s.find(x => x.atMs > ms + 1)
-    : [...s].reverse().find(x => x.atMs < ms - 1)
+    : s.toReversed().find(x => x.atMs < ms - 1)
 }
