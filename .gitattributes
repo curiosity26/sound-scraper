@@ -11,5 +11,8 @@
 *.appxmanifest text eol=crlf
 *.bat text eol=crlf
 *.cmd text eol=crlf
+# autolink-windows writes these with CRLF and its --check build step fails
+# if the checkout differs.
+app/windows/**/AutolinkedNativeModules.g.* text eol=crlf
 *.png binary
 *.ico binary
