@@ -82,7 +82,7 @@ const TS_RULES = {
 module.exports = {
   root: true,
   extends: ['@react-native', 'plugin:import/typescript'],
-  plugins: ['prettier', 'import', 'react-refresh'],
+  plugins: ['prettier', 'import', 'react-refresh', 'sound-scraper'],
   settings: {
     'import/internal-regex': '^@/',
   },
@@ -141,6 +141,7 @@ module.exports = {
       },
       rules: {
         ...TS_RULES,
+        'sound-scraper/no-effect-fetch': 'error',
         'no-restricted-syntax': ['error', ...STYLE_SYNTAX],
       },
     },
@@ -148,6 +149,12 @@ module.exports = {
       files: ['*.tsx'],
       rules: {
         'react-refresh/only-export-components': 'error',
+        // A couple of useState calls or one simple effect read fine inline;
+        // past that, the component should call a use<Domain> hook instead.
+        'sound-scraper/max-component-hooks': [
+          'error',
+          { state: 2, effects: 1 },
+        ],
         'no-restricted-syntax': ['error', ...STYLE_SYNTAX, ...COMPONENT_SYNTAX],
       },
     },
@@ -173,7 +180,13 @@ module.exports = {
     },
     {
       // Tooling configs are CommonJS modules read by Node.
-      files: ['*.config.js', '.eslintrc.js', '.prettierrc.js', 'scripts/**'],
+      files: [
+        '*.config.js',
+        '.eslintrc.js',
+        '.prettierrc.js',
+        'scripts/**',
+        'eslint-rules/**',
+      ],
       rules: {
         'import/no-default-export': 'off',
       },
