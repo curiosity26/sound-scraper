@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { type FC } from 'react'
 import { Pressable, StyleSheet, Text } from 'react-native'
 
 import { colors } from '@/theme/colors'
@@ -8,10 +8,12 @@ import { usePanelTheme } from '@/theme/usePanelTheme'
 import type { UsePlaylistControlsResult } from './usePlaylistControls'
 
 /** ⋯: rename, duplicate, export or delete the playlist showing. */
-export const PlaylistActionsButton = (props: {
-  controls: UsePlaylistControlsResult
-  textStyle: object
-}): React.JSX.Element | null => {
+export type PlaylistActionsButtonProps = {
+  readonly controls: UsePlaylistControlsResult
+  readonly textStyle: object
+}
+
+export const PlaylistActionsButton: FC<PlaylistActionsButtonProps> = props => {
   const t = usePanelStyles()
   const theme = usePanelTheme()
   const { controls } = props

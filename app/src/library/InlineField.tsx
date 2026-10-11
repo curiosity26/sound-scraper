@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { type FC, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { TextField } from '@/components/TextField'
@@ -9,16 +9,18 @@ import { usePanelStyles } from '@/theme/usePanelStyles'
  * A value shown as text; click to edit in place. Enter (or leaving the
  * field) commits, Esc cancels. `onCommit` resolves false to keep editing.
  */
-export const InlineField = (props: {
-  label: string
-  value: string
-  mixed?: boolean
-  multiline?: boolean
-  large?: boolean
-  onCommit: (text: string) => Promise<boolean>
-  textStyle: object
-  testID?: string
-}): React.JSX.Element => {
+export type InlineFieldProps = {
+  readonly label: string
+  readonly value: string
+  readonly mixed?: boolean
+  readonly multiline?: boolean
+  readonly large?: boolean
+  readonly onCommit: (text: string) => Promise<boolean>
+  readonly textStyle: object
+  readonly testID?: string
+}
+
+export const InlineField: FC<InlineFieldProps> = props => {
   const t = usePanelStyles()
   const [editing, setEditing] = useState<string>()
   const commit = async () => {
@@ -51,8 +53,12 @@ export const InlineField = (props: {
           value={editing}
           multiline={props.multiline}
           onChangeText={setEditing}
-          onSubmitEditing={commit}
-          onBlur={commit}
+          onSubmitEditing={() => {
+            void commit()
+          }}
+          onBlur={() => {
+            void commit()
+          }}
           onKeyPress={e => {
             if (e.nativeEvent.key === 'Escape') {
               setEditing(undefined)

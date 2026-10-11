@@ -9,8 +9,9 @@ import { moveItems } from '@/playlists/moveItems'
 import { playlistRows } from '@/playlists/playlistRows'
 import { sortPlaylistRows } from '@/playlists/sortPlaylistRows'
 import { trackSectors } from '@/playlists/trackSectors'
+import type { PlaylistRow } from '@/playlists/types'
 
-function rec(fileName: string, durationMs: number, extra = {}): Recording {
+const rec = (fileName: string, durationMs: number, extra = {}): Recording => {
   return {
     fileName,
     path: `/r/${fileName}`,
@@ -65,7 +66,7 @@ test('search and sort leave missing rows last', () => {
     ],
     [rec('a.mp3', 2000), rec('b.mp3', 1000, { artist: 'Miles' })],
   )
-  const names = (rs: typeof rows) => rs.map(r => r.item.fileName)
+  const names = (rs: readonly PlaylistRow[]) => rs.map(r => r.item.fileName)
   expect(
     names(sortPlaylistRows(rows, { key: 'position', ascending: true })),
   ).toEqual(['b.mp3', 'gone.mp3', 'a.mp3'])

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { type FC } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 
 import { colors } from '@/theme/colors'
@@ -11,12 +11,14 @@ import { SECTORS_74, SECTORS_80 } from './constants'
 import type { Capacity } from './types'
 
 /** The CD capacity bar with 74 and 80 minute marks, and what it means. */
-export const CapacityBar = (props: {
-  capacity: Capacity
-  textStyle: object
+export type CapacityBarProps = {
+  readonly capacity: Capacity
+  readonly textStyle: object
   /** Beside the summary (Burn CD…). */
-  action?: React.ReactNode
-}): React.JSX.Element => {
+  readonly action?: React.ReactNode
+}
+
+export const CapacityBar: FC<CapacityBarProps> = props => {
   const theme = usePanelTheme()
   const t = usePanelStyles()
   const pc = theme?.playlist ?? {}
@@ -30,7 +32,8 @@ export const CapacityBar = (props: {
       ? pc.fill80 ?? '#e0a030'
       : pc.over ?? colors.error
   const text = pc.text ?? theme?.text
-  const pct = (sectors: number) => `${Math.min(100, (sectors / scale) * 100)}%`
+  const pct = (sectors: number): `${number}%` =>
+    `${Math.min(100, (sectors / scale) * 100)}%`
   return (
     <View style={styles.capacity} testID="cd-capacity">
       <View style={styles.capacityTop}>
@@ -55,7 +58,7 @@ export const CapacityBar = (props: {
           style={[
             styles.barFill,
             {
-              width: pct(c.totalSectors) as `${number}%`,
+              width: pct(c.totalSectors),
               backgroundColor: fill,
             },
           ]}
@@ -66,7 +69,7 @@ export const CapacityBar = (props: {
             style={[
               styles.mark,
               {
-                left: pct(mark) as `${number}%`,
+                left: pct(mark),
                 backgroundColor: pc.mark ?? text ?? '#fff',
               },
             ]}
@@ -75,18 +78,12 @@ export const CapacityBar = (props: {
       </View>
       <View style={styles.marks}>
         <Text
-          style={[
-            styles.markLabel,
-            { color: text, left: pct(SECTORS_74) as `${number}%` },
-          ]}
+          style={[styles.markLabel, { color: text, left: pct(SECTORS_74) }]}
         >
           74
         </Text>
         <Text
-          style={[
-            styles.markLabel,
-            { color: text, left: pct(SECTORS_80) as `${number}%` },
-          ]}
+          style={[styles.markLabel, { color: text, left: pct(SECTORS_80) }]}
         >
           80
         </Text>

@@ -1,28 +1,30 @@
-import React, { useState } from 'react'
+import React, { type FC, useState } from 'react'
 import { Pressable, StyleSheet, Text } from 'react-native'
 
 import { MONO } from './constants'
 import { Icon, type IconName } from './Icon'
 import type { EditorTheme } from './types'
 
+export type ToolButtonProps = {
+  readonly th: EditorTheme
+  readonly label: string
+  readonly glyph?: string
+  readonly icon?: IconName
+  readonly detail?: string
+  readonly onPress: () => void
+  readonly disabled?: boolean
+  readonly active?: boolean
+  readonly accent?: boolean
+  readonly testID?: string
+  /** For glyph-only tools (empty label). */
+  readonly a11yLabel?: string
+}
+
 /**
  * A tool: a glyph or icon with a label, quiet until hovered or pressed;
  * `active` shows it latched (Snap), `accent` fills it (Save).
  */
-export const ToolButton = (props: {
-  th: EditorTheme
-  label: string
-  glyph?: string
-  icon?: IconName
-  detail?: string
-  onPress: () => void
-  disabled?: boolean
-  active?: boolean
-  accent?: boolean
-  testID?: string
-  /** For glyph-only tools (empty label). */
-  a11yLabel?: string
-}): React.JSX.Element => {
+export const ToolButton: FC<ToolButtonProps> = props => {
   const { th } = props
   const [hover, setHover] = useState(false)
   const fg = props.accent ? th.accentText : props.active ? th.accent : th.text

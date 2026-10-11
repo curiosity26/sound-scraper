@@ -11,7 +11,7 @@ export const skinStore = {
   get: (): Skin | undefined => current,
   set: (skin: Skin) => {
     current = skin
-    setImageRevision(skin.revision ?? '')
+    setImageRevision(skin.revision)
     listeners.forEach(l => {
       l(skin)
     })

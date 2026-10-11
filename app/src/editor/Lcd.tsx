@@ -1,15 +1,17 @@
-import React from 'react'
+import React, { type FC } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 
 import { MONO } from './constants'
 import type { EditorTheme } from './types'
 
+export type LcdProps = {
+  readonly th: EditorTheme
+  readonly main: string
+  readonly sub: string
+}
+
 /** The position readout: a small LCD. */
-export const Lcd = (props: {
-  th: EditorTheme
-  main: string
-  sub: string
-}): React.JSX.Element => {
+export const Lcd: FC<LcdProps> = props => {
   const { th } = props
   return (
     <View

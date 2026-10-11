@@ -6,24 +6,24 @@ import type { burnTarget } from '@/skin/burnTarget'
 /** Mirrors sound_scraper_disc::Media. */
 export type Media = {
   /** 'none' | 'blank' | 'erasable' | 'unusable' | 'image' */
-  state: string
-  kind: string | null
+  readonly state: string
+  readonly kind: string | null
   /** Sectors available for audio. */
-  capacity: number | null
-  label: string
+  readonly capacity: number | null
+  readonly label: string
 }
 
 /** Mirrors sound_scraper_disc::Device. */
 export type Device = {
-  id: string
-  name: string
+  readonly id: string
+  readonly name: string
   /** 'image' | 'simulated' | 'drive' */
-  kind: string
-  media: Media
-  speeds: number[]
-  canTest: boolean
-  gapless: boolean
-  cdText: boolean
+  readonly kind: string
+  readonly media: Media
+  readonly speeds: readonly number[]
+  readonly canTest: boolean
+  readonly gapless: boolean
+  readonly cdText: boolean
 }
 
 export type TrackState =
@@ -36,62 +36,82 @@ export type TrackState =
 
 /** Mirrors core::burn::Status. */
 export type BurnStatus = {
-  state: 'preparing' | 'writing' | 'done' | 'failed' | 'cancelled'
-  phase: string
-  destination: string
-  kind: string
-  tracks: Array<{
-    title: string
-    durationMs: number
-    state: TrackState
-    progress: number
+  readonly state: 'preparing' | 'writing' | 'done' | 'failed' | 'cancelled'
+  readonly phase: string
+  readonly destination: string
+  readonly kind: string
+  readonly tracks: ReadonlyArray<{
+    readonly title: string
+    readonly durationMs: number
+    readonly state: TrackState
+    readonly progress: number
   }>
-  overall: number
-  elapsedMs: number
-  remainingMs: number | null
-  speedX: number | null
-  buffer: number | null
-  log: Array<{ atMs: number; text: string }>
-  message: string | null
-  output: string | null
-  testWrite: boolean
+  readonly overall: number
+  readonly elapsedMs: number
+  readonly remainingMs: number | null
+  readonly speedX: number | null
+  readonly buffer: number | null
+  readonly log: ReadonlyArray<{ readonly atMs: number; readonly text: string }>
+  readonly message: string | null
+  readonly output: string | null
+  readonly testWrite: boolean
 }
 
 export type SimSettings = {
-  media: 'blank74' | 'blank80' | 'rewritableUsed' | 'none' | 'dvd'
-  fault:
-    | { kind: 'none' }
-    | { kind: 'underrun' | 'removed' | 'writeError'; track: number }
-  fast: boolean
+  readonly media: 'blank74' | 'blank80' | 'rewritableUsed' | 'none' | 'dvd'
+  readonly fault:
+    | { readonly kind: 'none' }
+    | {
+        readonly kind: 'underrun' | 'removed' | 'writeError'
+        readonly track: number
+      }
+  readonly fast: boolean
 }
 
 export type BurnTrackInput = {
-  path: string
-  title: string
-  performer: string | null
-  durationMs: number
+  readonly path: string
+  readonly title: string
+  readonly performer: string | null
+  readonly durationMs: number
 }
 
 export type BurnOptions = {
-  deviceId: string
-  title: string
-  tracks: BurnTrackInput[]
-  gapSeconds: number
-  cdText: boolean
-  testWrite: boolean
-  speed: number
-  eject: boolean
-  erase: boolean
-  imagePath: string | null
+  readonly deviceId: string
+  readonly title: string
+  readonly tracks: readonly BurnTrackInput[]
+  readonly gapSeconds: number
+  readonly cdText: boolean
+  readonly testWrite: boolean
+  readonly speed: number
+  readonly eject: boolean
+  readonly erase: boolean
+  readonly imagePath: string | null
 }
 
 /** Whether a burn to `device` can start, and what the button says. */
 export type Readiness = {
-  ok: boolean
+  readonly ok: boolean
   /** "Burn", "Erase and Burn", "Save Image…" */
-  action: string
+  readonly action: string
   /** Why not, or a note. */
-  reason?: string
+  readonly reason?: string
 }
 
 export type Target = NonNullable<ReturnType<typeof burnTarget.get>>
+
+/** The burn in progress (or last finished). */
+export type BurnJob = {
+  readonly id: number
+  readonly target: Target
+  readonly started: number
+}
+
+/** The burn panel's colors, from the skin's panel theme. */
+export type BurnTheme = {
+  readonly text: string
+  readonly dim: string
+  readonly border: string
+  readonly accent: string
+  readonly background: string
+  readonly c: (name: string, fallback: string) => string
+}

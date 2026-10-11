@@ -2,7 +2,7 @@ import { formatSectors } from './formatSectors'
 import type { Capacity } from './types'
 
 /** "12 tracks · 52:14 (+0:24 gaps)" */
-export function capacitySummary(c: Capacity): string {
+export const capacitySummary = (c: Capacity): string => {
   const tracks = c.tracks === 1 ? '1 track' : `${c.tracks} tracks`
   const music = formatSectors(c.totalSectors - c.gapSectors)
   const missing = c.missing > 0 ? ` · ${c.missing} missing` : ''

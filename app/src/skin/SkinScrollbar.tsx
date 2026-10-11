@@ -1,6 +1,6 @@
 // Layout here comes from skin data (rects, sizes), so styles are inline.
 /* eslint-disable react-native/no-inline-styles */
-import React, { useRef } from 'react'
+import React, { type FC, useRef } from 'react'
 import { type GestureResponderEvent, View } from 'react-native'
 
 import { NineSlice } from './NineSlice'
@@ -8,20 +8,20 @@ import { thumbGeometry } from './thumbGeometry'
 import type { FramePanel } from './types'
 import { useSkinScale } from './useSkinScale'
 
-type Props = {
-  scrollbar: NonNullable<FramePanel['scrollbar']>
+export type SkinScrollbarProps = {
+  readonly scrollbar: NonNullable<FramePanel['scrollbar']>
   /** Visible height, content height and scroll offset, in points. */
-  viewport: number
-  content: number
-  offset: number
-  onScrollTo: (offset: number) => void
+  readonly viewport: number
+  readonly content: number
+  readonly offset: number
+  readonly onScrollTo: (offset: number) => void
 }
 
 /**
  * A vertical scroll bar drawn from the skin's sprites, beside a list whose
  * own indicator is hidden. Drag the thumb, or click the track to jump.
  */
-export const SkinScrollbar = (props: Props): React.JSX.Element | null => {
+export const SkinScrollbar: FC<SkinScrollbarProps> = props => {
   const { scrollbar, viewport, content, offset } = props
   const s = useSkinScale()
   const width = scrollbar.track[2] * s

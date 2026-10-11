@@ -1,5 +1,5 @@
 /** Maps a linear level to 0..1 over a 60 dB range. */
-export function meterScale(level: number): number {
+export const meterScale = (level: number): number => {
   if (level <= 0) {
     return 0
   }

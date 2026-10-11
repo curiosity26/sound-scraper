@@ -1,6 +1,6 @@
 /* eslint-disable react-native/no-inline-styles */
 
-import React from 'react'
+import React, { type FC } from 'react'
 import { type GestureResponderEvent, StyleSheet, View } from 'react-native'
 
 import type { Edits } from '@/editor/model/types'
@@ -12,22 +12,24 @@ import { trackColor } from './trackColor'
 import type { EditorTheme } from './types'
 import { withAlpha } from './withAlpha'
 
+export type OverviewBarProps = {
+  readonly th: EditorTheme
+  readonly editorId: number
+  readonly width: number
+  readonly durationMs: number
+  readonly colors: string
+  readonly viewStartMs: number
+  readonly viewEndMs: number
+  readonly edits: Edits
+  readonly tracks: readonly TrackInfo[]
+  readonly onScrollTo: (centerMs: number) => void
+}
+
 /**
  * The whole recording at a glance: its tracks, deleted stretches and a box
  * around what the editor shows. Click or drag to move the view.
  */
-export const OverviewBar = (props: {
-  th: EditorTheme
-  editorId: number
-  width: number
-  durationMs: number
-  colors: string
-  viewStartMs: number
-  viewEndMs: number
-  edits: Edits
-  tracks: TrackInfo[]
-  onScrollTo: (centerMs: number) => void
-}): React.JSX.Element => {
+export const OverviewBar: FC<OverviewBarProps> = props => {
   const { th, width, durationMs } = props
   const per = durationMs / Math.max(1, width)
   const go = (e: GestureResponderEvent) => {

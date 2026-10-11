@@ -1,9 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { type FC, useCallback, useEffect, useMemo, useState } from 'react'
 import { Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native'
 
 import { LibraryScreen } from '@/library/LibraryScreen'
 import { refreshLibraryViews } from '@/library/refreshLibraryViews'
 import { getCoreVersion } from '@/native/getCoreVersion'
+import { isRecorderState } from '@/native/isRecorderState'
 import { recorder } from '@/native/recorder'
 import type { AudioApp, RecorderState } from '@/native/types'
 import { RecordBar } from '@/recorder/RecordBar'
@@ -13,6 +14,7 @@ import { safeList } from '@/recorder/safeList'
 import { safeRecover } from '@/recorder/safeRecover'
 import { safeState } from '@/recorder/safeState'
 import { SourcePicker } from '@/recorder/SourcePicker'
+import type { Message } from '@/recorder/types'
 import { AboutPanel } from '@/settings/AboutPanel'
 import { panelStyles } from '@/settings/panelStyles'
 import { SettingsPanel } from '@/settings/SettingsPanel'
@@ -20,7 +22,11 @@ import { colors } from '@/theme/colors'
 import { text } from '@/theme/text'
 import { errorText } from '@/utils/errorText'
 
-function useCoreVersion(): { version?: string; error?: string } {
+type UseCoreVersionResult =
+  | { readonly version: string; readonly error?: undefined }
+  | { readonly version?: undefined; readonly error: string }
+
+const useCoreVersion = (): UseCoreVersionResult => {
   return useMemo(() => {
     try {
       return { version: getCoreVersion() }
@@ -30,7 +36,7 @@ function useCoreVersion(): { version?: string; error?: string } {
   }, [])
 }
 
-export const App = (): React.JSX.Element => {
+export const App: FC = () => {
   const isDark = useColorScheme() === 'dark'
   const fg = isDark ? text.dark : text.light
   const { version, error } = useCoreVersion()
@@ -43,7 +49,7 @@ export const App = (): React.JSX.Element => {
   const [starting, setStarting] = useState(false)
   const [elapsedMs, setElapsedMs] = useState(0)
   const [peak, setPeak] = useState(0)
-  const [message, setMessage] = useState<{ text: string; isError: boolean }>()
+  const [message, setMessage] = useState<Message>()
   const [overlay, setOverlay] = useState<'settings' | 'about'>()
 
   useEffect(() => {
@@ -59,7 +65,9 @@ export const App = (): React.JSX.Element => {
     const subscription = recorder.onEvent(e => {
       switch (e.kind) {
         case 'state':
-          setState(e.state as RecorderState)
+          if (isRecorderState(e.state)) {
+            setState(e.state)
+          }
           if (e.state === 'idle') {
             setPeak(0)
           }
@@ -153,10 +161,14 @@ export const App = (): React.JSX.Element => {
         starting={starting}
         elapsedMs={elapsedMs}
         peak={peak}
-        onRecord={onRecord}
+        onRecord={() => {
+          void onRecord()
+        }}
         onPause={recorder.pause}
         onResume={recorder.resume}
-        onStop={onStop}
+        onStop={() => {
+          void onStop()
+        }}
         textStyle={fg}
       />
 

@@ -1,7 +1,7 @@
 import { imageRevision } from './imageRevision'
 
 /** A file URL for a macOS (/…) or Windows (C:\…) path. */
-export function fileUri(path: string): string {
+export const fileUri = (path: string): string => {
   const slashed = path.replace(/\\/g, '/')
   const encoded = encodeURI(slashed).replace(/[?#]/g, encodeURIComponent)
   const url = slashed.startsWith('/')

@@ -1,6 +1,6 @@
 // Layout here comes from skin data (rects, sizes), so styles are inline.
 /* eslint-disable react-native/no-inline-styles */
-import React, { useRef } from 'react'
+import React, { type FC, useRef } from 'react'
 import { type GestureResponderEvent, View } from 'react-native'
 
 import { NineSlice } from './NineSlice'
@@ -8,30 +8,30 @@ import { SpriteCell } from './SpriteCell'
 import type { ImageRef, Rect } from './types'
 import { useSkinScale } from './useSkinScale'
 
-type Props = {
-  image: ImageRef
+export type SkinSliderProps = {
+  readonly image: ImageRef
   /** Track and thumb cells in `image`. */
-  track: Rect
-  thumb: Rect
+  readonly track: Rect
+  readonly thumb: Rect
   /** Optional [top, right, bottom, left] insets for stretching the track. */
-  trackSlice?: [number, number, number, number]
-  width: number
-  height: number
+  readonly trackSlice?: readonly [number, number, number, number]
+  readonly width: number
+  readonly height: number
   /** 0..1 */
-  value: number
-  onChange: (value: number) => void
+  readonly value: number
+  readonly onChange: (value: number) => void
   /** Called when dragging ends. */
-  onCommit?: (value: number) => void
-  disabled?: boolean
-  accessibilityLabel: string
-  testID?: string
+  readonly onCommit?: (value: number) => void
+  readonly disabled?: boolean
+  readonly accessibilityLabel: string
+  readonly testID?: string
 }
 
 /**
  * A slider drawn from sprites: the track stretched to the slider's size and
  * the thumb at the value. Vertical when taller than wide (0 at the bottom).
  */
-export const SkinSlider = (props: Props): React.JSX.Element => {
+export const SkinSlider: FC<SkinSliderProps> = props => {
   const { image, track, thumb, width, height, disabled } = props
   const s = useSkinScale()
   const vertical = height > width

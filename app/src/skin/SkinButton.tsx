@@ -1,6 +1,6 @@
 // Layout here comes from skin data (rects, sizes), so styles are inline.
 /* eslint-disable react-native/no-inline-styles */
-import React from 'react'
+import React, { type FC } from 'react'
 import { Pressable } from 'react-native'
 
 import { buttonState } from './buttonState'
@@ -9,20 +9,20 @@ import { SpriteCell } from './SpriteCell'
 import type { SkinElement } from './types'
 import { useSkinScale } from './useSkinScale'
 
-type Props = {
-  element: SkinElement
-  onPress: () => void
+export type SkinButtonProps = {
+  readonly element: SkinElement
+  readonly onPress: () => void
   /** Latched on (a panel open…). */
-  active?: boolean
+  readonly active?: boolean
   /**
    * A mode with its own look, e.g. "recording" for the record button: the
    * sprite's "recording"/"recordingPressed" states, falling back to
    * active/pressed.
    */
-  mode?: string
-  disabled?: boolean
-  testID?: string
-  accessibilityLabel: string
+  readonly mode?: string
+  readonly disabled?: boolean
+  readonly testID?: string
+  readonly accessibilityLabel: string
 }
 
 /**
@@ -30,7 +30,7 @@ type Props = {
  * active, activePressed, disabled), or an invisible hot spot when the skin
  * paints the button into its background.
  */
-export const SkinButton = (props: Props): React.JSX.Element => {
+export const SkinButton: FC<SkinButtonProps> = props => {
   const { element, active = false, disabled = false } = props
   const [, , w, h] = element.rect
   const s = useSkinScale()

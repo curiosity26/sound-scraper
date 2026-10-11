@@ -12,22 +12,20 @@ jest.mock('@/native/NativeSoundScraper', () => ({
   default: {},
 }))
 
-function device(
+const device = (
   state: string,
   capacity: number | null,
   kind = 'drive',
-): Device {
-  return {
-    id: 'd',
-    name: 'Drive',
-    kind,
-    media: { state, kind: 'CD-R', capacity, label: 'label' },
-    speeds: [],
-    canTest: true,
-    gapless: true,
-    cdText: true,
-  }
-}
+): Device => ({
+  id: 'd',
+  name: 'Drive',
+  kind,
+  media: { state, kind: 'CD-R', capacity, label: 'label' },
+  speeds: [],
+  canTest: true,
+  gapless: true,
+  cdText: true,
+})
 
 const minutes = (m: number) =>
   discCapacity(

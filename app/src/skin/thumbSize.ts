@@ -1,7 +1,7 @@
 import type { SkinElement } from './types'
 
 /** `style.thumbSize`, or a thumb half as wide as the bar is tall. */
-export function thumbSize(element: SkinElement): [number, number] {
+export const thumbSize = (element: SkinElement): [number, number] => {
   const size = element.style?.thumbSize
   if (
     Array.isArray(size) &&

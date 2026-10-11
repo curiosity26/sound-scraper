@@ -4,10 +4,10 @@ import type { Capacity } from '@/playlists/types'
 
 import type { Device, Readiness } from './types'
 
-export function readiness(
+export const readiness = (
   device: Device | undefined,
   capacity: Capacity,
-): Readiness {
+): Readiness => {
   if (!device) {
     return { ok: false, action: 'Burn', reason: 'Choose where to burn.' }
   }

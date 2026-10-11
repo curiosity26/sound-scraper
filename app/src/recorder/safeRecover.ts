@@ -1,6 +1,6 @@
 import { recorder } from '@/native/recorder'
 
-export function safeRecover(): number {
+export const safeRecover = (): number => {
   try {
     return recorder.recoverPartials()
   } catch {

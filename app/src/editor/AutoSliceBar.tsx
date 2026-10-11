@@ -1,10 +1,10 @@
-import React from 'react'
+import React, { type FC } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 
 import { stepIn } from '@/editor/model/stepIn'
 import type { DetectOptions } from '@/native/types'
 
-import { DETECT_PRESETS } from './constants'
+import { DETECT_PRESET_NAMES, DETECT_PRESETS } from './constants'
 import { formatStep } from './formatStep'
 import { Segmented } from './Segmented'
 import { Stepper } from './Stepper'
@@ -17,22 +17,22 @@ const THRESHOLDS = [
 const GAPS = [300, 500, 750, 1000, 1500, 2000, 3000, 5000, 10_000]
 const MIN_TRACKS = [0, 5000, 10_000, 20_000, 30_000, 60_000, 120_000, 300_000]
 
+export type AutoSliceBarProps = {
+  readonly th: EditorTheme
+  readonly options: DetectOptions
+  readonly onChange: (o: DetectOptions) => void
+  readonly found: number
+  readonly onApply: () => void
+  readonly onCancel: () => void
+}
+
 /**
  * Auto Slice's settings, in a bar above the waveform so the proposed
  * slices (dashed) stay in view while the settings change.
  */
-export const AutoSliceBar = (props: {
-  th: EditorTheme
-  options: DetectOptions
-  onChange: (o: DetectOptions) => void
-  found: number
-  onApply: () => void
-  onCancel: () => void
-}): React.JSX.Element => {
+export const AutoSliceBar: FC<AutoSliceBarProps> = props => {
   const { th, options: o, onChange } = props
-  const preset = (
-    Object.keys(DETECT_PRESETS) as Array<'digital' | 'vinyl'>
-  ).find(
+  const preset = DETECT_PRESET_NAMES.find(
     k =>
       DETECT_PRESETS[k].thresholdDb === o.thresholdDb &&
       DETECT_PRESETS[k].minGapMs === o.minGapMs &&

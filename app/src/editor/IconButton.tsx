@@ -1,19 +1,21 @@
-import React from 'react'
+import React, { type FC } from 'react'
 import { Pressable, StyleSheet } from 'react-native'
 
 import { Icon, type IconName } from './Icon'
 import type { EditorTheme } from './types'
 
+export type IconButtonProps = {
+  readonly th: EditorTheme
+  readonly icon: IconName
+  readonly label: string
+  readonly onPress: () => void
+  readonly disabled?: boolean
+  readonly active?: boolean
+  readonly size?: number
+}
+
 /** A square button with an icon (transport). */
-export const IconButton = (props: {
-  th: EditorTheme
-  icon: IconName
-  label: string
-  onPress: () => void
-  disabled?: boolean
-  active?: boolean
-  size?: number
-}): React.JSX.Element => {
+export const IconButton: FC<IconButtonProps> = props => {
   const { th } = props
   const color = props.active ? th.accent : th.text
   return (

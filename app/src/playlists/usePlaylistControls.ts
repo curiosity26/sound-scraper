@@ -1,11 +1,18 @@
 // The library's playlist picker, its menu actions and in-panel prompts, the
 // "Add to ▾" action for checked rows, and the CD capacity bar
 // (docs/playlists-and-cd-burning-design.md §5).
-import { useRef, useState } from 'react'
+import {
+  type Dispatch,
+  type RefObject,
+  type SetStateAction,
+  useRef,
+  useState,
+} from 'react'
 import type { View } from 'react-native'
 
 import { pickSaveFile } from '@/native/pickSaveFile'
 import { playlistsApi } from '@/native/playlistsApi'
+import type { Playlist } from '@/native/types'
 import { errorText } from '@/utils/errorText'
 
 import { playlists, type PlaylistsState } from './playlists'
@@ -29,17 +36,17 @@ type Prompt =
       kind: 'duplicates'
       playlistId: number
       playlistName: string
-      fileNames: string[]
+      fileNames: readonly string[]
       already: number
     }
 
 const NEW = 'New Playlist…'
 
 /** Where a pressed view sits in its window, for a pop-up menu under it. */
-function menuPoint(
+const menuPoint = (
   view: View | null,
   then: (x: number, y: number) => void,
-): void {
+): void => {
   if (!view) {
     then(0, 0)
     return
@@ -50,7 +57,7 @@ function menuPoint(
 }
 
 /** "Playlist 3": the first free default name. */
-function defaultName(state: PlaylistsState): string {
+const defaultName = (state: PlaylistsState): string => {
   const taken = new Set(state.playlists.map(p => p.name.toLowerCase()))
   for (let n = 1; ; n++) {
     const name = `Playlist ${n}`
@@ -60,12 +67,37 @@ function defaultName(state: PlaylistsState): string {
   }
 }
 
-export function usePlaylistControls(props: {
-  state: PlaylistsState
-  showMenu: ShowCheckedMenu
-  textStyle: object
-  onMessage: (m: { text: string; isError: boolean }) => void
-}) {
+export type UsePlaylistControlsProps = {
+  readonly state: PlaylistsState
+  readonly showMenu: ShowCheckedMenu
+  readonly textStyle: object
+  readonly onMessage: (m: { text: string; isError: boolean }) => void
+}
+
+export type UsePlaylistControlsResult = {
+  readonly prompt: Prompt | null
+  readonly setPrompt: Dispatch<SetStateAction<Prompt | null>>
+  readonly picker: RefObject<View | null>
+  readonly actionsButton: RefObject<View | null>
+  readonly addTo: RefObject<View | null>
+  /** The playlist showing, if any. */
+  readonly active: Playlist | undefined
+  readonly openPicker: () => void
+  readonly openActions: () => void
+  readonly openAddTo: (
+    fileNames: readonly string[],
+    at?: { x: number; y: number },
+  ) => void
+  readonly addToPlaylist: (
+    id: number,
+    name: string,
+    fileNames: readonly string[],
+  ) => void
+}
+
+export const usePlaylistControls = (
+  props: UsePlaylistControlsProps,
+): UsePlaylistControlsResult => {
   const { state, showMenu, onMessage } = props
   const [prompt, setPrompt] = useState<Prompt | null>(null)
   const picker = useRef<View>(null)
@@ -81,7 +113,7 @@ export function usePlaylistControls(props: {
     }
   }
 
-  const newPlaylist = (fileNames: string[] = []) => {
+  const newPlaylist = (fileNames: readonly string[] = []) => {
     setPrompt({
       kind: 'name',
       title: fileNames.length
@@ -132,7 +164,7 @@ export function usePlaylistControls(props: {
   /** The playlist picker: the library, New Playlist…, then the playlists
    * (so the fixed items stay at the top however many playlists there are). */
   const openPicker = () => {
-    menuPoint(picker.current, async (x, y) => {
+    const pick = async (x: number, y: number) => {
       const names = state.playlists.map(p => p.name)
       const items = ['Library', NEW, ...(names.length ? ['-', ...names] : [])]
       const checkedIndex =
@@ -147,21 +179,26 @@ export function usePlaylistControls(props: {
       } else if (chosen === 1) {
         newPlaylist()
       } else if (chosen >= 3 && chosen < 3 + names.length) {
-        const id = state.playlists[chosen - 3].id
-        run('show the playlist', () => {
-          playlists.show(id)
-        })
+        const id = state.playlists[chosen - 3]?.id
+        if (id !== undefined) {
+          run('show the playlist', () => {
+            playlists.show(id)
+          })
+        }
       }
+    }
+    menuPoint(picker.current, (x, y) => {
+      void pick(x, y)
     })
   }
 
   /** The ⋯ menu beside the picker: what to do with the playlist showing. */
   const openActions = () => {
-    menuPoint(actionsButton.current, async (x, y) => {
+    const pick = async (x: number, y: number) => {
       if (!active) {
         return
       }
-      const actions: Array<[string, () => void]> = [
+      const actions: Array<readonly [string, () => void]> = [
         [
           'Rename Playlist…',
           () => {
@@ -183,37 +220,48 @@ export function usePlaylistControls(props: {
             run('duplicate the playlist', () => playlists.duplicate(active.id))
           },
         ],
-        ['Export as .m3u8…', () => exportM3u8(active.id, active.name)],
         [
-          'Delete Playlist…',
+          'Export as .m3u8…',
           () => {
-            setPrompt({
-              kind: 'confirm',
-              title: `Delete “${active.name}”?`,
-              body: 'The recordings stay in your library.',
-              action: 'Delete',
-              onDone: () => {
-                run('delete the playlist', () => {
-                  playlists.delete(active.id)
-                })
-              },
-            })
+            void exportM3u8(active.id, active.name)
           },
         ],
       ]
+      const deleteAction = [
+        'Delete Playlist…',
+        () => {
+          setPrompt({
+            kind: 'confirm',
+            title: `Delete “${active.name}”?`,
+            body: 'The recordings stay in your library.',
+            action: 'Delete',
+            onDone: () => {
+              run('delete the playlist', () => {
+                playlists.delete(active.id)
+              })
+            },
+          })
+        },
+      ] as const
       // A separator before Delete.
-      const items = [...actions.slice(0, 3).map(a => a[0]), '-', actions[3][0]]
+      const items = [...actions.map(a => a[0]), '-', deleteAction[0]]
       const chosen = await showMenu(items, -1, x, y)
       if (chosen >= 0 && chosen < 3) {
-        actions[chosen][1]()
+        actions[chosen]?.[1]()
       } else if (chosen === 4) {
-        actions[3][1]()
+        deleteAction[1]()
       }
+    }
+    menuPoint(actionsButton.current, (x, y) => {
+      void pick(x, y)
     })
   }
 
   /** Adds checked recordings to a playlist chosen from a menu. */
-  const openAddTo = (fileNames: string[], at?: { x: number; y: number }) => {
+  const openAddTo = (
+    fileNames: readonly string[],
+    at?: { x: number; y: number },
+  ) => {
     const show = async (x: number, y: number) => {
       const others = state.playlists
       const items = [
@@ -230,16 +278,24 @@ export function usePlaylistControls(props: {
         return
       }
       const target = others[chosen]
-      addToPlaylist(target.id, target.name, fileNames)
+      if (target) {
+        addToPlaylist(target.id, target.name, fileNames)
+      }
     }
     if (at) {
-      show(at.x, at.y)
+      void show(at.x, at.y)
     } else {
-      menuPoint(addTo.current, show)
+      menuPoint(addTo.current, (x, y) => {
+        void show(x, y)
+      })
     }
   }
 
-  const addToPlaylist = (id: number, name: string, fileNames: string[]) => {
+  const addToPlaylist = (
+    id: number,
+    name: string,
+    fileNames: readonly string[],
+  ) => {
     run('add to the playlist', () => {
       const there = playlists.fileNamesIn(id)
       const already = fileNames.filter(f => there.has(f)).length
@@ -271,5 +327,3 @@ export function usePlaylistControls(props: {
     addToPlaylist,
   }
 }
-
-export type UsePlaylistControlsResult = ReturnType<typeof usePlaylistControls>

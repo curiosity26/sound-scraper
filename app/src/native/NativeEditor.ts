@@ -1,8 +1,7 @@
 // Turbo Module spec for the track editor (the Rust core's ss_editor_* and
 // ss_edits_* functions). macOS for now; elsewhere TurboModuleRegistry.get
 // returns null and the editor isn't offered.
-import type { TurboModule } from 'react-native'
-import { TurboModuleRegistry } from 'react-native'
+import { type TurboModule, TurboModuleRegistry } from 'react-native'
 
 export interface Spec extends TurboModule {
   /** Opens a recording and starts building its waveform; returns the editor id. */

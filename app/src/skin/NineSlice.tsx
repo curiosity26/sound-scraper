@@ -1,22 +1,22 @@
 // Layout here comes from skin data (rects, sizes), so styles are inline.
 /* eslint-disable react-native/no-inline-styles */
-import React from 'react'
+import React, { type FC } from 'react'
 import { type StyleProp, View, type ViewStyle } from 'react-native'
 
 import { SpriteCell } from './SpriteCell'
 import type { ImageRef, Rect } from './types'
 import { useSkinScale } from './useSkinScale'
 
-type Props = {
-  image: ImageRef
+export type NineSliceProps = {
+  readonly image: ImageRef
   /** [top, right, bottom, left] insets that keep their size. */
-  slice: [number, number, number, number]
+  readonly slice: readonly [number, number, number, number]
   /** The part of `image` to use (a sprite cell); defaults to all of it. */
-  source?: Rect
-  width: number
-  height: number
-  style?: StyleProp<ViewStyle>
-  children?: React.ReactNode
+  readonly source?: Rect
+  readonly width: number
+  readonly height: number
+  readonly style?: StyleProp<ViewStyle>
+  readonly children?: React.ReactNode
 }
 
 /**
@@ -24,7 +24,7 @@ type Props = {
  * size, edges stretch along one axis and the center along both. Children
  * are laid out on top, inside the insets.
  */
-export const NineSlice = (props: Props): React.JSX.Element => {
+export const NineSlice: FC<NineSliceProps> = props => {
   const { image, width, height } = props
   const s = useSkinScale()
   const [t, r, b, l] = props.slice

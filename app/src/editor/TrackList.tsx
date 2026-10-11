@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { type FC, useEffect, useState } from 'react'
 import {
   Platform,
   Pressable,
@@ -16,12 +16,14 @@ import { trackColor } from './trackColor'
 import type { EditorTheme } from './types'
 import { withAlpha } from './withAlpha'
 
+type TrackNameProps = {
+  readonly th: EditorTheme
+  readonly value: string
+  readonly onCommit: (name: string) => void
+}
+
 /** A track's name, edited in place (Enter or leaving saves, Esc cancels). */
-const TrackName = (props: {
-  th: EditorTheme
-  value: string
-  onCommit: (name: string) => void
-}) => {
+const TrackName: FC<TrackNameProps> = props => {
   const [text, setText] = useState(props.value)
   useEffect(() => {
     setText(props.value)
@@ -56,14 +58,16 @@ export type TrackRow = TrackInfo & {
   name: string
 }
 
-export const TrackList = (props: {
-  th: EditorTheme
-  rows: TrackRow[]
-  selected: number | null
-  showReencode: boolean
-  onSelect: (index: number) => void
-  onRename: (owner: number | 'first', name: string) => void
-}): React.JSX.Element => {
+export type TrackListProps = {
+  readonly th: EditorTheme
+  readonly rows: readonly TrackRow[]
+  readonly selected: number | null
+  readonly showReencode: boolean
+  readonly onSelect: (index: number) => void
+  readonly onRename: (owner: number | 'first', name: string) => void
+}
+
+export const TrackList: FC<TrackListProps> = props => {
   const { th } = props
   return (
     <View style={[styles.tracks, { borderColor: th.border }]}>
@@ -90,6 +94,7 @@ export const TrackList = (props: {
       <ScrollView>
         {props.rows.map((tr, i) => {
           const selected = props.selected === i
+          const { owner } = tr
           return (
             <Pressable
               key={`${i}-${tr.startMs}`}
@@ -107,7 +112,7 @@ export const TrackList = (props: {
                 />
                 <Text style={[styles.cell, { color: th.text }]}>{i + 1}</Text>
               </View>
-              {tr.owner === null ? (
+              {owner === null ? (
                 <Text style={[styles.colName, styles.cell, { color: th.text }]}>
                   {tr.name}
                 </Text>
@@ -116,7 +121,7 @@ export const TrackList = (props: {
                   th={th}
                   value={tr.name}
                   onCommit={name => {
-                    props.onRename(tr.owner!, name)
+                    props.onRename(owner, name)
                   }}
                 />
               )}

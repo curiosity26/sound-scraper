@@ -1,3 +1,4 @@
+import { isPlayerState } from './isPlayerState'
 import NativeSoundScraper from './NativeSoundScraper'
 import type { PlayerState } from './types'
 
@@ -19,5 +20,9 @@ export const player = {
   seek: (positionMs: number): void => {
     NativeSoundScraper.playerSeek(positionMs)
   },
-  state: (): PlayerState => NativeSoundScraper.playerState() as PlayerState,
+  /** Unknown states from the native side read as 'empty'. */
+  state: (): PlayerState => {
+    const state = NativeSoundScraper.playerState()
+    return isPlayerState(state) ? state : 'empty'
+  },
 }

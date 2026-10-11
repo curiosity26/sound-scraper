@@ -10,7 +10,14 @@
 // content. (The model calls slices "splices".)
 
 /* eslint-disable react-native/no-inline-styles */
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, {
+  type FC,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import {
   type GestureResponderEvent,
   type LayoutChangeEvent,
@@ -77,12 +84,12 @@ export type EditorTarget = {
   durationMs: number
 }
 
-type Props = {
-  target: EditorTarget
+export type EditorPanelProps = {
+  readonly target: EditorTarget
   /** The skin's waveform colors. */
-  colors: Record<string, string>
+  readonly colors: Record<string, string>
   /** Saved: the new tracks' file names (the editor should close). */
-  onSaved: (files: string[], keptOriginal: boolean) => void
+  readonly onSaved: (files: string[], keptOriginal: boolean) => void
 }
 
 const RULER = 22
@@ -119,7 +126,7 @@ type Modal = { kind: 'save'; saving: boolean; error?: string } | null
 
 type Naming = number | 'first'
 
-export const EditorPanel = (props: Props): React.JSX.Element => {
+export const EditorPanel: FC<EditorPanelProps> = props => {
   const { target, colors } = props
   const th = useEditorTheme(colors)
   const c = th.wave
@@ -580,12 +587,12 @@ export const EditorPanel = (props: Props): React.JSX.Element => {
         ),
       )
     } else {
-      seek(playheadMs + dir * step)
+      void seek(playheadMs + dir * step)
     }
   }
   const jump = (dir: 1 | -1) => {
     const s = adjacentSplice(edits, playheadMs, dir)
-    seek(s ? s.atMs : dir > 0 ? durationMs : 0)
+    void seek(s ? s.atMs : dir > 0 ? durationMs : 0)
     setSelectedSlice(s ? s.id : null)
   }
   const undo = () => {
@@ -610,7 +617,7 @@ export const EditorPanel = (props: Props): React.JSX.Element => {
     setSelectedTrack(i)
     const tr = rows[i]
     if (tr) {
-      seek(tr.startMs)
+      void seek(tr.startMs)
     }
   }
 
@@ -641,9 +648,15 @@ export const EditorPanel = (props: Props): React.JSX.Element => {
     }
     if (metaKey) {
       if (key === 'z') {
-        shiftKey ? redo() : undo()
+        if (shiftKey) {
+          redo()
+        } else {
+          undo()
+        }
       } else if (key === 's') {
-        hasEdits(edits) && setModal({ kind: 'save', saving: false })
+        if (hasEdits(edits)) {
+          setModal({ kind: 'save', saving: false })
+        }
       } else if (key === '0') {
         zoomFit()
       }
@@ -651,7 +664,7 @@ export const EditorPanel = (props: Props): React.JSX.Element => {
     }
     switch (key) {
       case ' ':
-        playPause()
+        void playPause()
         break
       case 'm':
       case 'M':
@@ -672,7 +685,7 @@ export const EditorPanel = (props: Props): React.JSX.Element => {
         break
       case 'p':
       case 'P':
-        previewSlice()
+        void previewSlice()
         break
       case '=':
       case '+':
@@ -761,7 +774,7 @@ export const EditorPanel = (props: Props): React.JSX.Element => {
       // A click: move the playhead; a click in a deleted stretch selects it.
       clearSelections()
       setSelectedRegion(deletedAt(edits, drag.anchorMs)?.id ?? null)
-      seek(snapMs(drag.anchorMs))
+      void seek(snapMs(drag.anchorMs))
     } else {
       const a = snapMs(Math.min(drag.anchorMs, drag.ms))
       const b = snapMs(Math.max(drag.anchorMs, drag.ms))
@@ -829,9 +842,9 @@ export const EditorPanel = (props: Props): React.JSX.Element => {
     [colors, gain],
   )
   const reencoded = hasMaster ? 0 : tracks.filter(tr => tr.reencode).length
-  const trackEnds = rows.map((_, i) => rows[i + 1]?.startMs ?? durationMs)
-  const namingRow =
-    naming === null ? -1 : rows.findIndex(r => r.owner === naming)
+  const trackEnd = (i: number) => rows[i + 1]?.startMs ?? durationMs
+  const namingTrack =
+    naming === null ? undefined : rows.find(r => r.owner === naming)
   const headMs = scrubMs ?? playheadMs
   const playing = loaded && pb.state === 'playing'
 
@@ -875,14 +888,18 @@ export const EditorPanel = (props: Props): React.JSX.Element => {
             th={th}
             icon="toStart"
             label="To the start"
-            onPress={() => seek(0)}
+            onPress={() => {
+              void seek(0)
+            }}
             disabled={!ready}
           />
           <IconButton
             th={th}
             icon={playing ? 'pause' : 'play'}
             label={playing ? 'Pause' : 'Play'}
-            onPress={playPause}
+            onPress={() => {
+              void playPause()
+            }}
             disabled={!ready}
             active={playing}
             size={13}
@@ -891,7 +908,11 @@ export const EditorPanel = (props: Props): React.JSX.Element => {
             th={th}
             icon="stop"
             label="Stop"
-            onPress={() => loaded && playback.stop()}
+            onPress={() => {
+              if (loaded) {
+                playback.stop()
+              }
+            }}
             disabled={!loaded}
           />
         </View>
@@ -1056,8 +1077,12 @@ export const EditorPanel = (props: Props): React.JSX.Element => {
                   },
                 ]}
                 onStartShouldSetResponder={() => ready && !modal}
-                onResponderGrant={scrubGrant}
-                onResponderMove={scrubMove}
+                onResponderGrant={e => {
+                  void scrubGrant(e)
+                }}
+                onResponderMove={e => {
+                  void scrubMove(e)
+                }}
                 onResponderRelease={scrubRelease}
                 onResponderTerminate={scrubRelease}
                 onResponderTerminationRequest={() => false}
@@ -1112,7 +1137,7 @@ export const EditorPanel = (props: Props): React.JSX.Element => {
               <View style={[styles.lane, { width: contentWidth }]}>
                 {rows.map((tr, i) => {
                   const left = tr.startMs / scale
-                  const width = Math.max(2, (trackEnds[i] - tr.startMs) / scale)
+                  const width = Math.max(2, (trackEnd(i) - tr.startMs) / scale)
                   const selected = selectedTrack === i
                   const color = trackColor(i)
                   return (
@@ -1191,7 +1216,7 @@ export const EditorPanel = (props: Props): React.JSX.Element => {
                       top: 0,
                       bottom: 0,
                       left: tr.startMs / scale,
-                      width: (trackEnds[i] - tr.startMs) / scale,
+                      width: (trackEnd(i) - tr.startMs) / scale,
                       backgroundColor: withAlpha(
                         trackColor(i),
                         selectedTrack === i ? 0x22 : 0x10,
@@ -1318,12 +1343,12 @@ export const EditorPanel = (props: Props): React.JSX.Element => {
             </View>
           </ScrollView>
 
-          {naming !== null && namingRow >= 0 && (
+          {naming !== null && namingTrack && (
             <NameField
               key={String(naming)}
               th={th}
               left={Math.min(
-                Math.max(0, rows[namingRow].startMs / scale - scrollX + 2),
+                Math.max(0, namingTrack.startMs / scale - scrollX + 2),
                 Math.max(0, viewWidth - 200),
               )}
               top={RULER + 1}
@@ -1393,7 +1418,7 @@ export const EditorPanel = (props: Props): React.JSX.Element => {
             selectTrack(i)
             const tr = rows[i]
             if (tr) {
-              zoomToRange(tr.startMs, trackEnds[i])
+              zoomToRange(tr.startMs, trackEnd(i))
             }
           }}
           onRename={rename}
@@ -1419,13 +1444,15 @@ export const EditorPanel = (props: Props): React.JSX.Element => {
           title={target.title}
           count={tracks.length}
           reencoded={reencoded}
-          fromMaster={!!hasMaster}
+          fromMaster={hasMaster}
           saving={modal.saving}
           error={modal.error}
           onCancel={() => {
             setModal(null)
           }}
-          onChoose={save}
+          onChoose={keepOriginal => {
+            void save(keepOriginal)
+          }}
         />
       )}
     </View>
@@ -1434,11 +1461,11 @@ export const EditorPanel = (props: Props): React.JSX.Element => {
 
 // macOS-only View props (not in React Native's types): the keys the
 // editor handles, without a focus ring.
-function macKeys(
+const macKeys = (
   onKeyDown: (e: {
     nativeEvent: { key: string; metaKey?: boolean; shiftKey?: boolean }
   }) => void,
-): object {
+): object => {
   return { enableFocusRing: false, keyDownEvents: KEYS, onKeyDown }
 }
 

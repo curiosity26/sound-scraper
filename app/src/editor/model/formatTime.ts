@@ -1,5 +1,5 @@
 /** "1:05", "1:05.3", "1:05.250", or "1:02:05" past an hour. */
-export function formatTime(ms: number, step = 1000): string {
+export const formatTime = (ms: number, step = 1000): string => {
   const negative = ms < 0
   const abs = Math.abs(ms)
   const decimals = step >= 1000 ? 0 : step >= 100 ? 1 : step >= 10 ? 2 : 3

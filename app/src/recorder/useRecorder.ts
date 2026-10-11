@@ -1,26 +1,45 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { selection } from '@/library/selection'
+import { isRecorderState } from '@/native/isRecorderState'
 import { recorder } from '@/native/recorder'
 import type { AudioApp, RecorderState } from '@/native/types'
 import { playback } from '@/playback/playback'
 import { playlists } from '@/playlists/playlists'
 import { errorText } from '@/utils/errorText'
 
-import { SILENT } from './levels'
+import { SILENT } from './constants'
 import { rememberedPid } from './rememberedPid'
 import { rememberSource } from './rememberSource'
 import { safeList } from './safeList'
 import { safeRecover } from './safeRecover'
 import { safeState } from './safeState'
-import type { Message } from './types'
+import type { Levels, Message } from './types'
+
+export type UseRecorderResult = {
+  readonly apps: readonly AudioApp[]
+  readonly refreshApps: () => AudioApp[]
+  readonly selectedPid: number
+  readonly setSelectedPid: (pid: number) => void
+  readonly sourceName: string
+  readonly state: RecorderState
+  readonly starting: boolean
+  readonly elapsedMs: number
+  readonly levels: Levels
+  readonly message: Message | undefined
+  readonly setMessage: (message: Message | undefined) => void
+  readonly record: () => Promise<void>
+  readonly pause: () => void
+  readonly resume: () => void
+  readonly stop: () => Promise<void>
+}
 
 /**
  * Recorder state and actions for the skinned main panel: the capture
  * source, record/pause/resume/stop, elapsed time, levels and the latest
  * message. Recovers interrupted recordings on first use.
  */
-export function useRecorder() {
+export const useRecorder = (): UseRecorderResult => {
   const [apps, setApps] = useState<AudioApp[]>(() => safeList())
   const [selectedPid, setSelectedPid] = useState(() => rememberedPid(apps))
   const [state, setState] = useState<RecorderState>(() => safeState())
@@ -42,7 +61,9 @@ export function useRecorder() {
     const subscription = recorder.onEvent(e => {
       switch (e.kind) {
         case 'state':
-          setState(e.state as RecorderState)
+          if (isRecorderState(e.state)) {
+            setState(e.state)
+          }
           if (e.state === 'idle') {
             setLevels(SILENT)
           }
@@ -143,6 +164,6 @@ export function useRecorder() {
   }
 }
 
-function baseName(path: string): string {
+const baseName = (path: string): string => {
   return path.split(/[\\/]/).pop() ?? path
 }

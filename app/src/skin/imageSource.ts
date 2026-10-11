@@ -7,7 +7,7 @@ import type { ImageRef } from './types'
  * The skin image file for `density` device pixels per skin point (screen
  * scale × skin scale): @4x, @2x or 1x, the smallest that's sharp enough.
  */
-export function imageSource(image: ImageRef, density = PixelRatio.get()) {
+export const imageSource = (image: ImageRef, density = PixelRatio.get()) => {
   const [path, scale] =
     density > 2 && image.path4x != null
       ? [image.path4x, 4]

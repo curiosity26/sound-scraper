@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { type FC } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { TextField } from '@/components/TextField'
@@ -11,11 +11,13 @@ import { playlists } from './playlists'
 import type { UsePlaylistControlsResult } from './usePlaylistControls'
 
 /** The in-panel prompt (name a playlist, confirm a delete, duplicates). */
-export const PlaylistPrompt = (props: {
-  controls: UsePlaylistControlsResult
-  textStyle: object
-  onMessage: (m: { text: string; isError: boolean }) => void
-}): React.JSX.Element | null => {
+export type PlaylistPromptProps = {
+  readonly controls: UsePlaylistControlsResult
+  readonly textStyle: object
+  readonly onMessage: (m: { text: string; isError: boolean }) => void
+}
+
+export const PlaylistPrompt: FC<PlaylistPromptProps> = props => {
   const { prompt, setPrompt } = props.controls
   const theme = usePanelTheme()
   const t = usePanelStyles()
@@ -72,7 +74,11 @@ export const PlaylistPrompt = (props: {
             setPrompt({ ...prompt, value: text })
           }}
           onSubmitEditing={ok}
-          onKeyPress={e => e.nativeEvent.key === 'Escape' && close()}
+          onKeyPress={e => {
+            if (e.nativeEvent.key === 'Escape') {
+              close()
+            }
+          }}
           style={[styles.input, props.textStyle, t.input]}
         />
       )
@@ -111,7 +117,7 @@ export const PlaylistPrompt = (props: {
               } already in the playlist.`}
         </Text>
       )
-      const add = (names: string[]) => {
+      const add = (names: readonly string[]) => {
         close()
         try {
           if (names.length) {
@@ -168,7 +174,7 @@ export const PlaylistPrompt = (props: {
 
 const styles = StyleSheet.create({
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#00000088',
     alignItems: 'center',
     justifyContent: 'center',

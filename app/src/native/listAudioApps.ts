@@ -1,6 +1,6 @@
 import NativeSoundScraper from './NativeSoundScraper'
 import type { AudioApp } from './types'
 
-export function listAudioApps(): AudioApp[] {
+export const listAudioApps = (): AudioApp[] => {
   return NativeSoundScraper.listAudioApps()
 }

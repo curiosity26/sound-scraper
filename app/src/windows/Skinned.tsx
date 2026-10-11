@@ -1,25 +1,20 @@
-import React, { useEffect, useState } from 'react'
+import { type FC, type ReactNode, useState } from 'react'
 import { Text, View } from 'react-native'
 
-import { doubleSizeStore } from '@/skin/doubleSizeStore'
 import { SkinProvider } from '@/skin/SkinProvider'
 import { SkinScale } from '@/skin/SkinScale'
 
 import { styles } from './styles'
+import { useDoubleSize } from './useDoubleSize'
 
-/** Double size (⌘D), shared by every window. */
-function useDoubleSize(): boolean {
-  const [double, setDouble] = useState(doubleSizeStore.get)
-  useEffect(() => doubleSizeStore.subscribe(setDouble), [])
-  return double
+export type SkinnedProps = {
+  readonly children: ReactNode
 }
 
 /** The skin, at the current scale, around a window's content. */
-export const Skinned = (props: {
-  children: React.ReactNode
-}): React.JSX.Element => {
+export const Skinned: FC<SkinnedProps> = props => {
   const [error, setError] = useState<string>()
-  const double = useDoubleSize()
+  const { double } = useDoubleSize()
   return (
     <SkinScale.Provider value={double ? 2 : 1}>
       <SkinProvider

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { type FC } from 'react'
 import { Pressable, StyleSheet, Text } from 'react-native'
 
 import { colors } from '@/theme/colors'
@@ -7,10 +7,12 @@ import { usePanelStyles } from '@/theme/usePanelStyles'
 import type { UsePlaylistControlsResult } from './usePlaylistControls'
 
 /** "Add to ▾", for checked rows. */
-export const AddToButton = (props: {
-  controls: UsePlaylistControlsResult
-  fileNames: string[]
-}): React.JSX.Element | null => {
+export type AddToButtonProps = {
+  readonly controls: UsePlaylistControlsResult
+  readonly fileNames: readonly string[]
+}
+
+export const AddToButton: FC<AddToButtonProps> = props => {
   const t = usePanelStyles()
   if (props.fileNames.length === 0) {
     return null

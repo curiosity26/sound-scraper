@@ -4,7 +4,7 @@ import { errorText } from '@/utils/errorText'
 import type { MenuContext } from './types'
 import { writeCover } from './writeCover'
 
-export async function chooseCover(ctx: MenuContext) {
+export const chooseCover = async (ctx: MenuContext) => {
   try {
     const path = await library.pickImage()
     if (path) {

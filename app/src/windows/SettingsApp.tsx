@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { type FC, useEffect, useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 
 import { refreshLibraryViews } from '@/library/refreshLibraryViews'
@@ -14,7 +14,7 @@ import { Skinned } from './Skinned'
 import { styles } from './styles'
 import { usePanelText } from './usePanelText'
 
-const SettingsContent = () => {
+const SettingsContent: FC = () => {
   const { fg } = usePanelText('settings')
   const skin = useSkin()
   const accent = skin.panels.settings.controls.accent ?? colors.accent
@@ -57,7 +57,7 @@ const SettingsContent = () => {
 }
 
 /** The settings window: settings, skin and about. */
-export const SettingsApp = (): React.JSX.Element => {
+export const SettingsApp: FC = () => {
   return (
     <Skinned>
       <SkinPanelFrame panel="settings" title="Settings">

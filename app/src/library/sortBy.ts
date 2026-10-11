@@ -4,11 +4,11 @@ import { displayName } from './displayName'
 import type { Sort } from './types'
 
 /** Sorts anything holding a recording (`of` returns it); ties by file name. */
-export function sortBy<T>(
-  items: T[],
+export const sortBy = <T>(
+  items: readonly T[],
   of: (item: T) => Recording,
   sort: Sort,
-): T[] {
+): T[] => {
   const value = (r: Recording): string | number => {
     switch (sort.key) {
       case 'name':
@@ -25,7 +25,7 @@ export function sortBy<T>(
     }
   }
   const dir = sort.ascending ? 1 : -1
-  return [...items].sort((x, y) => {
+  return items.toSorted((x, y) => {
     const [a, b] = [of(x), of(y)]
     const [va, vb] = [value(a), value(b)]
     if (va < vb) {

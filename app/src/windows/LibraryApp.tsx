@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react'
+import { type FC, useCallback, useState } from 'react'
 import { Text, View } from 'react-native'
 
 import { openBurnPanel } from '@/burn/openBurnPanel'
@@ -11,9 +11,11 @@ import { Skinned } from './Skinned'
 import { styles } from './styles'
 import { usePanelText } from './usePanelText'
 
-const LibraryContent = (props: {
-  onCount: (n: number, playlistName?: string) => void
-}) => {
+type LibraryContentProps = {
+  readonly onCount: (n: number, playlistName?: string) => void
+}
+
+const LibraryContent: FC<LibraryContentProps> = props => {
   const { fg, isDark } = usePanelText('library')
   const [message, setMessage] = useState<Message>()
   return (
@@ -49,7 +51,7 @@ const LibraryContent = (props: {
 }
 
 /** The library window. */
-export const LibraryApp = (): React.JSX.Element => {
+export const LibraryApp: FC = () => {
   // A string, so an unchanged count doesn't re-render (and the callback is
   // stable: LibraryScreen reports again whenever it changes).
   const [title, setTitle] = useState('Library')

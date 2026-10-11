@@ -1,10 +1,10 @@
 import type { Recording } from '@/native/types'
 
 /** Case-insensitive match on name, title, artist and album. */
-export function filterRecordings(
-  items: Recording[],
+export const filterRecordings = (
+  items: readonly Recording[],
   query: string,
-): Recording[] {
+): readonly Recording[] => {
   const q = query.trim().toLowerCase()
   if (!q) {
     return items

@@ -1,11 +1,11 @@
 /** Where the thumb goes: [top, length] in a track `track` points long. */
-export function thumbGeometry(
+export const thumbGeometry = (
   track: number,
   viewport: number,
   content: number,
   offset: number,
   minLength: number,
-): [number, number] {
+): [number, number] => {
   if (content <= viewport || track <= 0) {
     return [0, track]
   }

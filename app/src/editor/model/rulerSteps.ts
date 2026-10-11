@@ -1,7 +1,10 @@
 // ------------------------------------------------------- ruler and zoom
 
+/** The longest ruler step, for the most zoomed-out view. */
+const LONGEST: readonly [number, number] = [3_600_000, 600_000]
+
 /** Ruler label steps and their minor ticks, in ms. */
-const STEPS: Array<[number, number]> = [
+const STEPS: readonly (readonly [number, number])[] = [
   [1, 1],
   [2, 1],
   [5, 1],
@@ -23,7 +26,7 @@ const STEPS: Array<[number, number]> = [
   [600_000, 120_000],
   [900_000, 300_000],
   [1_800_000, 300_000],
-  [3_600_000, 600_000],
+  LONGEST,
 ]
 
 /** At least this many points between ruler labels. */
@@ -33,12 +36,13 @@ const LABEL_SPACING = 70
  * The ruler's labelled step and its minor tick (the snap interval), for a
  * zoom of `msPerPoint`.
  */
-export function rulerSteps(msPerPoint: number): {
+export const rulerSteps = (
+  msPerPoint: number,
+): {
   major: number
   minor: number
-} {
+} => {
   const [major, minor] =
-    STEPS.find(([m]) => m / msPerPoint >= LABEL_SPACING) ??
-    STEPS[STEPS.length - 1]
+    STEPS.find(([m]) => m / msPerPoint >= LABEL_SPACING) ?? LONGEST
   return { major, minor }
 }

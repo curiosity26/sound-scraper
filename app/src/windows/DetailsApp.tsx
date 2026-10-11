@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import { type FC, useEffect, useRef, useState } from 'react'
 import { Text, View } from 'react-native'
 
 import { DetailsPane } from '@/library/DetailsPane'
@@ -12,9 +12,11 @@ import { Skinned } from './Skinned'
 import { styles } from './styles'
 import { usePanelText } from './usePanelText'
 
-const DetailsContent = (props: {
-  menuRef: { current?: (x: number, y: number) => void }
-}) => {
+type DetailsContentProps = {
+  readonly menuRef: { current?: (x: number, y: number) => void }
+}
+
+const DetailsContent: FC<DetailsContentProps> = props => {
   const { fg, isDark } = usePanelText('details')
   const [fileNames, setFileNames] = useState(selection.get())
   useEffect(() => selection.subscribe(setFileNames), [])
@@ -50,7 +52,7 @@ const DetailsContent = (props: {
 }
 
 /** The details window: the selected recording(s). Closing it deselects. */
-export const DetailsApp = (): React.JSX.Element => {
+export const DetailsApp: FC = () => {
   const [count, setCount] = useState(selection.get().length)
   const menuRef = useRef<(x: number, y: number) => void>(undefined)
   useEffect(() => {

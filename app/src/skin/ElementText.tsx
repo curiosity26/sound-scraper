@@ -1,6 +1,6 @@
 // Layout here comes from skin data (rects, sizes), so styles are inline.
 /* eslint-disable react-native/no-inline-styles */
-import React from 'react'
+import React, { type FC } from 'react'
 import { Text, View } from 'react-native'
 
 import { scaleRect } from './scaleRect'
@@ -8,16 +8,18 @@ import { SpriteText } from './SpriteText'
 import type { SkinElement, SpriteFont } from './types'
 import { useSkinScale } from './useSkinScale'
 
+export type ElementTextProps = {
+  readonly element: SkinElement
+  readonly fonts: Record<string, SpriteFont>
+  readonly text: string
+  readonly testID?: string
+}
+
 /**
  * An element's text: its sprite font if it has one, else system text in
  * the element's text style. Positioned at the element's rect.
  */
-export const ElementText = (props: {
-  element: SkinElement
-  fonts: Record<string, SpriteFont>
-  text: string
-  testID?: string
-}): React.JSX.Element => {
+export const ElementText: FC<ElementTextProps> = props => {
   const { element, fonts } = props
   const s = useSkinScale()
   const [, , w, h] = element.rect

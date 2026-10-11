@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { type FC, useEffect, useState } from 'react'
 import { Pressable, StyleSheet, Text } from 'react-native'
 
 import { burnApi } from '@/burn/burnApi'
@@ -10,10 +10,12 @@ import { capacityText } from './capacityText'
 import type { Capacity } from './types'
 
 /** Burn CD… (a CD writer is there) or Save CD Image… (none is). */
-export const BurnButton = (props: {
-  capacity: Capacity
-  onPress: () => void
-}): React.JSX.Element => {
+export type BurnButtonProps = {
+  readonly capacity: Capacity
+  readonly onPress: () => void
+}
+
+export const BurnButton: FC<BurnButtonProps> = props => {
   const t = usePanelStyles()
   const theme = usePanelTheme()
   const [hasBurner, setHasBurner] = useState(false)

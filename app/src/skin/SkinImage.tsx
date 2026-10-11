@@ -1,6 +1,6 @@
 // Layout here comes from skin data (rects, sizes), so styles are inline.
 
-import React from 'react'
+import React, { type FC } from 'react'
 import {
   Image,
   type ImageStyle,
@@ -12,16 +12,16 @@ import { imageSource } from './imageSource'
 import type { ImageRef } from './types'
 import { useSkinScale } from './useSkinScale'
 
-type Props = {
-  image: ImageRef
+export type SkinImageProps = {
+  readonly image: ImageRef
   /** Drawn size; defaults to the image's size. */
-  width?: number
-  height?: number
-  style?: StyleProp<ImageStyle>
+  readonly width?: number
+  readonly height?: number
+  readonly style?: StyleProp<ImageStyle>
 }
 
 /** A skin image at its (scaled) point size, or stretched to width × height. */
-export const SkinImage = (props: Props): React.JSX.Element => {
+export const SkinImage: FC<SkinImageProps> = props => {
   const { image } = props
   const s = useSkinScale()
   return (

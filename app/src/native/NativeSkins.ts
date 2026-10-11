@@ -1,8 +1,11 @@
 // Turbo Module spec for skins and the skinned windows (macOS and Windows).
 // On platforms without it, TurboModuleRegistry.get returns null and the app
 // keeps its plain UI (see index.js).
-import type { CodegenTypes, TurboModule } from 'react-native'
-import { TurboModuleRegistry } from 'react-native'
+import {
+  type CodegenTypes,
+  type TurboModule,
+  TurboModuleRegistry,
+} from 'react-native'
 
 export type WindowEvent = {
   /** 'main' | 'library' | 'settings' | 'details' */

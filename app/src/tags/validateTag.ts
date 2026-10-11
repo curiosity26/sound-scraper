@@ -1,7 +1,7 @@
 import type { Field } from './types'
 
 /** Validates a field; returns an error message or null. */
-export function validateTag(field: Field, text: string): string | null {
+export const validateTag = (field: Field, text: string): string | null => {
   const t = text.trim()
   if (!t) {
     return null

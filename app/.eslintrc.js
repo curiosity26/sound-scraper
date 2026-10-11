@@ -88,6 +88,8 @@ module.exports = {
   rules: {
     'prettier/prettier': 'error',
     'prefer-const': 'error',
+    // `void promise()` marks a deliberate fire-and-forget call.
+    'no-void': ['error', { allowAsStatement: true }],
     'react/function-component-definition': [
       'error',
       {

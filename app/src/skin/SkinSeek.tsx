@@ -1,6 +1,6 @@
 // Layout here comes from skin data (rects, sizes), so styles are inline.
 /* eslint-disable react-native/no-inline-styles */
-import React, { useRef, useState } from 'react'
+import React, { type FC, useRef, useState } from 'react'
 import { type GestureResponderEvent, View } from 'react-native'
 
 import { scaleRect } from './scaleRect'
@@ -10,16 +10,16 @@ import { thumbSize } from './thumbSize'
 import type { SkinElement } from './types'
 import { useSkinScale } from './useSkinScale'
 
-type Props = {
-  element: SkinElement
-  positionMs: number
-  durationMs: number
+export type SkinSeekProps = {
+  readonly element: SkinElement
+  readonly positionMs: number
+  readonly durationMs: number
   /** Something is loaded and can be scrubbed. */
-  enabled: boolean
+  readonly enabled: boolean
   /** While dragging, the position under the pointer; undefined when done. */
-  onScrub?: (positionMs: number | undefined) => void
+  readonly onScrub?: (positionMs: number | undefined) => void
   /** Dragging ended (or a click) at this position. */
-  onSeek: (positionMs: number) => void
+  readonly onSeek: (positionMs: number) => void
 }
 
 /**
@@ -28,7 +28,7 @@ type Props = {
  * thumbDisabled) or style colors (track, fill, thumb, thumbPressed). Drag
  * or click to seek; it seeks when released.
  */
-export const SkinSeek = (props: Props): React.JSX.Element => {
+export const SkinSeek: FC<SkinSeekProps> = props => {
   const { element, enabled, durationMs } = props
   const s = useSkinScale()
   const [, , w, h] = element.rect

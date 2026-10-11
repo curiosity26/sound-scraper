@@ -9,7 +9,10 @@ const PROPOSAL_MERGE_MS = 2000
  * Adds Find Tracks' proposals as splices (and deleted gaps), skipping any
  * near a splice that's already there.
  */
-export function applyProposals(e: Edits, proposals: ProposedSplice[]): Edits {
+export const applyProposals = (
+  e: Edits,
+  proposals: ProposedSplice[],
+): Edits => {
   let next = e
   for (const p of proposals) {
     if (e.splices.some(s => Math.abs(s.atMs - p.atMs) < PROPOSAL_MERGE_MS)) {

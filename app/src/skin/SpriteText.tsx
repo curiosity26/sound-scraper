@@ -1,6 +1,12 @@
 // Layout here comes from skin data (rects, sizes), so styles are inline.
 /* eslint-disable react-native/no-inline-styles */
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import React, {
+  type FC,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
 import { Animated, Easing, View } from 'react-native'
 
 import { layoutCells } from './layoutCells'
@@ -9,21 +15,21 @@ import { toGlyphs } from './toGlyphs'
 import type { SpriteFont } from './types'
 import { useSkinScale } from './useSkinScale'
 
-type Props = {
-  font: SpriteFont
-  text: string
+export type SpriteTextProps = {
+  readonly font: SpriteFont
+  readonly text: string
   /** Field width in points; the text never draws outside it. */
-  width: number
-  align?: 'left' | 'center' | 'right'
-  pad?: boolean
+  readonly width: number
+  readonly align?: 'left' | 'center' | 'right'
+  readonly pad?: boolean
   /** Scroll text that doesn't fit (default true). */
-  marquee?: boolean
+  readonly marquee?: boolean
   /** Animate changed cells like split-flap cards (see FlipCell). */
-  flip?: boolean
+  readonly flip?: boolean
 }
 
 /** Text drawn with a sprite (bitmap) font. */
-export const SpriteText = (props: Props): React.JSX.Element => {
+export const SpriteText: FC<SpriteTextProps> = props => {
   const { font, text, width, align = 'left', pad = false } = props
   const s = useSkinScale()
   const [cw, ch] = font.cell
@@ -73,12 +79,17 @@ export const SpriteText = (props: Props): React.JSX.Element => {
   )
 }
 
-function glyphAt(font: SpriteFont, index: number): [number, number] {
+const glyphAt = (font: SpriteFont, index: number): [number, number] => {
   const [cw, ch] = font.cell
   return [(index % font.columns) * cw, Math.floor(index / font.columns) * ch]
 }
 
 const FLIP_MS = 260
+
+type FlipCellProps = {
+  readonly font: SpriteFont
+  readonly at: readonly [number, number]
+}
 
 /**
  * One glyph cell that flips over like a split-flap clock card when its
@@ -86,7 +97,7 @@ const FLIP_MS = 260
  * then the new glyph's bottom half falls from the middle into place. The
  * font draws whole cards (each cell a card split across the middle).
  */
-const FlipCell = (props: { font: SpriteFont; at: [number, number] }) => {
+const FlipCell: FC<FlipCellProps> = props => {
   const { font, at } = props
   const s = useSkinScale()
   const [cw, ch] = font.cell
@@ -107,7 +118,11 @@ const FlipCell = (props: { font: SpriteFont; at: [number, number] }) => {
       easing: Easing.in(Easing.quad),
       useNativeDriver: false, // see Needle in LevelMeter
     })
-    run.start(({ finished }) => finished && setFrom(at))
+    run.start(({ finished }) => {
+      if (finished) {
+        setFrom(at)
+      }
+    })
     return () => {
       // Interrupted by the next change: flip on from this glyph.
       run.stop()
@@ -118,7 +133,7 @@ const FlipCell = (props: { font: SpriteFont; at: [number, number] }) => {
   }, [key, t])
   const w = cw * s
   const h = ch * s
-  const half = (glyph: [number, number], bottom: boolean) => (
+  const half = (glyph: readonly [number, number], bottom: boolean) => (
     <SpriteCell
       image={font.image}
       at={glyph}

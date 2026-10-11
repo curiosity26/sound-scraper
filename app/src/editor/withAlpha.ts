@@ -1,5 +1,5 @@
 /** `#rgb`/`#rrggbb` with an alpha byte (0..255). */
-export function withAlpha(hex: string, alpha: number): string {
+export const withAlpha = (hex: string, alpha: number): string => {
   let h = hex.replace('#', '')
   if (h.length === 3 || h.length === 4) {
     h = h

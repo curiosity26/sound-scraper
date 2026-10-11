@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { type FC, useEffect, useState } from 'react'
 import { Text, View } from 'react-native'
 
 import { EditorPanel } from '@/editor/EditorPanel'
@@ -14,7 +14,7 @@ import { Skinned } from './Skinned'
 import { styles } from './styles'
 import { usePanelText } from './usePanelText'
 
-const EditorContent = () => {
+const EditorContent: FC = () => {
   const { fg } = usePanelText('editor')
   const skin = useSkin()
   const [target, setTarget] = useState(editorTarget.get)
@@ -49,7 +49,7 @@ const EditorContent = () => {
 }
 
 /** The track editor window: the recording chosen with Edit Track…. */
-export const EditorApp = (): React.JSX.Element => {
+export const EditorApp: FC = () => {
   const [title, setTitle] = useState(editorTarget.get()?.title)
   useEffect(() => {
     const unsubscribe = editorTarget.subscribe(t => {

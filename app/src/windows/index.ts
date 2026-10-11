@@ -2,6 +2,7 @@
 // JS runtime, so the skin and library refreshes are shared between them.
 import { selection } from '@/library/selection'
 import { windows } from '@/skin/windows'
+import { isRecord } from '@/utils/isRecord'
 
 export { BurnApp } from './BurnApp'
 export { DetailsApp } from './DetailsApp'
@@ -12,6 +13,12 @@ export { SettingsApp } from './SettingsApp'
 
 if (__DEV__) {
   // Lets the debugger drive the panels (see also native/SoundScraper.ts).
-  const g = globalThis as { __soundScraper?: Record<string, unknown> }
-  g.__soundScraper = { ...g.__soundScraper, selection, windows }
+  const existing: unknown = Reflect.get(globalThis, '__soundScraper')
+  Object.assign(globalThis, {
+    __soundScraper: {
+      ...(isRecord(existing) ? existing : {}),
+      selection,
+      windows,
+    },
+  })
 }

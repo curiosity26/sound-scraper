@@ -1,6 +1,6 @@
 import { settings } from '@/native/settings'
 
-export function safeSettings() {
+export const safeSettings = () => {
   try {
     return settings.get()
   } catch {

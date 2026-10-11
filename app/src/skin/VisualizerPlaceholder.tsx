@@ -1,6 +1,6 @@
 // Layout here comes from skin data (rects, sizes), so styles are inline.
 /* eslint-disable react-native/no-inline-styles */
-import React from 'react'
+import React, { type FC } from 'react'
 import { View } from 'react-native'
 
 import { color } from './color'
@@ -8,11 +8,15 @@ import { scaleRect } from './scaleRect'
 import type { SkinElement } from './types'
 import { useSkinScale } from './useSkinScale'
 
+export type VisualizerPlaceholderProps = {
+  readonly element: SkinElement
+}
+
 /**
  * Where the visualizer will draw (phase 2: a native view fed by the Rust
  * analyzer). For now: the style's grid and a flat line.
  */
-export const VisualizerPlaceholder = (props: { element: SkinElement }) => {
+export const VisualizerPlaceholder: FC<VisualizerPlaceholderProps> = props => {
   const s = useSkinScale()
   const box = scaleRect(props.element.rect, s)
   const { width: w, height: h } = box

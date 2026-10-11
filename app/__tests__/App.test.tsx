@@ -2,11 +2,21 @@
  * @format
  */
 
-import React from 'react'
-import ReactTestRenderer from 'react-test-renderer'
+import { act } from 'react'
+import { create } from 'react-test-renderer'
 
 import { App } from '@/App'
+import { filterRecordings } from '@/library/filterRecordings'
+import { formatDuration } from '@/library/formatDuration'
+import { formatSize } from '@/library/formatSize'
+import { nextSort } from '@/library/nextSort'
+import { sortRecordings } from '@/library/sortRecordings'
 import { formatElapsed } from '@/recorder/formatElapsed'
+import { buildEdit } from '@/tags/buildEdit'
+import { coverUri } from '@/tags/coverUri'
+import { mergeCovers } from '@/tags/mergeCovers'
+import { mergeTags } from '@/tags/mergeTags'
+import { validateTag } from '@/tags/validateTag'
 
 jest.mock('@/native/NativeSoundScraper', () => ({
   __esModule: true,
@@ -43,19 +53,24 @@ jest.mock('@/native/NativeSoundScraper', () => ({
 }))
 
 test('renders the core version and an idle record bar', async () => {
-  let tree: ReactTestRenderer.ReactTestRenderer | undefined
-  await ReactTestRenderer.act(() => {
-    tree = ReactTestRenderer.create(<App />)
-  })
-  const version = tree!.root.findByProps({ testID: 'core-version' })
-  expect(version.props.children.join('')).toBe('Rust core v0.0.0-test')
-  expect(
-    tree!.root.findAllByProps({ testID: 'record' }).length,
-  ).toBeGreaterThan(0)
+  // An async act also flushes the updates from the first effects' promises.
+  const tree = await act(() =>
+    Promise.resolve(
+      // eslint-disable-next-line @typescript-eslint/no-deprecated -- react-test-renderer is the renderer installed; @testing-library/react-native isn't a dependency
+      create(<App />),
+    ),
+  )
+  const children: unknown = tree.root.findByProps({
+    testID: 'core-version',
+  }).props.children
+  expect(children).toEqual(['Rust core v', '0.0.0-test'])
+  expect(tree.root.findAllByProps({ testID: 'record' }).length).toBeGreaterThan(
+    0,
+  )
   // Unmount so list timers can't fire after the test ends (jest then
   // fails the run with "Cannot log after tests are done").
-  await ReactTestRenderer.act(() => {
-    tree!.unmount()
+  act(() => {
+    tree.unmount()
   })
 })
 
@@ -67,11 +82,6 @@ test('formats elapsed time', () => {
 })
 
 describe('library model', () => {
-  const { filterRecordings } = require('@/library/filterRecordings')
-  const { sortRecordings } = require('@/library/sortRecordings')
-  const { nextSort } = require('@/library/nextSort')
-  const { formatDuration } = require('@/library/formatDuration')
-  const { formatSize } = require('@/library/formatSize')
   const rec = (fileName: string, extra: object = {}) => ({
     fileName,
     path: `/x/${fileName}`,
@@ -88,7 +98,7 @@ describe('library model', () => {
     rec('A.mp3', { durationMs: 1000, recordedAtMs: 3, album: 'Live' }),
     rec('c.mp3', { durationMs: 2000, recordedAtMs: 1 }),
   ]
-  const names = (xs: { fileName: string }[]) => xs.map(x => x.fileName)
+  const names = (xs: readonly { fileName: string }[]) => xs.map(x => x.fileName)
 
   test('filters by name, artist and album', () => {
     expect(names(filterRecordings(items, 'zed'))).toEqual(['b.mp3'])
@@ -124,11 +134,6 @@ describe('library model', () => {
 })
 
 describe('tag model', () => {
-  const { mergeTags } = require('@/tags/mergeTags')
-  const { mergeCovers } = require('@/tags/mergeCovers')
-  const { buildEdit } = require('@/tags/buildEdit')
-  const { validateTag } = require('@/tags/validateTag')
-  const { coverUri } = require('@/tags/coverUri')
   const tags = (extra: object = {}) => ({
     title: null,
     artist: null,

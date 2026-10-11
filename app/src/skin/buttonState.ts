@@ -1,5 +1,5 @@
 /** Picks the best sprite state for a button, falling back toward "normal". */
-export function buttonState(
+export const buttonState = (
   states: Record<string, unknown>,
   flags: {
     pressed: boolean
@@ -7,7 +7,7 @@ export function buttonState(
     disabled: boolean
     mode?: string
   },
-): string {
+): string => {
   const { mode } = flags
   // A disabled button in a mode keeps the mode's look (record stays lit
   // while recording).

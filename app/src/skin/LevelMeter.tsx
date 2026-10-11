@@ -1,6 +1,6 @@
 // Layout here comes from skin data (rects, sizes), so styles are inline.
 /* eslint-disable react-native/no-inline-styles */
-import React, { useEffect, useRef } from 'react'
+import React, { type FC, useEffect, useRef } from 'react'
 import { Animated, Easing, View } from 'react-native'
 
 import { color } from './color'
@@ -11,15 +11,15 @@ import { SpriteCell } from './SpriteCell'
 import type { SkinElement } from './types'
 import { useSkinScale } from './useSkinScale'
 
-type Props = {
-  element: SkinElement
+export type LevelMeterProps = {
+  readonly element: SkinElement
   /** Linear 0..1: the louder channel's peak, and each channel's. */
-  peak: number
-  left: number
-  right: number
+  readonly peak: number
+  readonly left: number
+  readonly right: number
   /** Each channel's RMS (needle meters), when known. */
-  rmsLeft?: number
-  rmsRight?: number
+  readonly rmsLeft?: number
+  readonly rmsRight?: number
 }
 
 const num = (v: unknown, fallback: number) =>
@@ -32,7 +32,7 @@ const num = (v: unknown, fallback: number) =>
  * (top 30%), clip (top 10%) and off colors. Style kind "needle" draws
  * analog meters instead (NeedleMeter).
  */
-export const LevelMeter = (props: Props): React.JSX.Element => {
+export const LevelMeter: FC<LevelMeterProps> = props => {
   return props.element.style?.kind === 'needle' ? (
     <NeedleMeter {...props} />
   ) : (
@@ -40,7 +40,7 @@ export const LevelMeter = (props: Props): React.JSX.Element => {
   )
 }
 
-const BarMeter = (props: Props): React.JSX.Element => {
+const BarMeter: FC<LevelMeterProps> = props => {
   const { element } = props
   const s = useSkinScale()
   const box = scaleRect(element.rect, s)
@@ -131,12 +131,18 @@ const BarMeter = (props: Props): React.JSX.Element => {
   )
 }
 
-const pair = (v: unknown, fallback: [number, number]): [number, number] =>
-  Array.isArray(v) && v.length === 2 && v.every(n => typeof n === 'number')
-    ? [v[0], v[1]]
-    : fallback
+const pair = (v: unknown, fallback: [number, number]): [number, number] => {
+  if (Array.isArray(v) && v.length === 2) {
+    const a: unknown = v[0]
+    const b: unknown = v[1]
+    if (typeof a === 'number' && typeof b === 'number') {
+      return [a, b]
+    }
+  }
+  return fallback
+}
 
-function needleStyle(st: Record<string, unknown>) {
+const needleStyle = (st: Record<string, unknown>) => {
   return {
     faces: Math.min(2, Math.max(1, num(st.faces, 2))),
     gap: Math.max(0, num(st.gap, 4)),
@@ -160,7 +166,7 @@ function needleStyle(st: Record<string, unknown>) {
  * and `reference` must match it (see needleAngle). Needles follow RMS like
  * a VU meter (`source: "peak"` for peaks), eased between level updates.
  */
-const NeedleMeter = (props: Props) => {
+const NeedleMeter: FC<LevelMeterProps> = props => {
   const { element } = props
   const s = useSkinScale()
   const box = scaleRect(element.rect, s)
@@ -198,16 +204,18 @@ const NeedleMeter = (props: Props) => {
   )
 }
 
-const Needle = (props: {
-  angle: number
-  left: number
-  face: [number, number]
-  pivot: [number, number]
-  length: number
-  width: number
-  color: string
-  tip: string
-}) => {
+type NeedleProps = {
+  readonly angle: number
+  readonly left: number
+  readonly face: readonly [number, number]
+  readonly pivot: readonly [number, number]
+  readonly length: number
+  readonly width: number
+  readonly color: string
+  readonly tip: string
+}
+
+const Needle: FC<NeedleProps> = props => {
   const angle = useRef(new Animated.Value(props.angle)).current
   const target = useRef(props.angle)
   useEffect(() => {
@@ -259,12 +267,20 @@ const Needle = (props: {
   )
 }
 
-const Cell = (props: { element: SkinElement; at: [number, number] }) => {
-  const { element } = props
+type CellProps = {
+  readonly element: SkinElement
+  readonly at: readonly [number, number] | undefined
+}
+
+const Cell: FC<CellProps> = props => {
+  const { element, at } = props
+  if (!element.sprite) {
+    return null
+  }
   return (
     <SpriteCell
-      image={element.sprite!.image}
-      at={props.at}
+      image={element.sprite.image}
+      at={at}
       size={[element.rect[2], element.rect[3]]}
     />
   )

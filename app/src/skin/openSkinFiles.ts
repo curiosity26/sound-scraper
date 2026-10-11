@@ -1,3 +1,5 @@
+import { errorText } from '@/utils/errorText'
+
 import { chooseSkin } from './chooseSkin'
 import { isSkinArchive } from './isSkinArchive'
 import { pendingInstall } from './pendingInstall'
@@ -10,7 +12,7 @@ import { windows } from './windows'
  * archive gets the install card in the settings' Skin tab; a skin folder is
  * used straight away (and reloads as it changes).
  */
-export async function openSkinFiles(paths: string[]): Promise<void> {
+export const openSkinFiles = async (paths: string[]): Promise<void> => {
   if (paths.length === 0) {
     return
   }
@@ -24,7 +26,7 @@ export async function openSkinFiles(paths: string[]): Promise<void> {
     } catch (e) {
       pendingInstall.set({
         path: archive,
-        error: String((e as Error)?.message ?? e),
+        error: errorText(e),
       })
     }
   } else if (folder) {

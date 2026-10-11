@@ -5,13 +5,13 @@ import { playlistsApi } from '@/native/playlistsApi'
 import type { Playlist, PlaylistItem } from '@/native/types'
 
 export type PlaylistsState = {
-  playlists: Playlist[]
+  readonly playlists: readonly Playlist[]
   /** The playlist showing in the library; null = the whole library. */
-  activeId: number | null
+  readonly activeId: number | null
   /** The showing playlist's items, in order. */
-  items: PlaylistItem[]
+  readonly items: readonly PlaylistItem[]
   /** The playlist row loaded for playback (a recording can repeat). */
-  playingItemId: number | null
+  readonly playingItemId: number | null
 }
 
 let state: PlaylistsState = {
@@ -25,7 +25,7 @@ let loaded = false
 
 const listeners = new Set<(s: PlaylistsState) => void>()
 
-function publish(change: Partial<PlaylistsState>) {
+const publish = (change: Partial<PlaylistsState>) => {
   state = { ...state, ...change }
   listeners.forEach(l => {
     l(state)
@@ -33,7 +33,7 @@ function publish(change: Partial<PlaylistsState>) {
 }
 
 /** Re-reads the list and the showing playlist's items from the core. */
-function reload(activeId = state.activeId) {
+const reload = (activeId = state.activeId) => {
   const playlists = playlistsApi.list()
   const active =
     activeId !== null && playlists.some(p => p.id === activeId)
@@ -50,7 +50,7 @@ function reload(activeId = state.activeId) {
   })
 }
 
-function ensureLoaded() {
+const ensureLoaded = () => {
   if (!loaded) {
     loaded = true
     try {
@@ -84,7 +84,7 @@ export const playlists = {
   active: (): Playlist | undefined =>
     state.playlists.find(p => p.id === state.activeId),
 
-  create: (name: string, fileNames: string[] = []): Playlist => {
+  create: (name: string, fileNames: readonly string[] = []): Playlist => {
     const made = playlistsApi.create(name, fileNames)
     reload()
     return made
@@ -103,24 +103,29 @@ export const playlists = {
     playlistsApi.delete(id)
     reload(state.activeId === id ? null : state.activeId)
   },
-  add: (id: number, fileNames: string[]) => {
+  add: (id: number, fileNames: readonly string[]) => {
     playlistsApi.add(id, fileNames)
     reload()
   },
-  remove: (itemIds: number[]) => {
+  remove: (itemIds: readonly number[]) => {
     if (state.activeId === null) {
       return
     }
     playlistsApi.remove(state.activeId, itemIds)
     reload()
   },
-  setOrder: (itemIds: number[]) => {
+  setOrder: (itemIds: readonly number[]) => {
     if (state.activeId === null) {
       return
     }
     // Show the new order at once; the core confirms.
     const byId = new Map(state.items.map(i => [i.id, i]))
-    publish({ items: itemIds.map(id => byId.get(id)!).filter(Boolean) })
+    publish({
+      items: itemIds.flatMap(id => {
+        const item = byId.get(id)
+        return item ? [item] : []
+      }),
+    })
     try {
       playlistsApi.setOrder(state.activeId, itemIds)
     } finally {

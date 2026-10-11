@@ -1,6 +1,6 @@
 // Layout here comes from skin data (rects, sizes), so styles are inline.
 /* eslint-disable react-native/no-inline-styles */
-import React, { useEffect, useState } from 'react'
+import React, { type FC, useEffect, useState } from 'react'
 import { type LayoutChangeEvent, Pressable, Text, View } from 'react-native'
 
 import { PanelThemeProvider } from '@/theme/PanelThemeProvider'
@@ -16,13 +16,13 @@ import { useSkin } from './useSkin'
 import { useSkinScale } from './useSkinScale'
 import { windows } from './windows'
 
-type Props = {
-  panel: PanelName
-  title: string
-  children: React.ReactNode
+export type SkinPanelFrameProps = {
+  readonly panel: PanelName
+  readonly title: string
+  readonly children: React.ReactNode
   /** The title bar's menu button (when the skin has one) was clicked; (x, y)
    * is the point under it, in the window. */
-  onMenu?: (x: number, y: number) => void
+  readonly onMenu?: (x: number, y: number) => void
 }
 
 /**
@@ -30,14 +30,17 @@ type Props = {
  * title, a close button and (resizable panels) a grip; the content goes
  * inside the frame's insets, with the panel's colors.
  */
-export const SkinPanelFrame = (props: Props): React.JSX.Element => {
+export const SkinPanelFrame: FC<SkinPanelFrameProps> = props => {
   const skin = useSkin()
   const s = useSkinScale()
   const def = skin.panels[props.panel]
   const [size, setSize] = useState<[number, number]>([0, 0])
   const [w, h] = size
   const slice = def.frame?.slice ?? [24, 6, 6, 6]
-  const [top, right, bottom, left] = slice.map(v => v * s)
+  const top = slice[0] * s
+  const right = slice[1] * s
+  const bottom = slice[2] * s
+  const left = slice[3] * s
   const close = def.close
   const closeRect: Rect | null = close
     ? [
@@ -73,7 +76,10 @@ export const SkinPanelFrame = (props: Props): React.JSX.Element => {
     // grows by the frame's extra size (letting panels shrink to fit a
     // crowded screen).
     const min = def.minSize ?? [320, 200]
-    const extra = [(left + right) * (1 - 1 / s), (top + bottom) * (1 - 1 / s)]
+    const extra: [number, number] = [
+      (left + right) * (1 - 1 / s),
+      (top + bottom) * (1 - 1 / s),
+    ]
     windows.setPanelChrome(props.panel, {
       drag: [[0, 0, w, top]],
       holes: [closeRect, menuRect].filter((r): r is Rect => r !== null),
@@ -184,8 +190,14 @@ export const SkinPanelFrame = (props: Props): React.JSX.Element => {
   )
 }
 
+type GripProps = {
+  readonly rect: Rect
+  readonly color: string
+  readonly scale: number
+}
+
 /** A staircase of dots in the resize corner. */
-const Grip = (props: { rect: Rect; color: string; scale: number }) => {
+const Grip: FC<GripProps> = props => {
   const [x, y, w, h] = props.rect
   const s = props.scale
   const dots = []
@@ -218,14 +230,16 @@ const Grip = (props: { rect: Rect; color: string; scale: number }) => {
   )
 }
 
+type TitleButtonProps = {
+  readonly testID: string
+  readonly label: string
+  readonly button: NonNullable<FramePanel['close']>
+  readonly rect: Rect
+  readonly onPress: () => void
+}
+
 /** A sprite button in the title bar (close, menu). */
-const TitleButton = (props: {
-  testID: string
-  label: string
-  button: NonNullable<FramePanel['close']>
-  rect: Rect
-  onPress: () => void
-}) => {
+const TitleButton: FC<TitleButtonProps> = props => {
   const { button, rect } = props
   return (
     <Pressable

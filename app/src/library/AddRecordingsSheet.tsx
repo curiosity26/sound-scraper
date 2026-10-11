@@ -1,7 +1,7 @@
 // "+ Add Recordings…" in a playlist: an in-panel sheet listing the library
 // with check boxes and search, to add recordings without leaving the
 // playlist.
-import React, { useMemo, useState } from 'react'
+import React, { type FC, useMemo, useState } from 'react'
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { TextField } from '@/components/TextField'
@@ -14,16 +14,18 @@ import { displayName } from './displayName'
 import { filterRecordings } from './filterRecordings'
 import { formatDuration } from './formatDuration'
 
-export const AddRecordingsSheet = (props: {
-  playlistName: string
-  recordings: Recording[]
+export type AddRecordingsSheetProps = {
+  readonly playlistName: string
+  readonly recordings: readonly Recording[]
   /** File names already in the playlist (marked, still addable). */
-  already: Set<string>
-  textStyle: object
-  onCancel: () => void
+  readonly already: Set<string>
+  readonly textStyle: object
+  readonly onCancel: () => void
   /** In the order they were checked. */
-  onAdd: (fileNames: string[]) => void
-}): React.JSX.Element => {
+  readonly onAdd: (fileNames: string[]) => void
+}
+
+export const AddRecordingsSheet: FC<AddRecordingsSheetProps> = props => {
   const theme = usePanelTheme()
   const t = usePanelStyles()
   const [query, setQuery] = useState('')
@@ -156,7 +158,7 @@ export const AddRecordingsSheet = (props: {
 
 const styles = StyleSheet.create({
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#00000088',
     alignItems: 'center',
     justifyContent: 'center',

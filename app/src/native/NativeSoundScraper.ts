@@ -1,8 +1,11 @@
 // Shared Turbo Module spec. Codegen turns this into the Objective-C++
 // protocol (macOS) and the C++ spec header (Windows) that both native
 // modules implement, which keeps the two platforms in sync.
-import type { CodegenTypes, TurboModule } from 'react-native'
-import { TurboModuleRegistry } from 'react-native'
+import {
+  type CodegenTypes,
+  type TurboModule,
+  TurboModuleRegistry,
+} from 'react-native'
 
 export type AudioApp = {
   pid: number

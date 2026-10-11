@@ -1,6 +1,6 @@
 /* eslint-disable react-native/no-inline-styles */
 
-import React, { useRef } from 'react'
+import React, { type FC, useRef } from 'react'
 import {
   type GestureResponderEvent,
   Pressable,
@@ -11,22 +11,24 @@ import {
 import { Icon, type IconName } from './Icon'
 import type { EditorTheme } from './types'
 
+export type SliderProps = {
+  readonly th: EditorTheme
+  readonly value: number
+  readonly onChange: (value: number) => void
+  readonly label: string
+  readonly low: IconName
+  readonly high: IconName
+  /** The track's length in points. */
+  readonly length?: number
+  readonly vertical?: boolean
+  readonly disabled?: boolean
+}
+
 /**
  * A slider, 0..1, with an icon at each end (zoom). Horizontal by default;
  * `vertical` runs bottom (0) to top (1).
  */
-export const Slider = (props: {
-  th: EditorTheme
-  value: number
-  onChange: (value: number) => void
-  label: string
-  low: IconName
-  high: IconName
-  /** The track's length in points. */
-  length?: number
-  vertical?: boolean
-  disabled?: boolean
-}): React.JSX.Element => {
+export const Slider: FC<SliderProps> = props => {
   const { th, vertical } = props
   const length = Math.max(20, props.length ?? 80)
   const track = useRef<View>(null)

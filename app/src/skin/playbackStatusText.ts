@@ -1,7 +1,7 @@
 import type { PlayerState } from '@/native/types'
 
 /** Status while a loaded recording plays back (the recorder is idle). */
-export function playbackStatusText(state: PlayerState): string {
+export const playbackStatusText = (state: PlayerState): string => {
   switch (state) {
     case 'playing':
       return '▶ PLAYING'

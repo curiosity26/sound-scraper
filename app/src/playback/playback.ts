@@ -2,11 +2,13 @@
 // library (separate windows on one JS runtime). Selecting one recording in
 // the library loads it; recording something new unloads it.
 import { selection } from '@/library/selection'
+import { isPlayerState } from '@/native/isPlayerState'
 import { library } from '@/native/library'
 import { player } from '@/native/player'
 import { recorder } from '@/native/recorder'
 import type { PlayerState, Recording } from '@/native/types'
-import { type Levels, SILENT } from '@/recorder/levels'
+import { SILENT } from '@/recorder/constants'
+import type { Levels } from '@/recorder/types'
 import { errorText } from '@/utils/errorText'
 
 export type Playback = {
@@ -37,20 +39,20 @@ let subscribed = false
 // pressed.
 let expectingStop = false
 
-function update(change: Partial<Playback>) {
+const update = (change: Partial<Playback>) => {
   current = { ...current, ...change }
   listeners.forEach(l => {
     l(current)
   })
 }
 
-function reportError(message: string) {
+const reportError = (message: string) => {
   errorListeners.forEach(l => {
     l(message)
   })
 }
 
-function subscribeNative() {
+const subscribeNative = () => {
   if (subscribed) {
     return
   }
@@ -58,7 +60,10 @@ function subscribeNative() {
   recorder.onEvent(e => {
     switch (e.kind) {
       case 'playerState': {
-        const state = e.playerState as PlayerState
+        if (!isPlayerState(e.playerState)) {
+          break
+        }
+        const state = e.playerState
         const ended =
           current.state === 'playing' && state === 'stopped' && !expectingStop
         expectingStop = false

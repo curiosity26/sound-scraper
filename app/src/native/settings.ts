@@ -1,9 +1,22 @@
+import { isRecord } from '@/utils/isRecord'
+import { parseJson } from '@/utils/parseJson'
+
 import NativeSoundScraper from './NativeSoundScraper'
 import type { Settings } from './types'
 
+type StoredSettings = Settings & { effectiveRecordingsDir: string }
+
+/** A shallow check of the settings JSON (the core validates the rest). */
+const isStoredSettings = (value: unknown): value is StoredSettings =>
+  isRecord(value) &&
+  typeof value.effectiveRecordingsDir === 'string' &&
+  typeof value.quality === 'string' &&
+  typeof value.id3Version === 'string' &&
+  (value.recordingsDir === null || typeof value.recordingsDir === 'string')
+
 export const settings = {
-  get: (): Settings & { effectiveRecordingsDir: string } =>
-    JSON.parse(NativeSoundScraper.getSettings()),
+  get: (): StoredSettings =>
+    parseJson(NativeSoundScraper.getSettings(), isStoredSettings, 'settings'),
   /** Saves settings (validated by the core) and re-points the library. */
   set: (value: Settings): Promise<void> =>
     NativeSoundScraper.setSettings(

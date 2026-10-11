@@ -92,7 +92,7 @@ export type Proposal = {
 }
 
 export type SaveResult = {
-  files: string[]
-  reencoded: number
-  fromMaster: boolean
+  readonly files: string[]
+  readonly reencoded: number
+  readonly fromMaster: boolean
 }

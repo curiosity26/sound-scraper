@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, {
+  type FC,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import type { BurnTrackInput } from '@/burn/types'
@@ -30,28 +36,28 @@ import { refreshLibraryViews } from './refreshLibraryViews'
 import { selection } from './selection'
 import type { PlaylistView, ShowMenu } from './types'
 
-type Props = {
-  onMessage: (message: { text: string; isError: boolean }) => void
-  textStyle: object
-  isDark: boolean
+export type LibraryScreenProps = {
+  readonly onMessage: (message: { text: string; isError: boolean }) => void
+  readonly textStyle: object
+  readonly isDark: boolean
   /** Skinned panel: no heading (see LibraryTable). */
-  compact?: boolean
+  readonly compact?: boolean
   /** Reports how many rows there are and what's showing (for a title). */
-  onCount?: (count: number, playlistName?: string) => void
+  readonly onCount?: (count: number, playlistName?: string) => void
   /**
    * Shows the selection in a separate details window (the skinned UI);
    * without it, the details pane sits beside the table.
    */
-  openDetails?: () => void
+  readonly openDetails?: () => void
   /** Native menus for the details pane's gear (side-pane mode). */
-  showMenu?: ShowMenu
+  readonly showMenu?: ShowMenu
   /**
    * Native pop-up menus in the library panel; with it, the playlist picker
    * and "Add to ▾" are shown.
    */
-  showLibraryMenu?: ShowCheckedMenu
+  readonly showLibraryMenu?: ShowCheckedMenu
   /** Burn CD… / Save CD Image… for the playlist showing. */
-  onBurn?: (target: {
+  readonly onBurn?: (target: {
     playlistId: number
     name: string
     tracks: BurnTrackInput[]
@@ -59,7 +65,7 @@ type Props = {
 }
 
 /** The recordings table with rename/trash/reveal and the tag editor. */
-export const LibraryScreen = (props: Props): React.JSX.Element => {
+export const LibraryScreen: FC<LibraryScreenProps> = props => {
   const { onMessage, textStyle, isDark, onCount } = props
   const [recordings, setRecordings] = useState<Recording[]>([])
   const [checked, setChecked] = useState<Set<string>>(new Set())
@@ -72,6 +78,7 @@ export const LibraryScreen = (props: Props): React.JSX.Element => {
   const [adding, setAdding] = useState(false)
   const t = usePanelStyles()
   const showLibraryMenu = props.showLibraryMenu
+  const onBurn = props.onBurn
 
   const refreshLibrary = useCallback(async () => {
     try {
@@ -88,11 +95,14 @@ export const LibraryScreen = (props: Props): React.JSX.Element => {
   }, [onMessage])
 
   useEffect(() => {
-    refreshLibrary()
-    refreshers.add(refreshLibrary)
-    const subscription = library.onChanged(refreshLibrary)
+    const refresh = () => {
+      void refreshLibrary()
+    }
+    refresh()
+    refreshers.add(refresh)
+    const subscription = library.onChanged(refresh)
     return () => {
-      refreshers.delete(refreshLibrary)
+      refreshers.delete(refresh)
       subscription.remove()
     }
   }, [refreshLibrary])
@@ -145,7 +155,7 @@ export const LibraryScreen = (props: Props): React.JSX.Element => {
     }
     const recording = recordings.find(r => r.fileName === selected[0])
     if (recording) {
-      playback.select(recording)
+      void playback.select(recording)
     }
   }, [selected, recordings])
 
@@ -159,18 +169,19 @@ export const LibraryScreen = (props: Props): React.JSX.Element => {
         }
         const all = playlistRows(s.items, recordings)
         const at = all.findIndex(r => r.item.id === s.playingItemId)
-        if (at < 0 || all[at].item.fileName !== fileName) {
+        if (at < 0 || all[at]?.item.fileName !== fileName) {
           return
         }
         const next = all.slice(at + 1).find(r => r.recording)
-        if (!next) {
+        const nextRecording = next?.recording
+        if (!next || !nextRecording) {
           return
         }
         playlists.setPlaying(next.item.id)
         setSelectedItemId(next.item.id)
         selection.set([next.item.fileName])
         playback
-          .select(next.recording!)
+          .select(nextRecording)
           .then(() => playback.play())
           .catch(() => {})
       }),
@@ -282,7 +293,7 @@ export const LibraryScreen = (props: Props): React.JSX.Element => {
     } catch {
       // Offer what doesn't need the tags.
     }
-    openRecordingMenu(
+    void openRecordingMenu(
       {
         fileNames,
         recordings: recordings.filter(r => fileNames.includes(r.fileName)),
@@ -324,7 +335,13 @@ export const LibraryScreen = (props: Props): React.JSX.Element => {
         isDark={isDark}
         compact={props.compact}
         playlist={playlistView}
-        onContextMenu={showLibraryMenu ? contextMenu : undefined}
+        onContextMenu={
+          showLibraryMenu
+            ? (target, x, y) => {
+                void contextMenu(target, x, y)
+              }
+            : undefined
+        }
         toolbarStart={
           showLibraryMenu ? (
             <>
@@ -362,21 +379,29 @@ export const LibraryScreen = (props: Props): React.JSX.Element => {
               capacity={capacity}
               textStyle={textStyle}
               action={
-                props.onBurn ? (
+                onBurn ? (
                   <BurnButton
                     capacity={capacity}
                     onPress={() => {
-                      props.onBurn!({
-                        playlistId: pl.activeId!,
+                      const playlistId = pl.activeId
+                      if (playlistId === null) {
+                        return
+                      }
+                      onBurn({
+                        playlistId,
                         name: activeName ?? 'Playlist',
-                        tracks: rows
-                          .filter(r => r.recording)
-                          .map(r => ({
-                            path: r.recording!.path,
-                            title: r.recording!.title,
-                            performer: r.recording!.artist,
-                            durationMs: r.recording!.durationMs,
-                          })),
+                        tracks: rows.flatMap(r =>
+                          r.recording
+                            ? [
+                                {
+                                  path: r.recording.path,
+                                  title: r.recording.title,
+                                  performer: r.recording.artist,
+                                  durationMs: r.recording.durationMs,
+                                },
+                              ]
+                            : [],
+                        ),
                       })
                     }}
                   />
@@ -422,8 +447,12 @@ export const LibraryScreen = (props: Props): React.JSX.Element => {
           }}
           onAdd={names => {
             setAdding(false)
+            const playlistId = pl.activeId
+            if (playlistId === null) {
+              return
+            }
             try {
-              playlists.add(pl.activeId!, names)
+              playlists.add(playlistId, names)
             } catch (e) {
               onMessage({
                 text: `Couldn't add to the playlist: ${errorText(e)}`,

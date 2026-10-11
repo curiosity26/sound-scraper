@@ -1,6 +1,6 @@
 import type { RecorderState } from '@/native/types'
 
-export function statusText(state: RecorderState, starting: boolean): string {
+export const statusText = (state: RecorderState, starting: boolean): string => {
   if (starting) {
     return 'STARTING'
   }

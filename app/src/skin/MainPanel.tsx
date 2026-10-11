@@ -1,6 +1,6 @@
 // Layout here comes from skin data (rects, sizes), so styles are inline.
 /* eslint-disable react-native/no-inline-styles */
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { type FC, useCallback, useEffect, useState } from 'react'
 import { Pressable, View } from 'react-native'
 
 import type { RecorderState } from '@/native/types'
@@ -44,7 +44,7 @@ const INTERACTIVE: ElementName[] = [
 ]
 
 /** The skinned main window: transport, time, status, levels and source. */
-export const MainPanel = (): React.JSX.Element => {
+export const MainPanel: FC = () => {
   const skin = useSkin()
   const s = useSkinScale()
   const r = useRecorder()
@@ -159,7 +159,10 @@ export const MainPanel = (): React.JSX.Element => {
     if (chosen === 0) {
       setSelectedPid(0)
     } else if (chosen >= 2) {
-      setSelectedPid(apps[chosen - 2].pid)
+      const app = apps[chosen - 2]
+      if (app) {
+        setSelectedPid(app.pid)
+      }
     }
   }, [
     layout,
@@ -188,7 +191,7 @@ export const MainPanel = (): React.JSX.Element => {
   const pauseSeparate = els.pause != null || hasPlay
   const onRecord = () => {
     if (r.state === 'idle') {
-      r.record()
+      void r.record()
     } else if (hasPlay) {
       return
     } else if (r.state === 'paused') {
@@ -205,21 +208,25 @@ export const MainPanel = (): React.JSX.Element => {
     } else if (playing) {
       playback.pause()
     } else if (loaded) {
-      playback.play()
+      void playback.play()
     }
   }
   const onPause = () => {
     if (active) {
-      r.state === 'paused' ? r.resume() : r.pause()
+      if (r.state === 'paused') {
+        r.resume()
+      } else {
+        r.pause()
+      }
     } else if (playing) {
       playback.pause()
     } else if (loaded && p.state === 'paused') {
-      playback.play()
+      void playback.play()
     }
   }
   const onStop = () => {
     if (active) {
-      r.stop()
+      void r.stop()
     } else if (loaded) {
       playback.stop()
     }
@@ -377,7 +384,9 @@ export const MainPanel = (): React.JSX.Element => {
           testID="source"
           accessibilityRole="button"
           accessibilityLabel={`Source: ${r.sourceName}`}
-          onPress={chooseSource}
+          onPress={() => {
+            void chooseSource()
+          }}
           style={scaleRect(els.source.rect, s)}
         >
           {els.source.sprite && (
@@ -460,19 +469,23 @@ export const MainPanel = (): React.JSX.Element => {
           active: shaded,
         },
       )}
-      {button('close', 'Quit', close)}
+      {button('close', 'Quit', () => {
+        void close()
+      })}
     </View>
   )
 }
 
-/** The status sprite for the state when the skin has one, else its text. */
-const StatusElement = (props: {
-  element: SkinElement
-  fonts: Parameters<typeof ElementText>[0]['fonts']
+type StatusElementProps = {
+  readonly element: SkinElement
+  readonly fonts: Parameters<typeof ElementText>[0]['fonts']
   /** A recorder state, or a player state during playback. */
-  state: string
-  text: string
-}) => {
+  readonly state: string
+  readonly text: string
+}
+
+/** The status sprite for the state when the skin has one, else its text. */
+const StatusElement: FC<StatusElementProps> = props => {
   const { element } = props
   const s = useSkinScale()
   const sprite = element.sprite

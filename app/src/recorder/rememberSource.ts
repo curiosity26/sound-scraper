@@ -3,7 +3,7 @@ import type { AudioApp } from '@/native/types'
 
 import { safeSettings } from './safeSettings'
 
-export function rememberSource(app: AudioApp | undefined) {
+export const rememberSource = (app: AudioApp | undefined) => {
   const current = safeSettings()
   if (!current) {
     return

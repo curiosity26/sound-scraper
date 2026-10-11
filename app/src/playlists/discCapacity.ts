@@ -12,7 +12,7 @@ import type { Capacity, DiscFit, PlaylistRow } from './types'
  * What a playlist needs on an audio CD with `gapSeconds` between tracks.
  * Missing recordings are skipped, as the burner skips them.
  */
-export function discCapacity(rows: PlaylistRow[], gapSeconds = 2): Capacity {
+export const discCapacity = (rows: PlaylistRow[], gapSeconds = 2): Capacity => {
   const gap = Math.round(gapSeconds * SECTORS_PER_SECOND)
   let total = 0
   let gaps = 0

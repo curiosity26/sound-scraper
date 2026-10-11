@@ -8,12 +8,15 @@ export const TRACK_COLORS = [
   '#c46fd8',
   '#e2685f',
   '#4cb7c2',
-]
+] as const
 
 export const OVERVIEW = 30
 
+/** Auto Slice's presets, in the order they're offered. */
+export const DETECT_PRESET_NAMES = ['digital', 'vinyl'] as const
+
 export const DETECT_PRESETS: Record<
-  'digital' | 'vinyl',
+  (typeof DETECT_PRESET_NAMES)[number],
   Omit<DetectOptions, 'removeGaps'>
 > = {
   // Streams and files: the gaps are digital silence.

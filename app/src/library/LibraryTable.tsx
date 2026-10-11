@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { type FC, useMemo, useRef, useState } from 'react'
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { TextField } from '@/components/TextField'
@@ -25,39 +25,39 @@ import { sortRecordings } from './sortRecordings'
 import type { PlaylistView, Row, Sort } from './types'
 import { visibleColumns } from './visibleColumns'
 
-type Props = {
-  recordings: Recording[]
+export type LibraryTableProps = {
+  readonly recordings: readonly Recording[]
   /** The row shown in the details panel. */
-  selected?: string
+  readonly selected?: string
   /** The recording loaded for playback (marked ▶). */
-  loaded?: string
+  readonly loaded?: string
   /** A row was clicked: show it in the details panel. */
-  onSelect: (fileName: string) => void
+  readonly onSelect: (fileName: string) => void
   /** Opens the details panel for these (checked) recordings. */
-  onEditTags: (fileNames: string[]) => void
+  readonly onEditTags: (fileNames: string[]) => void
   /**
    * Checked rows (multi-select for bulk tag edits): file names in the
    * library, `#<item id>` in a playlist (see rowKey).
    */
-  checked: Set<string>
-  onCheckedChange: (checked: Set<string>) => void
-  textStyle: object
-  isDark: boolean
+  readonly checked: Set<string>
+  readonly onCheckedChange: (checked: Set<string>) => void
+  readonly textStyle: object
+  readonly isDark: boolean
   /** In a skinned panel: no heading or top margin (the title shows the count). */
-  compact?: boolean
+  readonly compact?: boolean
   /** Shows a playlist instead of the library. */
-  playlist?: PlaylistView
+  readonly playlist?: PlaylistView
   /** Leading toolbar content (the playlist picker). */
-  toolbarStart?: React.ReactNode
+  readonly toolbarStart?: React.ReactNode
   /** Toolbar actions shown while rows are checked ("Add to ▾"). */
-  checkedActions?: React.ReactNode
+  readonly checkedActions?: React.ReactNode
   /** Under the table (the CD capacity bar). */
-  footer?: React.ReactNode
+  readonly footer?: React.ReactNode
   /**
    * A row was right-clicked at (x, y) in the window: its file name, and its
    * item id in a playlist.
    */
-  onContextMenu?: (
+  readonly onContextMenu?: (
     target: { fileName: string; itemId?: number; key: string },
     x: number,
     y: number,
@@ -76,7 +76,7 @@ const HANDLE_HIT = 28
  * Recordings with sort, search, inline rename, Show in Finder and Trash; or
  * a playlist's rows, in its order, with drag handles to reorder them.
  */
-export const LibraryTable = (props: Props): React.JSX.Element => {
+export const LibraryTable: FC<LibraryTableProps> = props => {
   const { recordings, textStyle, isDark, playlist } = props
   const t = usePanelStyles()
   const theme = usePanelTheme()
@@ -483,7 +483,9 @@ export const LibraryTable = (props: Props): React.JSX.Element => {
                     const source = playlist.rows.find(
                       p => p.item.id === row.itemId,
                     )
-                    source && playlist.onSelectItem(source)
+                    if (source) {
+                      playlist.onSelectItem(source)
+                    }
                   } else {
                     props.onSelect(row.fileName)
                   }

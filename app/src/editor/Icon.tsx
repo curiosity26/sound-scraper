@@ -1,6 +1,6 @@
 /* eslint-disable react-native/no-inline-styles */
 
-import React from 'react'
+import React, { type FC } from 'react'
 import { View } from 'react-native'
 
 export type IconName =
@@ -14,12 +14,14 @@ export type IconName =
   | 'zoomOutV'
   | 'zoomInV'
 
+export type IconProps = {
+  readonly name: IconName
+  readonly color: string
+  readonly size?: number
+}
+
 /** Simple shapes, sized `size` points, in `color`. */
-export const Icon = (props: {
-  name: IconName
-  color: string
-  size?: number
-}): React.JSX.Element => {
+export const Icon: FC<IconProps> = props => {
   const s = props.size ?? 12
   const c = props.color
   const tri = (dir: 'left' | 'right', h: number) => ({

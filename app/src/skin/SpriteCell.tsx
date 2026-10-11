@@ -1,25 +1,28 @@
 // Layout here comes from skin data (rects, sizes), so styles are inline.
 /* eslint-disable react-native/no-inline-styles */
-import React from 'react'
+import React, { type FC } from 'react'
 import { type StyleProp, View, type ViewStyle } from 'react-native'
 
 import { SkinImage } from './SkinImage'
 import type { ImageRef } from './types'
 import { useSkinScale } from './useSkinScale'
 
-type CellProps = {
-  image: ImageRef
-  /** Top-left of the cell in the image. */
-  at: [number, number]
+export type SpriteCellProps = {
+  readonly image: ImageRef
+  /**
+   * Top-left of the cell in the image; undefined (a state the sprite
+   * lacks) draws an empty cell.
+   */
+  readonly at: readonly [number, number] | undefined
   /** Cell size in the image. */
-  size: [number, number]
+  readonly size: readonly [number, number]
   /** Drawn size; defaults to the cell size × the skin scale. */
-  drawSize?: [number, number]
-  style?: StyleProp<ViewStyle>
+  readonly drawSize?: readonly [number, number]
+  readonly style?: StyleProp<ViewStyle>
 }
 
 /** One cell of a sprite sheet. */
-export const SpriteCell = (props: CellProps): React.JSX.Element => {
+export const SpriteCell: FC<SpriteCellProps> = props => {
   const { image, at, size } = props
   const s = useSkinScale()
   const [w, h] = props.drawSize ?? [size[0] * s, size[1] * s]
@@ -30,12 +33,14 @@ export const SpriteCell = (props: CellProps): React.JSX.Element => {
       pointerEvents="none"
       style={[{ width: w, height: h, overflow: 'hidden' }, props.style]}
     >
-      <SkinImage
-        image={image}
-        width={image.width * kx}
-        height={image.height * ky}
-        style={{ position: 'absolute', left: -at[0] * kx, top: -at[1] * ky }}
-      />
+      {at && (
+        <SkinImage
+          image={image}
+          width={image.width * kx}
+          height={image.height * ky}
+          style={{ position: 'absolute', left: -at[0] * kx, top: -at[1] * ky }}
+        />
+      )}
     </View>
   )
 }

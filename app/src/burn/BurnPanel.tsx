@@ -1,7 +1,15 @@
 // The burn panel (docs/playlists-and-cd-burning-design.md §6): choose where
 // to burn a playlist, then watch it go track by track, ImgBurn style, with
 // the phase, total and buffer bars, speed and a log.
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  type FC,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import {
   Platform,
   Pressable,
@@ -16,7 +24,6 @@ import { discCapacity } from '@/playlists/discCapacity'
 import type { PlaylistRow } from '@/playlists/types'
 import { burnTarget } from '@/skin/burnTarget'
 import { colors } from '@/theme/colors'
-import { usePanelTheme } from '@/theme/usePanelTheme'
 import { errorText } from '@/utils/errorText'
 
 import { burnApi } from './burnApi'
@@ -27,40 +34,19 @@ import { isRunning } from './isRunning'
 import { readiness } from './readiness'
 import { speedText } from './speedText'
 import type {
+  BurnJob,
   BurnStatus,
+  BurnTheme,
   Device,
   SimSettings,
   Target,
   TrackState,
 } from './types'
-
-type Theme = {
-  text: string
-  dim: string
-  border: string
-  accent: string
-  background: string
-  c: (name: string, fallback: string) => string
-}
-
-function useTheme(): Theme {
-  const t = usePanelTheme()
-  return useMemo(() => {
-    const p = t?.progress ?? {}
-    return {
-      text: t?.text ?? '#f3ead0',
-      dim: (t?.text ?? '#f3ead0') + '99',
-      border: t?.border ?? colors.border,
-      accent: t?.accent ?? colors.accent,
-      background: t?.background ?? '#2a2522',
-      c: (name: string, fallback: string) => p[name] ?? fallback,
-    }
-  }, [t])
-}
+import { useBurnTheme } from './useBurnTheme'
 
 /** Rows the capacity math wants, from the burn target's tracks. */
-function rowsOf(target: Target): PlaylistRow[] {
-  return target.tracks.map((t, i) => ({
+const rowsOf = (target: Target): PlaylistRow[] =>
+  target.tracks.map((t, i) => ({
     item: { id: i, fileName: t.path },
     position: i + 1,
     recording: {
@@ -74,17 +60,16 @@ function rowsOf(target: Target): PlaylistRow[] {
       recordedAtMs: 0,
     },
   }))
-}
 
-export const BurnPanel = (): React.JSX.Element => {
+export const BurnPanel: FC = () => {
   const [target, setTarget] = useState(burnTarget.get)
   useEffect(() => burnTarget.subscribe(setTarget), [])
   const [current, setCurrent] = useState(burnJob.get)
   useEffect(() => burnJob.subscribe(setCurrent), [])
-  const th = useTheme()
+  const th = useBurnTheme()
 
   if (current) {
-    return <Progress key={current.id} th={th} />
+    return <Progress key={current.id} th={th} current={current} />
   }
   if (!target) {
     return (
@@ -100,9 +85,14 @@ export const BurnPanel = (): React.JSX.Element => {
 
 // ------------------------------------------------------------ setup
 
-const Setup = (props: { th: Theme; target: Target }): React.JSX.Element => {
+type SetupProps = {
+  readonly th: BurnTheme
+  readonly target: Target
+}
+
+const Setup: FC<SetupProps> = props => {
   const { th, target } = props
-  const [devices, setDevices] = useState<Device[]>([])
+  const [devices, setDevices] = useState<readonly Device[]>([])
   const [deviceId, setDeviceId] = useState<string>()
   const [gap, setGap] = useState(2)
   const [cdText, setCdText] = useState(true)
@@ -196,9 +186,11 @@ const Setup = (props: { th: Theme; target: Target }): React.JSX.Element => {
 
   const onBurn = () => {
     if (device?.media.state === 'erasable') {
-      setConfirm(() => start)
+      setConfirm(() => () => {
+        void start()
+      })
     } else {
-      start()
+      void start()
     }
   }
 
@@ -300,9 +292,10 @@ const Setup = (props: { th: Theme; target: Target }): React.JSX.Element => {
             value={String(speed)}
             options={[
               ['0', 'Maximum'],
-              ...device.speeds.map(
-                s => [String(s), `${s}x`] as [string, string],
-              ),
+              ...device.speeds.map((s): readonly [string, string] => [
+                String(s),
+                `${s}x`,
+              ]),
             ]}
             onChange={v => {
               setSpeed(Number(v))
@@ -313,10 +306,14 @@ const Setup = (props: { th: Theme; target: Target }): React.JSX.Element => {
           th={th}
           label="Gaps"
           value={String(gap)}
-          options={[
-            ['2', '2 seconds'],
-            ...(gapless ? [['0', 'None (gapless)'] as [string, string]] : []),
-          ]}
+          options={
+            gapless
+              ? [
+                  ['2', '2 seconds'],
+                  ['0', 'None (gapless)'],
+                ]
+              : [['2', '2 seconds']]
+          }
           onChange={v => {
             setGap(Number(v))
           }}
@@ -391,9 +388,14 @@ const Setup = (props: { th: Theme; target: Target }): React.JSX.Element => {
 
 // ------------------------------------------------------------ progress
 
-const Progress = (props: { th: Theme }): React.JSX.Element => {
-  const { th } = props
-  const current = burnJob.get()!
+type ProgressProps = {
+  readonly th: BurnTheme
+  /** The job shown: burnJob's value. */
+  readonly current: BurnJob
+}
+
+const Progress: FC<ProgressProps> = props => {
+  const { th, current } = props
   const [status, setStatus] = useState<BurnStatus | null>(null)
   const [error, setError] = useState<string>()
   const [confirm, setConfirm] = useState(false)
@@ -463,6 +465,8 @@ const Progress = (props: { th: Theme }): React.JSX.Element => {
   }
 
   const fg = { color: th.text }
+  /** The saved image, once it's done. */
+  const output = status?.state === 'done' && image ? status.output : null
   const bar = th.c('bar', th.accent)
   const track = th.c('track', '#0004')
   const started = current.started
@@ -555,9 +559,7 @@ const Progress = (props: { th: Theme }): React.JSX.Element => {
           <Text style={[styles.clock, { color: th.dim }]}>
             {formatClock(status?.elapsedMs ?? 0)}
             {running && status?.remainingMs != null
-              ? ` / ~${formatClock(
-                  (status?.elapsedMs ?? 0) + status.remainingMs,
-                )}`
+              ? ` / ~${formatClock(status.elapsedMs + status.remainingMs)}`
               : ''}
           </Text>
         </View>
@@ -580,9 +582,9 @@ const Progress = (props: { th: Theme }): React.JSX.Element => {
 
       <ScrollView
         ref={log}
-        onContentSizeChange={() =>
+        onContentSizeChange={() => {
           log.current?.scrollToEnd({ animated: false })
-        }
+        }}
         style={[
           styles.log,
           { backgroundColor: th.c('log', '#0006'), borderColor: th.border },
@@ -610,34 +612,42 @@ const Progress = (props: { th: Theme }): React.JSX.Element => {
             th={th}
             label="Cancel"
             onPress={() => {
-              image || status?.state === 'preparing'
-                ? cancel()
-                : setConfirm(true)
+              if (image || status?.state === 'preparing') {
+                cancel()
+              } else {
+                setConfirm(true)
+              }
             }}
             testID="burn-cancel"
           />
         ) : (
           <>
-            {status?.state === 'done' && image && status.output && (
+            {output ? (
               <Button
                 th={th}
                 label={REVEAL}
                 onPress={() => {
                   try {
-                    burnApi.reveal(status.output!)
+                    burnApi.reveal(output)
                   } catch (e) {
                     setError(errorText(e))
                   }
                 }}
               />
-            )}
+            ) : null}
             {status?.state === 'done' && !image && (
               <Button th={th} label="Burn Another Copy" onPress={again} />
             )}
             {(status?.state === 'failed' || status?.state === 'cancelled') && (
               <Button th={th} label="Try Again" onPress={again} />
             )}
-            <Button th={th} label="Save Log…" onPress={saveLog} />
+            <Button
+              th={th}
+              label="Save Log…"
+              onPress={() => {
+                void saveLog()
+              }}
+            />
             <Button
               th={th}
               label="Close"
@@ -678,7 +688,12 @@ const TRACK_WORDS: Record<TrackState, string> = {
 // ------------------------------------------------------------ parts
 
 /** A status lamp: dark while waiting, lit while working, green or red after. */
-const Lamp = (props: { th: Theme; state: TrackState }): React.JSX.Element => {
+type LampProps = {
+  readonly th: BurnTheme
+  readonly state: TrackState
+}
+
+const Lamp: FC<LampProps> = props => {
   const { th, state } = props
   const color =
     state === 'done'
@@ -715,13 +730,15 @@ const Lamp = (props: { th: Theme; state: TrackState }): React.JSX.Element => {
   )
 }
 
-const Bar = (props: {
-  value: number
-  color: string
-  track: string
-  label: string
-  text: string
-}): React.JSX.Element => {
+type BarProps = {
+  readonly value: number
+  readonly color: string
+  readonly track: string
+  readonly label: string
+  readonly text: string
+}
+
+const Bar: FC<BarProps> = props => {
   const pct = `${Math.max(0, Math.min(1, props.value)) * 100}%` as const
   return (
     <View style={[styles.bar, { backgroundColor: props.track }]}>
@@ -733,19 +750,26 @@ const Bar = (props: {
   )
 }
 
-const Label = (props: { th: Theme; text: string }): React.JSX.Element => {
+type LabelProps = {
+  readonly th: BurnTheme
+  readonly text: string
+}
+
+const Label: FC<LabelProps> = props => {
   return (
     <Text style={[styles.label, { color: props.th.dim }]}>{props.text}</Text>
   )
 }
 
-const Choice = <T extends string>(props: {
-  th: Theme
-  label: string
-  value: T
-  options: Array<[T, string]>
-  onChange: (v: T) => void
-}): React.JSX.Element => {
+type ChoiceProps<T extends string> = {
+  readonly th: BurnTheme
+  readonly label: string
+  readonly value: T
+  readonly options: ReadonlyArray<readonly [T, string]>
+  readonly onChange: (v: T) => void
+}
+
+const Choice = <T extends string>(props: ChoiceProps<T>): ReactNode => {
   const { th } = props
   return (
     <View style={styles.choiceRow}>
@@ -774,12 +798,14 @@ const Choice = <T extends string>(props: {
   )
 }
 
-const Check = (props: {
-  th: Theme
-  label: string
-  value: boolean
-  onChange: (v: boolean) => void
-}): React.JSX.Element => {
+type CheckProps = {
+  readonly th: BurnTheme
+  readonly label: string
+  readonly value: boolean
+  readonly onChange: (v: boolean) => void
+}
+
+const Check: FC<CheckProps> = props => {
   return (
     <Pressable
       style={styles.check}
@@ -797,14 +823,16 @@ const Check = (props: {
   )
 }
 
-const Button = (props: {
-  th: Theme
-  label: string
-  onPress: () => void
-  accent?: boolean
-  disabled?: boolean
-  testID?: string
-}): React.JSX.Element => {
+type ButtonProps = {
+  readonly th: BurnTheme
+  readonly label: string
+  readonly onPress: () => void
+  readonly accent?: boolean
+  readonly disabled?: boolean
+  readonly testID?: string
+}
+
+const Button: FC<ButtonProps> = props => {
   const { th } = props
   return (
     <Pressable
@@ -833,14 +861,16 @@ const Button = (props: {
   )
 }
 
-const Modal = (props: {
-  th: Theme
-  title: string
-  body: string
-  action: string
-  onCancel: () => void
-  onConfirm: () => void
-}): React.JSX.Element => {
+type ModalProps = {
+  readonly th: BurnTheme
+  readonly title: string
+  readonly body: string
+  readonly action: string
+  readonly onCancel: () => void
+  readonly onConfirm: () => void
+}
+
+const Modal: FC<ModalProps> = props => {
   const { th } = props
   return (
     <View style={styles.backdrop}>
@@ -957,7 +987,7 @@ const styles = StyleSheet.create({
     lineHeight: 15,
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#00000088',
     alignItems: 'center',
     justifyContent: 'center',

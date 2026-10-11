@@ -1,4 +1,4 @@
-export function formatSize(bytes: number): string {
+export const formatSize = (bytes: number): string => {
   if (bytes < 1024 * 1024) {
     return `${Math.max(1, Math.round(bytes / 1024))} KB`
   }

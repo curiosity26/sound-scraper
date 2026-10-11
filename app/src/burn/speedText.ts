@@ -1,5 +1,5 @@
 /** "Writing at 24x (3,528 KB/s)" */
-export function speedText(x: number | null): string | null {
+export const speedText = (x: number | null): string | null => {
   if (x === null) {
     return null
   }

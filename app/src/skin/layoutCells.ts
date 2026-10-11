@@ -3,18 +3,18 @@
  * when `pad` (to show a font's unlit cells), and scrolled by `offset` when
  * too long (a marquee, joined with a gap).
  */
-export function layoutCells(
+export const layoutCells = (
   chars: string[],
   capacity: number,
   align: 'left' | 'center' | 'right',
   pad: boolean,
   offset: number,
-): string[] {
+): string[] => {
   if (chars.length > capacity) {
     const loop = [...chars, ' ', ' ', ' ', ' ']
     return Array.from(
       { length: capacity },
-      (_, i) => loop[(offset + i) % loop.length],
+      (_, i) => loop[(offset + i) % loop.length] ?? ' ',
     )
   }
   const free = capacity - chars.length

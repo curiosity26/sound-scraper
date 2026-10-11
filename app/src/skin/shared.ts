@@ -1,5 +1,5 @@
 /** A value shared by every window (they run in one JS runtime). */
-export function shared<T>(initial: T) {
+export const shared = <T>(initial: T) => {
   let value = initial
   const subscribers = new Set<(v: T) => void>()
   return {

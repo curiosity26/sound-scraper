@@ -16,13 +16,27 @@ import { displayName } from './displayName'
 import type { MenuAction, MenuContext } from './types'
 import { writeCover } from './writeCover'
 
-function trash(ctx: MenuContext) {
+const trash = (ctx: MenuContext) => {
   const names = ctx.fileNames
   const first = ctx.recordings.find(r => r.fileName === names[0])
   const what =
     names.length > 1
       ? `${names.length} recordings`
       : `"${first ? displayName(first) : names[0]}"`
+  const moveToTrash = async () => {
+    try {
+      for (const name of names) {
+        await library.trash(name)
+      }
+      ctx.onChanged()
+      ctx.onTrashed?.()
+    } catch (e) {
+      ctx.report({
+        text: `Couldn't move to ${TRASH_NAME}: ${errorText(e)}`,
+        isError: true,
+      })
+    }
+  }
   Alert.alert(
     `Move ${what} to ${TRASH_NAME}?`,
     undefined,
@@ -31,19 +45,8 @@ function trash(ctx: MenuContext) {
       {
         text: TRASH_LABEL,
         style: 'destructive',
-        onPress: async () => {
-          try {
-            for (const name of names) {
-              await library.trash(name)
-            }
-            ctx.onChanged()
-            ctx.onTrashed?.()
-          } catch (e) {
-            ctx.report({
-              text: `Couldn't move to ${TRASH_NAME}: ${errorText(e)}`,
-              isError: true,
-            })
-          }
+        onPress: () => {
+          void moveToTrash()
         },
       },
     ],
@@ -51,7 +54,7 @@ function trash(ctx: MenuContext) {
   )
 }
 
-function editTrack(ctx: MenuContext) {
+const editTrack = (ctx: MenuContext) => {
   const r = ctx.recordings[0]
   if (!r) {
     return
@@ -66,7 +69,7 @@ function editTrack(ctx: MenuContext) {
 }
 
 /** Add to Playlist…: a second menu of the playlists, where the first was. */
-async function addToPlaylist(ctx: MenuContext, x: number, y: number) {
+const addToPlaylist = async (ctx: MenuContext, x: number, y: number) => {
   const all = playlists.get().playlists
   if (!ctx.showMenu || all.length === 0) {
     return
@@ -105,7 +108,7 @@ async function addToPlaylist(ctx: MenuContext, x: number, y: number) {
   }
 }
 
-export function recordingActions(ctx: MenuContext): MenuAction[] {
+export const recordingActions = (ctx: MenuContext): MenuAction[] => {
   const single = ctx.fileNames.length === 1
   return [
     ...(single && editorAvailable && skinsAvailable && ctx.recordings[0]
@@ -122,7 +125,9 @@ export function recordingActions(ctx: MenuContext): MenuAction[] {
       ? [
           {
             label: 'Add to Playlist…',
-            run: (x: number, y: number) => addToPlaylist(ctx, x, y),
+            run: (x: number, y: number) => {
+              void addToPlaylist(ctx, x, y)
+            },
           },
         ]
       : []),
@@ -131,17 +136,27 @@ export function recordingActions(ctx: MenuContext): MenuAction[] {
           {
             label: REVEAL_LABEL,
             run: () => {
-              library.reveal(ctx.fileNames[0])
+              const [name] = ctx.fileNames
+              if (name !== undefined) {
+                library.reveal(name)
+              }
             },
           },
         ]
       : []),
-    { label: 'Change cover…', run: () => chooseCover(ctx) },
+    {
+      label: 'Change cover…',
+      run: () => {
+        void chooseCover(ctx)
+      },
+    },
     ...(ctx.hasCover
       ? [
           {
             label: 'Remove cover',
-            run: () => writeCover(ctx, { kind: 'remove' }),
+            run: () => {
+              void writeCover(ctx, { kind: 'remove' })
+            },
           },
         ]
       : []),

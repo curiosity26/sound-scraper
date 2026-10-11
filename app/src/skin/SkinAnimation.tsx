@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { type FC, useEffect, useRef, useState } from 'react'
 
 import type { RecorderState } from '@/native/types'
 
@@ -11,15 +11,17 @@ import { useSkinScale } from './useSkinScale'
 
 const TICK_MS = 33
 
-/** A skin's decorative sprite animation (e.g. the spinning tape reels). */
-export const SkinAnimation = (props: {
-  animation: SkinAnimationDef
-  state: RecorderState
+export type SkinAnimationProps = {
+  readonly animation: SkinAnimationDef
+  readonly state: RecorderState
   /** Playing back (state is then "recording"). */
-  playing?: boolean
+  readonly playing?: boolean
   /** Linear 0..1, for speed "level". */
-  level: number
-}): React.JSX.Element => {
+  readonly level: number
+}
+
+/** A skin's decorative sprite animation (e.g. the spinning tape reels). */
+export const SkinAnimation: FC<SkinAnimationProps> = props => {
   const { animation, state, level } = props
   const s = useSkinScale()
   const [frame, setFrame] = useState(0)
@@ -47,7 +49,8 @@ export const SkinAnimation = (props: {
   }, [playing, count])
 
   const [, , w, h] = animation.rect
-  const at = animation.sprite.states[animation.frames[frame % count]]
+  const name = animation.frames[frame % count]
+  const at = name === undefined ? undefined : animation.sprite.states[name]
   return (
     <SpriteCell
       image={animation.sprite.image}

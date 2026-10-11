@@ -1,20 +1,22 @@
-import React from 'react'
+import React, { type FC } from 'react'
 import { Platform, StyleSheet, View } from 'react-native'
 
 import { TextField } from '@/components/TextField'
 
 import type { EditorTheme } from './types'
 
-/** The name field over a new (or double-clicked) track. */
-export const NameField = (props: {
-  th: EditorTheme
-  left: number
-  top: number
-  value: string
-  onChange: (text: string) => void
+export type NameFieldProps = {
+  readonly th: EditorTheme
+  readonly left: number
+  readonly top: number
+  readonly value: string
+  readonly onChange: (text: string) => void
   /** Close it, keeping the text (or not, for Esc). */
-  onDone: (keep?: boolean) => void
-}): React.JSX.Element => {
+  readonly onDone: (keep?: boolean) => void
+}
+
+/** The name field over a new (or double-clicked) track. */
+export const NameField: FC<NameFieldProps> = props => {
   const { th } = props
   return (
     <View style={[styles.nameField, { left: props.left, top: props.top }]}>

@@ -1,21 +1,23 @@
-import React from 'react'
+import React, { type FC } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 
 import { ToolButton } from './ToolButton'
 import type { EditorTheme } from './types'
 
+export type SaveModalProps = {
+  readonly th: EditorTheme
+  readonly title: string
+  readonly count: number
+  readonly reencoded: number
+  readonly fromMaster: boolean
+  readonly saving: boolean
+  readonly error?: string
+  readonly onCancel: () => void
+  readonly onChoose: (keepOriginal: boolean) => void
+}
+
 /** Save: the in-window question whether to keep the original. */
-export const SaveModal = (props: {
-  th: EditorTheme
-  title: string
-  count: number
-  reencoded: number
-  fromMaster: boolean
-  saving: boolean
-  error?: string
-  onCancel: () => void
-  onChoose: (keepOriginal: boolean) => void
-}): React.JSX.Element => {
+export const SaveModal: FC<SaveModalProps> = props => {
   const { th } = props
   return (
     <View style={styles.modalBackdrop} testID="editor-save-modal">
@@ -75,7 +77,7 @@ export const SaveModal = (props: {
 
 const styles = StyleSheet.create({
   modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#00000088',
     alignItems: 'center',
     justifyContent: 'center',

@@ -1,18 +1,25 @@
 import type { Tags } from '@/native/types'
 
-import { TEXT_FIELDS } from './constants'
 import { fieldText } from './fieldText'
 import type { Field, Merged } from './types'
 
 /** Shared values for each field; differing values become 'mixed'. */
-export function mergeTags(all: Tags[]): Record<Field, Merged> {
-  const out = {} as Record<Field, Merged>
-  for (const field of TEXT_FIELDS) {
+export const mergeTags = (all: readonly Tags[]): Record<Field, Merged> => {
+  const merge = (field: Field): Merged => {
     const texts = new Set(all.map(t => fieldText(t, field)))
-    out[field] =
-      texts.size <= 1
-        ? { kind: 'value', text: [...texts][0] ?? '' }
-        : { kind: 'mixed' }
+    return texts.size <= 1
+      ? { kind: 'value', text: [...texts][0] ?? '' }
+      : { kind: 'mixed' }
   }
-  return out
+  // Every field in TEXT_FIELDS; the return type checks none is missing.
+  return {
+    title: merge('title'),
+    artist: merge('artist'),
+    album: merge('album'),
+    albumArtist: merge('albumArtist'),
+    date: merge('date'),
+    track: merge('track'),
+    genre: merge('genre'),
+    comment: merge('comment'),
+  }
 }

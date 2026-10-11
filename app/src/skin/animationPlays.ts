@@ -5,11 +5,11 @@ import type { RecorderState } from '@/native/types'
  * playback "recording"/"paused" for playing/paused (`playing` is true
  * while playing back).
  */
-export function animationPlays(
+export const animationPlays = (
   play: string,
   state: RecorderState,
   playing = false,
-): boolean {
+): boolean => {
   switch (play) {
     case 'always':
       return true

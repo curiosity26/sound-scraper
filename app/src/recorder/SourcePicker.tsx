@@ -1,21 +1,21 @@
-import React from 'react'
+import type { FC } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 
 import type { AudioApp } from '@/native/types'
 import { colors } from '@/theme/colors'
 
-type Props = {
-  apps: AudioApp[]
+export type SourcePickerProps = {
+  readonly apps: readonly AudioApp[]
   /** 0 = all system audio. */
-  selectedPid: number
-  onSelect: (pid: number) => void
-  onRefresh: () => void
-  disabled: boolean
-  textStyle: object
+  readonly selectedPid: number
+  readonly onSelect: (pid: number) => void
+  readonly onRefresh: () => void
+  readonly disabled: boolean
+  readonly textStyle: object
 }
 
 /** "All system audio" or one app; apps playing sound are marked ♪. */
-export const SourcePicker = (props: Props): React.JSX.Element => {
+export const SourcePicker: FC<SourcePickerProps> = props => {
   const { apps, selectedPid, onSelect, onRefresh, disabled, textStyle } = props
   return (
     <View style={disabled && styles.disabled}>
@@ -52,13 +52,15 @@ export const SourcePicker = (props: Props): React.JSX.Element => {
   )
 }
 
-const Row = (props: {
-  label: string
-  selected: boolean
-  onPress: () => void
-  disabled: boolean
-  textStyle: object
-}) => {
+type RowProps = {
+  readonly label: string
+  readonly selected: boolean
+  readonly onPress: () => void
+  readonly disabled: boolean
+  readonly textStyle: object
+}
+
+const Row: FC<RowProps> = props => {
   return (
     <Pressable
       onPress={props.onPress}

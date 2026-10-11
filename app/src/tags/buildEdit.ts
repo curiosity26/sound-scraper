@@ -4,11 +4,11 @@ import { TEXT_FIELDS } from './constants'
 import type { CoverChange, Field } from './types'
 
 /** The edit for the fields the user changed (only those are written). */
-export function buildEdit(
+export const buildEdit = (
   values: Partial<Record<Field, string>>,
   cover: CoverChange,
   id3v23: boolean,
-): TagEdit {
+): TagEdit => {
   const fields = TEXT_FIELDS.filter(f => values[f] !== undefined)
   const text = (f: Exclude<Field, 'track'>) => {
     const v = values[f]?.trim()

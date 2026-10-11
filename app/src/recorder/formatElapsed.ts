@@ -1,4 +1,4 @@
-export function formatElapsed(ms: number, tenths = true): string {
+export const formatElapsed = (ms: number, tenths = true): string => {
   const total = Math.floor(ms / 100)
   const seconds = Math.floor(total / 10) % 60
   const minutes = Math.floor(total / 600)

@@ -1,27 +1,31 @@
-import React, { useEffect, useState } from 'react'
+import React, { type FC, useEffect, useState } from 'react'
 import { Platform } from 'react-native'
+
+import { errorText } from '@/utils/errorText'
 
 import { SkinContext } from './SkinContext'
 import { skinStore } from './skinStore'
 
-type Props = {
-  children: React.ReactNode
+export type SkinProviderProps = {
+  readonly children: React.ReactNode
   /** Shown until the skin has loaded. */
-  fallback?: React.ReactNode
-  onError?: (message: string) => void
+  readonly fallback?: React.ReactNode
+  readonly onError?: (message: string) => void
 }
 
 /**
  * Loads the skin chosen in the settings (once per JS runtime) and provides
  * it; re-renders when another window picks a different skin.
  */
-export const SkinProvider = (props: Props): React.JSX.Element => {
+export const SkinProvider: FC<SkinProviderProps> = props => {
   const { onError } = props
   const [skin, setSkin] = useState(skinStore.get())
   useEffect(() => {
     const unsubscribe = skinStore.subscribe(setSkin)
     if (!skinStore.get()) {
-      skinStore.reload().catch(e => onError?.(String(e?.message ?? e)))
+      skinStore.reload().catch((e: unknown) => {
+        onError?.(errorText(e))
+      })
     }
     return unsubscribe
   }, [onError])

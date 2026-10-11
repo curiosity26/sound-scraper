@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { type FC, useCallback, useEffect, useState } from 'react'
 import {
   Image,
   Platform,
@@ -23,17 +23,20 @@ import { skinMessages } from './skinMessages'
 import { skins } from './skins'
 import { skinStore } from './skinStore'
 import type { SkinInspection, SkinSummary } from './types'
+import { useImageSize } from './useImageSize'
 
 const CARD_W = 196
+
+export type SkinChooserProps = {
+  readonly textStyle: object
+}
 
 /**
  * Settings › Skin: the installed skins as a grid of pictures, the install
  * card for a .sskin being opened, and tools for skin authors (a folder
  * that reloads as it changes, packaging, a starter template).
  */
-export const SkinChooser = (props: {
-  textStyle: object
-}): React.JSX.Element => {
+export const SkinChooser: FC<SkinChooserProps> = props => {
   const { textStyle } = props
   const t = usePanelStyles()
   const [list, setList] = useState<SkinSummary[]>([])
@@ -66,7 +69,7 @@ export const SkinChooser = (props: {
     }
   }, [])
   useEffect(() => {
-    refresh()
+    void refresh()
     return skinStore.subscribe(skin => {
       setWarnings(skin.warnings)
       setChosen(safeSettings()?.skin ?? null)
@@ -106,7 +109,7 @@ export const SkinChooser = (props: {
       setNote(`Installed ${installed.name}.`)
     })
 
-  const useFolder = async () => {
+  const chooseFolder = async () => {
     const dir = await skins.pickFolder()
     if (dir) {
       await choose(dir)
@@ -163,7 +166,9 @@ export const SkinChooser = (props: {
       {pending && 'inspection' in pending && (
         <InstallCard
           inspection={pending.inspection}
-          onInstall={() => install(pending.inspection)}
+          onInstall={() => {
+            void install(pending.inspection)
+          }}
           onCancel={() => {
             pendingInstall.set(null)
           }}
@@ -197,10 +202,18 @@ export const SkinChooser = (props: {
             chosen
             textStyle={textStyle}
           >
-            <Pressable onPress={() => packageFolder(folderInUse)}>
+            <Pressable
+              onPress={() => {
+                void packageFolder(folderInUse)
+              }}
+            >
               <Text style={[styles.link, t.link]}>Package skin…</Text>
             </Pressable>
-            <Pressable onPress={() => choose(null)}>
+            <Pressable
+              onPress={() => {
+                void choose(null)
+              }}
+            >
               <Text style={[styles.link, t.link]}>Stop</Text>
             </Pressable>
           </SkinCard>
@@ -216,13 +229,19 @@ export const SkinChooser = (props: {
             error={s.error}
             onPress={
               s.error == null
-                ? () => choose(s.builtin ? null : s.id)
+                ? () => {
+                    void choose(s.builtin ? null : s.id)
+                  }
                 : undefined
             }
             textStyle={textStyle}
           >
             {!s.builtin && (
-              <Pressable onPress={() => remove(s)}>
+              <Pressable
+                onPress={() => {
+                  void remove(s)
+                }}
+              >
                 <Text style={[styles.link, t.link]}>Remove</Text>
               </Pressable>
             )}
@@ -231,10 +250,19 @@ export const SkinChooser = (props: {
       </View>
 
       <View style={styles.actions}>
-        <Pressable onPress={pickAndInspect} testID="install-skin">
+        <Pressable
+          onPress={() => {
+            void pickAndInspect()
+          }}
+          testID="install-skin"
+        >
           <Text style={[styles.link, t.link]}>Install skin…</Text>
         </Pressable>
-        <Pressable onPress={useFolder}>
+        <Pressable
+          onPress={() => {
+            void chooseFolder()
+          }}
+        >
           <Text style={[styles.link, t.link]}>Use skin folder…</Text>
         </Pressable>
         <Pressable
@@ -250,14 +278,20 @@ export const SkinChooser = (props: {
           <TextField
             value={naming}
             onChangeText={setNaming}
-            onSubmitEditing={() => naming.trim() && create(naming.trim())}
+            onSubmitEditing={() => {
+              if (naming.trim()) {
+                void create(naming.trim())
+              }
+            }}
             placeholder="Skin name"
             style={[styles.input, t.input]}
             autoFocus
           />
           <Pressable
             disabled={!naming.trim()}
-            onPress={() => create(naming.trim())}
+            onPress={() => {
+              void create(naming.trim())
+            }}
             style={[styles.button, t.button]}
           >
             <Text style={[styles.buttonText, t.buttonText]}>
@@ -297,21 +331,23 @@ export const SkinChooser = (props: {
   )
 }
 
-/** A skin in the grid: its picture, name and author. */
-const SkinCard = (props: {
-  name: string
-  detail: string
+type SkinCardProps = {
+  readonly name: string
+  readonly detail: string
   /** For skins.preview: an id, a folder, '' for Default; null for none. */
-  preview: string | null
-  chosen: boolean
-  error?: string | null
-  onPress?: () => void
-  testID?: string
-  textStyle: object
-  children?: React.ReactNode
-}) => {
+  readonly preview: string | null
+  readonly chosen: boolean
+  readonly error?: string | null
+  readonly onPress?: () => void
+  readonly testID?: string
+  readonly textStyle: object
+  readonly children?: React.ReactNode
+}
+
+/** A skin in the grid: its picture, name and author. */
+const SkinCard: FC<SkinCardProps> = props => {
   const t = usePanelStyles()
-  const accent = (t.link as { color?: string }).color ?? colors.accent
+  const accent = t.link.color ?? colors.accent
   return (
     <Pressable
       testID={props.testID}
@@ -352,15 +388,17 @@ const SkinCard = (props: {
   )
 }
 
+type PreviewProps = {
+  readonly source: string | null
+  readonly width: number
+  readonly path?: string
+}
+
 /**
  * A skin's picture: drawn by the core and cached, so it follows a skin
  * folder as it changes (the path changes with it).
  */
-const Preview = (props: {
-  source: string | null
-  width: number
-  path?: string
-}) => {
+const Preview: FC<PreviewProps> = props => {
   const [path, setPath] = useState<string | null>(props.path ?? null)
   const [version, setVersion] = useState(0)
   const { source } = props
@@ -371,8 +409,16 @@ const Preview = (props: {
     let live = true
     skins
       .preview(source)
-      .then(p => live && setPath(p))
-      .catch(() => live && setPath(null))
+      .then(p => {
+        if (live) {
+          setPath(p)
+        }
+      })
+      .catch(() => {
+        if (live) {
+          setPath(null)
+        }
+      })
     return () => {
       live = false
     }
@@ -387,7 +433,7 @@ const Preview = (props: {
         : undefined,
     [source],
   )
-  const size = useImageSize(path)
+  const { size } = useImageSize(path)
   const height = size ? (props.width * size[1]) / size[0] : props.width / 3
   return path ? (
     <Image
@@ -400,32 +446,15 @@ const Preview = (props: {
   )
 }
 
-function useImageSize(path: string | null): [number, number] | null {
-  const [size, setSize] = useState<[number, number] | null>(null)
-  useEffect(() => {
-    if (!path) {
-      return
-    }
-    let live = true
-    Image.getSize(
-      fileUri(path),
-      (w, h) => live && setSize([w, h]),
-      () => {},
-    )
-    return () => {
-      live = false
-    }
-  }, [path])
-  return size
+type InstallCardProps = {
+  readonly inspection: SkinInspection
+  readonly onInstall: () => void
+  readonly onCancel: () => void
+  readonly textStyle: object
 }
 
 /** A .sskin about to be installed: what it is, and Install / Cancel. */
-const InstallCard = (props: {
-  inspection: SkinInspection
-  onInstall: () => void
-  onCancel: () => void
-  textStyle: object
-}) => {
+const InstallCard: FC<InstallCardProps> = props => {
   const { inspection: s, textStyle } = props
   const t = usePanelStyles()
   const replaces = s.installed
@@ -472,7 +501,7 @@ const InstallCard = (props: {
   )
 }
 
-function baseName(path: string): string {
+const baseName = (path: string): string => {
   return path.split(/[\\/]/).filter(Boolean).pop() ?? path
 }
 

@@ -1,16 +1,18 @@
-import React from 'react'
+import React, { type FC } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { MONO } from './constants'
 import type { EditorTheme } from './types'
 
+export type StepperProps = {
+  readonly th: EditorTheme
+  readonly label: string
+  readonly value: string
+  readonly onStep: (dir: 1 | -1) => void
+}
+
 /** A label and a value with ‹ › steppers. */
-export const Stepper = (props: {
-  th: EditorTheme
-  label: string
-  value: string
-  onStep: (dir: 1 | -1) => void
-}): React.JSX.Element => {
+export const Stepper: FC<StepperProps> = props => {
   const { th } = props
   const arrow = (dir: 1 | -1) => (
     <Pressable

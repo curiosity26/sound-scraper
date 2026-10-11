@@ -1,10 +1,12 @@
-import React from 'react'
+import React, { type FC } from 'react'
 import { StyleSheet, View } from 'react-native'
 
 import type { EditorTheme } from './types'
 
+export type DividerProps = { readonly th: EditorTheme }
+
 /** A thin vertical line between groups. */
-export const Divider = (props: { th: EditorTheme }): React.JSX.Element => {
+export const Divider: FC<DividerProps> = props => {
   return <View style={[styles.divider, { backgroundColor: props.th.border }]} />
 }
 

@@ -2,7 +2,7 @@ import type { FramePanel } from '@/skin/types'
 
 import type { PanelTheme } from './types'
 
-export function themeFromPanel(panel: FramePanel): PanelTheme {
+export const themeFromPanel = (panel: FramePanel): PanelTheme => {
   const c = panel.controls
   return {
     text: c.text,

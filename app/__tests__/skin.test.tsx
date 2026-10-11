@@ -2,59 +2,158 @@
  * @format
  */
 
-import React from 'react'
-import ReactTestRenderer from 'react-test-renderer'
+import { act, type FC, type ReactElement } from 'react'
+import { Image } from 'react-native'
+import { create, type ReactTestRenderer } from 'react-test-renderer'
 
+import { DetailsPane } from '@/library/DetailsPane'
+import { visibleColumns } from '@/library/visibleColumns'
+import NativeSkins from '@/native/NativeSkins'
+import NativeSoundScraper, {
+  type RecorderEvent,
+} from '@/native/NativeSoundScraper'
+import { playback } from '@/playback/playback'
+import { animationPlays } from '@/skin/animationPlays'
+import { animationRate } from '@/skin/animationRate'
 import { buttonState } from '@/skin/buttonState'
 import { imageSource } from '@/skin/imageSource'
+import { isFolderSkin } from '@/skin/isFolderSkin'
+import { isSkinArchive } from '@/skin/isSkinArchive'
 import { layoutCells } from '@/skin/layoutCells'
+import { MainPanel } from '@/skin/MainPanel'
 import { needleAngle } from '@/skin/needleAngle'
+import { nextPreset } from '@/skin/nextPreset'
 import { NineSlice } from '@/skin/NineSlice'
+import { openSkinFiles } from '@/skin/openSkinFiles'
+import { pendingInstall } from '@/skin/pendingInstall'
+import { seekGeometry } from '@/skin/seekGeometry'
+import { settingsTab } from '@/skin/settingsTab'
+import { SkinPanelFrame } from '@/skin/SkinPanelFrame'
+import { SkinProvider } from '@/skin/SkinProvider'
+import { SkinScale } from '@/skin/SkinScale'
+import { skinStore } from '@/skin/skinStore'
+import { thumbGeometry } from '@/skin/thumbGeometry'
+import { thumbSize } from '@/skin/thumbSize'
 import { toGlyphs } from '@/skin/toGlyphs'
 import type { ImageRef, Skin, SkinElement } from '@/skin/types'
+import { usePanelStyles } from '@/theme/usePanelStyles'
+import { isRecord } from '@/utils/isRecord'
+import { isDarkColor } from '@/windows/isDarkColor'
 
-const mockSkins = {
-  onWindowEvent: () => ({ remove: jest.fn() }),
-  loadCurrentSkin: jest.fn(),
-  setPanelLayout: jest.fn(),
-  setPanelVisible: jest.fn(),
-  windowAction: jest.fn(),
-  isPanelVisible: () => false,
-  showMenu: jest.fn(() => Promise.resolve(-1)),
-  inspectSkin: jest.fn(),
-}
+// jest.mock is hoisted above the imports, so each mock is built inside its
+// factory and reached through the (mocked) module below.
 jest.mock('@/native/NativeSkins', () => ({
   __esModule: true,
-  default: mockSkins,
-}))
-const mockRecorderListeners: Array<(e: any) => void> = []
-const mockCore: Record<string, any> = {
-  listAudioApps: () => [],
-  recorderStart: jest.fn(() => Promise.resolve()),
-  recorderPause: jest.fn(),
-  recorderResume: jest.fn(),
-  recorderStop: jest.fn(() => Promise.resolve('/tmp/x.mp3')),
-  recorderState: () => 'idle',
-  recoverPartialRecordings: () => 0,
-  onRecorderEvent: (listener: (e: any) => void) => {
-    mockRecorderListeners.push(listener)
-    return { remove: jest.fn() }
+  default: {
+    onWindowEvent: () => ({ remove: jest.fn() }),
+    loadCurrentSkin: jest.fn(),
+    setPanelLayout: jest.fn(),
+    setPanelVisible: jest.fn(),
+    windowAction: jest.fn(),
+    isPanelVisible: () => false,
+    showMenu: jest.fn(() => Promise.resolve(-1)),
+    inspectSkin: jest.fn(),
   },
-  playerLoad: jest.fn(() => Promise.resolve()),
-  playerUnload: jest.fn(),
-  playerPlay: jest.fn(() => Promise.resolve()),
-  playerPause: jest.fn(),
-  playerStop: jest.fn(),
-  playerSeek: jest.fn(),
-  playerState: () => 'empty',
-  getSettings: () =>
-    JSON.stringify({ quality: 'cbr192', id3Version: '2.4', lastSource: null }),
-  setSettings: jest.fn(() => Promise.resolve()),
-}
+}))
 jest.mock('@/native/NativeSoundScraper', () => ({
   __esModule: true,
-  default: mockCore,
+  default: {
+    listAudioApps: () => [],
+    recorderStart: jest.fn(() => Promise.resolve()),
+    recorderPause: jest.fn(),
+    recorderResume: jest.fn(),
+    recorderStop: jest.fn(() => Promise.resolve('/tmp/x.mp3')),
+    recorderState: () => 'idle',
+    recoverPartialRecordings: () => 0,
+    onRecorderEvent: jest.fn(() => ({ remove: jest.fn() })),
+    playerLoad: jest.fn(() => Promise.resolve()),
+    playerUnload: jest.fn(),
+    playerPlay: jest.fn(() => Promise.resolve()),
+    playerPause: jest.fn(),
+    playerStop: jest.fn(),
+    playerSeek: jest.fn(),
+    playerState: () => 'empty',
+    getSettings: () =>
+      JSON.stringify({
+        quality: 'cbr192',
+        id3Version: '2.4',
+        lastSource: null,
+      }),
+    setSettings: jest.fn(() => Promise.resolve()),
+    readTags: jest.fn(),
+    listRecordings: jest.fn(),
+    writeTags: jest.fn(),
+    renameRecording: jest.fn(),
+  },
 }))
+
+if (!NativeSkins) {
+  throw new Error('NativeSkins is mocked above')
+}
+const mockSkins = jest.mocked(NativeSkins)
+const mockCore = jest.mocked(NativeSoundScraper)
+
+/** Sends a player event to every recorder-event listener. */
+const emitPlayer = (
+  event: Pick<
+    RecorderEvent,
+    'kind' | 'playerState' | 'positionMs' | 'durationMs'
+  > &
+    Partial<RecorderEvent>,
+) => {
+  const full: RecorderEvent = {
+    state: 'idle',
+    elapsedMs: 0,
+    peak: 0,
+    rms: 0,
+    path: null,
+    message: null,
+    ...event,
+  }
+  mockCore.onRecorderEvent.mock.calls.forEach(([listener]) => {
+    void listener(full)
+  })
+}
+
+// eslint-disable-next-line @typescript-eslint/no-deprecated -- react-test-renderer is the renderer installed; @testing-library/react-native isn't a dependency
+type TestRenderer = ReactTestRenderer
+type TestInstance = TestRenderer['root']
+
+/** Renders `element` inside act. */
+const render = async (element: ReactElement): Promise<TestRenderer> => {
+  let tree: TestRenderer | undefined
+  await act(() => {
+    // eslint-disable-next-line @typescript-eslint/no-deprecated -- react-test-renderer is the renderer installed; @testing-library/react-native isn't a dependency
+    tree = create(element)
+    return Promise.resolve()
+  })
+  if (!tree) {
+    throw new Error('Nothing rendered')
+  }
+  return tree
+}
+
+/** Runs `fn` in an async act, so promises it starts settle first. */
+const actAsync = (fn: () => void) =>
+  act(() => {
+    fn()
+    return Promise.resolve()
+  })
+
+const isHandler = (value: unknown): value is (...args: unknown[]) => unknown =>
+  typeof value === 'function'
+
+/** A test instance's prop, as unknown. */
+const prop = (node: TestInstance, name: string): unknown => node.props[name]
+
+/** Calls a test instance's handler prop (onPress, onLayout…). */
+const call = (node: TestInstance, name: string, ...args: unknown[]) => {
+  const handler = prop(node, name)
+  if (!isHandler(handler)) {
+    throw new Error(`No ${name} handler`)
+  }
+  return handler(...args)
+}
 
 const image: ImageRef = {
   path: '/skins/x/sheet.png',
@@ -74,7 +173,7 @@ const el = (rect: SkinElement['rect'], extra: Partial<SkinElement> = {}) => ({
   ...extra,
 })
 
-function testSkin(): Skin {
+const testSkin = (): Skin => {
   const sprite: { image: ImageRef; states: Record<string, [number, number]> } =
     {
       image,
@@ -258,8 +357,6 @@ test('button states fall back toward normal', () => {
 })
 
 test('the seek bar places its thumb and fill', () => {
-  const { seekGeometry } = require('@/skin/seekGeometry')
-  const { thumbSize } = require('@/skin/thumbSize')
   expect(seekGeometry(104, 4, 0)).toEqual({ thumbX: 0, fillWidth: 2 })
   expect(seekGeometry(104, 4, 0.5)).toEqual({ thumbX: 50, fillWidth: 52 })
   expect(seekGeometry(104, 4, 2)).toEqual({ thumbX: 100, fillWidth: 102 })
@@ -313,31 +410,20 @@ test('images use the @2x file on Retina', () => {
 })
 
 test('nine-slice draws nine pieces', async () => {
-  let tree: ReactTestRenderer.ReactTestRenderer | undefined
-  await ReactTestRenderer.act(() => {
-    tree = ReactTestRenderer.create(
-      <NineSlice image={image} slice={[4, 4, 4, 4]} width={300} height={200} />,
-    )
-  })
-  expect(tree!.root.findAllByType(require('react-native').Image)).toHaveLength(
-    9,
+  const tree = await render(
+    <NineSlice image={image} slice={[4, 4, 4, 4]} width={300} height={200} />,
   )
+  expect(tree.root.findAllByType(Image)).toHaveLength(9)
 })
 
 test('the main panel renders the skin and drives the recorder', async () => {
-  const { skinStore } = require('@/skin/skinStore')
-  const { MainPanel } = require('@/skin/MainPanel')
-  const { SkinProvider } = require('@/skin/SkinProvider')
   skinStore.set(testSkin())
-  let tree: ReactTestRenderer.ReactTestRenderer | undefined
-  await ReactTestRenderer.act(() => {
-    tree = ReactTestRenderer.create(
-      <SkinProvider>
-        <MainPanel />
-      </SkinProvider>,
-    )
-  })
-  expect(mockSkins.setPanelLayout).toHaveBeenCalledWith(
+  const tree = await render(
+    <SkinProvider>
+      <MainPanel />
+    </SkinProvider>,
+  )
+  expect(mockSkins.setPanelLayout.mock.calls).toContainEqual([
     'main',
     200,
     60,
@@ -347,37 +433,30 @@ test('the main panel renders the skin and drives the recorder', async () => {
     200,
     60,
     1,
-  )
-  expect(tree!.root.findByProps({ testID: 'elapsed' })).toBeTruthy()
+  ])
+  expect(tree.root.findByProps({ testID: 'elapsed' })).toBeTruthy()
   // Elements the skin lacks aren't drawn.
-  expect(tree!.root.findAllByProps({ testID: 'pause' })).toHaveLength(0)
-  await ReactTestRenderer.act(async () => {
-    tree!.root.findByProps({ testID: 'record' }).props.onPress()
+  expect(tree.root.findAllByProps({ testID: 'pause' })).toHaveLength(0)
+  await actAsync(() => {
+    call(tree.root.findByProps({ testID: 'record' }), 'onPress')
   })
-  expect(mockCore.recorderStart).toHaveBeenCalledWith(0)
+  expect(mockCore.recorderStart.mock.calls).toContainEqual([0])
 })
 
 test('the main panel plays back a loaded recording', async () => {
-  const { skinStore } = require('@/skin/skinStore')
-  const { MainPanel } = require('@/skin/MainPanel')
-  const { SkinProvider } = require('@/skin/SkinProvider')
-  const { playback } = require('@/playback/playback')
   const skin = testSkin()
   const { elements } = skin.panels.main
   elements.play = el([56, 30, 20, 10])
   elements.seek = el([4, 20, 100, 6], { style: { fill: '#00ff00' } })
   skinStore.set(skin)
-  let tree: ReactTestRenderer.ReactTestRenderer | undefined
-  await ReactTestRenderer.act(() => {
-    tree = ReactTestRenderer.create(
-      <SkinProvider>
-        <MainPanel />
-      </SkinProvider>,
-    )
-  })
-  const find = (id: string) => tree!.root.findByProps({ testID: id })
-  expect(find('play').props.disabled).toBe(true)
-  await ReactTestRenderer.act(async () => {
+  const tree = await render(
+    <SkinProvider>
+      <MainPanel />
+    </SkinProvider>,
+  )
+  const find = (id: string) => tree.root.findByProps({ testID: id })
+  expect(prop(find('play'), 'disabled')).toBe(true)
+  await act(async () => {
     await playback.select({
       fileName: 'a.mp3',
       path: '/music/a.mp3',
@@ -388,70 +467,59 @@ test('the main panel plays back a loaded recording', async () => {
       sizeBytes: 1,
       recordedAtMs: 0,
     })
-    mockRecorderListeners.forEach(l => {
-      l({
-        kind: 'playerState',
-        playerState: 'stopped',
-        positionMs: 0,
-        durationMs: 60000,
-      })
+    emitPlayer({
+      kind: 'playerState',
+      playerState: 'stopped',
+      positionMs: 0,
+      durationMs: 60000,
     })
   })
-  expect(mockCore.playerLoad).toHaveBeenCalledWith('/music/a.mp3')
-  expect(find('play').props.disabled).toBe(false)
-  await ReactTestRenderer.act(async () => {
-    find('play').props.onPress()
+  expect(mockCore.playerLoad.mock.calls).toContainEqual(['/music/a.mp3'])
+  expect(prop(find('play'), 'disabled')).toBe(false)
+  await actAsync(() => {
+    call(find('play'), 'onPress')
   })
-  expect(mockCore.playerPlay).toHaveBeenCalled()
-  await ReactTestRenderer.act(async () => {
-    mockRecorderListeners.forEach(l => {
-      l({
-        kind: 'playerState',
-        playerState: 'playing',
-        positionMs: 0,
-        durationMs: 60000,
-      })
+  expect(mockCore.playerPlay.mock.calls).not.toHaveLength(0)
+  await actAsync(() => {
+    emitPlayer({
+      kind: 'playerState',
+      playerState: 'playing',
+      positionMs: 0,
+      durationMs: 60000,
     })
-    mockRecorderListeners.forEach(l => {
-      l({
-        kind: 'playerProgress',
-        playerState: 'playing',
-        positionMs: 30000,
-        durationMs: 60000,
-        peak: 0.5,
-        rms: 0.2,
-      })
+    emitPlayer({
+      kind: 'playerProgress',
+      playerState: 'playing',
+      positionMs: 30000,
+      durationMs: 60000,
+      peak: 0.5,
+      rms: 0.2,
     })
   })
-  expect(find('play').props.accessibilityLabel).toBe('Pause')
-  expect(find('seek').props.accessibilityValue.now).toBe(30)
+  expect(prop(find('play'), 'accessibilityLabel')).toBe('Pause')
+  const seekValue = prop(find('seek'), 'accessibilityValue')
+  expect(isRecord(seekValue) ? seekValue.now : undefined).toBe(30)
   // Record is enabled while playing back: it starts a new recording.
-  expect(find('record').props.disabled).toBe(false)
-  await ReactTestRenderer.act(async () => {
-    find('play').props.onPress()
-    find('stop').props.onPress()
+  expect(prop(find('record'), 'disabled')).toBe(false)
+  await actAsync(() => {
+    call(find('play'), 'onPress')
+    call(find('stop'), 'onPress')
   })
-  expect(mockCore.playerPause).toHaveBeenCalled()
-  expect(mockCore.playerStop).toHaveBeenCalled()
+  expect(mockCore.playerPause.mock.calls).not.toHaveLength(0)
+  expect(mockCore.playerStop.mock.calls).not.toHaveLength(0)
 })
 
 test('double size scales the window and its drag regions', async () => {
-  const { skinStore } = require('@/skin/skinStore')
-  const { MainPanel } = require('@/skin/MainPanel')
-  const { SkinProvider } = require('@/skin/SkinProvider')
-  const { SkinScale } = require('@/skin/SkinScale')
   skinStore.set(testSkin())
   mockSkins.setPanelLayout.mockClear()
-  await ReactTestRenderer.act(() => {
-    ReactTestRenderer.create(
-      <SkinScale.Provider value={2}>
-        <SkinProvider>
-          <MainPanel />
-        </SkinProvider>
-      </SkinScale.Provider>,
-    )
-  })
-  expect(mockSkins.setPanelLayout).toHaveBeenCalledWith(
+  await render(
+    <SkinScale.Provider value={2}>
+      <SkinProvider>
+        <MainPanel />
+      </SkinProvider>
+    </SkinScale.Provider>,
+  )
+  expect(mockSkins.setPanelLayout.mock.calls).toContainEqual([
     'main',
     400,
     120,
@@ -461,12 +529,10 @@ test('double size scales the window and its drag regions', async () => {
     400,
     120,
     2,
-  )
+  ])
 })
 
 test('animations play by recorder state and speed', () => {
-  const { animationPlays } = require('@/skin/animationPlays')
-  const { animationRate } = require('@/skin/animationRate')
   expect(animationPlays('recording', 'recording')).toBe(true)
   expect(animationPlays('recording', 'paused')).toBe(false)
   expect(animationPlays('active', 'paused')).toBe(true)
@@ -484,33 +550,27 @@ test('animations play by recorder state and speed', () => {
 })
 
 test('the visualizer cycles presets on click', async () => {
-  const { nextPreset } = require('@/skin/nextPreset')
   expect(nextPreset(0, 3)).toBe(1)
   expect(nextPreset(2, 3)).toBe(0)
   expect(nextPreset(0, 0)).toBe(0)
-  const { skinStore } = require('@/skin/skinStore')
-  const { MainPanel } = require('@/skin/MainPanel')
-  const { SkinProvider } = require('@/skin/SkinProvider')
   skinStore.set(testSkin())
-  let tree: ReactTestRenderer.ReactTestRenderer | undefined
-  await ReactTestRenderer.act(() => {
-    tree = ReactTestRenderer.create(
-      <SkinProvider>
-        <MainPanel />
-      </SkinProvider>,
-    )
-  })
-  const presetOf = () =>
-    JSON.parse(tree!.root.findByProps({ pixelated: true }).props.preset)
+  const tree = await render(
+    <SkinProvider>
+      <MainPanel />
+    </SkinProvider>,
+  )
+  const presetOf = (): unknown => {
+    const json = prop(tree.root.findByProps({ pixelated: true }), 'preset')
+    return typeof json === 'string' ? JSON.parse(json) : undefined
+  }
   expect(presetOf()).toMatchObject({ name: 'Bars', grid: '#111111' })
-  await ReactTestRenderer.act(() => {
-    tree!.root.findByProps({ testID: 'visualizer' }).props.onPress()
+  await actAsync(() => {
+    call(tree.root.findByProps({ testID: 'visualizer' }), 'onPress')
   })
-  expect(presetOf().name).toBe('Scope')
+  expect(presetOf()).toMatchObject({ name: 'Scope' })
 })
 
 test('scroll bar thumb geometry', () => {
-  const { thumbGeometry } = require('@/skin/thumbGeometry')
   expect(thumbGeometry(100, 100, 50, 0, 10)).toEqual([0, 100])
   expect(thumbGeometry(100, 100, 400, 0, 10)).toEqual([0, 25])
   expect(thumbGeometry(100, 100, 400, 300, 10)).toEqual([75, 25])
@@ -518,13 +578,8 @@ test('scroll bar thumb geometry', () => {
 })
 
 test('panel frames report their chrome and theme their content', async () => {
-  const { isDarkColor } = require('@/windows/isDarkColor')
   expect(isDarkColor('#221d1a')).toBe(true)
   expect(isDarkColor('#f3ead0')).toBe(false)
-  const { skinStore } = require('@/skin/skinStore')
-  const { SkinProvider } = require('@/skin/SkinProvider')
-  const { SkinPanelFrame } = require('@/skin/SkinPanelFrame')
-  const { usePanelStyles } = require('@/theme/usePanelStyles')
   const skin = testSkin()
   skin.panels.library = {
     ...skin.panels.library,
@@ -538,29 +593,26 @@ test('panel frames report their chrome and theme their content', async () => {
     controls: { text: '#eeeeee', accent: '#00ff00', background: '#111111' },
   }
   skinStore.set(skin)
-  let seen: { link: { color?: string } } | undefined
-  const Probe = () => {
+  let seen: ReturnType<typeof usePanelStyles> | undefined
+  const Probe: FC = () => {
     seen = usePanelStyles()
     return null
   }
   mockSkins.setPanelLayout.mockClear()
-  let tree: ReactTestRenderer.ReactTestRenderer | undefined
-  await ReactTestRenderer.act(() => {
-    tree = ReactTestRenderer.create(
-      <SkinProvider>
-        <SkinPanelFrame panel="library" title="Library">
-          <Probe />
-        </SkinPanelFrame>
-      </SkinProvider>,
-    )
-  })
+  const tree = await render(
+    <SkinProvider>
+      <SkinPanelFrame panel="library" title="Library">
+        <Probe />
+      </SkinPanelFrame>
+    </SkinProvider>,
+  )
   expect(seen?.link.color).toBe('#00ff00')
-  await ReactTestRenderer.act(() => {
-    tree!.root
-      .findByProps({ testID: 'library-frame' })
-      .props.onLayout({ nativeEvent: { layout: { width: 400, height: 300 } } })
+  await actAsync(() => {
+    call(tree.root.findByProps({ testID: 'library-frame' }), 'onLayout', {
+      nativeEvent: { layout: { width: 400, height: 300 } },
+    })
   })
-  expect(mockSkins.setPanelLayout).toHaveBeenLastCalledWith(
+  expect(mockSkins.setPanelLayout.mock.lastCall).toEqual([
     'library',
     0,
     0,
@@ -570,15 +622,17 @@ test('panel frames report their chrome and theme their content', async () => {
     300,
     200,
     1,
-  )
-  await ReactTestRenderer.act(() => {
-    tree!.root.findByProps({ testID: 'library-close' }).props.onPress()
+  ])
+  await actAsync(() => {
+    call(tree.root.findByProps({ testID: 'library-close' }), 'onPress')
   })
-  expect(mockSkins.setPanelVisible).toHaveBeenCalledWith('library', false)
+  expect(mockSkins.setPanelVisible.mock.calls).toContainEqual([
+    'library',
+    false,
+  ])
 })
 
 test('narrow libraries hide the less important columns', () => {
-  const { visibleColumns } = require('@/library/visibleColumns')
   expect(visibleColumns(0)).toEqual([
     'name',
     'duration',
@@ -592,19 +646,22 @@ test('narrow libraries hide the less important columns', () => {
 })
 
 /** The element with `testID` that has handler `prop` (not its host view). */
-function withHandler(
-  tree: ReactTestRenderer.ReactTestRenderer,
+const withHandler = (
+  tree: TestRenderer,
   testID: string,
-  prop: string,
-) {
-  return tree.root
+  name: string,
+): TestInstance => {
+  const node = tree.root
     .findAllByProps({ testID })
-    .find(n => typeof n.props[prop] === 'function')!
+    .find(n => isHandler(prop(n, name)))
+  if (!node) {
+    throw new Error(`No ${testID} with ${name}`)
+  }
+  return node
 }
 
 test('the details pane edits a tag in place and renames', async () => {
-  const { DetailsPane } = require('@/library/DetailsPane')
-  mockCore.readTags = jest.fn(() =>
+  mockCore.readTags.mockImplementation(() =>
     Promise.resolve({
       title: 'Old title',
       artist: null,
@@ -617,7 +674,7 @@ test('the details pane edits a tag in place and renames', async () => {
       coverPath: null,
     }),
   )
-  mockCore.listRecordings = jest.fn(() =>
+  mockCore.listRecordings.mockImplementation(() =>
     Promise.resolve([
       {
         fileName: 'Song.mp3',
@@ -631,61 +688,67 @@ test('the details pane edits a tag in place and renames', async () => {
       },
     ]),
   )
-  mockCore.writeTags = jest.fn(() => Promise.resolve())
-  mockCore.renameRecording = jest.fn(() => Promise.resolve('New name.mp3'))
+  mockCore.writeTags.mockImplementation(() => Promise.resolve())
+  mockCore.renameRecording.mockImplementation(() =>
+    Promise.resolve('New name.mp3'),
+  )
   const onRenamed = jest.fn()
-  let tree: ReactTestRenderer.ReactTestRenderer | undefined
-  await ReactTestRenderer.act(async () => {
-    tree = ReactTestRenderer.create(
-      <DetailsPane
-        fileNames={['Song.mp3']}
-        onRenamed={onRenamed}
-        onChanged={jest.fn()}
-        onClose={jest.fn()}
-        textStyle={{}}
-        isDark
-      />,
+  const tree = await render(
+    <DetailsPane
+      fileNames={['Song.mp3']}
+      onRenamed={onRenamed}
+      onChanged={jest.fn()}
+      onClose={jest.fn()}
+      textStyle={{}}
+      isDark
+    />,
+  )
+  // Click Title, type, Enter: writes just that field.
+  await actAsync(() => {
+    call(withHandler(tree, 'details-title', 'onPress'), 'onPress')
+  })
+  const input = withHandler(tree, 'details-title-input', 'onChangeText')
+  await actAsync(() => {
+    call(input, 'onChangeText', 'New title')
+  })
+  await actAsync(() => {
+    call(
+      tree.root.findByProps({ testID: 'details-title-input' }),
+      'onSubmitEditing',
     )
   })
-  // Click Title, type, Enter: writes just that field.
-  await ReactTestRenderer.act(async () => {
-    withHandler(tree!, 'details-title', 'onPress').props.onPress()
-  })
-  const input = withHandler(tree!, 'details-title-input', 'onChangeText')
-  await ReactTestRenderer.act(async () => {
-    input.props.onChangeText('New title')
-  })
-  await ReactTestRenderer.act(async () => {
-    tree!.root
-      .findByProps({ testID: 'details-title-input' })
-      .props.onSubmitEditing()
-  })
-  expect(mockCore.writeTags).toHaveBeenCalledWith(
+  expect(mockCore.writeTags.mock.calls).toContainEqual([
     ['Song.mp3'],
     expect.objectContaining({ fields: ['title'], title: 'New title' }),
-  )
+  ])
   // Rename through the file name.
-  await ReactTestRenderer.act(async () => {
-    withHandler(tree!, 'details-name', 'onPress').props.onPress()
+  await actAsync(() => {
+    call(withHandler(tree, 'details-name', 'onPress'), 'onPress')
   })
-  await ReactTestRenderer.act(async () => {
-    tree!.root
-      .findByProps({ testID: 'details-name-input' })
-      .props.onChangeText('New name')
+  await actAsync(() => {
+    call(
+      tree.root.findByProps({ testID: 'details-name-input' }),
+      'onChangeText',
+      'New name',
+    )
   })
-  await ReactTestRenderer.act(async () => {
-    tree!.root
-      .findByProps({ testID: 'details-name-input' })
-      .props.onSubmitEditing()
+  await actAsync(() => {
+    call(
+      tree.root.findByProps({ testID: 'details-name-input' }),
+      'onSubmitEditing',
+    )
   })
-  expect(mockCore.renameRecording).toHaveBeenCalledWith('Song.mp3', 'New name')
+  expect(mockCore.renameRecording.mock.calls).toContainEqual([
+    'Song.mp3',
+    'New name',
+  ])
   expect(onRenamed).toHaveBeenCalledWith('Song.mp3', 'New name.mp3')
 })
 
 test('needles sweep the VU range from the reference level', () => {
-  const style = {
+  const style: Parameters<typeof needleAngle>[1] = {
     sweep: 64,
-    range: [-20, 3] as [number, number],
+    range: [-20, 3],
     reference: -16,
   }
   expect(needleAngle(0, style)).toBe(-32)
@@ -698,8 +761,6 @@ test('needles sweep the VU range from the reference level', () => {
 })
 
 test('skin paths: folders and archives', () => {
-  const { isFolderSkin } = require('@/skin/isFolderSkin')
-  const { isSkinArchive } = require('@/skin/isSkinArchive')
   expect(isFolderSkin('/Users/me/Skins/Mine')).toBe(true)
   expect(isFolderSkin('C:\\Skins\\Mine')).toBe(true)
   expect(isFolderSkin('com.example.skin')).toBe(false)
@@ -710,9 +771,6 @@ test('skin paths: folders and archives', () => {
 })
 
 test('an opened .sskin gets the install card in Settings › Skin', async () => {
-  const { openSkinFiles } = require('@/skin/openSkinFiles')
-  const { pendingInstall } = require('@/skin/pendingInstall')
-  const { settingsTab } = require('@/skin/settingsTab')
   const inspection = {
     id: 'com.example.retro',
     name: 'Retro',
@@ -726,7 +784,10 @@ test('an opened .sskin gets the install card in Settings › Skin', async () => 
   }
   mockSkins.inspectSkin.mockResolvedValueOnce(JSON.stringify(inspection))
   await openSkinFiles(['/x/Retro.sskin'])
-  expect(mockSkins.setPanelVisible).toHaveBeenCalledWith('settings', true)
+  expect(mockSkins.setPanelVisible.mock.calls).toContainEqual([
+    'settings',
+    true,
+  ])
   expect(settingsTab.get()).toBe('skin')
   expect(pendingInstall.get()).toEqual({ inspection })
   // A broken one says why.

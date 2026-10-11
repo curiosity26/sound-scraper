@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { type FC } from 'react'
 import { Pressable, StyleSheet, Text } from 'react-native'
 
 import { colors } from '@/theme/colors'
@@ -8,10 +8,12 @@ import { usePanelTheme } from '@/theme/usePanelTheme'
 import type { UsePlaylistControlsResult } from './usePlaylistControls'
 
 /** The picker button: "▾ Library" or "▾ Road Trip". */
-export const PlaylistPicker = (props: {
-  controls: UsePlaylistControlsResult
-  textStyle: object
-}): React.JSX.Element => {
+export type PlaylistPickerProps = {
+  readonly controls: UsePlaylistControlsResult
+  readonly textStyle: object
+}
+
+export const PlaylistPicker: FC<PlaylistPickerProps> = props => {
   const t = usePanelStyles()
   const theme = usePanelTheme()
   const { controls } = props

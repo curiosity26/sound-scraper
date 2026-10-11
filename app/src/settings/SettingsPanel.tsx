@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { type FC, useState } from 'react'
 import {
   Platform,
   Pressable,
@@ -15,6 +15,7 @@ import { settings } from '@/native/settings'
 import type { Quality, Settings } from '@/native/types'
 import { colors } from '@/theme/colors'
 import { usePanelStyles } from '@/theme/usePanelStyles'
+import { errorText } from '@/utils/errorText'
 
 const QUALITIES: { value: Quality; label: string; detail: string }[] = [
   { value: 'cbr128', label: '128 kbps', detail: 'Constant bitrate · smallest' },
@@ -25,17 +26,17 @@ const QUALITIES: { value: Quality; label: string; detail: string }[] = [
   { value: 'vbr2', label: 'VBR V2', detail: 'Variable · about 190 kbps' },
 ]
 
-type Props = {
+export type SettingsPanelProps = {
   /** Shows a heading with Done (the overlay in the plain UI); the skinned
    * window has its own title and close button. */
-  onClose?: () => void
+  readonly onClose?: () => void
   /** Called after a change that affects the library (folder). */
-  onFolderChanged: () => void
-  textStyle: object
+  readonly onFolderChanged: () => void
+  readonly textStyle: object
 }
 
 /** App settings; each change is saved right away by the Rust core. */
-export const SettingsPanel = (props: Props): React.JSX.Element => {
+export const SettingsPanel: FC<SettingsPanelProps> = props => {
   const { textStyle } = props
   const t = usePanelStyles()
   const [current, setCurrent] = useState(() => settings.get())
@@ -79,11 +80,20 @@ export const SettingsPanel = (props: Props): React.JSX.Element => {
           {current.effectiveRecordingsDir}
         </Text>
         <View style={styles.row}>
-          <Pressable onPress={chooseFolder} testID="choose-folder">
+          <Pressable
+            onPress={() => {
+              void chooseFolder()
+            }}
+            testID="choose-folder"
+          >
             <Text style={[styles.link, t.link]}>Choose…</Text>
           </Pressable>
           {current.recordingsDir !== null && (
-            <Pressable onPress={() => save({ recordingsDir: null })}>
+            <Pressable
+              onPress={() => {
+                void save({ recordingsDir: null })
+              }}
+            >
               <Text style={[styles.link, t.link]}>Use default</Text>
             </Pressable>
           )}
@@ -96,14 +106,18 @@ export const SettingsPanel = (props: Props): React.JSX.Element => {
             selected={current.quality === q.value}
             label={q.label}
             detail={q.detail}
-            onPress={() => save({ quality: q.value })}
+            onPress={() => {
+              void save({ quality: q.value })
+            }}
             textStyle={textStyle}
           />
         ))}
 
         <Text style={[styles.section, textStyle]}>Silence</Text>
         <Pressable
-          onPress={() => save({ trimSilence: current.trimSilence === false })}
+          onPress={() => {
+            void save({ trimSilence: current.trimSilence === false })
+          }}
           style={styles.choice}
           testID="trim-silence"
         >
@@ -130,7 +144,9 @@ export const SettingsPanel = (props: Props): React.JSX.Element => {
               ? 'Modern players (Windows Explorer and Media Player can’t show its cover art)'
               : 'Modern players · default'
           }
-          onPress={() => save({ id3Version: '2.4' })}
+          onPress={() => {
+            void save({ id3Version: '2.4' })
+          }}
           textStyle={textStyle}
         />
         <Choice
@@ -141,7 +157,9 @@ export const SettingsPanel = (props: Props): React.JSX.Element => {
               ? 'Widest compatibility, shows cover art in Windows · default'
               : 'For older players, car stereos and Windows'
           }
-          onPress={() => save({ id3Version: '2.3' })}
+          onPress={() => {
+            void save({ id3Version: '2.3' })
+          }}
           textStyle={textStyle}
         />
 
@@ -159,7 +177,7 @@ const MIN_MINUTES = [0, 5, 10, 15, 20, 30, 45, 60, 90, 120]
 const BUDGETS_GB = [1, 2, 5, 10, 20, 50, 100]
 const AGES_DAYS = [7, 14, 30, 60, 90, 180, 365]
 
-function formatBytes(bytes: number): string {
+const formatBytes = (bytes: number): string => {
   if (bytes >= 1024 ** 3) {
     return `${(bytes / 1024 ** 3).toFixed(1)} GB`
   }
@@ -171,11 +189,13 @@ function formatBytes(bytes: number): string {
  * recordings so the track editor's cuts are sample-exact, within a size
  * budget and an age limit.
  */
-const Masters = (props: {
-  current: Settings
-  save: (patch: Partial<Settings>) => Promise<void>
-  textStyle: object
-}) => {
+type MastersProps = {
+  readonly current: Settings
+  readonly save: (patch: Partial<Settings>) => Promise<void>
+  readonly textStyle: object
+}
+
+const Masters: FC<MastersProps> = props => {
   const { current, save, textStyle } = props
   const t = usePanelStyles()
   const [usage, setUsage] = useState(() => editorCore.mastersUsage())
@@ -212,7 +232,9 @@ const Masters = (props: {
     <>
       <Text style={[styles.section, textStyle]}>Lossless masters</Text>
       <Pressable
-        onPress={() => save({ keepMasters: !keep })}
+        onPress={() => {
+          void save({ keepMasters: !keep })
+        }}
         style={styles.choice}
         testID="keep-masters"
       >
@@ -225,15 +247,15 @@ const Masters = (props: {
           About 400 MB per hour, kept out of your recordings folder · default
         </Text>
       </Pressable>
-      {row('Longer than', minutes ? `${minutes} min` : 'any length', dir =>
-        save({ masterMinMinutes: step(MIN_MINUTES, minutes, dir) }),
-      )}
-      {row('Use at most', `${budget} GB`, dir =>
-        save({ masterBudgetGb: step(BUDGETS_GB, budget, dir) }),
-      )}
-      {row('Keep for', `${age} days`, dir =>
-        save({ masterMaxAgeDays: step(AGES_DAYS, age, dir) }),
-      )}
+      {row('Longer than', minutes ? `${minutes} min` : 'any length', dir => {
+        void save({ masterMinMinutes: step(MIN_MINUTES, minutes, dir) })
+      })}
+      {row('Use at most', `${budget} GB`, dir => {
+        void save({ masterBudgetGb: step(BUDGETS_GB, budget, dir) })
+      })}
+      {row('Keep for', `${age} days`, dir => {
+        void save({ masterMaxAgeDays: step(AGES_DAYS, age, dir) })
+      })}
       <Text style={[styles.note, textStyle]}>
         {usage.count === 0
           ? 'No masters are kept right now.'
@@ -250,10 +272,11 @@ const Masters = (props: {
               Delete every master? Recordings stay.
             </Text>
             <Pressable
-              onPress={async () => {
+              onPress={() => {
                 setConfirming(false)
-                await editorCore.deleteAllMasters()
-                setUsage(editorCore.mastersUsage())
+                void editorCore.deleteAllMasters().then(() => {
+                  setUsage(editorCore.mastersUsage())
+                })
               }}
             >
               <Text style={[styles.link, t.link]}>Delete</Text>
@@ -279,13 +302,15 @@ const Masters = (props: {
   )
 }
 
-const Choice = (props: {
-  selected: boolean
-  label: string
-  detail: string
-  onPress: () => void
-  textStyle: object
-}) => {
+type ChoiceProps = {
+  readonly selected: boolean
+  readonly label: string
+  readonly detail: string
+  readonly onPress: () => void
+  readonly textStyle: object
+}
+
+const Choice: FC<ChoiceProps> = props => {
   return (
     <Pressable onPress={props.onPress} style={styles.choice}>
       <Text style={[styles.choiceLabel, props.textStyle]}>
@@ -295,16 +320,6 @@ const Choice = (props: {
       <Text style={[styles.choiceDetail, props.textStyle]}>{props.detail}</Text>
     </Pressable>
   )
-}
-
-function errorText(e: unknown): string {
-  if (e instanceof Error) {
-    return e.message
-  }
-  if (e && typeof e === 'object' && 'message' in e) {
-    return String(e.message)
-  }
-  return String(e)
 }
 
 const styles = StyleSheet.create({

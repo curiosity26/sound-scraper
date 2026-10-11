@@ -1,17 +1,31 @@
+import { parseJson } from '@/utils/parseJson'
+
+import { isSkin } from './isSkin'
+import { isSkinInspection } from './isSkinInspection'
+import { isSkinSummary } from './isSkinSummary'
 import { native } from './native'
 import type { Skin, SkinInspection, SkinSummary } from './types'
+
+const isString = (value: unknown): value is string => typeof value === 'string'
+
+const isSummaryList = (value: unknown): value is SkinSummary[] =>
+  Array.isArray(value) && value.every(isSkinSummary)
 
 export const skins = {
   /** The skin chosen in the settings (Default if it no longer loads). */
   loadCurrent: async (): Promise<Skin> =>
-    JSON.parse(await native().loadCurrentSkin()),
+    parseJson(await native().loadCurrentSkin(), isSkin, 'skin'),
   /** An installed skin's id, an unpacked folder's path, or '' for Default. */
   load: async (idOrPath: string): Promise<Skin> =>
-    JSON.parse(await native().loadSkin(idOrPath)),
+    parseJson(await native().loadSkin(idOrPath), isSkin, 'skin'),
   list: async (): Promise<SkinSummary[]> =>
-    JSON.parse(await native().listSkins()),
+    parseJson(await native().listSkins(), isSummaryList, 'skin list'),
   install: async (archivePath: string): Promise<SkinSummary> =>
-    JSON.parse(await native().installSkin(archivePath)),
+    parseJson(
+      await native().installSkin(archivePath),
+      isSkinSummary,
+      'skin summary',
+    ),
   remove: (id: string): Promise<void> => native().removeSkin(id),
   pickArchive: (): Promise<string | null> => native().pickSkinArchive(),
   pickFolder: (): Promise<string | null> => native().pickSkinFolder(),
@@ -22,19 +36,27 @@ export const skins = {
     native().pickSkinSaveLocation(defaultName),
   /** Checks a .sskin without installing it. */
   inspect: async (archivePath: string): Promise<SkinInspection> =>
-    JSON.parse(await native().inspectSkin(archivePath)),
+    parseJson(
+      await native().inspectSkin(archivePath),
+      isSkinInspection,
+      'skin inspection',
+    ),
   /** A PNG of a skin's main panel: an id, a folder path, or '' for Default. */
   preview: async (idOrPath: string): Promise<string> =>
-    JSON.parse(await native().skinPreview(idOrPath)),
+    parseJson(await native().skinPreview(idOrPath), isString, 'preview'),
   /** Writes a skin folder as a .sskin. */
   package: async (dir: string, outPath: string): Promise<SkinSummary> =>
-    JSON.parse(await native().packageSkin(dir, outPath)),
+    parseJson(
+      await native().packageSkin(dir, outPath),
+      isSkinSummary,
+      'skin summary',
+    ),
   /** A new skin folder from the Default skin; resolves with its path. */
   create: async (parent: string, name: string): Promise<string> =>
-    JSON.parse(await native().createSkin(parent, name)),
+    parseJson(await native().createSkin(parent, name), isString, 'path'),
   /** Changes whenever the folder's files do. */
   folderStamp: async (dir: string): Promise<string> =>
-    JSON.parse(await native().skinFolderStamp(dir)),
+    parseJson(await native().skinFolderStamp(dir), isString, 'stamp'),
   /** Skins opened from the file manager or dropped on a panel. */
   takeOpened: (): string[] => native().takeOpenedSkinFiles(),
 }

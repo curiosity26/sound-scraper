@@ -3,7 +3,7 @@ import { formatSectors } from './formatSectors'
 import type { Capacity } from './types'
 
 /** The sentence under the capacity bar. */
-export function capacityText(c: Capacity): string {
+export const capacityText = (c: Capacity): string => {
   switch (c.fit) {
     case 'empty':
       return c.missing > 0

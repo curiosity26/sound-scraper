@@ -1,17 +1,21 @@
 /* eslint-disable react-native/no-inline-styles */
 
-import React from 'react'
+import React, { type ReactNode } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import type { EditorTheme } from './types'
 
+export type SegmentedProps<T extends string> = {
+  readonly th: EditorTheme
+  readonly options: readonly { readonly value: T; readonly label: string }[]
+  readonly value: T | null
+  readonly onChange: (value: T) => void
+}
+
 /** Joined buttons, one selected. */
-export const Segmented = <T extends string>(props: {
-  th: EditorTheme
-  options: Array<{ value: T; label: string }>
-  value: T | null
-  onChange: (value: T) => void
-}): React.JSX.Element => {
+export const Segmented = <T extends string>(
+  props: SegmentedProps<T>,
+): ReactNode => {
   const { th } = props
   return (
     <View style={[styles.segmented, { borderColor: th.border }]}>

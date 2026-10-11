@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, {
+  type FC,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
 import {
   ActivityIndicator,
   Image,
@@ -34,21 +40,21 @@ import { openRecordingMenu } from './openRecordingMenu'
 import { recordingActions } from './recordingActions'
 import type { MenuContext, ShowMenu } from './types'
 
-type Props = {
+export type DetailsPaneProps = {
   /** One recording, or several for a bulk edit. */
-  fileNames: string[]
+  readonly fileNames: readonly string[]
   /** A rename gave the recording a new file name. */
-  onRenamed: (oldName: string, newName: string) => void
+  readonly onRenamed: (oldName: string, newName: string) => void
   /** Something changed on disk (tags, name, trash). */
-  onChanged: () => void
-  onClose: () => void
+  readonly onChanged: () => void
+  readonly onClose: () => void
   /** The actions menu; without it (no native menus) they show as links. */
-  showMenu?: ShowMenu
+  readonly showMenu?: ShowMenu
   /** Set to a function that opens the actions menu at (x, y) in the window
    * (the panel's title-bar menu button calls it). */
-  menuRef?: { current?: (x: number, y: number) => void }
-  textStyle: object
-  isDark: boolean
+  readonly menuRef?: { current?: (x: number, y: number) => void }
+  readonly textStyle: object
+  readonly isDark: boolean
 }
 
 /**
@@ -58,7 +64,7 @@ type Props = {
  * Show in Finder, cover and trash actions. Several recordings: a bulk edit
  * of their shared tags.
  */
-export const DetailsPane = (props: Props): React.JSX.Element => {
+export const DetailsPane: FC<DetailsPaneProps> = props => {
   const { fileNames, textStyle, isDark, onChanged } = props
   const t = usePanelStyles()
   const [tags, setTags] = useState<Tags[]>()
@@ -88,7 +94,7 @@ export const DetailsPane = (props: Props): React.JSX.Element => {
     setTags(undefined)
     setError(undefined)
     setNotice(undefined)
-    load()
+    void load()
   }, [load])
 
   const merged = useMemo(() => (tags ? mergeTags(tags) : undefined), [tags])
@@ -106,7 +112,10 @@ export const DetailsPane = (props: Props): React.JSX.Element => {
     setError(undefined)
     try {
       const v23 = safeSettings()?.id3Version === '2.3'
-      await library.writeTags(fileNames, buildEdit(edits, coverChange, v23))
+      await library.writeTags(
+        [...fileNames],
+        buildEdit(edits, coverChange, v23),
+      )
       onChanged()
       await load()
     } catch (e) {
@@ -128,6 +137,9 @@ export const DetailsPane = (props: Props): React.JSX.Element => {
 
   const rename = async (text: string) => {
     const old = fileNames[0]
+    if (old === undefined) {
+      return true
+    }
     const recording = recordings.find(r => r.fileName === old)
     if (!text.trim() || (recording && text.trim() === displayName(recording))) {
       return true
@@ -150,7 +162,7 @@ export const DetailsPane = (props: Props): React.JSX.Element => {
     showMenu: props.showMenu,
     onChanged: () => {
       onChanged()
-      load()
+      void load()
     },
     onTrashed: props.onClose,
     report: m => {
@@ -158,7 +170,9 @@ export const DetailsPane = (props: Props): React.JSX.Element => {
       setNotice(m.isError ? undefined : m.text)
     },
   }
-  const chooseCover = () => chooseCoverFor(menuContext)
+  const chooseCover = () => {
+    void chooseCoverFor(menuContext)
+  }
 
   const onDrop = (e: {
     nativeEvent: { dataTransfer?: { files?: Array<{ uri?: string }> } }
@@ -166,15 +180,16 @@ export const DetailsPane = (props: Props): React.JSX.Element => {
     const uri = e.nativeEvent.dataTransfer?.files?.[0]?.uri
     const path = uri ? decodeURI(uri.replace(/^file:\/\//, '')) : undefined
     if (path && /\.(png|jpe?g)$/i.test(path)) {
-      write({}, { kind: 'set', path })
+      void write({}, { kind: 'set', path })
     } else if (path) {
       setError('Drop a PNG or JPEG image.')
     }
   }
 
   const actions = recordingActions(menuContext)
-  const openMenu = (x: number, y: number) =>
-    openRecordingMenu(menuContext, x, y)
+  const openMenu = (x: number, y: number) => {
+    void openRecordingMenu(menuContext, x, y)
+  }
 
   if (props.menuRef) {
     props.menuRef.current = openMenu
@@ -187,10 +202,11 @@ export const DetailsPane = (props: Props): React.JSX.Element => {
     96,
     Math.min(area.width, area.height > 0 ? area.height - 110 : area.width),
   )
-  const dropProps = {
+  // macOS drag-and-drop props, not in View's types.
+  const dropProps: object = {
     draggedTypes: ['fileUrl'],
     onDrop,
-  } as object
+  }
 
   return (
     <ScrollView
@@ -246,7 +262,7 @@ export const DetailsPane = (props: Props): React.JSX.Element => {
             <InlineField
               testID="details-name"
               label="File name"
-              value={recording ? displayName(recording) : fileNames[0]}
+              value={recording ? displayName(recording) : fileNames[0] ?? ''}
               onCommit={rename}
               textStyle={textStyle}
               large
@@ -318,7 +334,13 @@ export const DetailsPane = (props: Props): React.JSX.Element => {
   )
 }
 
-const Info = (props: { label: string; value: string; textStyle: object }) => {
+type InfoProps = {
+  readonly label: string
+  readonly value: string
+  readonly textStyle: object
+}
+
+const Info: FC<InfoProps> = props => {
   const t = usePanelStyles()
   return (
     <View style={styles.infoRow}>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { type FC, useEffect, useState } from 'react'
 import { View } from 'react-native'
 
 import { BurnPanel } from '@/burn/BurnPanel'
@@ -9,7 +9,7 @@ import { Skinned } from './Skinned'
 import { styles } from './styles'
 
 /** The burn window: a playlist to CD or a disc image. */
-export const BurnApp = (): React.JSX.Element => {
+export const BurnApp: FC = () => {
   const [name, setName] = useState(burnTarget.get()?.name)
   useEffect(
     () =>

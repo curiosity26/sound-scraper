@@ -22,15 +22,15 @@ test('splices stay sorted and get default names', () => {
   let e = emptyEdits('Album')
   const a = addSplice(e, 5000)
   e = a.edits
-  expect(e.splices[0].name).toBe('Track 2')
+  expect(e.splices[0]?.name).toBe('Track 2')
   const b = addSplice(e, 2000)
   e = b.edits
   expect(e.splices.map(s => s.atMs)).toEqual([2000, 5000])
-  expect(b.edits.splices[0].name).toBe('Track 2')
+  expect(b.edits.splices[0]?.name).toBe('Track 2')
   e = moveSplice(e, b.id, 9000)
   expect(e.splices.map(s => s.atMs)).toEqual([5000, 9000])
   e = renameSplice(e, a.id, 'Song')
-  expect(e.splices[0].name).toBe('Song')
+  expect(e.splices[0]?.name).toBe('Song')
   expect(adjacentSplice(e, 6000, 1)?.atMs).toBe(9000)
   expect(adjacentSplice(e, 6000, -1)?.atMs).toBe(5000)
   e = removeSplice(e, a.id)
@@ -45,7 +45,7 @@ test('deleted regions merge and restore', () => {
   expect(e.deleted.map(r => [r.startMs, r.endMs])).toEqual([[1000, 6000]])
   expect(deletedAt(e, 4000)).toBeDefined()
   expect(deletedAt(e, 6000)).toBeUndefined()
-  e = restoreRegion(e, e.deleted[0].id)
+  e = restoreRegion(e, e.deleted[0]?.id ?? -1)
   expect(e.deleted).toEqual([])
 })
 
@@ -61,7 +61,7 @@ test('undo and redo', () => {
   let h = history.start(emptyEdits('a'))
   const one = addSplice(h.present, 1).edits
   h = history.push(h, one)
-  h = history.push(h, removeSplice(one, one.splices[0].id))
+  h = history.push(h, removeSplice(one, one.splices[0]?.id ?? -1))
   h = history.undo(h)
   expect(h.present).toBe(one)
   h = history.undo(h)

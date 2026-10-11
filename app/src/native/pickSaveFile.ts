@@ -1,10 +1,10 @@
 import NativeSoundScraper from './NativeSoundScraper'
 
 /** Native Save dialog for one file type; null if cancelled. */
-export function pickSaveFile(
+export const pickSaveFile = (
   title: string,
   defaultName: string,
   extension: string,
-): Promise<string | null> {
+): Promise<string | null> => {
   return NativeSoundScraper.pickSaveFile(title, defaultName, extension)
 }

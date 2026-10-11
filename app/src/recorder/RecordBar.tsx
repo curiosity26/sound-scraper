@@ -1,27 +1,28 @@
-import React from 'react'
+import type { FC } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import type { RecorderState } from '@/native/types'
+import { meterScale } from '@/skin/meterScale'
 import { colors } from '@/theme/colors'
 
 import { formatElapsed } from './formatElapsed'
 
-type Props = {
-  state: RecorderState
+export type RecordBarProps = {
+  readonly state: RecorderState
   /** Waiting for start to resolve (e.g. the permission prompt). */
-  starting: boolean
-  elapsedMs: number
+  readonly starting: boolean
+  readonly elapsedMs: number
   /** Linear peak level, 0..1. */
-  peak: number
-  onRecord: () => void
-  onPause: () => void
-  onResume: () => void
-  onStop: () => void
-  textStyle: object
+  readonly peak: number
+  readonly onRecord: () => void
+  readonly onPause: () => void
+  readonly onResume: () => void
+  readonly onStop: () => void
+  readonly textStyle: object
 }
 
 /** Record / Pause / Resume / Stop with elapsed time and a level meter. */
-export const RecordBar = (props: Props): React.JSX.Element => {
+export const RecordBar: FC<RecordBarProps> = props => {
   const { state, starting, elapsedMs, peak, textStyle } = props
   const active = state === 'recording' || state === 'paused'
 
@@ -73,13 +74,15 @@ export const RecordBar = (props: Props): React.JSX.Element => {
   )
 }
 
-const Button = (props: {
-  testID: string
-  label: string
-  onPress: () => void
-  color: string
-  disabled?: boolean
-}) => {
+type ButtonProps = {
+  readonly testID: string
+  readonly label: string
+  readonly onPress: () => void
+  readonly color: string
+  readonly disabled?: boolean
+}
+
+const Button: FC<ButtonProps> = props => {
   return (
     <Pressable
       testID={props.testID}
@@ -96,16 +99,7 @@ const Button = (props: {
   )
 }
 
-/** Maps a linear peak to a 0..1 meter position over a 60 dB range. */
-function meterScale(peak: number): number {
-  if (peak <= 0) {
-    return 0
-  }
-  const db = 20 * Math.log10(peak)
-  return Math.max(0, (db + 60) / 60)
-}
-
-function stateLabel(state: RecorderState): string {
+const stateLabel = (state: RecorderState): string => {
   switch (state) {
     case 'recording':
       return 'Recording'

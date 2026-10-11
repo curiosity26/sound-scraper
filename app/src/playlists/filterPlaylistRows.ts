@@ -3,10 +3,10 @@ import { filterRecordings } from '@/library/filterRecordings'
 import type { PlaylistRow } from './types'
 
 /** Search, like the library's; missing rows match on their file name. */
-export function filterPlaylistRows(
-  rows: PlaylistRow[],
+export const filterPlaylistRows = (
+  rows: readonly PlaylistRow[],
   query: string,
-): PlaylistRow[] {
+): readonly PlaylistRow[] => {
   const q = query.trim().toLowerCase()
   if (!q) {
     return rows

@@ -9,7 +9,7 @@ import type { Target } from './types'
  * Burn CD… / Save CD Image… in the library: shows the burn panel for
  * `target`, unless a burn is still running (it keeps showing that).
  */
-export function openBurnPanel(target: Target, show: () => void) {
+export const openBurnPanel = (target: Target, show: () => void): void => {
   const current = burnJob.get()
   if (current) {
     let running = false

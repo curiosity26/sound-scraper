@@ -7,7 +7,9 @@ import { usePanelTheme } from '@/theme/usePanelTheme'
 import type { EditorTheme } from './types'
 import { withAlpha } from './withAlpha'
 
-export function useEditorTheme(waveform: Record<string, string>): EditorTheme {
+export const useEditorTheme = (
+  waveform: Record<string, string>,
+): EditorTheme => {
   const panel = usePanelTheme()
   return useMemo(() => {
     const wave = (name: string, fallback: string) => waveform[name] ?? fallback

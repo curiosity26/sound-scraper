@@ -1,6 +1,6 @@
 // Layout here comes from skin data (rects, sizes), so styles are inline.
 /* eslint-disable react-native/no-inline-styles */
-import React, { useEffect, useState } from 'react'
+import React, { type FC, useEffect, useState } from 'react'
 import { Pressable } from 'react-native'
 
 import { nextPreset } from './nextPreset'
@@ -19,15 +19,17 @@ const SSVisualizerView = VisualizerNative
 let chosenPreset = 0
 const listeners = new Set<(i: number) => void>()
 
+export type VisualizerProps = {
+  readonly element: SkinElement
+  readonly presets: readonly Record<string, unknown>[]
+}
+
 /**
  * The visualizer element. Click it to cycle the skin's presets. The
  * element's style supplies idle-look colors (grid, line) presets lack, and
  * `pixelated` (default true) for the hard-edged LCD look.
  */
-export const Visualizer = (props: {
-  element: SkinElement
-  presets: Array<Record<string, unknown>>
-}): React.JSX.Element => {
+export const Visualizer: FC<VisualizerProps> = props => {
   const { element, presets } = props
   const s = useSkinScale()
   const [index, setIndex] = useState(chosenPreset)
@@ -38,7 +40,8 @@ export const Visualizer = (props: {
     }
   }, [])
   const style = element.style ?? {}
-  const preset = presets.length > 0 ? presets[index % presets.length] : {}
+  const preset =
+    (presets.length > 0 ? presets[index % presets.length] : undefined) ?? {}
   // Strings compare by value, so the native view only re-applies real changes.
   const json = JSON.stringify({
     grid: style.grid,

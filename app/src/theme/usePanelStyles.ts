@@ -6,29 +6,29 @@ import { StyleSheet, type TextStyle, type ViewStyle } from 'react-native'
 
 import { usePanelTheme } from './usePanelTheme'
 
-type Styles = {
+export type UsePanelStylesResult = {
   /** Table rows (and header) padding. */
-  row: ViewStyle
+  readonly row: ViewStyle
   /** Table cells and check boxes. */
-  cell: TextStyle
-  text: TextStyle
-  link: TextStyle
-  input: TextStyle
-  button: ViewStyle
-  buttonText: TextStyle
-  border: ViewStyle
-  panel: ViewStyle
-  table: ViewStyle
-  header: ViewStyle
-  headerText: TextStyle
-  rowAlternate: ViewStyle
-  rowSelected: ViewStyle
-  selectedText: TextStyle
-  tableText: TextStyle
-  grid: ViewStyle
+  readonly cell: TextStyle
+  readonly text: TextStyle
+  readonly link: TextStyle
+  readonly input: TextStyle
+  readonly button: ViewStyle
+  readonly buttonText: TextStyle
+  readonly border: ViewStyle
+  readonly panel: ViewStyle
+  readonly table: ViewStyle
+  readonly header: ViewStyle
+  readonly headerText: TextStyle
+  readonly rowAlternate: ViewStyle
+  readonly rowSelected: ViewStyle
+  readonly selectedText: TextStyle
+  readonly tableText: TextStyle
+  readonly grid: ViewStyle
 }
 
-const NONE: Styles = {
+const NONE: UsePanelStylesResult = {
   row: {},
   cell: {},
   text: {},
@@ -49,7 +49,7 @@ const NONE: Styles = {
 }
 
 /** Style fragments to append to a component's own styles. */
-export function usePanelStyles(): Styles {
+export const usePanelStyles = (): UsePanelStylesResult => {
   const t = usePanelTheme()
   return useMemo(() => {
     if (!t) {

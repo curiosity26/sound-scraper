@@ -1,19 +1,19 @@
 // Layout here comes from skin data (rects, sizes), so styles are inline.
 /* eslint-disable react-native/no-inline-styles */
-import React, { useRef } from 'react'
+import React, { type FC, useRef } from 'react'
 import { View } from 'react-native'
 
 import type { PanelName, Rect } from './types'
 import { windows } from './windows'
 
-type Props = {
-  panel: 'main' | PanelName
+export type DragSurfaceProps = {
+  readonly panel: 'main' | PanelName
   /** Areas that move the window, in points from its top left. */
-  drag: Rect[]
+  readonly drag: readonly Rect[]
   /** The resize corner, if any. */
-  grip?: Rect | null
+  readonly grip?: Rect | null
   /** Double click on a drag area (the main panel's shade toggle). */
-  onDoubleClick?: () => void
+  readonly onDoubleClick?: () => void
 }
 
 /**
@@ -22,7 +22,7 @@ type Props = {
  * handles these in its window class, so this renders nothing there.
  * Render it before the panel's buttons so they stay on top.
  */
-export const DragSurface = (props: Props): React.JSX.Element | null => {
+export const DragSurface: FC<DragSurfaceProps> = props => {
   const last = useRef(0)
   if (!windows.jsGestures) {
     return null
