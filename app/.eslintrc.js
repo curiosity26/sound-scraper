@@ -1,5 +1,10 @@
 // ESLint for the React Native app. The rules below encode the project's
 // TypeScript + React style guide; Prettier owns formatting.
+// An exported function, component or factory result (`forwardRef(...)`,
+// `createContext(...)`); plain constants and objects don't count.
+const EXPORTED_FUNCTION =
+  "ExportNamedDeclaration:matches([declaration.type='FunctionDeclaration'], [declaration.declarations.0.init.type=/^(ArrowFunctionExpression|FunctionExpression|CallExpression)$/])"
+
 const STYLE_SYNTAX = [
   {
     selector: 'TSEnumDeclaration',
@@ -23,8 +28,22 @@ const STYLE_SYNTAX = [
     message: 'Props and hook result types are readonly: mark every property `readonly`.',
   },
   {
+    selector: `${EXPORTED_FUNCTION} ~ ${EXPORTED_FUNCTION}`,
+    message:
+      'One exported component or function per file. Move this one to its own file named after it.',
+  },
+  {
     selector: 'ExportDefaultDeclaration',
     message: 'Use named exports only.',
+  },
+]
+
+const COMPONENT_SYNTAX = [
+  {
+    selector:
+      "VariableDeclarator[id.name=/^[A-Z]/][init.type='ArrowFunctionExpression']:not([id.typeAnnotation]):not([init.typeParameters])",
+    message:
+      'Type components with FC: `const Name: FC<NameProps> = props => …` (generic components excepted).',
   },
 ]
 
@@ -41,6 +60,12 @@ const TS_RULES = {
     { assertionStyle: 'never' },
   ],
   '@typescript-eslint/consistent-type-definitions': ['error', 'type'],
+  // Numbers read naturally in messages ("3 tracks"); everything else still
+  // has to be a string.
+  '@typescript-eslint/restrict-template-expressions': [
+    'error',
+    { allowNumber: true },
+  ],
   '@typescript-eslint/switch-exhaustiveness-check': [
     'error',
     { considerDefaultExhaustiveForUnions: true },
@@ -83,10 +108,8 @@ module.exports = {
           ['parent', 'sibling', 'index'],
         ],
         pathGroups: [
-          { pattern: 'react', group: 'external', position: 'before' },
           { pattern: '@/**', group: 'internal' },
         ],
-        pathGroupsExcludedImportTypes: ['react'],
         'newlines-between': 'always',
         alphabetize: { order: 'asc', caseInsensitive: true },
       },
@@ -124,6 +147,7 @@ module.exports = {
       files: ['*.tsx'],
       rules: {
         'react-refresh/only-export-components': 'error',
+        'no-restricted-syntax': ['error', ...STYLE_SYNTAX, ...COMPONENT_SYNTAX],
       },
     },
     {

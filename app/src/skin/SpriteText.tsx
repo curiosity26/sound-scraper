@@ -1,55 +1,13 @@
 // Layout here comes from skin data (rects, sizes), so styles are inline.
 /* eslint-disable react-native/no-inline-styles */
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Animated, Easing, Text, View } from 'react-native'
+import { Animated, Easing, View } from 'react-native'
 
-import { scaleRect, SpriteCell, useSkinScale } from './SkinImage'
-import type { SkinElement, SpriteFont } from './types'
-
-/**
- * Maps `text` onto a font's glyphs: accents are dropped, lowercase falls
- * back to uppercase, and anything else missing becomes "?" (or a space).
- */
-export function toGlyphs(text: string, glyphs: string): string[] {
-  const available = new Set(Array.from(glyphs))
-  const unknown = available.has('?') ? '?' : ' '
-  return Array.from(text.normalize('NFD').replace(/[̀-ͯ]/g, '')).map(c => {
-    if (available.has(c)) {
-      return c
-    }
-    const upper = c.toUpperCase()
-    return available.has(upper) ? upper : unknown
-  })
-}
-
-/**
- * The cells to draw in a `capacity`-cell field: aligned, padded with spaces
- * when `pad` (to show a font's unlit cells), and scrolled by `offset` when
- * too long (a marquee, joined with a gap).
- */
-export function layoutCells(
-  chars: string[],
-  capacity: number,
-  align: 'left' | 'center' | 'right',
-  pad: boolean,
-  offset: number,
-): string[] {
-  if (chars.length > capacity) {
-    const loop = [...chars, ' ', ' ', ' ', ' ']
-    return Array.from(
-      { length: capacity },
-      (_, i) => loop[(offset + i) % loop.length],
-    )
-  }
-  const free = capacity - chars.length
-  const before =
-    align === 'right' ? free : align === 'center' ? Math.floor(free / 2) : 0
-  const after = free - before
-  const space = (n: number) => Array.from({ length: n }, () => ' ')
-  return pad || before > 0
-    ? [...space(before), ...chars, ...(pad ? space(after) : [])]
-    : chars
-}
+import { layoutCells } from './layoutCells'
+import { SpriteCell } from './SpriteCell'
+import { toGlyphs } from './toGlyphs'
+import type { SpriteFont } from './types'
+import { useSkinScale } from './useSkinScale'
 
 type Props = {
   font: SpriteFont
@@ -239,57 +197,6 @@ function FlipCell(props: { font: SpriteFont; at: [number, number] }) {
             <Animated.View style={shadow([0.5, 1], [0.5, 0])} />
           </Animated.View>
         </>
-      )}
-    </View>
-  )
-}
-
-/**
- * An element's text: its sprite font if it has one, else system text in
- * the element's text style. Positioned at the element's rect.
- */
-export function ElementText(props: {
-  element: SkinElement
-  fonts: Record<string, SpriteFont>
-  text: string
-  testID?: string
-}): React.JSX.Element {
-  const { element, fonts } = props
-  const s = useSkinScale()
-  const [, , w, h] = element.rect
-  const font = element.font ? fonts[element.font] : undefined
-  const pad = element.style?.pad === true
-  const align = element.align ?? 'left'
-  const t = element.text
-  return (
-    <View
-      testID={props.testID}
-      pointerEvents="none"
-      style={[scaleRect(element.rect, s), { justifyContent: 'center' }]}
-    >
-      {font ? (
-        <SpriteText
-          font={font}
-          text={props.text}
-          width={w * s}
-          align={align}
-          pad={pad}
-          flip={element.style?.flip === true}
-        />
-      ) : (
-        <Text
-          numberOfLines={1}
-          style={{
-            color: t?.color ?? '#ffffff',
-            fontSize: (t?.size ?? Math.max(8, h * 0.7)) * s,
-            fontFamily: t?.family ?? undefined,
-            fontWeight: t?.weight === 'bold' ? '700' : '400',
-            textAlign: align,
-            fontVariant: ['tabular-nums'],
-          }}
-        >
-          {t?.uppercase ? props.text.toUpperCase() : props.text}
-        </Text>
       )}
     </View>
   )

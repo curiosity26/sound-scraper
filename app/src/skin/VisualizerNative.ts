@@ -1,7 +1,7 @@
 // macOS: SSVisualizerView.mm, a legacy view manager (Fabric interop).
 import { requireNativeComponent, type ViewProps } from 'react-native'
 
-import { skinsAvailable } from './skins'
+import { skinsAvailable } from './skinsAvailable'
 
 type NativeProps = ViewProps & {
   /** One of the skin's visualizer presets, as JSON. */
@@ -10,6 +10,6 @@ type NativeProps = ViewProps & {
   skinScale: number
 }
 
-export default skinsAvailable
+export const VisualizerNative = skinsAvailable
   ? requireNativeComponent<NativeProps>('SSVisualizerView')
   : null

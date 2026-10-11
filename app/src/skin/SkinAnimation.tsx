@@ -1,40 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react'
 
-import type { RecorderState } from '../native/SoundScraper'
-import { meterScale } from './LevelMeter'
-import { scaleRect, SpriteCell, useSkinScale } from './SkinImage'
+import type { RecorderState } from '@/native/types'
+
+import { animationPlays } from './animationPlays'
+import { animationRate } from './animationRate'
+import { scaleRect } from './scaleRect'
+import { SpriteCell } from './SpriteCell'
 import type { SkinAnimationDef } from './types'
-
-/**
- * Whether an animation plays in this state: the recorder's, or during
- * playback "recording"/"paused" for playing/paused (`playing` is true
- * while playing back).
- */
-export function animationPlays(
-  play: string,
-  state: RecorderState,
-  playing = false,
-): boolean {
-  switch (play) {
-    case 'always':
-      return true
-    case 'playing':
-      return playing
-    case 'rolling':
-      return state === 'recording'
-    case 'recording':
-      return state === 'recording' && !playing
-    case 'active':
-      return state === 'recording' || state === 'paused'
-    default:
-      return state === 'recording'
-  }
-}
-
-/** Frames per second, scaled by loudness for speed "level". */
-export function animationRate(fps: number, speed: string, level: number) {
-  return speed === 'level' ? fps * (0.3 + 1.7 * meterScale(level)) : fps
-}
+import { useSkinScale } from './useSkinScale'
 
 const TICK_MS = 33
 

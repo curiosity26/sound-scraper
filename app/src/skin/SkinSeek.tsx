@@ -3,8 +3,12 @@
 import React, { useRef, useState } from 'react'
 import { type GestureResponderEvent, View } from 'react-native'
 
-import { scaleRect, SpriteCell, useSkinScale } from './SkinImage'
+import { scaleRect } from './scaleRect'
+import { seekGeometry } from './seekGeometry'
+import { SpriteCell } from './SpriteCell'
+import { thumbSize } from './thumbSize'
 import type { SkinElement } from './types'
+import { useSkinScale } from './useSkinScale'
 
 type Props = {
   element: SkinElement
@@ -16,32 +20,6 @@ type Props = {
   onScrub?: (positionMs: number | undefined) => void
   /** Dragging ended (or a click) at this position. */
   onSeek: (positionMs: number) => void
-}
-
-/** `style.thumbSize`, or a thumb half as wide as the bar is tall. */
-export function thumbSize(element: SkinElement): [number, number] {
-  const size = element.style?.thumbSize
-  if (
-    Array.isArray(size) &&
-    size.length === 2 &&
-    typeof size[0] === 'number' &&
-    typeof size[1] === 'number'
-  ) {
-    return [size[0], size[1]]
-  }
-  const h = element.rect[3]
-  return [Math.max(4, Math.round(h / 2)), h]
-}
-
-/** Thumb left edge and fill width (points) for `progress` 0..1. */
-export function seekGeometry(
-  width: number,
-  thumbWidth: number,
-  progress: number,
-): { thumbX: number; fillWidth: number } {
-  const p = Math.min(1, Math.max(0, progress))
-  const thumbX = Math.round(Math.max(0, width - thumbWidth) * p)
-  return { thumbX, fillWidth: thumbX + Math.round(thumbWidth / 2) }
 }
 
 /**

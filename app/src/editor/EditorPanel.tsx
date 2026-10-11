@@ -20,53 +20,55 @@ import {
   View,
 } from 'react-native'
 
-import { errorText } from '../appHelpers'
-import {
-  addSplice,
-  adjacentSplice,
-  applyProposals,
-  clampZoom,
-  deletedAt,
-  deleteRegion,
-  type Edits,
-  editsFromJson,
-  editsToJson,
-  emptyEdits,
-  fitZoom,
-  formatTime,
-  hasEdits,
-  history,
-  type History,
-  MIN_MS_PER_POINT,
-  moveSplice,
-  removeSplice,
-  renameSplice,
-  restoreRegion,
-  rulerSteps,
-  snap,
-  zoomScroll,
-} from '../editorModel'
-import {
-  type DetectOptions,
-  editorCore,
-  type Proposal,
-  type TrackInfo,
-  type WaveformStatus,
-} from '../native/editor'
-import { playback, usePlayback } from '../playback'
-import { Divider, IconButton, Lcd, Slider, ToolButton } from './controls'
-import {
-  AutoSliceBar,
-  DETECT_PRESETS,
-  formatStep,
-  NameField,
-  OverviewBar,
-  SaveModal,
-  SSWaveformView,
-  TrackList,
-  type TrackRow,
-} from './parts'
-import { trackColor, useEditorTheme, withAlpha } from './theme'
+import { addSplice } from '@/editor/model/addSplice'
+import { adjacentSplice } from '@/editor/model/adjacentSplice'
+import { applyProposals } from '@/editor/model/applyProposals'
+import { clampZoom } from '@/editor/model/clampZoom'
+import { MIN_MS_PER_POINT } from '@/editor/model/constants'
+import { deletedAt } from '@/editor/model/deletedAt'
+import { deleteRegion } from '@/editor/model/deleteRegion'
+import { editsFromJson } from '@/editor/model/editsFromJson'
+import { editsToJson } from '@/editor/model/editsToJson'
+import { emptyEdits } from '@/editor/model/emptyEdits'
+import { fitZoom } from '@/editor/model/fitZoom'
+import { formatTime } from '@/editor/model/formatTime'
+import { hasEdits } from '@/editor/model/hasEdits'
+import { history } from '@/editor/model/history'
+import { moveSplice } from '@/editor/model/moveSplice'
+import { removeSplice } from '@/editor/model/removeSplice'
+import { renameSplice } from '@/editor/model/renameSplice'
+import { restoreRegion } from '@/editor/model/restoreRegion'
+import { rulerSteps } from '@/editor/model/rulerSteps'
+import { snap } from '@/editor/model/snap'
+import type { Edits, History } from '@/editor/model/types'
+import { zoomScroll } from '@/editor/model/zoomScroll'
+import { editorCore } from '@/native/editorCore'
+import type {
+  DetectOptions,
+  Proposal,
+  TrackInfo,
+  WaveformStatus,
+} from '@/native/types'
+import { playback } from '@/playback/playback'
+import { usePlayback } from '@/playback/usePlayback'
+import { errorText } from '@/utils/errorText'
+
+import { AutoSliceBar } from './AutoSliceBar'
+import { DETECT_PRESETS } from './constants'
+import { Divider } from './Divider'
+import { formatStep } from './formatStep'
+import { IconButton } from './IconButton'
+import { Lcd } from './Lcd'
+import { NameField } from './NameField'
+import { OverviewBar } from './OverviewBar'
+import { SaveModal } from './SaveModal'
+import { Slider } from './Slider'
+import { SSWaveformView } from './SSWaveformView'
+import { ToolButton } from './ToolButton'
+import { trackColor } from './trackColor'
+import { TrackList, type TrackRow } from './TrackList'
+import { useEditorTheme } from './useEditorTheme'
+import { withAlpha } from './withAlpha'
 
 export type EditorTarget = {
   fileName: string

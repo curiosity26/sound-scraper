@@ -1,0 +1,13 @@
+import type { PlayerState } from '@/native/types'
+
+/** Status while a loaded recording plays back (the recorder is idle). */
+export function playbackStatusText(state: PlayerState): string {
+  switch (state) {
+    case 'playing':
+      return '▶ PLAYING'
+    case 'paused':
+      return '⏸ PAUSED'
+    default:
+      return '■ STOPPED'
+  }
+}

@@ -3,22 +3,30 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { Pressable, View } from 'react-native'
 
-import { formatElapsed } from '../RecordBar'
-import type { PlayerState, RecorderState } from '../native/SoundScraper'
-import { playback, usePlayback } from '../playback'
-import { usePlaylists } from '../playlists'
-import { type Message, useRecorder } from '../useRecorder'
+import type { RecorderState } from '@/native/types'
+import { playback } from '@/playback/playback'
+import { usePlayback } from '@/playback/usePlayback'
+import { usePlaylists } from '@/playlists/usePlaylists'
+import { formatElapsed } from '@/recorder/formatElapsed'
+import type { Message } from '@/recorder/types'
+import { useRecorder } from '@/recorder/useRecorder'
+
 import { DragSurface } from './DragSurface'
+import { ElementText } from './ElementText'
 import { LevelMeter } from './LevelMeter'
+import { playbackStatusText } from './playbackStatusText'
+import { scaleRect } from './scaleRect'
 import { SkinAnimation } from './SkinAnimation'
-import { Visualizer } from './Visualizer'
 import { SkinButton } from './SkinButton'
+import { SkinImage } from './SkinImage'
 import { SkinSeek } from './SkinSeek'
-import { scaleRect, SkinImage, SpriteCell, useSkinScale } from './SkinImage'
-import { useSkin } from './SkinProvider'
-import { windows } from './skins'
-import { ElementText } from './SpriteText'
+import { SpriteCell } from './SpriteCell'
+import { statusText } from './statusText'
 import type { ElementName, Rect, SkinElement } from './types'
+import { useSkin } from './useSkin'
+import { useSkinScale } from './useSkinScale'
+import { Visualizer } from './Visualizer'
+import { windows } from './windows'
 
 /** Elements that take clicks, so the window doesn't drag from them. */
 const INTERACTIVE: ElementName[] = [
@@ -34,34 +42,6 @@ const INTERACTIVE: ElementName[] = [
   'shade',
   'close',
 ]
-
-export function statusText(state: RecorderState, starting: boolean): string {
-  if (starting) {
-    return 'STARTING'
-  }
-  switch (state) {
-    case 'recording':
-      return '● REC'
-    case 'paused':
-      return '⏸ PAUSED'
-    case 'finalizing':
-      return 'SAVING'
-    default:
-      return 'READY'
-  }
-}
-
-/** Status while a loaded recording plays back (the recorder is idle). */
-export function playbackStatusText(state: PlayerState): string {
-  switch (state) {
-    case 'playing':
-      return '▶ PLAYING'
-    case 'paused':
-      return '⏸ PAUSED'
-    default:
-      return '■ STOPPED'
-  }
-}
 
 /** The skinned main window: transport, time, status, levels and source. */
 export function MainPanel(): React.JSX.Element {

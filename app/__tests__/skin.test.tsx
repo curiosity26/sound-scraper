@@ -5,12 +5,13 @@
 import React from 'react'
 import ReactTestRenderer from 'react-test-renderer'
 
-import { buttonState } from '../src/skin/SkinButton'
-import { layoutCells, toGlyphs } from '../src/skin/SpriteText'
-import { NineSlice } from '../src/skin/NineSlice'
-import { imageSource } from '../src/skin/SkinImage'
-import { needleAngle } from '../src/skin/LevelMeter'
-import type { ImageRef, Skin, SkinElement } from '../src/skin/types'
+import { buttonState } from '@/skin/buttonState'
+import { imageSource } from '@/skin/imageSource'
+import { layoutCells } from '@/skin/layoutCells'
+import { needleAngle } from '@/skin/needleAngle'
+import { NineSlice } from '@/skin/NineSlice'
+import { toGlyphs } from '@/skin/toGlyphs'
+import type { ImageRef, Skin, SkinElement } from '@/skin/types'
 
 const mockSkins = {
   onWindowEvent: () => ({ remove: jest.fn() }),
@@ -22,7 +23,7 @@ const mockSkins = {
   showMenu: jest.fn(() => Promise.resolve(-1)),
   inspectSkin: jest.fn(),
 }
-jest.mock('../src/native/NativeSkins', () => ({
+jest.mock('@/native/NativeSkins', () => ({
   __esModule: true,
   default: mockSkins,
 }))
@@ -50,7 +51,7 @@ const mockCore: Record<string, any> = {
     JSON.stringify({ quality: 'cbr192', id3Version: '2.4', lastSource: null }),
   setSettings: jest.fn(() => Promise.resolve()),
 }
-jest.mock('../src/native/NativeSoundScraper', () => ({
+jest.mock('@/native/NativeSoundScraper', () => ({
   __esModule: true,
   default: mockCore,
 }))
@@ -257,7 +258,8 @@ test('button states fall back toward normal', () => {
 })
 
 test('the seek bar places its thumb and fill', () => {
-  const { seekGeometry, thumbSize } = require('../src/skin/SkinSeek')
+  const { seekGeometry } = require('@/skin/seekGeometry')
+  const { thumbSize } = require('@/skin/thumbSize')
   expect(seekGeometry(104, 4, 0)).toEqual({ thumbX: 0, fillWidth: 2 })
   expect(seekGeometry(104, 4, 0.5)).toEqual({ thumbX: 50, fillWidth: 52 })
   expect(seekGeometry(104, 4, 2)).toEqual({ thumbX: 100, fillWidth: 102 })
@@ -323,9 +325,9 @@ test('nine-slice draws nine pieces', async () => {
 })
 
 test('the main panel renders the skin and drives the recorder', async () => {
-  const { skinStore } = require('../src/skin/skins')
-  const { MainPanel } = require('../src/skin/MainPanel')
-  const { SkinProvider } = require('../src/skin/SkinProvider')
+  const { skinStore } = require('@/skin/skinStore')
+  const { MainPanel } = require('@/skin/MainPanel')
+  const { SkinProvider } = require('@/skin/SkinProvider')
   skinStore.set(testSkin())
   let tree: ReactTestRenderer.ReactTestRenderer | undefined
   await ReactTestRenderer.act(() => {
@@ -356,10 +358,10 @@ test('the main panel renders the skin and drives the recorder', async () => {
 })
 
 test('the main panel plays back a loaded recording', async () => {
-  const { skinStore } = require('../src/skin/skins')
-  const { MainPanel } = require('../src/skin/MainPanel')
-  const { SkinProvider } = require('../src/skin/SkinProvider')
-  const { playback } = require('../src/playback')
+  const { skinStore } = require('@/skin/skinStore')
+  const { MainPanel } = require('@/skin/MainPanel')
+  const { SkinProvider } = require('@/skin/SkinProvider')
+  const { playback } = require('@/playback/playback')
   const skin = testSkin()
   const { elements } = skin.panels.main
   elements.play = el([56, 30, 20, 10])
@@ -434,10 +436,10 @@ test('the main panel plays back a loaded recording', async () => {
 })
 
 test('double size scales the window and its drag regions', async () => {
-  const { skinStore } = require('../src/skin/skins')
-  const { MainPanel } = require('../src/skin/MainPanel')
-  const { SkinProvider } = require('../src/skin/SkinProvider')
-  const { SkinScale } = require('../src/skin/SkinImage')
+  const { skinStore } = require('@/skin/skinStore')
+  const { MainPanel } = require('@/skin/MainPanel')
+  const { SkinProvider } = require('@/skin/SkinProvider')
+  const { SkinScale } = require('@/skin/SkinScale')
   skinStore.set(testSkin())
   mockSkins.setPanelLayout.mockClear()
   await ReactTestRenderer.act(() => {
@@ -463,7 +465,8 @@ test('double size scales the window and its drag regions', async () => {
 })
 
 test('animations play by recorder state and speed', () => {
-  const { animationPlays, animationRate } = require('../src/skin/SkinAnimation')
+  const { animationPlays } = require('@/skin/animationPlays')
+  const { animationRate } = require('@/skin/animationRate')
   expect(animationPlays('recording', 'recording')).toBe(true)
   expect(animationPlays('recording', 'paused')).toBe(false)
   expect(animationPlays('active', 'paused')).toBe(true)
@@ -481,13 +484,13 @@ test('animations play by recorder state and speed', () => {
 })
 
 test('the visualizer cycles presets on click', async () => {
-  const { nextPreset } = require('../src/skin/Visualizer')
+  const { nextPreset } = require('@/skin/nextPreset')
   expect(nextPreset(0, 3)).toBe(1)
   expect(nextPreset(2, 3)).toBe(0)
   expect(nextPreset(0, 0)).toBe(0)
-  const { skinStore } = require('../src/skin/skins')
-  const { MainPanel } = require('../src/skin/MainPanel')
-  const { SkinProvider } = require('../src/skin/SkinProvider')
+  const { skinStore } = require('@/skin/skinStore')
+  const { MainPanel } = require('@/skin/MainPanel')
+  const { SkinProvider } = require('@/skin/SkinProvider')
   skinStore.set(testSkin())
   let tree: ReactTestRenderer.ReactTestRenderer | undefined
   await ReactTestRenderer.act(() => {
@@ -507,7 +510,7 @@ test('the visualizer cycles presets on click', async () => {
 })
 
 test('scroll bar thumb geometry', () => {
-  const { thumbGeometry } = require('../src/skin/SkinScrollbar')
+  const { thumbGeometry } = require('@/skin/thumbGeometry')
   expect(thumbGeometry(100, 100, 50, 0, 10)).toEqual([0, 100])
   expect(thumbGeometry(100, 100, 400, 0, 10)).toEqual([0, 25])
   expect(thumbGeometry(100, 100, 400, 300, 10)).toEqual([75, 25])
@@ -515,13 +518,13 @@ test('scroll bar thumb geometry', () => {
 })
 
 test('panel frames report their chrome and theme their content', async () => {
-  const { isDarkColor } = require('../src/windows')
+  const { isDarkColor } = require('@/windows/isDarkColor')
   expect(isDarkColor('#221d1a')).toBe(true)
   expect(isDarkColor('#f3ead0')).toBe(false)
-  const { skinStore } = require('../src/skin/skins')
-  const { SkinProvider } = require('../src/skin/SkinProvider')
-  const { SkinPanelFrame } = require('../src/skin/SkinPanelFrame')
-  const { usePanelStyles } = require('../src/panelTheme')
+  const { skinStore } = require('@/skin/skinStore')
+  const { SkinProvider } = require('@/skin/SkinProvider')
+  const { SkinPanelFrame } = require('@/skin/SkinPanelFrame')
+  const { usePanelStyles } = require('@/theme/usePanelStyles')
   const skin = testSkin()
   skin.panels.library = {
     ...skin.panels.library,
@@ -575,7 +578,7 @@ test('panel frames report their chrome and theme their content', async () => {
 })
 
 test('narrow libraries hide the less important columns', () => {
-  const { visibleColumns } = require('../src/LibraryTable')
+  const { visibleColumns } = require('@/library/visibleColumns')
   expect(visibleColumns(0)).toEqual([
     'name',
     'duration',
@@ -600,7 +603,7 @@ function withHandler(
 }
 
 test('the details pane edits a tag in place and renames', async () => {
-  const { DetailsPane } = require('../src/DetailsPane')
+  const { DetailsPane } = require('@/library/DetailsPane')
   mockCore.readTags = jest.fn(() =>
     Promise.resolve({
       title: 'Old title',
@@ -695,7 +698,8 @@ test('needles sweep the VU range from the reference level', () => {
 })
 
 test('skin paths: folders and archives', () => {
-  const { isFolderSkin, isSkinArchive } = require('../src/skin/skins')
+  const { isFolderSkin } = require('@/skin/isFolderSkin')
+  const { isSkinArchive } = require('@/skin/isSkinArchive')
   expect(isFolderSkin('/Users/me/Skins/Mine')).toBe(true)
   expect(isFolderSkin('C:\\Skins\\Mine')).toBe(true)
   expect(isFolderSkin('com.example.skin')).toBe(false)
@@ -706,11 +710,9 @@ test('skin paths: folders and archives', () => {
 })
 
 test('an opened .sskin gets the install card in Settings › Skin', async () => {
-  const {
-    openSkinFiles,
-    pendingInstall,
-    settingsTab,
-  } = require('../src/skin/skins')
+  const { openSkinFiles } = require('@/skin/openSkinFiles')
+  const { pendingInstall } = require('@/skin/pendingInstall')
+  const { settingsTab } = require('@/skin/settingsTab')
   const inspection = {
     id: 'com.example.retro',
     name: 'Retro',

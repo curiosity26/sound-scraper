@@ -1,0 +1,13 @@
+import type { Tags } from '@/native/types'
+
+import type { CoverState } from './types'
+
+/** Covers are cached by content, so identical covers share a path. */
+export function mergeCovers(all: Tags[]): CoverState {
+  const paths = new Set(all.map(t => t.coverPath))
+  if (paths.size !== 1) {
+    return { kind: 'mixed' }
+  }
+  const path = [...paths][0]
+  return path ? { kind: 'image', path } : { kind: 'none' }
+}

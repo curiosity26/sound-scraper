@@ -8,21 +8,21 @@ import {
   View,
 } from 'react-native'
 
-import { errorText, safeSettings } from '../appHelpers'
-import { usePanelStyles } from '../panelTheme'
-import { colors } from '../theme'
-import { fileUri } from './SkinImage'
-import {
-  chooseSkin,
-  doubleSizeStore,
-  isFolderSkin,
-  pendingInstall,
-  skinMessages,
-  skins,
-  skinStore,
-} from './skins'
+import { TextField } from '@/components/TextField'
+import { safeSettings } from '@/recorder/safeSettings'
+import { colors } from '@/theme/colors'
+import { usePanelStyles } from '@/theme/usePanelStyles'
+import { errorText } from '@/utils/errorText'
+
+import { chooseSkin } from './chooseSkin'
+import { doubleSizeStore } from './doubleSizeStore'
+import { fileUri } from './fileUri'
+import { isFolderSkin } from './isFolderSkin'
+import { pendingInstall } from './pendingInstall'
+import { skinMessages } from './skinMessages'
+import { skins } from './skins'
+import { skinStore } from './skinStore'
 import type { SkinInspection, SkinSummary } from './types'
-import { TextField } from '../TextField'
 
 const CARD_W = 196
 

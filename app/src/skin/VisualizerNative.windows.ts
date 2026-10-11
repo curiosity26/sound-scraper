@@ -1,1 +1,1 @@
-export { default } from './VisualizerViewWindowsNativeComponent'
+export { default as VisualizerNative } from './VisualizerViewWindowsNativeComponent'

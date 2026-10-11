@@ -3,16 +3,13 @@
 import React, { useEffect, useRef } from 'react'
 import { Animated, Easing, View } from 'react-native'
 
-import { scaleRect, SpriteCell, useSkinScale } from './SkinImage'
+import { color } from './color'
+import { meterScale } from './meterScale'
+import { needleAngle } from './needleAngle'
+import { scaleRect } from './scaleRect'
+import { SpriteCell } from './SpriteCell'
 import type { SkinElement } from './types'
-
-/** Maps a linear level to 0..1 over a 60 dB range. */
-export function meterScale(level: number): number {
-  if (level <= 0) {
-    return 0
-  }
-  return Math.min(1, Math.max(0, (20 * Math.log10(level) + 60) / 60))
-}
+import { useSkinScale } from './useSkinScale'
 
 type Props = {
   element: SkinElement
@@ -27,8 +24,6 @@ type Props = {
 
 const num = (v: unknown, fallback: number) =>
   typeof v === 'number' && Number.isFinite(v) ? v : fallback
-const color = (v: unknown, fallback: string) =>
-  typeof v === 'string' ? v : fallback
 
 /**
  * The level meter. With a sprite, its "on" cell is revealed over the "off"
@@ -134,21 +129,6 @@ function BarMeter(props: Props): React.JSX.Element {
       )}
     </View>
   )
-}
-
-/**
- * Where a needle points for a linear level, in degrees from straight up:
- * the level in dBFS, less `reference` (the dBFS that reads 0 VU), placed
- * on the `range` of VU across `sweep` degrees.
- */
-export function needleAngle(
-  level: number,
-  style: { sweep: number; range: [number, number]; reference: number },
-): number {
-  const [lo, hi] = style.range
-  const vu = level > 0 ? 20 * Math.log10(level) - style.reference : -1000
-  const t = Math.min(1, Math.max(0, (vu - lo) / (hi - lo)))
-  return -style.sweep / 2 + t * style.sweep
 }
 
 const pair = (v: unknown, fallback: [number, number]): [number, number] =>
@@ -287,45 +267,5 @@ function Cell(props: { element: SkinElement; at: [number, number] }) {
       at={props.at}
       size={[element.rect[2], element.rect[3]]}
     />
-  )
-}
-
-/**
- * Where the visualizer will draw (phase 2: a native view fed by the Rust
- * analyzer). For now: the style's grid and a flat line.
- */
-export function VisualizerPlaceholder(props: { element: SkinElement }) {
-  const s = useSkinScale()
-  const box = scaleRect(props.element.rect, s)
-  const { width: w, height: h } = box
-  const st = props.element.style ?? {}
-  const grid = color(st.grid, '#ffffff1a')
-  const line = color(st.line, '#9fd630')
-  return (
-    <View testID="visualizer" pointerEvents="none" style={box}>
-      {Array.from({ length: Math.floor(w / (8 * s)) + 1 }, (_, i) => (
-        <View
-          key={i}
-          style={{
-            position: 'absolute',
-            left: i * 8 * s,
-            top: 0,
-            width: s,
-            height: h,
-            backgroundColor: grid,
-          }}
-        />
-      ))}
-      <View
-        style={{
-          position: 'absolute',
-          left: 0,
-          top: Math.floor(h / 2),
-          width: w,
-          height: s,
-          backgroundColor: line,
-        }}
-      />
-    </View>
   )
 }

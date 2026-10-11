@@ -176,3 +176,6 @@ export type SkinSummary = {
   /** Set when an installed skin no longer loads. */
   error: string | null
 }
+
+/** The side panels (the main panel is "main"). */
+export type PanelName = 'library' | 'settings' | 'details' | 'editor' | 'burn'

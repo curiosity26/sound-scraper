@@ -1,10 +1,8 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Platform } from 'react-native'
 
-import { skinStore } from './skins'
-import type { Skin } from './types'
-
-const SkinContext = createContext<Skin | undefined>(undefined)
+import { SkinContext } from './SkinContext'
+import { skinStore } from './skinStore'
 
 type Props = {
   children: React.ReactNode
@@ -46,12 +44,4 @@ export function SkinProvider(props: Props): React.JSX.Element {
       )}
     </SkinContext.Provider>
   )
-}
-
-export function useSkin(): Skin {
-  const skin = useContext(SkinContext)
-  if (!skin) {
-    throw new Error('useSkin outside a loaded SkinProvider')
-  }
-  return skin
 }

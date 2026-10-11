@@ -1,24 +1,22 @@
-import {
-  applyProposals,
-  stepIn,
-  addSplice,
-  adjacentSplice,
-  clampZoom,
-  deletedAt,
-  deleteRegion,
-  editsFromJson,
-  editsToJson,
-  emptyEdits,
-  formatTime,
-  history,
-  moveSplice,
-  removeSplice,
-  renameSplice,
-  restoreRegion,
-  rulerSteps,
-  snap,
-  zoomScroll,
-} from '../src/editorModel'
+import { addSplice } from '@/editor/model/addSplice'
+import { adjacentSplice } from '@/editor/model/adjacentSplice'
+import { applyProposals } from '@/editor/model/applyProposals'
+import { clampZoom } from '@/editor/model/clampZoom'
+import { deletedAt } from '@/editor/model/deletedAt'
+import { deleteRegion } from '@/editor/model/deleteRegion'
+import { editsFromJson } from '@/editor/model/editsFromJson'
+import { editsToJson } from '@/editor/model/editsToJson'
+import { emptyEdits } from '@/editor/model/emptyEdits'
+import { formatTime } from '@/editor/model/formatTime'
+import { history } from '@/editor/model/history'
+import { moveSplice } from '@/editor/model/moveSplice'
+import { removeSplice } from '@/editor/model/removeSplice'
+import { renameSplice } from '@/editor/model/renameSplice'
+import { restoreRegion } from '@/editor/model/restoreRegion'
+import { rulerSteps } from '@/editor/model/rulerSteps'
+import { snap } from '@/editor/model/snap'
+import { stepIn } from '@/editor/model/stepIn'
+import { zoomScroll } from '@/editor/model/zoomScroll'
 
 test('splices stay sorted and get default names', () => {
   let e = emptyEdits('Album')

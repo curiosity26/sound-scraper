@@ -4,8 +4,9 @@ import React, { useRef } from 'react'
 import { type GestureResponderEvent, View } from 'react-native'
 
 import { NineSlice } from './NineSlice'
-import { SpriteCell, useSkinScale } from './SkinImage'
+import { SpriteCell } from './SpriteCell'
 import type { ImageRef, Rect } from './types'
+import { useSkinScale } from './useSkinScale'
 
 type Props = {
   image: ImageRef

@@ -11,4 +11,4 @@ export type WaveformProps = ViewProps & {
   colors: string
 }
 
-export default requireNativeComponent<WaveformProps>('SSWaveformView')
+export const WaveformNative = requireNativeComponent<WaveformProps>('SSWaveformView')

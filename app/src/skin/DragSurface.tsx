@@ -3,8 +3,8 @@
 import React, { useRef } from 'react'
 import { View } from 'react-native'
 
-import { type PanelName, windows } from './skins'
-import type { Rect } from './types'
+import type { PanelName, Rect } from './types'
+import { windows } from './windows'
 
 type Props = {
   panel: 'main' | PanelName

@@ -1,13 +1,13 @@
-import {
-  type Device,
-  fitLine,
-  formatClock,
-  readiness,
-  speedText,
-} from '../src/burnModel'
-import { discCapacity, playlistRows, SECTORS_74 } from '../src/playlistModel'
+import { fitLine } from '@/burn/fitLine'
+import { formatClock } from '@/burn/formatClock'
+import { readiness } from '@/burn/readiness'
+import { speedText } from '@/burn/speedText'
+import type { Device } from '@/burn/types'
+import { SECTORS_74 } from '@/playlists/constants'
+import { discCapacity } from '@/playlists/discCapacity'
+import { playlistRows } from '@/playlists/playlistRows'
 
-jest.mock('../src/native/NativeSoundScraper', () => ({
+jest.mock('@/native/NativeSoundScraper', () => ({
   __esModule: true,
   default: {},
 }))

@@ -1,0 +1,37 @@
+/* eslint-disable react-native/no-inline-styles */
+
+import React from 'react'
+import { StyleSheet, Text, View } from 'react-native'
+
+import { MONO } from './constants'
+import type { EditorTheme } from './types'
+
+/** The position readout: a small LCD. */
+export function Lcd(props: {
+  th: EditorTheme
+  main: string
+  sub: string
+}): React.JSX.Element {
+  const { th } = props
+  return (
+    <View
+      style={[styles.lcd, { backgroundColor: th.lcd, borderColor: th.border }]}
+    >
+      <Text style={[styles.lcdMain, { color: th.lcdText }]}>{props.main}</Text>
+      <Text style={[styles.lcdSub, { color: th.lcdText }]}>{props.sub}</Text>
+    </View>
+  )
+}
+
+const styles = StyleSheet.create({
+  lcd: {
+    height: 30,
+    paddingHorizontal: 10,
+    borderRadius: 5,
+    borderWidth: 1,
+    justifyContent: 'center',
+    minWidth: 112,
+  },
+  lcdMain: { fontSize: 15, fontFamily: MONO, letterSpacing: 0.5 },
+  lcdSub: { fontSize: 9, fontFamily: MONO, opacity: 0.65, marginTop: -1 },
+})

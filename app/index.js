@@ -3,9 +3,11 @@
  */
 
 import { AppRegistry } from 'react-native'
-import App from './App'
+
+import { App } from './src/App'
 import { name as appName } from './app.json'
-import { skinsAvailable } from './src/skin/skins'
+import { exposeDevConsole } from './src/native/exposeDevConsole'
+import { skinsAvailable } from './src/skin/skinsAvailable'
 import {
   BurnApp,
   DetailsApp,
@@ -14,6 +16,8 @@ import {
   MainApp,
   SettingsApp,
 } from './src/windows'
+
+exposeDevConsole()
 
 if (skinsAvailable) {
   // The skinned main panel, with the library, settings and details in

@@ -4,10 +4,11 @@
 
 import React from 'react'
 import ReactTestRenderer from 'react-test-renderer'
-import App from '../App'
-import { formatElapsed } from '../src/RecordBar'
 
-jest.mock('../src/native/NativeSoundScraper', () => ({
+import { App } from '@/App'
+import { formatElapsed } from '@/recorder/formatElapsed'
+
+jest.mock('@/native/NativeSoundScraper', () => ({
   __esModule: true,
   default: {
     getVersion: () => '0.0.0-test',
@@ -66,13 +67,11 @@ test('formats elapsed time', () => {
 })
 
 describe('library model', () => {
-  const {
-    filterRecordings,
-    sortRecordings,
-    nextSort,
-    formatDuration,
-    formatSize,
-  } = require('../src/libraryModel')
+  const { filterRecordings } = require('@/library/filterRecordings')
+  const { sortRecordings } = require('@/library/sortRecordings')
+  const { nextSort } = require('@/library/nextSort')
+  const { formatDuration } = require('@/library/formatDuration')
+  const { formatSize } = require('@/library/formatSize')
   const rec = (fileName: string, extra: object = {}) => ({
     fileName,
     path: `/x/${fileName}`,
@@ -125,13 +124,11 @@ describe('library model', () => {
 })
 
 describe('tag model', () => {
-  const {
-    mergeTags,
-    mergeCovers,
-    buildEdit,
-    validate,
-    fileUri,
-  } = require('../src/tagModel')
+  const { mergeTags } = require('@/tags/mergeTags')
+  const { mergeCovers } = require('@/tags/mergeCovers')
+  const { buildEdit } = require('@/tags/buildEdit')
+  const { validateTag } = require('@/tags/validateTag')
+  const { coverUri } = require('@/tags/coverUri')
   const tags = (extra: object = {}) => ({
     title: null,
     artist: null,
@@ -185,13 +182,13 @@ describe('tag model', () => {
   })
 
   test('validates track and date and builds file URIs', () => {
-    expect(validate('track', '12')).toBeNull()
-    expect(validate('track', 'x')).not.toBeNull()
-    expect(validate('date', '2026-10')).toBeNull()
-    expect(validate('date', '10/3/2026')).not.toBeNull()
-    expect(fileUri('/Users/a/My Cover.png')).toBe(
+    expect(validateTag('track', '12')).toBeNull()
+    expect(validateTag('track', 'x')).not.toBeNull()
+    expect(validateTag('date', '2026-10')).toBeNull()
+    expect(validateTag('date', '10/3/2026')).not.toBeNull()
+    expect(coverUri('/Users/a/My Cover.png')).toBe(
       'file:///Users/a/My%20Cover.png',
     )
-    expect(fileUri('C:\\covers\\a.png')).toBe('file:///C:/covers/a.png')
+    expect(coverUri('C:\\covers\\a.png')).toBe('file:///C:/covers/a.png')
   })
 })

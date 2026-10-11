@@ -3,10 +3,12 @@
 import React, { useEffect, useState } from 'react'
 import { Pressable } from 'react-native'
 
-import { scaleRect, useSkinScale } from './SkinImage'
-import { VisualizerPlaceholder } from './LevelMeter'
-import VisualizerNative from './VisualizerNative'
+import { nextPreset } from './nextPreset'
+import { scaleRect } from './scaleRect'
 import type { SkinElement } from './types'
+import { useSkinScale } from './useSkinScale'
+import { VisualizerNative } from './VisualizerNative'
+import { VisualizerPlaceholder } from './VisualizerPlaceholder'
 
 // The native view: SSVisualizerView.mm on macOS, VisualizerView.h on
 // Windows. It draws the Rust core's live analysis every display refresh
@@ -16,11 +18,6 @@ const SSVisualizerView = VisualizerNative
 // The chosen look, shared by the main and shade layouts.
 let chosenPreset = 0
 const listeners = new Set<(i: number) => void>()
-
-/** Picks the next preset, wrapping around. */
-export function nextPreset(index: number, count: number): number {
-  return count > 0 ? (index + 1) % count : 0
-}
 
 /**
  * The visualizer element. Click it to cycle the skin's presets. The

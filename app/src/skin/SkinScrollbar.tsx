@@ -4,8 +4,9 @@ import React, { useRef } from 'react'
 import { type GestureResponderEvent, View } from 'react-native'
 
 import { NineSlice } from './NineSlice'
-import { useSkinScale } from './SkinImage'
+import { thumbGeometry } from './thumbGeometry'
 import type { FramePanel } from './types'
+import { useSkinScale } from './useSkinScale'
 
 type Props = {
   scrollbar: NonNullable<FramePanel['scrollbar']>
@@ -14,23 +15,6 @@ type Props = {
   content: number
   offset: number
   onScrollTo: (offset: number) => void
-}
-
-/** Where the thumb goes: [top, length] in a track `track` points long. */
-export function thumbGeometry(
-  track: number,
-  viewport: number,
-  content: number,
-  offset: number,
-  minLength: number,
-): [number, number] {
-  if (content <= viewport || track <= 0) {
-    return [0, track]
-  }
-  const length = Math.max(minLength, (track * viewport) / content)
-  const travel = track - length
-  const ratio = Math.min(1, Math.max(0, offset / (content - viewport)))
-  return [travel * ratio, length]
 }
 
 /**

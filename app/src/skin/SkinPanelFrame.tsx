@@ -3,15 +3,18 @@
 import React, { useEffect, useState } from 'react'
 import { type LayoutChangeEvent, Pressable, Text, View } from 'react-native'
 
-import { PanelThemeProvider, themeFromPanel } from '../panelTheme'
+import { PanelThemeProvider } from '@/theme/PanelThemeProvider'
+import { themeFromPanel } from '@/theme/themeFromPanel'
+
+import { buttonState } from './buttonState'
 import { DragSurface } from './DragSurface'
 import { NineSlice } from './NineSlice'
-import { buttonState } from './SkinButton'
-import { SpriteCell, useSkinScale } from './SkinImage'
-import { useSkin } from './SkinProvider'
-import { type PanelName, windows } from './skins'
+import { SpriteCell } from './SpriteCell'
 import { SpriteText } from './SpriteText'
-import type { FramePanel, Rect } from './types'
+import type { FramePanel, PanelName, Rect } from './types'
+import { useSkin } from './useSkin'
+import { useSkinScale } from './useSkinScale'
+import { windows } from './windows'
 
 type Props = {
   panel: PanelName

@@ -1,17 +1,14 @@
-import type { Recording } from '../src/native/SoundScraper'
-import {
-  capacitySummary,
-  capacityText,
-  discCapacity,
-  filterPlaylistRows,
-  moveBy,
-  moveItems,
-  playlistRows,
-  SECTORS_74,
-  SECTORS_80,
-  sortPlaylistRows,
-  trackSectors,
-} from '../src/playlistModel'
+import type { Recording } from '@/native/types'
+import { capacitySummary } from '@/playlists/capacitySummary'
+import { capacityText } from '@/playlists/capacityText'
+import { SECTORS_74, SECTORS_80 } from '@/playlists/constants'
+import { discCapacity } from '@/playlists/discCapacity'
+import { filterPlaylistRows } from '@/playlists/filterPlaylistRows'
+import { moveBy } from '@/playlists/moveBy'
+import { moveItems } from '@/playlists/moveItems'
+import { playlistRows } from '@/playlists/playlistRows'
+import { sortPlaylistRows } from '@/playlists/sortPlaylistRows'
+import { trackSectors } from '@/playlists/trackSectors'
 
 function rec(fileName: string, durationMs: number, extra = {}): Recording {
   return {

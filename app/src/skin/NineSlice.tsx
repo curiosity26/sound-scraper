@@ -3,8 +3,9 @@
 import React from 'react'
 import { type StyleProp, View, type ViewStyle } from 'react-native'
 
-import { SpriteCell, useSkinScale } from './SkinImage'
+import { SpriteCell } from './SpriteCell'
 import type { ImageRef, Rect } from './types'
+import { useSkinScale } from './useSkinScale'
 
 type Props = {
   image: ImageRef
