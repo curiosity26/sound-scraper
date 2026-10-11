@@ -1,6 +1,6 @@
-import type { TrackState } from '@/burn/types'
+import type { BurnTrackStatus } from '@/native/bridge'
 
-export const TRACK_WORDS: Record<TrackState, string> = {
+export const TRACK_WORDS: Record<BurnTrackStatus['state'], string> = {
   waiting: 'Waiting',
   preparing: 'Preparing',
   ready: 'Ready',

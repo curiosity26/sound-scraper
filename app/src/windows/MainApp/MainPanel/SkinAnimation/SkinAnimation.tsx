@@ -2,8 +2,8 @@ import React, { type FC, useEffect, useRef, useState } from 'react'
 
 import { SpriteCell } from '@/components/SpriteCell'
 import { useSkinScale } from '@/hooks/useSkinScale'
+import type { ResolvedAnimation } from '@/native/bridge'
 import { scaleRect } from '@/skin/scaleRect'
-import type { SkinAnimationDef } from '@/skin/types'
 import { useTransport } from '@/windows/MainApp/MainPanel/useTransport'
 
 import { animationPlays } from './animationPlays'
@@ -12,7 +12,7 @@ import { animationRate } from './animationRate'
 const TICK_MS = 33
 
 export type SkinAnimationProps = {
-  readonly animation: SkinAnimationDef
+  readonly animation: ResolvedAnimation
 }
 
 /**

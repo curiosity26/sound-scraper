@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { selection } from '@/library/selection'
-import { isRecorderState } from '@/native/isRecorderState'
+import { isRecorderState } from '@/native/guards/isRecorderState'
 import { recorder } from '@/native/recorder'
 import type { AudioApp, RecorderState } from '@/native/types'
 import { playback } from '@/playback/playback'
@@ -87,6 +87,11 @@ export const useRecorder = (): UseRecorderResult => {
           break
         case 'error':
           setMessage({ text: `Recording failed: ${e.message}`, isError: true })
+          break
+        case 'playerState':
+        case 'playerProgress':
+        case 'playerError':
+          // Playback's events: the playback store follows them.
           break
       }
     })

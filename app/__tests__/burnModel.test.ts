@@ -1,5 +1,5 @@
-import type { Device } from '@/burn/types'
 import { playlistRows } from '@/components/LibraryScreen/LibraryBody/playlistRows'
+import type { Device } from '@/native/bridge'
 import { SECTORS_74 } from '@/playlists/constants'
 import { discCapacity } from '@/playlists/discCapacity'
 import { formatClock } from '@/windows/BurnApp/BurnPanel/Progress/formatClock'

@@ -1,6 +1,6 @@
 import { Platform } from 'react-native'
 
-import type { Quality, Settings } from '@/native/types'
+import type { Quality, Settings } from '@/native/bridge'
 
 export const QUALITIES: readonly {
   readonly value: Quality

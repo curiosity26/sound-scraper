@@ -1,13 +1,13 @@
 import React, { type FC } from 'react'
 
+import type { ResolvedElement } from '@/native/bridge'
 import { formatElapsed } from '@/recorder/formatElapsed'
-import type { SkinElement } from '@/skin/types'
 
 import { ElementText } from './ElementText'
 import { useTransport } from './useTransport'
 
 export type ElapsedTimeProps = {
-  readonly element: SkinElement
+  readonly element: ResolvedElement
 }
 
 /**

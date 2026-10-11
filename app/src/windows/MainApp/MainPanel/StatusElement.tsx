@@ -3,14 +3,14 @@ import { View } from 'react-native'
 
 import { SpriteCell } from '@/components/SpriteCell'
 import { useSkinScale } from '@/hooks/useSkinScale'
+import type { ResolvedElement } from '@/native/bridge'
 import { scaleRect } from '@/skin/scaleRect'
-import type { SkinElement } from '@/skin/types'
 
 import { ElementText } from './ElementText'
 import { useTransport } from './useTransport'
 
 export type StatusElementProps = {
-  readonly element: SkinElement
+  readonly element: ResolvedElement
 }
 
 /**

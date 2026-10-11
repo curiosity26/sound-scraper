@@ -1,6 +1,5 @@
 import React, { type FC } from 'react'
 
-import type { DetectOptions } from '@/native/types'
 import { stepIn } from '@/utils/stepIn'
 import {
   DETECT_PRESET_NAMES,
@@ -9,6 +8,7 @@ import {
 import { formatStep } from '@/windows/EditorApp/EditorPanel/formatStep'
 import { ToolButton } from '@/windows/EditorApp/EditorPanel/ToolButton'
 import { useEditor } from '@/windows/EditorApp/EditorPanel/useEditor'
+import type { FindTracksOptions } from '@/windows/EditorApp/types'
 
 import { Segmented } from './Segmented'
 import { Stepper } from './Stepper'
@@ -21,7 +21,7 @@ const MIN_TRACKS = [0, 5000, 10_000, 20_000, 30_000, 60_000, 120_000, 300_000]
 
 export type AutoSliceSettingsProps = {
   /** Auto Slice's settings (it's open). */
-  readonly options: DetectOptions
+  readonly options: FindTracksOptions
 }
 
 /** The preset, silence level, gap and track lengths, and Remove gaps. */

@@ -4,7 +4,7 @@ import React, { type FC } from 'react'
 import { type StyleProp, View, type ViewStyle } from 'react-native'
 
 import { useSkinScale } from '@/hooks/useSkinScale'
-import type { ImageRef } from '@/skin/types'
+import type { ImageRef } from '@/native/bridge'
 
 import { SkinImage } from './SkinImage'
 

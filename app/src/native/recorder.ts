@@ -1,6 +1,7 @@
 import type { EventSubscription } from 'react-native'
 
-import { isRecorderState } from './isRecorderState'
+import { isRecorderEventKind } from './guards/isRecorderEventKind'
+import { isRecorderState } from './guards/isRecorderState'
 import NativeSoundScraper from './NativeSoundScraper'
 import type { AudioApp, RecorderEvent, RecorderState } from './types'
 
@@ -21,8 +22,14 @@ export const recorder = {
     const state = NativeSoundScraper.recorderState()
     return isRecorderState(state) ? state : 'idle'
   },
+  /** Events of a kind this side doesn't know are dropped. */
   onEvent: (listener: (e: RecorderEvent) => void): EventSubscription =>
-    NativeSoundScraper.onRecorderEvent(listener),
+    NativeSoundScraper.onRecorderEvent(e => {
+      const { kind } = e
+      if (isRecorderEventKind(kind)) {
+        listener({ ...e, kind })
+      }
+    }),
   /** Finishes recordings left by a crash; returns how many. */
   recoverPartials: (): number => NativeSoundScraper.recoverPartialRecordings(),
 }

@@ -7,14 +7,17 @@ import { ErrorBoundary, type FallbackProps } from 'react-error-boundary'
 
 import { ErrorFallback } from './ErrorFallback'
 
+/** A value the boundary watches: anything compared by identity or value. */
+type ResetKey = string | number | boolean | object | null | undefined
+
 export type AsyncBoundaryProps = {
   readonly children: ReactNode
   /** Shown while the data loads; nothing by default. */
   readonly fallback?: ReactNode
   /** What the error message says couldn't be done, e.g. "read the library". */
   readonly what: string
-  /** The boundary clears its error when any of these change. */
-  readonly resetKeys?: readonly unknown[]
+  /** The boundary clears its error when any of these change (Object.is). */
+  readonly resetKeys?: readonly ResetKey[]
   /** Called by Retry before rendering again, e.g. to clear a cache. */
   readonly onReset?: () => void
 }

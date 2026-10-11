@@ -1,12 +1,13 @@
 import { useContext } from 'react'
 
+import type { JsonValue } from '@/native/bridge'
 import { VisualizerPresetContext } from '@/windows/MainApp/MainPanel/VisualizerPresetContext'
 
 import { nextPreset } from './nextPreset'
 
 export type UseVisualizerPresetResult = {
   /** The skin's preset showing, or {} when it has none. */
-  readonly preset: Readonly<Record<string, unknown>>
+  readonly preset: Readonly<Record<string, JsonValue>>
   /** Moves on to the next preset. */
   readonly cycle: () => void
 }
@@ -16,7 +17,7 @@ export type UseVisualizerPresetResult = {
  * main and shade layouts through the main window's VisualizerPresetProvider.
  */
 export const useVisualizerPreset = (
-  presets: readonly Record<string, unknown>[],
+  presets: readonly Readonly<Record<string, JsonValue>>[],
 ): UseVisualizerPresetResult => {
   const state = useContext(VisualizerPresetContext)
   if (!state) {

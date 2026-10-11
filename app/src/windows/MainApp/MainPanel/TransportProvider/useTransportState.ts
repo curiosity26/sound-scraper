@@ -1,9 +1,9 @@
 import { useState } from 'react'
 
 import { usePlayback } from '@/hooks/usePlayback'
+import type { ResolvedLayout } from '@/native/bridge'
 import type { RecorderState } from '@/native/types'
 import { playback } from '@/playback/playback'
-import type { SkinLayout } from '@/skin/types'
 import { windows } from '@/skin/windows'
 import type { Transport } from '@/windows/MainApp/MainPanel/types'
 
@@ -20,7 +20,7 @@ export type UseTransportStateResult = Transport
  * source displays show.
  */
 export const useTransportState = (
-  elements: SkinLayout['elements'],
+  elements: ResolvedLayout['elements'],
 ): UseTransportStateResult => {
   const r = useRecorder()
   const p = usePlayback()

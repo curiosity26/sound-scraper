@@ -5,8 +5,8 @@ import { Pressable } from 'react-native'
 
 import { useSkin } from '@/hooks/useSkin'
 import { useSkinScale } from '@/hooks/useSkinScale'
+import type { ResolvedElement } from '@/native/bridge'
 import { scaleRect } from '@/skin/scaleRect'
-import type { SkinElement } from '@/skin/types'
 
 import { useVisualizerPreset } from './useVisualizerPreset'
 import { VisualizerNative } from './VisualizerNative'
@@ -18,7 +18,7 @@ import { VisualizerPlaceholder } from './VisualizerPlaceholder'
 const SSVisualizerView = VisualizerNative
 
 export type VisualizerProps = {
-  readonly element: SkinElement
+  readonly element: ResolvedElement
 }
 
 /**

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
+import type { MastersUsage } from '@/native/bridge'
 import { editorCore } from '@/native/editorCore'
-import type { MastersUsage } from '@/native/types'
 
 export type UseMastersUsageResult = {
   /** How many lossless masters are kept and their total size. */

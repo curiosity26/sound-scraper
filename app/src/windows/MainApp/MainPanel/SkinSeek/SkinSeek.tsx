@@ -4,8 +4,8 @@ import React, { type FC, useRef, useState } from 'react'
 import { type GestureResponderEvent, View } from 'react-native'
 
 import { useSkinScale } from '@/hooks/useSkinScale'
+import type { ResolvedElement } from '@/native/bridge'
 import { scaleRect } from '@/skin/scaleRect'
-import type { SkinElement } from '@/skin/types'
 import { useTransport } from '@/windows/MainApp/MainPanel/useTransport'
 
 import { seekGeometry } from './seekGeometry'
@@ -13,7 +13,7 @@ import { SeekPiece } from './SeekPiece'
 import { thumbSize } from './thumbSize'
 
 export type SkinSeekProps = {
-  readonly element: SkinElement
+  readonly element: ResolvedElement
 }
 
 /**

@@ -12,11 +12,11 @@ export const SilenceSection: FC = () => {
     <>
       <Text style={[settingsStyles.section, textStyle]}>Silence</Text>
       <Checkbox
-        checked={current.trimSilence !== false}
+        checked={current.trimSilence}
         label="Trim silence"
         detail="Cuts the quiet before the first and after the last sound of a recording · default"
         onPress={() => {
-          void save({ trimSilence: current.trimSilence === false })
+          void save({ trimSilence: !current.trimSilence })
         }}
         testName="trim-silence"
       />

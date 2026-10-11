@@ -1,4 +1,4 @@
-import { isPlayerState } from './isPlayerState'
+import { isPlayerState } from './guards/isPlayerState'
 import NativeSoundScraper from './NativeSoundScraper'
 import type { PlayerState } from './types'
 

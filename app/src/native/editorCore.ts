@@ -1,57 +1,27 @@
 // The track editor's native side (NativeEditor.ts), with JSON decoded.
-import { isRecord } from '@/utils/isRecord'
-import { parseJson } from '@/utils/parseJson'
-
-import NativeEditor from './NativeEditor'
 import type {
   DetectOptions,
+  EditList,
+  EditorTrack,
   MastersUsage,
   Proposal,
-  SaveResult,
-  TrackInfo,
+  SavedTracks,
   WaveformStatus,
-} from './types'
+} from '@/native/bridge'
+import { type Guard, isArrayOf, isNullable } from '@/utils/guards'
 
-const isWaveformStatus = (value: unknown): value is WaveformStatus =>
-  isRecord(value) &&
-  (value.state === 'loading' ||
-    value.state === 'ready' ||
-    value.state === 'failed')
-
-const isTrackInfo = (value: unknown): value is TrackInfo =>
-  isRecord(value) &&
-  typeof value.name === 'string' &&
-  typeof value.startMs === 'number' &&
-  typeof value.durationMs === 'number'
-
-const isProposal = (value: unknown): value is Proposal =>
-  isRecord(value) &&
-  typeof value.atMs === 'number' &&
-  typeof value.gapStartMs === 'number' &&
-  typeof value.gapEndMs === 'number'
-
-const isMastersUsage = (value: unknown): value is MastersUsage =>
-  isRecord(value) &&
-  typeof value.count === 'number' &&
-  typeof value.bytes === 'number'
-
-const isSaveResult = (value: unknown): value is SaveResult =>
-  isRecord(value) &&
-  Array.isArray(value.files) &&
-  value.files.every(f => typeof f === 'string')
+import { isEditList } from './guards/isEditList'
+import { isEditorTrack } from './guards/isEditorTrack'
+import { isMastersUsage } from './guards/isMastersUsage'
+import { isProposal } from './guards/isProposal'
+import { isSavedTracks } from './guards/isSavedTracks'
+import { isWaveformStatus } from './guards/isWaveformStatus'
+import NativeEditor from './NativeEditor'
+import { parseNative } from './parseNative'
 
 /** A JSON list from the core; an empty answer or "null" is no items. */
-const parseList = <T>(
-  json: string,
-  isItem: (value: unknown) => value is T,
-  what: string,
-): T[] =>
-  parseJson(
-    json || '[]',
-    (value): value is T[] | null =>
-      value === null || (Array.isArray(value) && value.every(isItem)),
-    what,
-  ) ?? []
+const parseList = <T>(json: string, isItem: Guard<T>, what: string): T[] =>
+  parseNative(json || '[]', isNullable(isArrayOf(isItem)), what) ?? []
 
 const native = () => {
   if (!NativeEditor) {
@@ -66,9 +36,9 @@ export const editorCore = {
     native().close(id)
   },
   status: (id: number): WaveformStatus =>
-    parseJson(native().status(id), isWaveformStatus, 'waveform status'),
-  tracks: (id: number, editsJson: string): TrackInfo[] =>
-    parseList(native().tracks(id, editsJson), isTrackInfo, 'tracks'),
+    parseNative(native().status(id), isWaveformStatus, 'waveform status'),
+  tracks: (id: number, editsJson: string): EditorTrack[] =>
+    parseList(native().tracks(id, editsJson), isEditorTrack, 'tracks'),
   detect: (id: number, options: DetectOptions): Proposal[] =>
     parseList(
       native().detect(id, JSON.stringify(options)),
@@ -76,10 +46,20 @@ export const editorCore = {
       'proposals',
     ),
   mastersUsage: (): MastersUsage =>
-    parseJson(native().mastersUsage(), isMastersUsage, 'masters usage'),
+    parseNative(native().mastersUsage(), isMastersUsage, 'masters usage'),
   deleteAllMasters: (): Promise<void> => native().deleteAllMasters(),
-  /** The saved draft's JSON, or "null". */
-  loadDraft: (fileName: string): string => native().loadDraft(fileName),
+  /**
+   * The saved draft, or null when there's none. A draft that doesn't read
+   * (bad JSON, or not an edit list) counts as none, as it always has.
+   */
+  loadDraft: (fileName: string): EditList | null => {
+    const json = native().loadDraft(fileName)
+    try {
+      return parseNative(json, isNullable(isEditList), 'draft')
+    } catch {
+      return null
+    }
+  },
   saveDraft: (fileName: string, editsJson: string): void => {
     native().saveDraft(fileName, editsJson)
   },
@@ -90,10 +70,10 @@ export const editorCore = {
     fileName: string,
     editsJson: string,
     keepOriginal: boolean,
-  ): Promise<SaveResult> =>
-    parseJson(
+  ): Promise<SavedTracks> =>
+    parseNative(
       await native().save(fileName, editsJson, keepOriginal),
-      isSaveResult,
+      isSavedTracks,
       'save result',
     ),
 }

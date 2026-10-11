@@ -1,9 +1,9 @@
 import { useContext } from 'react'
 
+import type { ResolvedSkin } from '@/native/bridge'
 import { SkinContext } from '@/skin/SkinContext'
-import type { Skin } from '@/skin/types'
 
-export const useSkin = (): Skin => {
+export const useSkin = (): ResolvedSkin => {
   const skin = useContext(SkinContext)
   if (!skin) {
     throw new Error('useSkin outside a loaded SkinProvider')

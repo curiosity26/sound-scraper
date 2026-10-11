@@ -5,12 +5,12 @@ import { Animated, Easing, View } from 'react-native'
 
 import { SpriteCell } from '@/components/SpriteCell'
 import { useSkinScale } from '@/hooks/useSkinScale'
-import type { SpriteFont } from '@/skin/types'
+import type { ResolvedFont } from '@/native/bridge'
 
 const FLIP_MS = 260
 
 export type FlipCellProps = {
-  readonly font: SpriteFont
+  readonly font: ResolvedFont
   readonly at: readonly [number, number]
 }
 

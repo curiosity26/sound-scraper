@@ -1,9 +1,8 @@
 import { type EventSubscription, Platform } from 'react-native'
 
-import type { WindowEvent } from '@/native/NativeSkins'
-
+import { isSkinWindowEvent } from './guards/isSkinWindowEvent'
 import { native } from './native'
-import type { PanelName, Rect } from './types'
+import type { PanelName, Rect, SkinWindowEvent, WindowName } from './types'
 
 const flat = (rects: Rect[]) => rects.flatMap(r => r)
 
@@ -54,7 +53,7 @@ export const windows = {
   },
   /** Windows: the React views start window moves and resizes. */
   jsGestures: Platform.OS === 'windows',
-  beginGesture: (panel: 'main' | PanelName, kind: 'move' | 'resize') => {
+  beginGesture: (panel: WindowName, kind: 'move' | 'resize') => {
     native().beginGesture(panel, kind)
   },
   quit: () => {
@@ -70,8 +69,13 @@ export const windows = {
     checked: number,
     x: number,
     y: number,
-    panel: 'main' | PanelName = 'main',
+    panel: WindowName = 'main',
   ) => native().showMenu(panel, items, checked, x, y),
-  onEvent: (listener: (e: WindowEvent) => void): EventSubscription =>
-    native().onWindowEvent(listener),
+  /** Window events; ones with a window or event the UI doesn't know are dropped. */
+  onEvent: (listener: (e: SkinWindowEvent) => void): EventSubscription =>
+    native().onWindowEvent(e => {
+      if (isSkinWindowEvent(e)) {
+        listener(e)
+      }
+    }),
 }

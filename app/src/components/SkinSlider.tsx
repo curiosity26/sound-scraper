@@ -4,7 +4,8 @@ import React, { type FC, useRef } from 'react'
 import { type GestureResponderEvent, View } from 'react-native'
 
 import { useSkinScale } from '@/hooks/useSkinScale'
-import type { ImageRef, Rect } from '@/skin/types'
+import type { ImageRef } from '@/native/bridge'
+import type { Rect } from '@/skin/types'
 
 import { NineSlice } from './NineSlice'
 import { SpriteCell } from './SpriteCell'

@@ -4,12 +4,12 @@ import React, { type FC } from 'react'
 import { View } from 'react-native'
 
 import { useSkinScale } from '@/hooks/useSkinScale'
+import type { ResolvedElement } from '@/native/bridge'
 import { scaleRect } from '@/skin/scaleRect'
-import type { SkinElement } from '@/skin/types'
 import { color } from '@/windows/MainApp/MainPanel/color'
 
 export type VisualizerPlaceholderProps = {
-  readonly element: SkinElement
+  readonly element: ResolvedElement
 }
 
 /**

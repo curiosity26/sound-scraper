@@ -9,10 +9,10 @@ import { StepRow } from './StepRow'
 /** Which recordings get a master, and how much space and time they keep. */
 export const MasterLimits: FC = () => {
   const { current, save } = useSettingsPanel()
-  const keep = current.keepMasters !== false
-  const minutes = current.masterMinMinutes ?? 20
-  const budget = current.masterBudgetGb ?? 10
-  const age = current.masterMaxAgeDays ?? 30
+  const keep = current.keepMasters
+  const minutes = current.masterMinMinutes
+  const budget = current.masterBudgetGb
+  const age = current.masterMaxAgeDays
   return (
     <>
       <StepRow

@@ -2,8 +2,8 @@
 // polled while it reads the waveform.
 import { useEffect, useMemo, useState } from 'react'
 
+import type { WaveformStatus } from '@/native/bridge'
 import { editorCore } from '@/native/editorCore'
-import type { WaveformStatus } from '@/native/types'
 
 import type { EditorTarget, FrameGrid } from './types'
 

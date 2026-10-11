@@ -1,8 +1,8 @@
 // The playlists and the one showing in the library, shared by every window
 // (one JS runtime). The core keeps them (playlists.rs); this mirrors the
 // list, the showing playlist's items, and which row is playing.
+import type { Playlist, PlaylistItem } from '@/native/bridge'
 import { playlistsApi } from '@/native/playlistsApi'
-import type { Playlist, PlaylistItem } from '@/native/types'
 
 export type PlaylistsState = {
   readonly playlists: readonly Playlist[]

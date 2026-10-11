@@ -1,5 +1,5 @@
 import { createContext } from 'react'
 
-import type { Skin } from './types'
+import type { ResolvedSkin } from '@/native/bridge'
 
-export const SkinContext = createContext<Skin | undefined>(undefined)
+export const SkinContext = createContext<ResolvedSkin | undefined>(undefined)

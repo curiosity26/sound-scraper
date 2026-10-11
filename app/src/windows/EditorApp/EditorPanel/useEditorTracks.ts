@@ -2,14 +2,14 @@
 // with who names it.
 import { useMemo } from 'react'
 
+import type { EditorTrack } from '@/native/bridge'
 import { editorCore } from '@/native/editorCore'
-import type { TrackInfo } from '@/native/types'
 
 import { type Edits, editsToJson } from './model'
 import type { TrackRow } from './types'
 
 export type UseEditorTracksResult = {
-  readonly tracks: readonly TrackInfo[]
+  readonly tracks: readonly EditorTrack[]
   /** Each track with who names it (its slice, or the first track). */
   readonly rows: readonly TrackRow[]
   /** How many tracks saving re-encodes (none from a master). */
@@ -31,7 +31,7 @@ export const useEditorTracks = (
   options: UseEditorTracksOptions,
 ): UseEditorTracksResult => {
   const { editorId, ready, shown } = options
-  const tracks: TrackInfo[] = useMemo(
+  const tracks: EditorTrack[] = useMemo(
     () => (ready ? editorCore.tracks(editorId, editsToJson(shown)) : []),
     [ready, editorId, shown],
   )

@@ -1,13 +1,13 @@
 import type { FC, ReactNode } from 'react'
 
-import type { SkinLayout } from '@/skin/types'
+import type { ResolvedLayout } from '@/native/bridge'
 import { TransportContext } from '@/windows/MainApp/MainPanel/TransportContext'
 
 import { useTransportState } from './useTransportState'
 
 export type TransportProviderProps = {
   /** The layout's elements: which buttons the skin has decides what they do. */
-  readonly elements: SkinLayout['elements']
+  readonly elements: ResolvedLayout['elements']
   readonly children: ReactNode
 }
 

@@ -1,7 +1,7 @@
 import type { FC } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 
-import type { BurnStatus } from '@/burn/types'
+import type { BurnStatus } from '@/native/bridge'
 import { commonStyles } from '@/windows/BurnApp/BurnPanel/commonStyles'
 import { Bar } from '@/windows/BurnApp/BurnPanel/Progress/Bar'
 import { formatClock } from '@/windows/BurnApp/BurnPanel/Progress/formatClock'

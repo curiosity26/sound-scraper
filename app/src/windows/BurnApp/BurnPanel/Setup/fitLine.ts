@@ -1,4 +1,4 @@
-import type { Device } from '@/burn/types'
+import type { Device } from '@/native/bridge'
 import { formatSectors } from '@/playlists/formatSectors'
 import type { Capacity } from '@/playlists/types'
 

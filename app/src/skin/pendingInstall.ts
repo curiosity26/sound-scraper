@@ -1,5 +1,6 @@
+import type { SkinInspection } from '@/native/bridge'
+
 import { shared } from './shared'
-import type { SkinInspection } from './types'
 
 /** A skin waiting for the user to confirm installing it (the install card). */
 export const pendingInstall = shared<

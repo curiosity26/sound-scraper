@@ -4,9 +4,9 @@
 import type { View } from 'react-native'
 
 import { useLibraryScreen } from '@/components/LibraryScreen/useLibraryScreen'
+import type { Playlist } from '@/native/bridge'
 import { pickSaveFile } from '@/native/pickSaveFile'
 import { playlistsApi } from '@/native/playlistsApi'
-import type { Playlist } from '@/native/types'
 import { playlists, type PlaylistsState } from '@/playlists/playlists'
 import { errorText } from '@/utils/errorText'
 

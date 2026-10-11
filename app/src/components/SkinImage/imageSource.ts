@@ -1,7 +1,7 @@
 import { PixelRatio } from 'react-native'
 
+import type { ImageRef } from '@/native/bridge'
 import { fileUri } from '@/skin/fileUri'
-import type { ImageRef } from '@/skin/types'
 
 /**
  * The skin image file for `density` device pixels per skin point (screen

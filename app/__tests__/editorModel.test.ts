@@ -1,3 +1,4 @@
+import { editorCore } from '@/native/editorCore'
 import { stepIn } from '@/utils/stepIn'
 import { addSplice } from '@/windows/EditorApp/EditorPanel/model/addSplice'
 import { adjacentSplice } from '@/windows/EditorApp/EditorPanel/model/adjacentSplice'
@@ -5,8 +6,8 @@ import { applyProposals } from '@/windows/EditorApp/EditorPanel/model/applyPropo
 import { clampZoom } from '@/windows/EditorApp/EditorPanel/model/clampZoom'
 import { deletedAt } from '@/windows/EditorApp/EditorPanel/model/deletedAt'
 import { deleteRegion } from '@/windows/EditorApp/EditorPanel/model/deleteRegion'
-import { editsFromJson } from '@/windows/EditorApp/EditorPanel/model/editsFromJson'
-import { editsToJson } from '@/windows/EditorApp/EditorPanel/model/editsToJson'
+import { editsFromList } from '@/windows/EditorApp/EditorPanel/model/editsFromList'
+import { editsToList } from '@/windows/EditorApp/EditorPanel/model/editsToList'
 import { emptyEdits } from '@/windows/EditorApp/EditorPanel/model/emptyEdits'
 import { formatTime } from '@/windows/EditorApp/EditorPanel/model/formatTime'
 import { history } from '@/windows/EditorApp/EditorPanel/model/history'
@@ -49,12 +50,26 @@ test('deleted regions merge and restore', () => {
   expect(e.deleted).toEqual([])
 })
 
-test('json round trip drops ids and survives junk', () => {
+// The draft the core keeps (what NativeEditor.loadDraft answers).
+const mockDraft = { json: 'null' }
+jest.mock('@/native/NativeEditor', () => ({
+  __esModule: true,
+  default: { loadDraft: () => mockDraft.json },
+}))
+
+test('edit list round trip drops ids and survives junk', () => {
   const e = addSplice(deleteRegion(emptyEdits('A'), 1, 2), 10, 'B').edits
-  const back = editsFromJson(editsToJson(e), 'ignored')
-  expect(JSON.parse(editsToJson(back))).toEqual(JSON.parse(editsToJson(e)))
-  expect(editsFromJson('null', 'T')).toEqual(emptyEdits('T'))
-  expect(editsFromJson('{bad', 'T')).toEqual(emptyEdits('T'))
+  const back = editsFromList(editsToList(e), 'ignored')
+  expect(editsToList(back)).toEqual(editsToList(e))
+  expect(editsFromList(null, 'T')).toEqual(emptyEdits('T'))
+  mockDraft.json = JSON.stringify(editsToList(e))
+  expect(editorCore.loadDraft('a.mp3')).toEqual(editsToList(e))
+  mockDraft.json = 'null'
+  expect(editorCore.loadDraft('a.mp3')).toBeNull()
+  mockDraft.json = '{bad'
+  expect(editorCore.loadDraft('a.mp3')).toBeNull()
+  mockDraft.json = '{"firstName":"A","splices":[{"atMs":"x"}],"deleted":[]}'
+  expect(editorCore.loadDraft('a.mp3')).toBeNull()
 })
 
 test('undo and redo', () => {

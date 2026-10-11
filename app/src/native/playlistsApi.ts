@@ -1,89 +1,61 @@
-import { isRecord } from '@/utils/isRecord'
+import type { PlaylistsRequest } from '@/native/bridge'
+import {
+  type Guard,
+  isArrayOf,
+  isNullable,
+  isNumber,
+  isOneOf,
+} from '@/utils/guards'
 
+import { isExportAnswer } from './guards/isExportAnswer'
+import { isPlaylist } from './guards/isPlaylist'
+import { isPlaylistItem } from './guards/isPlaylistItem'
 import NativeSoundScraper from './NativeSoundScraper'
-import type { Playlist, PlaylistItem } from './types'
+import { requestReply } from './requestReply'
 
 /**
- * A playlists request (ss_playlists); throws the core's message on failure.
- * Returns the answer's `ok` value, unchecked.
+ * A playlists request (ss_playlists) whose answer must match `isOk`; throws
+ * the core's message on failure.
  */
-const playlistsRequest = (request: object): unknown => {
-  const answer: unknown = JSON.parse(
-    NativeSoundScraper.playlists(JSON.stringify(request)),
+const call = <T>(request: PlaylistsRequest, isOk: Guard<T>): T =>
+  requestReply(
+    json => NativeSoundScraper.playlists(json),
+    request,
+    isOk,
+    'playlists answer',
   )
-  if (!isRecord(answer)) {
-    throw new TypeError('Unexpected playlists answer from the core')
-  }
-  if (answer.error !== undefined) {
-    throw new Error(
-      typeof answer.error === 'string'
-        ? answer.error
-        : 'Playlists request failed',
-    )
-  }
-  return answer.ok
-}
 
-/** A playlists request whose answer must match `isT`. */
-const playlistsCall = <T>(
-  request: object,
-  isT: (value: unknown) => value is T,
-): T => {
-  const ok = playlistsRequest(request)
-  if (!isT(ok)) {
-    throw new TypeError('Unexpected playlists answer from the core')
-  }
-  return ok
-}
-
-const isPlaylist = (value: unknown): value is Playlist =>
-  isRecord(value) &&
-  typeof value.id === 'number' &&
-  typeof value.name === 'string' &&
-  typeof value.count === 'number'
-
-const isPlaylistItem = (value: unknown): value is PlaylistItem =>
-  isRecord(value) &&
-  typeof value.id === 'number' &&
-  typeof value.fileName === 'string'
-
-const isPlaylists = (value: unknown): value is Playlist[] =>
-  Array.isArray(value) && value.every(isPlaylist)
-
-const isPlaylistItems = (value: unknown): value is PlaylistItem[] =>
-  Array.isArray(value) && value.every(isPlaylistItem)
-
-const isActiveId = (value: unknown): value is number | null =>
-  value === null || typeof value === 'number'
-
-const isExportAnswer = (value: unknown): value is { missing: number } =>
-  isRecord(value) && typeof value.missing === 'number'
+/** The answer of the requests that only change something. */
+const isDone = isOneOf(null)
 
 /** Playlists, kept by the core in their own database (playlists.rs). */
 export const playlistsApi = {
-  list: () => playlistsCall({ op: 'list' }, isPlaylists),
-  items: (id: number) => playlistsCall({ op: 'items', id }, isPlaylistItems),
+  list: () => call({ op: 'list' }, isArrayOf(isPlaylist)),
+  items: (id: number) => call({ op: 'items', id }, isArrayOf(isPlaylistItem)),
   create: (name: string, fileNames: readonly string[] = []) =>
-    playlistsCall({ op: 'create', name, fileNames }, isPlaylist),
+    call({ op: 'create', name, fileNames: [...fileNames] }, isPlaylist),
   rename: (id: number, name: string) =>
-    playlistsCall({ op: 'rename', id, name }, isPlaylist),
-  duplicate: (id: number) => playlistsCall({ op: 'duplicate', id }, isPlaylist),
+    call({ op: 'rename', id, name }, isPlaylist),
+  duplicate: (id: number) => call({ op: 'duplicate', id }, isPlaylist),
   delete: (id: number): void => {
-    playlistsRequest({ op: 'delete', id })
+    call({ op: 'delete', id }, isDone)
   },
   add: (id: number, fileNames: readonly string[]) =>
-    playlistsCall({ op: 'add', id, fileNames }, isPlaylistItems),
+    call(
+      { op: 'add', id, fileNames: [...fileNames] },
+      isArrayOf(isPlaylistItem),
+    ),
   remove: (id: number, itemIds: readonly number[]): void => {
-    playlistsRequest({ op: 'remove', id, itemIds })
+    call({ op: 'remove', id, itemIds: [...itemIds] }, isDone)
   },
   setOrder: (id: number, itemIds: readonly number[]): void => {
-    playlistsRequest({ op: 'setOrder', id, itemIds })
+    call({ op: 'setOrder', id, itemIds: [...itemIds] }, isDone)
   },
-  active: () => playlistsCall({ op: 'active' }, isActiveId),
+  active: () => call({ op: 'active' }, isNullable(isNumber)),
   setActive: (id: number | null): void => {
-    playlistsRequest({ op: 'setActive', id })
+    call({ op: 'setActive', id }, isDone)
   },
   /** Writes an .m3u8; resolves with how many missing recordings were left out. */
   exportM3u8: (id: number, path: string) =>
-    playlistsCall({ op: 'exportM3u8', id, path }, isExportAnswer).missing,
+    call({ op: 'exportM3u8', id, path }, isExportAnswer).missing,
 }

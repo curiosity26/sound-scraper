@@ -4,13 +4,14 @@ import React, { type FC } from 'react'
 import { Pressable } from 'react-native'
 
 import { SpriteCell } from '@/components/SpriteCell'
+import type { ResolvedFramePanel } from '@/native/bridge'
 import { buttonState } from '@/skin/buttonState'
-import type { FramePanel, Rect } from '@/skin/types'
+import type { Rect } from '@/skin/types'
 
 export type TitleButtonProps = {
   readonly testID: string
   readonly label: string
-  readonly button: NonNullable<FramePanel['close']>
+  readonly button: NonNullable<ResolvedFramePanel['close']>
   readonly rect: Rect
   readonly onPress: () => void
 }

@@ -1,7 +1,7 @@
-import type { SkinElement } from '@/skin/types'
+import type { ResolvedElement } from '@/native/bridge'
 
 /** `style.thumbSize`, or a thumb half as wide as the bar is tall. */
-export const thumbSize = (element: SkinElement): [number, number] => {
+export const thumbSize = (element: ResolvedElement): [number, number] => {
   const size = element.style?.thumbSize
   if (
     Array.isArray(size) &&

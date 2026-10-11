@@ -1,4 +1,6 @@
+import type { ResolvedAnimation } from '@/native/bridge'
 import type { RecorderState } from '@/native/types'
+import { assertNever } from '@/utils/assertNever'
 
 /**
  * Whether an animation plays in this state: the recorder's, or during
@@ -6,7 +8,7 @@ import type { RecorderState } from '@/native/types'
  * while playing back).
  */
 export const animationPlays = (
-  play: string,
+  play: ResolvedAnimation['play'],
   state: RecorderState,
   playing = false,
 ): boolean => {
@@ -22,6 +24,6 @@ export const animationPlays = (
     case 'active':
       return state === 'recording' || state === 'paused'
     default:
-      return state === 'recording'
+      return assertNever(play)
   }
 }

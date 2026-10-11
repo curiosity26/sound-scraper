@@ -1,4 +1,5 @@
-import type { PlaylistItem, Recording } from '@/native/types'
+import type { PlaylistItem } from '@/native/bridge'
+import type { Recording } from '@/native/types'
 import type { PlaylistRow } from '@/playlists/types'
 
 export const playlistRows = (

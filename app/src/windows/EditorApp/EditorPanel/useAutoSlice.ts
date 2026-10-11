@@ -2,18 +2,19 @@
 // its settings change, then applied in one step.
 import { useMemo, useState } from 'react'
 
+import type { Proposal } from '@/native/bridge'
 import { editorCore } from '@/native/editorCore'
-import type { DetectOptions, Proposal } from '@/native/types'
+import type { FindTracksOptions } from '@/windows/EditorApp/types'
 import { useEditorPreferences } from '@/windows/EditorApp/useEditorPreferences'
 
 import { applyProposals, type Edits } from './model'
 
 export type UseAutoSliceResult = {
   /** Its settings while it's open. */
-  readonly options: DetectOptions | null
+  readonly options: FindTracksOptions | null
   readonly proposals: readonly Proposal[]
   readonly toggle: () => void
-  readonly setOptions: (o: DetectOptions) => void
+  readonly setOptions: (o: FindTracksOptions) => void
   readonly apply: () => void
   readonly cancel: () => void
 }
@@ -32,7 +33,7 @@ export const useAutoSlice = (
   const { editorId, ready } = options
   // The settings it opens with: a preference that outlives one editor.
   const { detectOptions, setDetectOptions } = useEditorPreferences()
-  const [autoSlice, setAutoSlice] = useState<DetectOptions | null>(null)
+  const [autoSlice, setAutoSlice] = useState<FindTracksOptions | null>(null)
   const proposals: Proposal[] = useMemo(
     () => (autoSlice && ready ? editorCore.detect(editorId, autoSlice) : []),
     [autoSlice, ready, editorId],

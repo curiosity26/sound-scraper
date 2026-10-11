@@ -5,12 +5,12 @@ import { type GestureResponderEvent, View } from 'react-native'
 
 import { NineSlice } from '@/components/NineSlice'
 import { useSkinScale } from '@/hooks/useSkinScale'
-import type { FramePanel } from '@/skin/types'
+import type { ResolvedFramePanel } from '@/native/bridge'
 
 import { thumbGeometry } from './thumbGeometry'
 
 export type SkinScrollbarProps = {
-  readonly scrollbar: NonNullable<FramePanel['scrollbar']>
+  readonly scrollbar: NonNullable<ResolvedFramePanel['scrollbar']>
   /** Visible height, content height and scroll offset, in points. */
   readonly viewport: number
   readonly content: number

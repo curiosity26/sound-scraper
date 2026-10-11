@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 
-import type { Device, Readiness, Target } from '@/burn/types'
+import type { Readiness, Target } from '@/burn/types'
+import type { Device } from '@/native/bridge'
 import { discCapacity } from '@/playlists/discCapacity'
 import type { Capacity, PlaylistRow } from '@/playlists/types'
 

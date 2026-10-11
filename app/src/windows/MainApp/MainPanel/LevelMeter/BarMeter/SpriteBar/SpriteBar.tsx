@@ -4,15 +4,15 @@ import React, { type FC } from 'react'
 import { View } from 'react-native'
 
 import { useSkinScale } from '@/hooks/useSkinScale'
+import type { ResolvedElement, ResolvedSprite } from '@/native/bridge'
 import { scaleRect } from '@/skin/scaleRect'
-import type { SkinElement, Sprite } from '@/skin/types'
 
 import { MeterCell } from './MeterCell'
 
 export type SpriteBarProps = {
-  readonly element: SkinElement
+  readonly element: ResolvedElement
   /** The element's sprite: its "off" and "on" cells. */
-  readonly sprite: Sprite
+  readonly sprite: ResolvedSprite
   /** 0..1 on the meter's scale: how much of "on" shows. */
   readonly level: number
 }

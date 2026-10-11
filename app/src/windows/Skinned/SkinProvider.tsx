@@ -21,9 +21,14 @@ export const SkinProvider: FC<SkinProviderProps> = props => {
   const skin = useSyncExternalStore(skinStore.subscribe, skinStore.get)
   useEffect(() => {
     if (!skinStore.get()) {
-      skinStore.reload().catch((e: unknown) => {
-        onError?.(errorText(e))
-      })
+      const load = async () => {
+        try {
+          await skinStore.reload()
+        } catch (e) {
+          onError?.(errorText(e))
+        }
+      }
+      void load()
     }
   }, [onError])
   return (

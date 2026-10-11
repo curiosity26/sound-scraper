@@ -1,6 +1,6 @@
 import type { ViewProps } from 'react-native'
 
-import type { TrackInfo } from '@/native/types'
+import type { EditorTrack } from '@/native/bridge'
 
 export type EditorTheme = {
   background: string
@@ -40,7 +40,7 @@ export type FrameGrid = { frameMs: number; offsetMs: number }
 export type RulerTick = { ms: number; major: boolean }
 
 /** A track with who names it (its slice, or the first track). */
-export type TrackRow = TrackInfo & {
+export type TrackRow = EditorTrack & {
   /** Who names it: a slice id, or the first track. */
   owner: Naming | null
   name: string

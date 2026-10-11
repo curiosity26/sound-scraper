@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { useSkin } from '@/hooks/useSkin'
 import { useSkinScale } from '@/hooks/useSkinScale'
-import type { ElementName, Rect, SkinLayout } from '@/skin/types'
+import type { ResolvedLayout } from '@/native/bridge'
+import type { ElementName, Rect } from '@/skin/types'
 import { windows } from '@/skin/windows'
 
 /** Elements that take clicks, so the window doesn't drag from them. */
@@ -25,7 +26,7 @@ export type SidePanel = 'library' | 'settings'
 
 export type UseMainWindowStateResult = {
   /** The shade layout while shaded (when the skin has one), else the main. */
-  readonly layout: SkinLayout
+  readonly layout: ResolvedLayout
   /** The layout's drag regions, scaled. */
   readonly dragRegions: readonly Rect[]
   readonly shaded: boolean

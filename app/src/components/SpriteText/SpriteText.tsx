@@ -5,14 +5,14 @@ import { View } from 'react-native'
 
 import { SpriteCell } from '@/components/SpriteCell'
 import { useSkinScale } from '@/hooks/useSkinScale'
-import type { SpriteFont } from '@/skin/types'
+import type { ResolvedFont } from '@/native/bridge'
 
 import { FlipCell } from './FlipCell'
 import { layoutCells } from './layoutCells'
 import { toGlyphs } from './toGlyphs'
 
 export type SpriteTextProps = {
-  readonly font: SpriteFont
+  readonly font: ResolvedFont
   readonly text: string
   /** Field width in points; the text never draws outside it. */
   readonly width: number
@@ -75,7 +75,7 @@ export const SpriteText: FC<SpriteTextProps> = props => {
   )
 }
 
-const glyphAt = (font: SpriteFont, index: number): [number, number] => {
+const glyphAt = (font: ResolvedFont, index: number): [number, number] => {
   const [cw, ch] = font.cell
   return [(index % font.columns) * cw, Math.floor(index / font.columns) * ch]
 }

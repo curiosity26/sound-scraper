@@ -1,4 +1,4 @@
-import type { FramePanel } from '@/skin/types'
+import type { ResolvedFramePanel } from '@/native/bridge'
 
 export type PanelTheme = {
   text?: string
@@ -8,7 +8,7 @@ export type PanelTheme = {
   button?: string
   buttonText?: string
   table: Record<string, string | undefined>
-  scrollbar: FramePanel['scrollbar']
+  scrollbar: ResolvedFramePanel['scrollbar']
   /** Playlist colors (library panel). */
   playlist?: Record<string, string | undefined>
   /** Burn progress colors (burn panel). */

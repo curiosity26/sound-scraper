@@ -1,6 +1,7 @@
 // Playlist rows, reordering and the audio-CD capacity check
 // (docs/playlists-and-cd-burning-design.md §4, §5). Pure, so it's unit-tested.
-import type { PlaylistItem, Recording } from '@/native/types'
+import type { PlaylistItem } from '@/native/bridge'
+import type { Recording } from '@/native/types'
 
 /** One row of a playlist: its item, and the recording unless it's missing. */
 export type PlaylistRow = {

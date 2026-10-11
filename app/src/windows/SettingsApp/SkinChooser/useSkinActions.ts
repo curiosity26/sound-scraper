@@ -1,12 +1,12 @@
 import { startTransition, useEffect, useState } from 'react'
 
+import type { SkinInspection, SkinSummary } from '@/native/bridge'
 import { safeSettings } from '@/recorder/safeSettings'
 import { chooseSkin } from '@/skin/chooseSkin'
 import { isFolderSkin } from '@/skin/isFolderSkin'
 import { pendingInstall } from '@/skin/pendingInstall'
 import { skins } from '@/skin/skins'
 import { skinStore } from '@/skin/skinStore'
-import type { SkinInspection, SkinSummary } from '@/skin/types'
 import { errorText } from '@/utils/errorText'
 
 import { skinMessages } from './skinMessages'

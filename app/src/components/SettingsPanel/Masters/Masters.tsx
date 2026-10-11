@@ -15,7 +15,7 @@ import { MastersStorage } from './MastersStorage'
  */
 export const Masters: FC = () => {
   const { current, save, textStyle } = useSettingsPanel()
-  const keep = current.keepMasters !== false
+  const keep = current.keepMasters
   return (
     <>
       <Text style={[settingsStyles.section, textStyle]}>Lossless masters</Text>

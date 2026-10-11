@@ -1,4 +1,5 @@
-import type { Device, Readiness } from '@/burn/types'
+import type { Readiness } from '@/burn/types'
+import type { Device } from '@/native/bridge'
 import { MAX_TRACKS, SECTORS_74 } from '@/playlists/constants'
 import { formatSectors } from '@/playlists/formatSectors'
 import type { Capacity } from '@/playlists/types'

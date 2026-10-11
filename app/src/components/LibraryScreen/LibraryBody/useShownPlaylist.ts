@@ -59,10 +59,6 @@ export const useShownPlaylist = (
     setSelectedItemId(null)
   }, [state.activeId])
 
-  const report = (e: unknown) => {
-    onMessage({ text: errorText(e), isError: true })
-  }
-
   const view: PlaylistView | undefined = showing
     ? {
         rows,
@@ -78,14 +74,14 @@ export const useShownPlaylist = (
           try {
             playlists.setOrder(ids)
           } catch (e) {
-            report(e)
+            onMessage({ text: errorText(e), isError: true })
           }
         },
         onRemove: ids => {
           try {
             playlists.remove(ids)
           } catch (e) {
-            report(e)
+            onMessage({ text: errorText(e), isError: true })
           }
         },
       }

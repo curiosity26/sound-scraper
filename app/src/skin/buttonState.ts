@@ -1,6 +1,6 @@
 /** Picks the best sprite state for a button, falling back toward "normal". */
 export const buttonState = (
-  states: Record<string, unknown>,
+  states: Readonly<Record<string, readonly [number, number]>>,
   flags: {
     pressed: boolean
     active: boolean

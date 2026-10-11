@@ -1,7 +1,7 @@
-import type { FramePanel } from '@/skin/types'
+import type { ResolvedFramePanel } from '@/native/bridge'
 import type { PanelTheme } from '@/theme/types'
 
-export const themeFromPanel = (panel: FramePanel): PanelTheme => {
+export const themeFromPanel = (panel: ResolvedFramePanel): PanelTheme => {
   const c = panel.controls
   return {
     text: c.text,

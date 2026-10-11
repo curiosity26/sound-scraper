@@ -6,11 +6,11 @@ import { Text, View } from 'react-native'
 import { SpriteText } from '@/components/SpriteText'
 import { useSkin } from '@/hooks/useSkin'
 import { useSkinScale } from '@/hooks/useSkinScale'
+import type { ResolvedElement } from '@/native/bridge'
 import { scaleRect } from '@/skin/scaleRect'
-import type { SkinElement } from '@/skin/types'
 
 export type ElementTextProps = {
-  readonly element: SkinElement
+  readonly element: ResolvedElement
   readonly text: string
   readonly testID?: string
 }

@@ -9,7 +9,7 @@ import {
 } from 'react-native'
 
 import { useSkinScale } from '@/hooks/useSkinScale'
-import type { ImageRef } from '@/skin/types'
+import type { ImageRef } from '@/native/bridge'
 
 import { imageSource } from './imageSource'
 

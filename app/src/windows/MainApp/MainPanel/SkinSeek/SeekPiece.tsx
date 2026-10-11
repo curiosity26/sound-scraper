@@ -5,10 +5,10 @@ import { View } from 'react-native'
 
 import { SpriteCell } from '@/components/SpriteCell'
 import { useSkinScale } from '@/hooks/useSkinScale'
-import type { Sprite } from '@/skin/types'
+import type { ResolvedSprite } from '@/native/bridge'
 
 export type SeekPieceProps = {
-  readonly sprite: Sprite | null | undefined
+  readonly sprite: ResolvedSprite | null | undefined
   /** The piece's cell in the sprite, when it has one. */
   readonly at: readonly [number, number] | undefined
   /** In unscaled points. */

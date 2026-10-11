@@ -1,6 +1,6 @@
 import { usePlaylists } from '@/hooks/usePlaylists'
 import { useSkinScale } from '@/hooks/useSkinScale'
-import type { SkinElement } from '@/skin/types'
+import type { ResolvedElement } from '@/native/bridge'
 import { windows } from '@/skin/windows'
 import { useTransport } from '@/windows/MainApp/MainPanel/useTransport'
 
@@ -18,7 +18,7 @@ export type UseSourceDisplayResult = {
  * message; clicking it chooses the source from a menu.
  */
 export const useSourceDisplay = (
-  element: SkinElement,
+  element: ResolvedElement,
 ): UseSourceDisplayResult => {
   const s = useSkinScale()
   const pl = usePlaylists()

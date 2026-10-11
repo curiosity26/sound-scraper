@@ -1,7 +1,7 @@
-import type { SkinElement } from '@/skin/types'
+import type { ResolvedElement } from '@/native/bridge'
 
 export type MeterProps = {
-  readonly element: SkinElement
+  readonly element: ResolvedElement
   /** Linear 0..1: the louder channel's peak, and each channel's. */
   readonly peak: number
   readonly left: number

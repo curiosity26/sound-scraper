@@ -1,10 +1,10 @@
 import React, { type FC } from 'react'
 
 import { SpriteCell } from '@/components/SpriteCell'
-import type { SkinElement } from '@/skin/types'
+import type { ResolvedElement } from '@/native/bridge'
 
 export type MeterCellProps = {
-  readonly element: SkinElement
+  readonly element: ResolvedElement
   readonly at: readonly [number, number] | undefined
 }
 

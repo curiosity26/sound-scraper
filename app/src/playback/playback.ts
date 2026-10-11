@@ -2,7 +2,7 @@
 // library (separate windows on one JS runtime). Selecting one recording in
 // the library loads it; recording something new unloads it.
 import { selection } from '@/library/selection'
-import { isPlayerState } from '@/native/isPlayerState'
+import { isPlayerState } from '@/native/guards/isPlayerState'
 import { library } from '@/native/library'
 import { player } from '@/native/player'
 import { recorder } from '@/native/recorder'
@@ -104,6 +104,12 @@ const subscribeNative = () => {
         break
       case 'playerError':
         reportError(`Playback failed: ${e.message}`)
+        break
+      case 'state':
+      case 'progress':
+      case 'finished':
+      case 'error':
+        // The recorder's events: its hooks follow them.
         break
     }
   })

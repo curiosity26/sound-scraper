@@ -2,6 +2,8 @@ import React, { type FC } from 'react'
 import { View } from 'react-native'
 
 import { useSkinScale } from '@/hooks/useSkinScale'
+import type { JsonValue } from '@/native/bridge'
+import { isNumberPair } from '@/skin/guards/isNumberPair'
 import { scaleRect } from '@/skin/scaleRect'
 import { color } from '@/windows/MainApp/MainPanel/color'
 import { num } from '@/windows/MainApp/MainPanel/LevelMeter/num'
@@ -12,18 +14,12 @@ import { needleAngle } from './needleAngle'
 
 export type NeedleMeterProps = MeterProps
 
-const pair = (v: unknown, fallback: [number, number]): [number, number] => {
-  if (Array.isArray(v) && v.length === 2) {
-    const a: unknown = v[0]
-    const b: unknown = v[1]
-    if (typeof a === 'number' && typeof b === 'number') {
-      return [a, b]
-    }
-  }
-  return fallback
-}
+const pair = (
+  v: JsonValue | undefined,
+  fallback: [number, number],
+): [number, number] => (isNumberPair(v) ? v : fallback)
 
-const needleStyle = (st: Record<string, unknown>) => {
+const needleStyle = (st: Readonly<Record<string, JsonValue>>) => {
   return {
     faces: Math.min(2, Math.max(1, num(st.faces, 2))),
     gap: Math.max(0, num(st.gap, 4)),

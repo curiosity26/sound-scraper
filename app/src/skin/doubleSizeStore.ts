@@ -8,7 +8,7 @@ export const doubleSizeStore = {
   get: (): boolean => {
     if (doubleSize === undefined) {
       try {
-        doubleSize = settings.get().doubleSize === true
+        doubleSize = settings.get().doubleSize
       } catch {
         doubleSize = false
       }

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { burnApi } from '@/burn/burnApi'
-import type { Device, SimSettings } from '@/burn/types'
+import type { Device, SimSettings } from '@/native/bridge'
 import { errorText } from '@/utils/errorText'
 
 export type UseBurnDevicesStateResult = {

@@ -40,12 +40,21 @@ jest.mock('@/native/NativeSoundScraper', () => ({
     writeTags: jest.fn(),
     pickImage: jest.fn(),
     getSettings: () =>
+      // What ss_settings_get sends for the defaults.
       JSON.stringify({
+        version: 1,
         recordingsDir: null,
         effectiveRecordingsDir: '/tmp',
         quality: 'cbr192',
         id3Version: '2.4',
         lastSource: null,
+        skin: null,
+        doubleSize: false,
+        trimSilence: true,
+        keepMasters: true,
+        masterMinMinutes: 20,
+        masterBudgetGb: 10,
+        masterMaxAgeDays: 30,
       }),
     setSettings: jest.fn(() => Promise.resolve()),
     pickFolder: jest.fn(),
@@ -60,10 +69,9 @@ test('renders the core version and an idle record bar', async () => {
       create(<App />),
     ),
   )
-  const children: unknown = tree.root.findByProps({
-    testID: 'core-version',
-  }).props.children
-  expect(children).toEqual(['Rust core v', '0.0.0-test'])
+  expect(
+    tree.root.findByProps({ testID: 'core-version' }).props.children,
+  ).toEqual(['Rust core v', '0.0.0-test'])
   expect(tree.root.findAllByProps({ testID: 'record' }).length).toBeGreaterThan(
     0,
   )

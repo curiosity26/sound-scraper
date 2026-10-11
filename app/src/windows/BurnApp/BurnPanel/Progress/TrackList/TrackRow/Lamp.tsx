@@ -1,7 +1,7 @@
 import { type FC, useEffect, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 
-import type { TrackState } from '@/burn/types'
+import type { BurnTrackStatus } from '@/native/bridge'
 import { colors } from '@/theme/colors'
 import { useBurnTheme } from '@/windows/BurnApp/BurnPanel/useBurnTheme'
 
@@ -9,7 +9,7 @@ import { TRACK_WORDS } from './constants'
 
 /** A status lamp: dark while waiting, lit while working, green or red after. */
 export type LampProps = {
-  readonly state: TrackState
+  readonly state: BurnTrackStatus['state']
 }
 
 export const Lamp: FC<LampProps> = props => {

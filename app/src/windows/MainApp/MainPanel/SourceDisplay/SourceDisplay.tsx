@@ -3,14 +3,14 @@ import { Pressable } from 'react-native'
 
 import { SpriteCell } from '@/components/SpriteCell'
 import { useSkinScale } from '@/hooks/useSkinScale'
+import type { ResolvedElement } from '@/native/bridge'
 import { scaleRect } from '@/skin/scaleRect'
-import type { SkinElement } from '@/skin/types'
 import { ElementText } from '@/windows/MainApp/MainPanel/ElementText'
 
 import { useSourceDisplay } from './useSourceDisplay'
 
 export type SourceDisplayProps = {
-  readonly element: SkinElement
+  readonly element: ResolvedElement
 }
 
 /**

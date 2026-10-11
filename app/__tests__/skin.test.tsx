@@ -15,12 +15,14 @@ import { SkinPanelFrame } from '@/components/SkinPanelFrame'
 import { layoutCells } from '@/components/SpriteText/layoutCells'
 import { toGlyphs } from '@/components/SpriteText/toGlyphs'
 import { usePanelStyles } from '@/hooks/usePanelStyles'
+import type { ImageRef, ResolvedElement, ResolvedSkin } from '@/native/bridge'
 import NativeSkins from '@/native/NativeSkins'
 import NativeSoundScraper, {
   type RecorderEvent,
 } from '@/native/NativeSoundScraper'
 import { playback } from '@/playback/playback'
 import { buttonState } from '@/skin/buttonState'
+import { isJsonValue } from '@/skin/guards/isJsonValue'
 import { isFolderSkin } from '@/skin/isFolderSkin'
 import { isSkinArchive } from '@/skin/isSkinArchive'
 import { openSkinFiles } from '@/skin/openSkinFiles'
@@ -28,9 +30,15 @@ import { pendingInstall } from '@/skin/pendingInstall'
 import { settingsTab } from '@/skin/settingsTab'
 import { SkinScale } from '@/skin/SkinScale'
 import { skinStore } from '@/skin/skinStore'
-import type { ImageRef, Skin, SkinElement } from '@/skin/types'
+import {
+  type Guard,
+  isBoolean,
+  isNumber,
+  isRecordOf,
+  isShape,
+  isString,
+} from '@/utils/guards'
 import { isDarkColor } from '@/utils/isDarkColor'
-import { isRecord } from '@/utils/isRecord'
 import { MainPanel } from '@/windows/MainApp/MainPanel'
 import { needleAngle } from '@/windows/MainApp/MainPanel/LevelMeter/NeedleMeter/needleAngle'
 import { animationPlays } from '@/windows/MainApp/MainPanel/SkinAnimation/animationPlays'
@@ -73,11 +81,22 @@ jest.mock('@/native/NativeSoundScraper', () => ({
     playerStop: jest.fn(),
     playerSeek: jest.fn(),
     playerState: () => 'empty',
+    // What ss_settings_get sends: every field, plus the folder in use.
     getSettings: () =>
       JSON.stringify({
+        effectiveRecordingsDir: '/Users/x/Music/Sound Scraper',
+        version: 1,
+        recordingsDir: null,
         quality: 'cbr192',
         id3Version: '2.4',
         lastSource: null,
+        skin: null,
+        doubleSize: false,
+        trimSilence: true,
+        keepMasters: true,
+        masterMinMinutes: 20,
+        masterBudgetGb: 10,
+        masterMaxAgeDays: 30,
       }),
     setSettings: jest.fn(() => Promise.resolve()),
     readTags: jest.fn(),
@@ -140,19 +159,30 @@ const actAsync = (fn: () => void) =>
     return Promise.resolve()
   })
 
-const isHandler = (value: unknown): value is (...args: unknown[]) => unknown =>
+/** What the tests pass to a handler prop: text, or an event object. */
+type HandlerArg = string | object
+type Handler = (...args: readonly HandlerArg[]) => void
+
+const isHandler = (value: unknown): value is Handler =>
   typeof value === 'function'
 
-/** A test instance's prop, as unknown. */
-const prop = (node: TestInstance, name: string): unknown => node.props[name]
+/** A test instance's prop, when `guard` accepts it (else undefined). */
+const prop = <T,>(
+  node: TestInstance,
+  name: string,
+  guard: Guard<T>,
+): T | undefined => [node.props[name]].find(guard)
+
+/** The seek slider's accessibilityValue. */
+const isSeekValue = isShape<{ now: number }>({ now: isNumber })
 
 /** Calls a test instance's handler prop (onPress, onLayout…). */
-const call = (node: TestInstance, name: string, ...args: unknown[]) => {
-  const handler = prop(node, name)
-  if (!isHandler(handler)) {
+const call = (node: TestInstance, name: string, ...args: HandlerArg[]) => {
+  const handler = prop(node, name, isHandler)
+  if (!handler) {
     throw new Error(`No ${name} handler`)
   }
-  return handler(...args)
+  handler(...args)
 }
 
 const image: ImageRef = {
@@ -162,7 +192,10 @@ const image: ImageRef = {
   width: 100,
   height: 40,
 }
-const el = (rect: SkinElement['rect'], extra: Partial<SkinElement> = {}) => ({
+const el = (
+  rect: ResolvedElement['rect'],
+  extra: Partial<ResolvedElement> = {},
+) => ({
   rect,
   sprite: null,
   font: null,
@@ -173,7 +206,7 @@ const el = (rect: SkinElement['rect'], extra: Partial<SkinElement> = {}) => ({
   ...extra,
 })
 
-const testSkin = (): Skin => {
+const testSkin = (): ResolvedSkin => {
   const sprite: { image: ImageRef; states: Record<string, [number, number]> } =
     {
       image,
@@ -312,12 +345,13 @@ const testSkin = (): Skin => {
 }
 
 test('button states fall back toward normal', () => {
-  const all = {
-    normal: 1,
-    pressed: 1,
-    active: 1,
-    activePressed: 1,
-    disabled: 1,
+  // Only the state names matter here, not their cells.
+  const all: Record<string, [number, number]> = {
+    normal: [0, 0],
+    pressed: [0, 0],
+    active: [0, 0],
+    activePressed: [0, 0],
+    disabled: [0, 0],
   }
   const flags = { pressed: false, active: false, disabled: false }
   expect(buttonState(all, flags)).toBe('normal')
@@ -326,16 +360,22 @@ test('button states fall back toward normal', () => {
   )
   expect(
     buttonState(
-      { normal: 1, pressed: 1 },
+      { normal: [0, 0], pressed: [0, 0] },
       { ...flags, pressed: true, active: true },
     ),
   ).toBe('pressed')
-  expect(buttonState({ normal: 1 }, { ...flags, active: true })).toBe('normal')
-  expect(buttonState({ normal: 1 }, { ...flags, disabled: true })).toBe(
+  expect(buttonState({ normal: [0, 0] }, { ...flags, active: true })).toBe(
+    'normal',
+  )
+  expect(buttonState({ normal: [0, 0] }, { ...flags, disabled: true })).toBe(
     'normal',
   )
   // Modes (record while recording) fall back to active, then normal.
-  const rec = { normal: 1, pressed: 1, recording: 1 }
+  const rec: Record<string, [number, number]> = {
+    normal: [0, 0],
+    pressed: [0, 0],
+    recording: [0, 0],
+  }
   expect(buttonState(rec, { ...flags, mode: 'recording' })).toBe('recording')
   expect(buttonState(rec, { ...flags, mode: 'recording', pressed: true })).toBe(
     'pressed',
@@ -344,13 +384,13 @@ test('button states fall back toward normal', () => {
   // Disabled in a mode keeps the mode's look (record lit while recording).
   expect(
     buttonState(
-      { ...rec, disabled: 1 },
+      { ...rec, disabled: [0, 0] },
       { ...flags, mode: 'recording', disabled: true },
     ),
   ).toBe('recording')
   expect(
     buttonState(
-      { ...rec, disabled: 1 },
+      { ...rec, disabled: [0, 0] },
       { ...flags, mode: 'paused', disabled: true },
     ),
   ).toBe('disabled')
@@ -455,7 +495,7 @@ test('the main panel plays back a loaded recording', async () => {
     </SkinProvider>,
   )
   const find = (id: string) => tree.root.findByProps({ testID: id })
-  expect(prop(find('play'), 'disabled')).toBe(true)
+  expect(prop(find('play'), 'disabled', isBoolean)).toBe(true)
   await act(async () => {
     await playback.select({
       fileName: 'a.mp3',
@@ -475,7 +515,7 @@ test('the main panel plays back a loaded recording', async () => {
     })
   })
   expect(mockCore.playerLoad.mock.calls).toContainEqual(['/music/a.mp3'])
-  expect(prop(find('play'), 'disabled')).toBe(false)
+  expect(prop(find('play'), 'disabled', isBoolean)).toBe(false)
   await actAsync(() => {
     call(find('play'), 'onPress')
   })
@@ -496,11 +536,11 @@ test('the main panel plays back a loaded recording', async () => {
       rms: 0.2,
     })
   })
-  expect(prop(find('play'), 'accessibilityLabel')).toBe('Pause')
-  const seekValue = prop(find('seek'), 'accessibilityValue')
-  expect(isRecord(seekValue) ? seekValue.now : undefined).toBe(30)
+  expect(prop(find('play'), 'accessibilityLabel', isString)).toBe('Pause')
+  const seekValue = prop(find('seek'), 'accessibilityValue', isSeekValue)
+  expect(seekValue?.now).toBe(30)
   // Record is enabled while playing back: it starts a new recording.
-  expect(prop(find('record'), 'disabled')).toBe(false)
+  expect(prop(find('record'), 'disabled', isBoolean)).toBe(false)
   await actAsync(() => {
     call(find('play'), 'onPress')
     call(find('stop'), 'onPress')
@@ -559,9 +599,15 @@ test('the visualizer cycles presets on click', async () => {
       <MainPanel />
     </SkinProvider>,
   )
-  const presetOf = (): unknown => {
-    const json = prop(tree.root.findByProps({ pixelated: true }), 'preset')
-    return typeof json === 'string' ? JSON.parse(json) : undefined
+  const presetOf = () => {
+    const json = prop(
+      tree.root.findByProps({ pixelated: true }),
+      'preset',
+      isString,
+    )
+    return json === undefined
+      ? undefined
+      : [JSON.parse(json)].find(isRecordOf(isJsonValue))
   }
   expect(presetOf()).toMatchObject({ name: 'Bars', grid: '#111111' })
   await actAsync(() => {
@@ -653,7 +699,7 @@ const withHandler = (
 ): TestInstance => {
   const node = tree.root
     .findAllByProps({ testID })
-    .find(n => isHandler(prop(n, name)))
+    .find(n => prop(n, name, isHandler) !== undefined)
   if (!node) {
     throw new Error(`No ${testID} with ${name}`)
   }

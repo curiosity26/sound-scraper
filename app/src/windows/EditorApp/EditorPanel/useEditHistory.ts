@@ -6,7 +6,7 @@ import { editorCore } from '@/native/editorCore'
 
 import {
   type Edits,
-  editsFromJson,
+  editsFromList,
   editsToJson,
   hasEdits,
   type History,
@@ -28,7 +28,7 @@ export type UseEditHistoryResult = {
 export const useEditHistory = (target: EditorTarget): UseEditHistoryResult => {
   const [hist, setHist] = useState<History>(() =>
     history.start(
-      editsFromJson(editorCore.loadDraft(target.fileName), target.title),
+      editsFromList(editorCore.loadDraft(target.fileName), target.title),
     ),
   )
   const edits = hist.present

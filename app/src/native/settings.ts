@@ -1,20 +1,12 @@
-import { isRecord } from '@/utils/isRecord'
-import { parseJson } from '@/utils/parseJson'
+import type { Settings, StoredSettings } from '@/native/bridge'
 
+import { isStoredSettings } from './guards/isStoredSettings'
 import NativeSoundScraper from './NativeSoundScraper'
-import type { Settings, StoredSettings } from './types'
-
-/** A shallow check of the settings JSON (the core validates the rest). */
-const isStoredSettings = (value: unknown): value is StoredSettings =>
-  isRecord(value) &&
-  typeof value.effectiveRecordingsDir === 'string' &&
-  typeof value.quality === 'string' &&
-  typeof value.id3Version === 'string' &&
-  (value.recordingsDir === null || typeof value.recordingsDir === 'string')
+import { parseNative } from './parseNative'
 
 export const settings = {
   get: (): StoredSettings =>
-    parseJson(NativeSoundScraper.getSettings(), isStoredSettings, 'settings'),
+    parseNative(NativeSoundScraper.getSettings(), isStoredSettings, 'settings'),
   /** Saves settings (validated by the core) and re-points the library. */
   set: (value: Settings): Promise<void> =>
     NativeSoundScraper.setSettings(
@@ -24,14 +16,14 @@ export const settings = {
         quality: value.quality,
         id3Version: value.id3Version,
         lastSource: value.lastSource,
-        skin: value.skin ?? null,
-        doubleSize: value.doubleSize ?? false,
-        trimSilence: value.trimSilence ?? true,
-        keepMasters: value.keepMasters ?? true,
-        masterMinMinutes: value.masterMinMinutes ?? 20,
-        masterBudgetGb: value.masterBudgetGb ?? 10,
-        masterMaxAgeDays: value.masterMaxAgeDays ?? 30,
-      }),
+        skin: value.skin,
+        doubleSize: value.doubleSize,
+        trimSilence: value.trimSilence,
+        keepMasters: value.keepMasters,
+        masterMinMinutes: value.masterMinMinutes,
+        masterBudgetGb: value.masterBudgetGb,
+        masterMaxAgeDays: value.masterMaxAgeDays,
+      } satisfies Settings),
     ),
   pickFolder: (): Promise<string | null> => NativeSoundScraper.pickFolder(),
 }

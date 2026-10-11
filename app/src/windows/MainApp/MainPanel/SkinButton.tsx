@@ -5,12 +5,12 @@ import { Pressable } from 'react-native'
 
 import { SpriteCell } from '@/components/SpriteCell'
 import { useSkinScale } from '@/hooks/useSkinScale'
+import type { ResolvedElement } from '@/native/bridge'
 import { buttonState } from '@/skin/buttonState'
 import { scaleRect } from '@/skin/scaleRect'
-import type { SkinElement } from '@/skin/types'
 
 export type SkinButtonProps = {
-  readonly element: SkinElement
+  readonly element: ResolvedElement
   readonly onPress: () => void
   /** Latched on (a panel open…). */
   readonly active?: boolean

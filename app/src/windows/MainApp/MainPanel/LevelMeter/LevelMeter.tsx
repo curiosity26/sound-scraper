@@ -1,13 +1,13 @@
 import React, { type FC } from 'react'
 
-import type { SkinElement } from '@/skin/types'
+import type { ResolvedElement } from '@/native/bridge'
 import { useTransport } from '@/windows/MainApp/MainPanel/useTransport'
 
 import { BarMeter } from './BarMeter'
 import { NeedleMeter } from './NeedleMeter'
 
 export type LevelMeterProps = {
-  readonly element: SkinElement
+  readonly element: ResolvedElement
 }
 
 /**

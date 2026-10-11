@@ -1,93 +1,48 @@
 // The burn panel's data (docs/playlists-and-cd-burning-design.md §6): the
 // core's burn API (ss_burn), and the pure rules for what can be burned
 // where, unit-tested.
+import type { BurnOptions, BurnRequest, SimSettings } from '@/native/bridge'
+import { isBurnStatus } from '@/native/guards/isBurnStatus'
+import { isDevicesAnswer } from '@/native/guards/isDevicesAnswer'
+import { isSimSettings } from '@/native/guards/isSimSettings'
 import NativeSoundScraper from '@/native/NativeSoundScraper'
-import { isRecord } from '@/utils/isRecord'
+import { requestReply } from '@/native/requestReply'
+import { type Guard, isNumber, isOneOf } from '@/utils/guards'
 
-import type { BurnOptions, BurnStatus, Device, SimSettings } from './types'
-
-/** Sends `request` to the core; returns its `ok` value (unchecked). */
-const call = (request: object): unknown => {
-  const answer: unknown = JSON.parse(
-    NativeSoundScraper.burn(JSON.stringify(request)),
+/**
+ * A burn request (ss_burn) whose answer must match `isOk`; throws the core's
+ * message on failure.
+ */
+const call = <T>(request: BurnRequest, isOk: Guard<T>): T =>
+  requestReply(
+    json => NativeSoundScraper.burn(json),
+    request,
+    isOk,
+    'burn answer',
   )
-  if (!isRecord(answer)) {
-    throw new Error('Unexpected answer from the burn core')
-  }
-  if (typeof answer.error === 'string') {
-    throw new Error(answer.error)
-  }
-  return answer.ok
-}
 
-const isDevice = (value: unknown): value is Device =>
-  isRecord(value) &&
-  typeof value.id === 'string' &&
-  typeof value.kind === 'string' &&
-  isRecord(value.media) &&
-  typeof value.media.state === 'string'
-
-const isDevicesAnswer = (
-  value: unknown,
-): value is {
-  readonly devices: readonly Device[]
-  readonly simulator: boolean
-} =>
-  isRecord(value) &&
-  Array.isArray(value.devices) &&
-  value.devices.every(isDevice) &&
-  typeof value.simulator === 'boolean'
-
-const isBurnStatus = (value: unknown): value is BurnStatus =>
-  isRecord(value) &&
-  typeof value.state === 'string' &&
-  Array.isArray(value.tracks) &&
-  Array.isArray(value.log)
-
-const isSimSettings = (value: unknown): value is SimSettings =>
-  isRecord(value) &&
-  typeof value.media === 'string' &&
-  isRecord(value.fault) &&
-  typeof value.fault.kind === 'string'
-
-/** `value`, if `guard` accepts it; throws otherwise. */
-const checked = <T>(
-  value: unknown,
-  guard: (v: unknown) => v is T,
-  op: string,
-): T => {
-  if (!guard(value)) {
-    throw new Error(`Unexpected answer from the burn core (${op})`)
-  }
-  return value
-}
+/** The answer of the requests that only change something. */
+const isDone = isOneOf(null)
 
 export const burnApi = {
-  devices: () => checked(call({ op: 'devices' }), isDevicesAnswer, 'devices'),
+  devices: () => call({ op: 'devices' }, isDevicesAnswer),
   /** Starts a burn; returns the job id to poll. */
-  start: (options: BurnOptions) =>
-    checked(
-      call({ op: 'start', ...options }),
-      (v): v is number => typeof v === 'number',
-      'start',
-    ),
-  status: (id: number) =>
-    checked(call({ op: 'status', id }), isBurnStatus, 'status'),
+  start: (options: BurnOptions) => call({ op: 'start', ...options }, isNumber),
+  status: (id: number) => call({ op: 'status', id }, isBurnStatus),
   cancel: (id: number) => {
-    call({ op: 'cancel', id })
+    call({ op: 'cancel', id }, isDone)
   },
   close: (id: number) => {
-    call({ op: 'close', id })
+    call({ op: 'close', id }, isDone)
   },
-  simSettings: () =>
-    checked(call({ op: 'simSettings' }), isSimSettings, 'simSettings'),
+  simSettings: () => call({ op: 'simSettings' }, isSimSettings),
   setSimSettings: (settings: SimSettings) => {
-    call({ op: 'setSimSettings', settings })
+    call({ op: 'setSimSettings', settings }, isDone)
   },
   reveal: (path: string) => {
-    call({ op: 'reveal', path })
+    call({ op: 'reveal', path }, isDone)
   },
   saveLog: (id: number, path: string) => {
-    call({ op: 'saveLog', id, path })
+    call({ op: 'saveLog', id, path }, isDone)
   },
 }

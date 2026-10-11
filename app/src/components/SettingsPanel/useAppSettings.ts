@@ -1,8 +1,8 @@
 import { useState } from 'react'
 
 import { refreshLibraryViews } from '@/library/refreshLibraryViews'
+import type { Settings, StoredSettings } from '@/native/bridge'
 import { settings } from '@/native/settings'
-import type { Settings, StoredSettings } from '@/native/types'
 import { errorText } from '@/utils/errorText'
 
 export type UseAppSettingsResult = {

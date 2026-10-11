@@ -1,7 +1,7 @@
 import { use, useEffect } from 'react'
 
+import type { SkinSummary } from '@/native/bridge'
 import { skins } from '@/skin/skins'
-import type { SkinSummary } from '@/skin/types'
 import { promiseCache } from '@/utils/promiseCache'
 
 // One read per list revision.
