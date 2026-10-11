@@ -5,8 +5,8 @@ import { AboutPanel } from '@/components/AboutPanel'
 import { SettingsPanel } from '@/components/SettingsPanel'
 import { colors } from '@/theme/colors'
 
+import { useOverlay } from './Overlay'
 import { useAppearance } from './useAppearance'
-import { useOverlay } from './useOverlay'
 
 /** Settings or About, over the right side of the window, when open. */
 export const SidePanel: FC = () => {

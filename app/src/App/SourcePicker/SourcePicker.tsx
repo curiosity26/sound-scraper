@@ -1,9 +1,9 @@
 import type { FC } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 
+import { useCaptureSources } from '@/App/CaptureSources'
+import { useRecorderSession } from '@/App/RecorderSession'
 import { useAppearance } from '@/App/useAppearance'
-import { useCaptureSources } from '@/App/useCaptureSources'
-import { useRecorderSession } from '@/App/useRecorderSession'
 import { colors } from '@/theme/colors'
 
 import { SourceRow } from './SourceRow'

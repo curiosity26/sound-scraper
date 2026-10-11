@@ -3,8 +3,8 @@ import { StyleSheet, Text } from 'react-native'
 
 import { colors } from '@/theme/colors'
 
+import { useRecorderSession } from './RecorderSession'
 import { useAppearance } from './useAppearance'
-import { useRecorderSession } from './useRecorderSession'
 
 /** The latest recorder or library message, if any. */
 export const RecorderMessage: FC = () => {

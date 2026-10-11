@@ -1,9 +1,9 @@
 import type { FC } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 
+import { useCaptureSources } from '@/App/CaptureSources'
+import { useRecorderSession } from '@/App/RecorderSession'
 import { useAppearance } from '@/App/useAppearance'
-import { useCaptureSources } from '@/App/useCaptureSources'
-import { useRecorderSession } from '@/App/useRecorderSession'
 import type { RecorderState } from '@/native/types'
 import { formatElapsed } from '@/recorder/formatElapsed'
 import { meterScale } from '@/skin/meterScale'

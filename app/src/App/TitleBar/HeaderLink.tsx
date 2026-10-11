@@ -1,8 +1,7 @@
 import type { FC } from 'react'
 import { Pressable, StyleSheet, Text } from 'react-native'
 
-import type { OverlayName } from '@/App/overlay'
-import { useOverlay } from '@/App/useOverlay'
+import { type OverlayName, useOverlay } from '@/App/Overlay'
 import { colors } from '@/theme/colors'
 
 export type HeaderLinkProps = {
