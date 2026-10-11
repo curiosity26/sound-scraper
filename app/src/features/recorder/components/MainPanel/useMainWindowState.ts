@@ -14,6 +14,8 @@ const INTERACTIVE: ElementName[] = [
   'stop',
   'seek',
   'source',
+  // Clicking it cycles the skin's looks.
+  'visualizer',
   'toggleLibrary',
   'toggleSettings',
   'minimize',
