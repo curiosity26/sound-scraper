@@ -26,3 +26,12 @@ export const DETECT_PRESETS: Record<
 }
 
 export const MONO = 'Menlo'
+
+/** The time ruler's height. */
+export const RULER = 22
+/** The lane of track regions under the ruler. */
+export const LANE = 22
+/** The grab area either side of a slice. */
+export const HANDLE = 10
+/** The vertical zoom beside the waveform. */
+export const VSTRIP = 26

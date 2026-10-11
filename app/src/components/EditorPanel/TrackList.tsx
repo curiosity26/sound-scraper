@@ -1,62 +1,11 @@
-import React, { type FC, useEffect, useState } from 'react'
-import {
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native'
+import React, { type FC } from 'react'
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 
-import { formatTime } from '@/components/EditorPanel/model/formatTime'
-import { TextField } from '@/components/TextField'
-import type { TrackInfo } from '@/native/types'
-
+import { formatTime } from './model'
 import { trackColor } from './trackColor'
-import type { EditorTheme } from './types'
+import { TrackName } from './TrackName'
+import type { EditorTheme, Naming, TrackRow } from './types'
 import { withAlpha } from './withAlpha'
-
-type TrackNameProps = {
-  readonly th: EditorTheme
-  readonly value: string
-  readonly onCommit: (name: string) => void
-}
-
-/** A track's name, edited in place (Enter or leaving saves, Esc cancels). */
-const TrackName: FC<TrackNameProps> = props => {
-  const [text, setText] = useState(props.value)
-  useEffect(() => {
-    setText(props.value)
-  }, [props.value])
-  const commit = () => {
-    const name = text.trim()
-    if (name && name !== props.value) {
-      props.onCommit(name)
-    } else {
-      setText(props.value)
-    }
-  }
-  return (
-    <TextField
-      style={[styles.colName, styles.nameInput, { color: props.th.text }]}
-      value={text}
-      onChangeText={setText}
-      onSubmitEditing={commit}
-      onBlur={commit}
-      onKeyPress={e => {
-        if (e.nativeEvent.key === 'Escape') {
-          setText(props.value)
-        }
-      }}
-    />
-  )
-}
-
-export type TrackRow = TrackInfo & {
-  /** Who names it: a slice id, or the first track. */
-  owner: number | 'first' | null
-  name: string
-}
 
 export type TrackListProps = {
   readonly th: EditorTheme
@@ -64,7 +13,7 @@ export type TrackListProps = {
   readonly selected: number | null
   readonly showReencode: boolean
   readonly onSelect: (index: number) => void
-  readonly onRename: (owner: number | 'first', name: string) => void
+  readonly onRename: (owner: Naming, name: string) => void
 }
 
 export const TrackList: FC<TrackListProps> = props => {
@@ -188,15 +137,5 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     paddingHorizontal: 5,
     overflow: 'hidden',
-  },
-  // Explicit heights and no vertical padding: Windows' text box otherwise
-  // adds its own and clips the text in these short rows.
-  nameInput: {
-    height: 20,
-    paddingTop: Platform.OS === 'windows' ? 2 : 0,
-    paddingBottom: 0,
-    paddingHorizontal: 2,
-    fontSize: 12,
-    textAlignVertical: 'center',
   },
 })

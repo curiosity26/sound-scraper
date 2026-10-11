@@ -1,30 +1,14 @@
-import { type FC, useState } from 'react'
-import {
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native'
+import type { FC } from 'react'
+import { Platform, Pressable, ScrollView, Text, View } from 'react-native'
 
 import { usePanelStyles } from '@/hooks/usePanelStyles'
 import { editorAvailable } from '@/native/editorAvailable'
-import { editorCore } from '@/native/editorCore'
-import { settings } from '@/native/settings'
-import type { Quality, Settings } from '@/native/types'
-import { colors } from '@/theme/colors'
-import { errorText } from '@/utils/errorText'
-import { stepIn as step } from '@/utils/stepIn'
 
-const QUALITIES: { value: Quality; label: string; detail: string }[] = [
-  { value: 'cbr128', label: '128 kbps', detail: 'Constant bitrate · smallest' },
-  { value: 'cbr192', label: '192 kbps', detail: 'Constant bitrate · default' },
-  { value: 'cbr256', label: '256 kbps', detail: 'Constant bitrate' },
-  { value: 'cbr320', label: '320 kbps', detail: 'Constant bitrate · largest' },
-  { value: 'vbr0', label: 'VBR V0', detail: 'Variable · about 245 kbps' },
-  { value: 'vbr2', label: 'VBR V2', detail: 'Variable · about 190 kbps' },
-]
+import { Choice } from './Choice'
+import { QUALITIES } from './constants'
+import { Masters } from './Masters'
+import { styles } from './styles'
+import { useAppSettings } from './useAppSettings'
 
 export type SettingsPanelProps = {
   /** Shows a heading with Done (the overlay in the plain UI); the skinned
@@ -39,30 +23,9 @@ export type SettingsPanelProps = {
 export const SettingsPanel: FC<SettingsPanelProps> = props => {
   const { textStyle } = props
   const t = usePanelStyles()
-  const [current, setCurrent] = useState(() => settings.get())
-  const [error, setError] = useState<string>()
-
-  const save = async (patch: Partial<Settings>) => {
-    // Fresh from disk: another window may have changed other settings.
-    const next = { ...settings.get(), ...patch }
-    setError(undefined)
-    try {
-      await settings.set(next)
-      setCurrent(settings.get())
-      if ('recordingsDir' in patch) {
-        props.onFolderChanged()
-      }
-    } catch (e) {
-      setError(errorText(e))
-    }
-  }
-
-  const chooseFolder = async () => {
-    const dir = await settings.pickFolder()
-    if (dir) {
-      await save({ recordingsDir: dir })
-    }
-  }
+  const { current, error, save, chooseFolder } = useAppSettings(
+    props.onFolderChanged,
+  )
 
   return (
     <View style={styles.panel}>
@@ -172,176 +135,3 @@ export const SettingsPanel: FC<SettingsPanelProps> = props => {
     </View>
   )
 }
-
-const MIN_MINUTES = [0, 5, 10, 15, 20, 30, 45, 60, 90, 120]
-const BUDGETS_GB = [1, 2, 5, 10, 20, 50, 100]
-const AGES_DAYS = [7, 14, 30, 60, 90, 180, 365]
-
-const formatBytes = (bytes: number): string => {
-  if (bytes >= 1024 ** 3) {
-    return `${(bytes / 1024 ** 3).toFixed(1)} GB`
-  }
-  return `${Math.round(bytes / 1024 ** 2)} MB`
-}
-
-/**
- * Lossless masters (docs/track-editor-design.md §6.1): kept for long
- * recordings so the track editor's cuts are sample-exact, within a size
- * budget and an age limit.
- */
-type MastersProps = {
-  readonly current: Settings
-  readonly save: (patch: Partial<Settings>) => Promise<void>
-  readonly textStyle: object
-}
-
-const Masters: FC<MastersProps> = props => {
-  const { current, save, textStyle } = props
-  const t = usePanelStyles()
-  const [usage, setUsage] = useState(() => editorCore.mastersUsage())
-  const [confirming, setConfirming] = useState(false)
-  const keep = current.keepMasters !== false
-  const minutes = current.masterMinMinutes ?? 20
-  const budget = current.masterBudgetGb ?? 10
-  const age = current.masterMaxAgeDays ?? 30
-  const row = (label: string, value: string, onStep: (dir: 1 | -1) => void) => (
-    <View style={[styles.row, styles.stepRow]}>
-      <Text style={[styles.stepLabel, textStyle]}>{label}</Text>
-      <Pressable
-        onPress={() => {
-          onStep(-1)
-        }}
-        disabled={!keep}
-      >
-        <Text style={[styles.link, t.link, !keep && styles.dim]}>−</Text>
-      </Pressable>
-      <Text style={[styles.stepValue, textStyle, !keep && styles.dim]}>
-        {value}
-      </Text>
-      <Pressable
-        onPress={() => {
-          onStep(1)
-        }}
-        disabled={!keep}
-      >
-        <Text style={[styles.link, t.link, !keep && styles.dim]}>+</Text>
-      </Pressable>
-    </View>
-  )
-  return (
-    <>
-      <Text style={[styles.section, textStyle]}>Lossless masters</Text>
-      <Pressable
-        onPress={() => {
-          void save({ keepMasters: !keep })
-        }}
-        style={styles.choice}
-        testID="keep-masters"
-      >
-        <Text style={[styles.choiceLabel, textStyle]}>
-          {keep ? '☑ ' : '☐ '}
-          Keep a lossless copy of long recordings
-        </Text>
-        <Text style={[styles.choiceDetail, textStyle]}>
-          So the track editor cuts them exactly, without re-encoding the MP3.
-          About 400 MB per hour, kept out of your recordings folder · default
-        </Text>
-      </Pressable>
-      {row('Longer than', minutes ? `${minutes} min` : 'any length', dir => {
-        void save({ masterMinMinutes: step(MIN_MINUTES, minutes, dir) })
-      })}
-      {row('Use at most', `${budget} GB`, dir => {
-        void save({ masterBudgetGb: step(BUDGETS_GB, budget, dir) })
-      })}
-      {row('Keep for', `${age} days`, dir => {
-        void save({ masterMaxAgeDays: step(AGES_DAYS, age, dir) })
-      })}
-      <Text style={[styles.note, textStyle]}>
-        {usage.count === 0
-          ? 'No masters are kept right now.'
-          : `${usage.count} ${
-              usage.count === 1 ? 'master' : 'masters'
-            }, ${formatBytes(
-              usage.bytes,
-            )}. The oldest go first when space runs out; a master goes with its recording.`}
-      </Text>
-      {usage.count > 0 &&
-        (confirming ? (
-          <View style={styles.row}>
-            <Text style={[styles.note, textStyle]}>
-              Delete every master? Recordings stay.
-            </Text>
-            <Pressable
-              onPress={() => {
-                setConfirming(false)
-                void editorCore.deleteAllMasters().then(() => {
-                  setUsage(editorCore.mastersUsage())
-                })
-              }}
-            >
-              <Text style={[styles.link, t.link]}>Delete</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                setConfirming(false)
-              }}
-            >
-              <Text style={[styles.link, t.link]}>Cancel</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <Pressable
-            onPress={() => {
-              setConfirming(true)
-            }}
-          >
-            <Text style={[styles.link, t.link]}>Delete all masters…</Text>
-          </Pressable>
-        ))}
-    </>
-  )
-}
-
-type ChoiceProps = {
-  readonly selected: boolean
-  readonly label: string
-  readonly detail: string
-  readonly onPress: () => void
-  readonly textStyle: object
-}
-
-const Choice: FC<ChoiceProps> = props => {
-  return (
-    <Pressable onPress={props.onPress} style={styles.choice}>
-      <Text style={[styles.choiceLabel, props.textStyle]}>
-        {props.selected ? '● ' : '○ '}
-        {props.label}
-      </Text>
-      <Text style={[styles.choiceDetail, props.textStyle]}>{props.detail}</Text>
-    </Pressable>
-  )
-}
-
-const styles = StyleSheet.create({
-  panel: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  heading: { fontSize: 18, fontWeight: '600' },
-  link: { color: colors.accent, fontSize: 13 },
-  section: { fontSize: 13, fontWeight: '600', marginTop: 16, marginBottom: 6 },
-  path: { fontSize: 12, opacity: 0.8, marginBottom: 6 },
-  row: { flexDirection: 'row', gap: 16 },
-  choice: { paddingVertical: 4 },
-  choiceLabel: { fontSize: 13 },
-  choiceDetail: { fontSize: 11, opacity: 0.6, marginLeft: 18 },
-  note: { fontSize: 11, opacity: 0.6, marginTop: 16 },
-  stepRow: { alignItems: 'center', gap: 10, paddingVertical: 2 },
-  stepLabel: { fontSize: 13, width: 100 },
-  stepValue: { fontSize: 13, minWidth: 80, textAlign: 'center' },
-  dim: { opacity: 0.4 },
-  error: { color: colors.error, fontSize: 12, marginTop: 8 },
-})

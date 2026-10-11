@@ -1,13 +1,13 @@
 // Layout here comes from skin data (rects, sizes), so styles are inline.
 /* eslint-disable react-native/no-inline-styles */
-import React, { type FC, useEffect, useState } from 'react'
+import React, { type FC } from 'react'
 import { Pressable } from 'react-native'
 
 import { useSkinScale } from '@/hooks/useSkinScale'
 import { scaleRect } from '@/skin/scaleRect'
 import type { SkinElement } from '@/skin/types'
 
-import { nextPreset } from './nextPreset'
+import { useVisualizerPreset } from './useVisualizerPreset'
 import { VisualizerNative } from './VisualizerNative'
 import { VisualizerPlaceholder } from './VisualizerPlaceholder'
 
@@ -15,10 +15,6 @@ import { VisualizerPlaceholder } from './VisualizerPlaceholder'
 // Windows. It draws the Rust core's live analysis every display refresh
 // while recording, the preset's idle look otherwise.
 const SSVisualizerView = VisualizerNative
-
-// The chosen look, shared by the main and shade layouts.
-let chosenPreset = 0
-const listeners = new Set<(i: number) => void>()
 
 export type VisualizerProps = {
   readonly element: SkinElement
@@ -33,28 +29,14 @@ export type VisualizerProps = {
 export const Visualizer: FC<VisualizerProps> = props => {
   const { element, presets } = props
   const s = useSkinScale()
-  const [index, setIndex] = useState(chosenPreset)
-  useEffect(() => {
-    listeners.add(setIndex)
-    return () => {
-      listeners.delete(setIndex)
-    }
-  }, [])
+  const { preset, cycle } = useVisualizerPreset(presets)
   const style = element.style ?? {}
-  const preset =
-    (presets.length > 0 ? presets[index % presets.length] : undefined) ?? {}
   // Strings compare by value, so the native view only re-applies real changes.
   const json = JSON.stringify({
     grid: style.grid,
     line: style.line,
     ...preset,
   })
-  const cycle = () => {
-    chosenPreset = nextPreset(chosenPreset, presets.length)
-    listeners.forEach(l => {
-      l(chosenPreset)
-    })
-  }
   const name = typeof preset.name === 'string' ? preset.name : 'Visualizer'
   return (
     <Pressable

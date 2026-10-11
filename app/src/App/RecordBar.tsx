@@ -1,10 +1,12 @@
 import type { FC } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 
 import type { RecorderState } from '@/native/types'
 import { formatElapsed } from '@/recorder/formatElapsed'
 import { meterScale } from '@/skin/meterScale'
 import { colors } from '@/theme/colors'
+
+import { RecordButton } from './RecordButton'
 
 export type RecordBarProps = {
   readonly state: RecorderState
@@ -29,13 +31,13 @@ export const RecordBar: FC<RecordBarProps> = props => {
     <View style={styles.bar}>
       {active ? (
         <>
-          <Button
+          <RecordButton
             testID="pause-resume"
             label={state === 'paused' ? 'Resume' : 'Pause'}
             onPress={state === 'paused' ? props.onResume : props.onPause}
             color={colors.accent}
           />
-          <Button
+          <RecordButton
             testID="stop"
             label="■ Stop"
             onPress={props.onStop}
@@ -43,7 +45,7 @@ export const RecordBar: FC<RecordBarProps> = props => {
           />
         </>
       ) : (
-        <Button
+        <RecordButton
           testID="record"
           label={
             state === 'finalizing'
@@ -73,31 +75,6 @@ export const RecordBar: FC<RecordBarProps> = props => {
   )
 }
 
-type ButtonProps = {
-  readonly testID: string
-  readonly label: string
-  readonly onPress: () => void
-  readonly color: string
-  readonly disabled?: boolean
-}
-
-const Button: FC<ButtonProps> = props => {
-  return (
-    <Pressable
-      testID={props.testID}
-      onPress={props.onPress}
-      disabled={props.disabled}
-      style={[
-        styles.button,
-        { backgroundColor: props.color },
-        props.disabled && styles.disabled,
-      ]}
-    >
-      <Text style={styles.buttonText}>{props.label}</Text>
-    </Pressable>
-  )
-}
-
 const stateLabel = (state: RecorderState): string => {
   switch (state) {
     case 'recording':
@@ -113,9 +90,6 @@ const stateLabel = (state: RecorderState): string => {
 
 const styles = StyleSheet.create({
   bar: { flexDirection: 'row', alignItems: 'center', marginTop: 16, gap: 10 },
-  button: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 6 },
-  buttonText: { color: '#ffffff', fontSize: 14, fontWeight: '600' },
-  disabled: { opacity: 0.5 },
   time: { fontSize: 18, fontVariant: ['tabular-nums'], minWidth: 64 },
   meter: {
     flex: 1,

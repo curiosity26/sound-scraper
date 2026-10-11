@@ -5,13 +5,12 @@ import { parseJson } from '@/utils/parseJson'
 import NativeEditor from './NativeEditor'
 import type {
   DetectOptions,
+  MastersUsage,
   Proposal,
   SaveResult,
   TrackInfo,
   WaveformStatus,
 } from './types'
-
-type MastersUsage = { count: number; bytes: number }
 
 const isWaveformStatus = (value: unknown): value is WaveformStatus =>
   isRecord(value) &&

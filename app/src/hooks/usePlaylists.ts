@@ -2,8 +2,15 @@ import { useEffect, useState } from 'react'
 
 import { playlists, type PlaylistsState } from '@/playlists/playlists'
 
-/** The playlists, re-rendering on changes. */
-export const usePlaylists = (): PlaylistsState => {
+/** The playlists' state (see PlaylistsState). */
+export type UsePlaylistsResult = PlaylistsState
+
+/**
+ * The playlists, re-rendering on changes. Plain state rather than
+ * useSyncExternalStore: the library re-reads the playlists inside a
+ * transition (useRecordingList) and needs this update to wait for it.
+ */
+export const usePlaylists = (): UsePlaylistsResult => {
   const [s, setS] = useState(playlists.get)
   useEffect(() => {
     setS(playlists.get())

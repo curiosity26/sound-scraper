@@ -1,117 +1,27 @@
-import { type FC, useCallback, useEffect, useMemo, useState } from 'react'
+import { type FC, useState } from 'react'
 import { Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native'
 
 import { AboutPanel } from '@/components/AboutPanel'
 import { LibraryScreen } from '@/components/LibraryScreen'
 import { SettingsPanel } from '@/components/SettingsPanel'
 import { refreshLibraryViews } from '@/library/refreshLibraryViews'
-import { getCoreVersion } from '@/native/getCoreVersion'
-import { isRecorderState } from '@/native/isRecorderState'
-import { recorder } from '@/native/recorder'
-import type { AudioApp, RecorderState } from '@/native/types'
-import { rememberedPid } from '@/recorder/rememberedPid'
-import { rememberSource } from '@/recorder/rememberSource'
-import { safeList } from '@/recorder/safeList'
-import { safeRecover } from '@/recorder/safeRecover'
-import { safeState } from '@/recorder/safeState'
-import type { Message } from '@/recorder/types'
 import { colors } from '@/theme/colors'
 import { text } from '@/theme/text'
-import { errorText } from '@/utils/errorText'
 
 import { panelStyles } from './panelStyles'
 import { RecordBar } from './RecordBar'
 import { SourcePicker } from './SourcePicker'
-
-type UseCoreVersionResult =
-  | { readonly version: string; readonly error?: undefined }
-  | { readonly version?: undefined; readonly error: string }
-
-const useCoreVersion = (): UseCoreVersionResult => {
-  return useMemo(() => {
-    try {
-      return { version: getCoreVersion() }
-    } catch (e) {
-      return { error: e instanceof Error ? e.message : String(e) }
-    }
-  }, [])
-}
+import { useCaptureSources } from './useCaptureSources'
+import { useCoreVersion } from './useCoreVersion'
+import { useRecorderSession } from './useRecorderSession'
 
 export const App: FC = () => {
   const isDark = useColorScheme() === 'dark'
   const fg = isDark ? text.dark : text.light
   const { version, error } = useCoreVersion()
-
-  const [apps, setApps] = useState<AudioApp[]>(() => safeList())
-  const [selectedPid, setSelectedPid] = useState(() =>
-    rememberedPid(safeList()),
-  )
-  const [state, setState] = useState<RecorderState>(() => safeState())
-  const [starting, setStarting] = useState(false)
-  const [elapsedMs, setElapsedMs] = useState(0)
-  const [peak, setPeak] = useState(0)
-  const [message, setMessage] = useState<Message>()
+  const sources = useCaptureSources()
+  const recorder = useRecorderSession()
   const [overlay, setOverlay] = useState<'settings' | 'about'>()
-
-  useEffect(() => {
-    const recovered = safeRecover()
-    if (recovered > 0) {
-      setMessage({
-        text: `Recovered ${recovered} interrupted recording${
-          recovered === 1 ? '' : 's'
-        }.`,
-        isError: false,
-      })
-    }
-    const subscription = recorder.onEvent(e => {
-      switch (e.kind) {
-        case 'state':
-          if (isRecorderState(e.state)) {
-            setState(e.state)
-          }
-          if (e.state === 'idle') {
-            setPeak(0)
-          }
-          break
-        case 'progress':
-          setElapsedMs(e.elapsedMs)
-          setPeak(e.peak)
-          break
-        case 'finished':
-          setMessage({ text: `Saved ${e.path}`, isError: false })
-          break
-        case 'error':
-          setMessage({ text: `Recording failed: ${e.message}`, isError: true })
-          break
-      }
-    })
-    return () => {
-      subscription.remove()
-    }
-  }, [])
-
-  const onRecord = useCallback(async () => {
-    setStarting(true)
-    setMessage(undefined)
-    setElapsedMs(0)
-    try {
-      const app = apps.find(a => a.pid === selectedPid)
-      await recorder.start(app)
-      rememberSource(app)
-    } catch (e) {
-      setMessage({ text: `Couldn't start: ${errorText(e)}`, isError: true })
-    } finally {
-      setStarting(false)
-    }
-  }, [apps, selectedPid])
-
-  const onStop = useCallback(async () => {
-    try {
-      await recorder.stop()
-    } catch (e) {
-      setMessage({ text: `Couldn't save: ${errorText(e)}`, isError: true })
-    }
-  }, [])
 
   return (
     <View style={[styles.root, isDark ? styles.rootDark : styles.rootLight]}>
@@ -147,43 +57,45 @@ export const App: FC = () => {
       )}
 
       <SourcePicker
-        apps={apps}
-        selectedPid={selectedPid}
-        onSelect={setSelectedPid}
-        onRefresh={() => {
-          setApps(safeList())
-        }}
-        disabled={state !== 'idle' || starting}
+        apps={sources.apps}
+        selectedPid={sources.selectedPid}
+        onSelect={sources.select}
+        onRefresh={sources.refresh}
+        disabled={recorder.state !== 'idle' || recorder.starting}
         textStyle={fg}
       />
 
       <RecordBar
-        state={state}
-        starting={starting}
-        elapsedMs={elapsedMs}
-        peak={peak}
+        state={recorder.state}
+        starting={recorder.starting}
+        elapsedMs={recorder.elapsedMs}
+        peak={recorder.peak}
         onRecord={() => {
-          void onRecord()
+          void recorder.record(sources.selectedApp)
         }}
         onPause={recorder.pause}
         onResume={recorder.resume}
         onStop={() => {
-          void onStop()
+          void recorder.stop()
         }}
         textStyle={fg}
       />
 
-      {message && (
+      {recorder.message && (
         <Text
           testID="recorder-message"
           selectable
-          style={[styles.message, fg, message.isError && styles.error]}
+          style={[styles.message, fg, recorder.message.isError && styles.error]}
         >
-          {message.text}
+          {recorder.message.text}
         </Text>
       )}
 
-      <LibraryScreen onMessage={setMessage} textStyle={fg} isDark={isDark} />
+      <LibraryScreen
+        onMessage={recorder.setMessage}
+        textStyle={fg}
+        isDark={isDark}
+      />
 
       {overlay && (
         <View

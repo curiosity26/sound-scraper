@@ -4,6 +4,8 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import type { AudioApp } from '@/native/types'
 import { colors } from '@/theme/colors'
 
+import { SourceRow } from './SourceRow'
+
 export type SourcePickerProps = {
   readonly apps: readonly AudioApp[]
   /** 0 = all system audio. */
@@ -26,7 +28,7 @@ export const SourcePicker: FC<SourcePickerProps> = props => {
         </Pressable>
       </View>
       <ScrollView style={styles.list}>
-        <Row
+        <SourceRow
           label="All system audio"
           selected={selectedPid === 0}
           onPress={() => {
@@ -36,7 +38,7 @@ export const SourcePicker: FC<SourcePickerProps> = props => {
           textStyle={textStyle}
         />
         {apps.map(app => (
-          <Row
+          <SourceRow
             key={app.pid}
             label={`${app.isPlaying ? '♪ ' : ''}${app.name}`}
             selected={selectedPid === app.pid}
@@ -49,29 +51,6 @@ export const SourcePicker: FC<SourcePickerProps> = props => {
         ))}
       </ScrollView>
     </View>
-  )
-}
-
-type RowProps = {
-  readonly label: string
-  readonly selected: boolean
-  readonly onPress: () => void
-  readonly disabled: boolean
-  readonly textStyle: object
-}
-
-const Row: FC<RowProps> = props => {
-  return (
-    <Pressable
-      onPress={props.onPress}
-      disabled={props.disabled}
-      style={[styles.row, props.selected && styles.rowSelected]}
-    >
-      <Text style={[styles.rowText, props.textStyle]}>
-        {props.selected ? '● ' : '○ '}
-        {props.label}
-      </Text>
-    </Pressable>
   )
 }
 
@@ -92,7 +71,4 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 6,
   },
-  row: { paddingVertical: 6, paddingHorizontal: 10 },
-  rowSelected: { backgroundColor: '#2f6fde22' },
-  rowText: { fontSize: 14 },
 })

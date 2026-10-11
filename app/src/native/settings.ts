@@ -2,9 +2,7 @@ import { isRecord } from '@/utils/isRecord'
 import { parseJson } from '@/utils/parseJson'
 
 import NativeSoundScraper from './NativeSoundScraper'
-import type { Settings } from './types'
-
-type StoredSettings = Settings & { effectiveRecordingsDir: string }
+import type { Settings, StoredSettings } from './types'
 
 /** A shallow check of the settings JSON (the core validates the rest). */
 const isStoredSettings = (value: unknown): value is StoredSettings =>

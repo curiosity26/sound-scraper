@@ -1,10 +1,4 @@
-import React, {
-  type FC,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react'
+import React, { type FC, useState } from 'react'
 import {
   ActivityIndicator,
   Image,
@@ -17,28 +11,18 @@ import {
 } from 'react-native'
 
 import { usePanelStyles } from '@/hooks/usePanelStyles'
-import { chooseCover as chooseCoverFor } from '@/library/chooseCover'
 import { displayName } from '@/library/displayName'
 import { formatDate } from '@/library/formatDate'
 import { formatDuration } from '@/library/formatDuration'
 import { formatSize } from '@/library/formatSize'
-import { openRecordingMenu } from '@/library/openRecordingMenu'
-import { recordingActions } from '@/library/recordingActions'
-import type { MenuContext, ShowMenu } from '@/library/types'
-import { library } from '@/native/library'
-import type { Recording, Tags } from '@/native/types'
-import { safeSettings } from '@/recorder/safeSettings'
-import { buildEdit } from '@/tags/buildEdit'
+import type { ShowMenu } from '@/library/types'
 import { FIELD_LABELS, TEXT_FIELDS } from '@/tags/constants'
-import type { CoverChange, CoverState, Field } from '@/tags/types'
 import { colors } from '@/theme/colors'
-import { errorText } from '@/utils/errorText'
 
 import { coverUri } from './coverUri'
+import { Info } from './Info'
 import { InlineField } from './InlineField'
-import { mergeCovers } from './mergeCovers'
-import { mergeTags } from './mergeTags'
-import { validateTag } from './validateTag'
+import { useRecordingDetails } from './useRecordingDetails'
 
 export type DetailsPaneProps = {
   /** One recording, or several for a bulk edit. */
@@ -65,137 +49,24 @@ export type DetailsPaneProps = {
  * of their shared tags.
  */
 export const DetailsPane: FC<DetailsPaneProps> = props => {
-  const { fileNames, textStyle, isDark, onChanged } = props
+  const { fileNames, textStyle, isDark } = props
   const t = usePanelStyles()
-  const [tags, setTags] = useState<Tags[]>()
-  const [recordings, setRecordings] = useState<Recording[]>([])
-  const [error, setError] = useState<string>()
-  const [notice, setNotice] = useState<string>()
-  const [busy, setBusy] = useState(false)
+  const details = useRecordingDetails({
+    fileNames,
+    onChanged: props.onChanged,
+    onRenamed: props.onRenamed,
+    onTrashed: props.onClose,
+    showMenu: props.showMenu,
+  })
+  const { merged, cover, recording, error, notice } = details
   const [area, setArea] = useState({ width: 0, height: 0 })
   const single = fileNames.length === 1
   const key = fileNames.join('\u0000')
 
-  const load = useCallback(async () => {
-    const names = key.split('\u0000').filter(Boolean)
-    try {
-      const [loaded, all] = await Promise.all([
-        Promise.all(names.map(n => library.readTags(n))),
-        library.list(),
-      ])
-      setTags(loaded)
-      setRecordings(all.filter(r => names.includes(r.fileName)))
-    } catch (e) {
-      setError(`Couldn't read the tags: ${errorText(e)}`)
-    }
-  }, [key])
-
-  useEffect(() => {
-    setTags(undefined)
-    setError(undefined)
-    setNotice(undefined)
-    void load()
-  }, [load])
-
-  const merged = useMemo(() => (tags ? mergeTags(tags) : undefined), [tags])
-  const cover: CoverState = useMemo(
-    () => (tags ? mergeCovers(tags) : { kind: 'none' }),
-    [tags],
-  )
-
-  /** Writes one change to every selected recording, then reloads. */
-  const write = async (
-    edits: Partial<Record<Field, string>>,
-    coverChange: CoverChange,
-  ) => {
-    setBusy(true)
-    setError(undefined)
-    try {
-      const v23 = safeSettings()?.id3Version === '2.3'
-      await library.writeTags(
-        [...fileNames],
-        buildEdit(edits, coverChange, v23),
-      )
-      onChanged()
-      await load()
-    } catch (e) {
-      setError(`Couldn't save: ${errorText(e)}`)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const saveField = async (field: Field, text: string) => {
-    const problem = validateTag(field, text)
-    if (problem) {
-      setError(problem)
-      return false
-    }
-    await write({ [field]: text }, { kind: 'keep' })
-    return true
-  }
-
-  const rename = async (text: string) => {
-    const old = fileNames[0]
-    if (old === undefined) {
-      return true
-    }
-    const recording = recordings.find(r => r.fileName === old)
-    if (!text.trim() || (recording && text.trim() === displayName(recording))) {
-      return true
-    }
-    try {
-      const renamed = await library.rename(old, text)
-      onChanged()
-      props.onRenamed(old, renamed)
-      return true
-    } catch (e) {
-      setError(`Couldn't rename: ${errorText(e)}`)
-      return false
-    }
-  }
-
-  const menuContext: MenuContext = {
-    fileNames,
-    recordings,
-    hasCover: cover.kind !== 'none',
-    showMenu: props.showMenu,
-    onChanged: () => {
-      onChanged()
-      void load()
-    },
-    onTrashed: props.onClose,
-    report: m => {
-      setError(m.isError ? m.text : undefined)
-      setNotice(m.isError ? undefined : m.text)
-    },
-  }
-  const chooseCover = () => {
-    void chooseCoverFor(menuContext)
-  }
-
-  const onDrop = (e: {
-    nativeEvent: { dataTransfer?: { files?: Array<{ uri?: string }> } }
-  }) => {
-    const uri = e.nativeEvent.dataTransfer?.files?.[0]?.uri
-    const path = uri ? decodeURI(uri.replace(/^file:\/\//, '')) : undefined
-    if (path && /\.(png|jpe?g)$/i.test(path)) {
-      void write({}, { kind: 'set', path })
-    } else if (path) {
-      setError('Drop a PNG or JPEG image.')
-    }
-  }
-
-  const actions = recordingActions(menuContext)
-  const openMenu = (x: number, y: number) => {
-    void openRecordingMenu(menuContext, x, y)
-  }
-
   if (props.menuRef) {
-    props.menuRef.current = openMenu
+    props.menuRef.current = details.openMenu
   }
 
-  const recording = single ? recordings[0] : undefined
   // The cover leaves room below it for the file name and title (about
   // 110 points), so they show without scrolling.
   const size = Math.max(
@@ -205,7 +76,11 @@ export const DetailsPane: FC<DetailsPaneProps> = props => {
   // macOS drag-and-drop props, not in View's types.
   const dropProps: object = {
     draggedTypes: ['fileUrl'],
-    onDrop,
+    onDrop: (e: {
+      nativeEvent: { dataTransfer?: { files?: Array<{ uri?: string }> } }
+    }) => {
+      details.dropImage(e.nativeEvent.dataTransfer?.files?.[0]?.uri)
+    },
   }
 
   return (
@@ -220,7 +95,7 @@ export const DetailsPane: FC<DetailsPaneProps> = props => {
         <Pressable
           testID="details-cover"
           accessibilityLabel="Cover art. Click to choose an image, or drop one here."
-          onPress={chooseCover}
+          onPress={details.chooseCover}
           style={[
             styles.cover,
             { width: size, height: size },
@@ -244,7 +119,7 @@ export const DetailsPane: FC<DetailsPaneProps> = props => {
         </Pressable>
       </View>
 
-      {busy && <ActivityIndicator style={styles.busy} />}
+      {details.busy && <ActivityIndicator style={styles.busy} />}
       {error && (
         <Text selectable style={styles.error}>
           {error}
@@ -263,7 +138,7 @@ export const DetailsPane: FC<DetailsPaneProps> = props => {
               testID="details-name"
               label="File name"
               value={recording ? displayName(recording) : fileNames[0] ?? ''}
-              onCommit={rename}
+              onCommit={details.rename}
               textStyle={textStyle}
               large
             />
@@ -282,7 +157,7 @@ export const DetailsPane: FC<DetailsPaneProps> = props => {
                 value={m.kind === 'value' ? m.text : ''}
                 mixed={m.kind === 'mixed'}
                 multiline={field === 'comment'}
-                onCommit={text => saveField(field, text)}
+                onCommit={text => details.saveField(field, text)}
                 textStyle={textStyle}
               />
             )
@@ -313,7 +188,7 @@ export const DetailsPane: FC<DetailsPaneProps> = props => {
           )}
           {!props.showMenu && (
             <View style={styles.links}>
-              {actions.map(a => (
+              {details.actions.map(a => (
                 <Pressable
                   key={a.label}
                   onPress={() => {
@@ -331,30 +206,6 @@ export const DetailsPane: FC<DetailsPaneProps> = props => {
         </View>
       )}
     </ScrollView>
-  )
-}
-
-type InfoProps = {
-  readonly label: string
-  readonly value: string
-  readonly textStyle: object
-}
-
-const Info: FC<InfoProps> = props => {
-  const t = usePanelStyles()
-  return (
-    <View style={styles.infoRow}>
-      <Text style={[styles.infoLabel, props.textStyle, t.cell]}>
-        {props.label}
-      </Text>
-      <Text
-        selectable
-        style={[styles.infoValue, props.textStyle, t.cell]}
-        numberOfLines={2}
-      >
-        {props.value}
-      </Text>
-    </View>
   )
 }
 
@@ -382,9 +233,6 @@ const styles = StyleSheet.create({
   fields: { marginTop: 10 },
   bulk: { fontSize: 15, fontWeight: '600', marginBottom: 6 },
   info: { marginTop: 8, gap: 2 },
-  infoRow: { flexDirection: 'row', gap: 8 },
-  infoLabel: { width: 64, fontSize: 11, opacity: 0.6 },
-  infoValue: { flex: 1, fontSize: 11 },
   links: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 10 },
   link: { color: colors.accent, fontSize: 13 },
 })

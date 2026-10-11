@@ -1,17 +1,18 @@
 // "+ Add Recordings…" in a playlist: an in-panel sheet listing the library
 // with check boxes and search, to add recordings without leaving the
 // playlist.
-import React, { type FC, useMemo, useState } from 'react'
+import React, { type FC } from 'react'
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { TextField } from '@/components/TextField'
 import { usePanelStyles } from '@/hooks/usePanelStyles'
 import { usePanelTheme } from '@/hooks/usePanelTheme'
 import { displayName } from '@/library/displayName'
-import { filterRecordings } from '@/library/filterRecordings'
 import { formatDuration } from '@/library/formatDuration'
 import type { Recording } from '@/native/types'
 import { colors } from '@/theme/colors'
+
+import { useRecordingPicker } from './useRecordingPicker'
 
 export type AddRecordingsSheetProps = {
   readonly playlistName: string
@@ -27,24 +28,12 @@ export type AddRecordingsSheetProps = {
 export const AddRecordingsSheet: FC<AddRecordingsSheetProps> = props => {
   const theme = usePanelTheme()
   const t = usePanelStyles()
-  const [query, setQuery] = useState('')
-  const [picked, setPicked] = useState<string[]>([])
-  const rows = useMemo(
-    () => filterRecordings(props.recordings, query),
-    [props.recordings, query],
-  )
+  const { query, setQuery, rows, picked, toggle, pickedMs } =
+    useRecordingPicker(props.recordings)
   const fg = { color: theme?.text ?? '#f3ead0' }
   const dim = { color: (theme?.text ?? '#f3ead0') + '99' }
   const accent = theme?.accent ?? colors.accent
   const border = theme?.border ?? colors.border
-  const toggle = (name: string) => {
-    setPicked(p =>
-      p.includes(name) ? p.filter(n => n !== name) : [...p, name],
-    )
-  }
-  const ms = props.recordings
-    .filter(r => picked.includes(r.fileName))
-    .reduce((sum, r) => sum + r.durationMs, 0)
 
   return (
     <View style={styles.backdrop} testID="add-recordings">
@@ -124,7 +113,7 @@ export const AddRecordingsSheet: FC<AddRecordingsSheetProps> = props => {
           <Text style={[styles.count, dim]}>
             {picked.length === 0
               ? 'Click recordings to choose them.'
-              : `${picked.length} chosen · ${formatDuration(ms)}`}
+              : `${picked.length} chosen · ${formatDuration(pickedMs)}`}
           </Text>
           <Pressable
             testID="add-recordings-cancel"

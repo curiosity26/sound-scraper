@@ -1,28 +1,24 @@
-import React, { type FC, useMemo, useRef, useState } from 'react'
+import React, { type FC, useRef, useState } from 'react'
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native'
 
+import type { RowTarget } from '@/components/LibraryScreen/types'
 import { TextField } from '@/components/TextField'
 import { usePanelStyles } from '@/hooks/usePanelStyles'
 import { usePanelTheme } from '@/hooks/usePanelTheme'
-import { COLUMNS, DEFAULT_SORT } from '@/library/constants'
-import { displayName } from '@/library/displayName'
-import { filterRecordings } from '@/library/filterRecordings'
-import { formatDate } from '@/library/formatDate'
-import { formatDuration } from '@/library/formatDuration'
-import { formatSize } from '@/library/formatSize'
-import type { PlaylistView, Row, Sort } from '@/library/types'
+import { COLUMNS } from '@/library/constants'
+import type { PlaylistView, Row } from '@/library/types'
 import type { Recording } from '@/native/types'
 import { colors } from '@/theme/colors'
 
-import { filterPlaylistRows } from './filterPlaylistRows'
+import { LibraryRow } from './LibraryRow'
 import { moveBy } from './moveBy'
-import { moveItems } from './moveItems'
-import { nextSort } from './nextSort'
 import { rowKey } from './rowKey'
-import { rowName } from './rowName'
+import { rowStyles } from './rowStyles'
 import { SkinScrollbar } from './SkinScrollbar'
-import { sortPlaylistRows } from './sortPlaylistRows'
-import { sortRecordings } from './sortRecordings'
+import type { MouseLike } from './types'
+import { useCheckBoxes } from './useCheckBoxes'
+import { useLibraryRows } from './useLibraryRows'
+import { usePlaylistDrag } from './usePlaylistDrag'
 import { visibleColumns } from './visibleColumns'
 
 export type LibraryTableProps = {
@@ -57,27 +53,16 @@ export type LibraryTableProps = {
    * A row was right-clicked at (x, y) in the window: its file name, and its
    * item id in a playlist.
    */
-  readonly onContextMenu?: (
-    target: { fileName: string; itemId?: number; key: string },
-    x: number,
-    y: number,
-  ) => void
+  readonly onContextMenu?: (target: RowTarget, x: number, y: number) => void
 }
-
-/** What the row needs from a press or pointer event's native event. */
-type MouseLike = { button?: number; pageX?: number; pageY?: number }
-
-const SORT_POSITION: Sort = { key: 'position', ascending: true }
-
-/** Presses this close to the list's left edge grab a row's ≡ handle. */
-const HANDLE_HIT = 28
 
 /**
  * Recordings with sort, search, inline rename, Show in Finder and Trash; or
  * a playlist's rows, in its order, with drag handles to reorder them.
  */
 export const LibraryTable: FC<LibraryTableProps> = props => {
-  const { recordings, textStyle, isDark, playlist } = props
+  const { recordings, textStyle, isDark, playlist, checked, onCheckedChange } =
+    props
   const t = usePanelStyles()
   const theme = usePanelTheme()
   const scrollbar = theme?.scrollbar
@@ -86,135 +71,19 @@ export const LibraryTable: FC<LibraryTableProps> = props => {
   const [scroll, setScroll] = useState({ viewport: 0, content: 0, offset: 0 })
   const [width, setWidth] = useState(0)
   const shown = visibleColumns(width)
-  const [query, setQuery] = useState('')
-  const [librarySort, setLibrarySort] = useState<Sort>(DEFAULT_SORT)
-  const [playlistSort, setPlaylistSort] = useState<Sort>(SORT_POSITION)
-  const sort = playlist ? playlistSort : librarySort
-  const setSort = playlist ? setPlaylistSort : setLibrarySort
-  const { selected } = props
-
-  const rows: Row[] = useMemo(() => {
-    if (playlist) {
-      const sorted = sortPlaylistRows(
-        filterPlaylistRows(playlist.rows, query),
-        sort,
-      )
-      return sorted.map(r => ({
-        fileName: r.item.fileName,
-        recording: r.recording,
-        itemId: r.item.id,
-        position: r.position,
-        name: rowName(r),
-        index: r.position - 1,
-      }))
-    }
-    return sortRecordings(filterRecordings(recordings, query), sort).map(r => ({
-      fileName: r.fileName,
-      recording: r,
-      name: displayName(r),
-    }))
-  }, [recordings, playlist, query, sort])
-
-  const total = playlist ? playlist.rows.length : recordings.length
-  const { checked, onCheckedChange } = props
-  const allChecked = rows.length > 0 && rows.every(r => checked.has(rowKey(r)))
-  const toggle = (key: string) => {
-    const next = new Set(checked)
-    if (next.has(key)) {
-      next.delete(key)
-    } else {
-      next.add(key)
-    }
-    onCheckedChange(next)
-  }
-  const toggleAll = () => {
-    onCheckedChange(allChecked ? new Set() : new Set(rows.map(rowKey)))
-  }
-  const checkedRows = rows.filter(r => checked.has(rowKey(r)))
-  const checkedNames = [
-    ...new Set(checkedRows.filter(r => r.recording).map(r => r.fileName)),
-  ]
-
-  // Reordering: only in the playlist's own order, unfiltered.
-  const canReorder =
-    playlist !== undefined &&
-    sort.key === 'position' &&
-    sort.ascending &&
-    query.trim() === ''
-  const order = playlist?.rows.map(r => r.item.id) ?? []
-  const checkedItemIds = checkedRows
-    .map(r => r.itemId)
-    .filter((id): id is number => id !== undefined)
-
-  // Dragging a row by its handle: the rows move together (all checked rows,
-  // if the dragged one is checked), landing before `drag.target`. The list
-  // box captures presses in the handle column (before the scroll view and
-  // the row see them), and works out the row from where the press was.
-  const rowHeight = useRef(0)
-  const box = useRef<View>(null)
-  const boxAt = useRef({ x: 0, y: 0 })
-  const [drag, setDragState] = useState<{
-    ids: number[]
-    from: number
-    target: number
-  } | null>(null)
-  const dragRef = useRef(drag)
-  const setDrag = (d: typeof drag) => {
-    dragRef.current = d
-    setDragState(d)
-  }
-  const dragStart = useRef(0)
-  const measureBox = () =>
-    box.current?.measure((_x, _y, _w, _h, pageX, pageY) => {
-      boxAt.current = { x: pageX, y: pageY }
-    })
-  const inHandle = (pageX: number) =>
-    canReorder && pageX - boxAt.current.x < HANDLE_HIT
-  const rowAt = (pageY: number): Row | undefined => {
-    if (rowHeight.current <= 0) {
-      return undefined
-    }
-    const i = Math.floor(
-      (pageY - boxAt.current.y + scroll.offset) / rowHeight.current,
-    )
-    return rows[i]
-  }
-  const beginDrag = (pageY: number) => {
-    const row = rowAt(pageY)
-    if (!row || row.itemId === undefined || row.index === undefined) {
-      return
-    }
-    const key = rowKey(row)
-    const ids =
-      checked.has(key) && checkedItemIds.length > 0
-        ? checkedItemIds
-        : [row.itemId]
-    dragStart.current = pageY
-    setDrag({ ids, from: row.index, target: row.index })
-  }
-  const moveDrag = (pageY: number) => {
-    const d = dragRef.current
-    if (!d || rowHeight.current <= 0) {
-      return
-    }
-    const delta = (pageY - dragStart.current) / rowHeight.current
-    // Moving down lands after the row under the pointer.
-    const raw = d.from + Math.round(delta) + (delta > 0 ? 1 : 0)
-    const target = Math.max(0, Math.min(order.length, raw))
-    if (target !== d.target) {
-      setDrag({ ...d, target })
-    }
-  }
-  const endDrag = () => {
-    const d = dragRef.current
-    if (d && playlist) {
-      const next = moveItems(order, d.ids, d.target)
-      if (next.some((id, i) => id !== order[i])) {
-        playlist.onReorder(next)
-      }
-    }
-    setDrag(null)
-  }
+  const { query, setQuery, sort, toggleSort, rows, total, canReorder, order } =
+    useLibraryRows({ recordings, playlist })
+  const checks = useCheckBoxes({ rows, checked, onCheckedChange })
+  const { checkedNames, checkedItemIds } = checks
+  const drag = usePlaylistDrag({
+    rows,
+    playlist,
+    order,
+    canReorder,
+    checked,
+    checkedItemIds,
+    scrollOffset: scroll.offset,
+  })
 
   // Right-click: the same menu as the details panel's gear. Both the press
   // and (on Windows) the pointer event may report it; show the menu once.
@@ -319,18 +188,18 @@ export const LibraryTable: FC<LibraryTableProps> = props => {
         />
       </View>
 
-      <View style={[styles.row, t.row, styles.header, t.header]}>
-        {playlist && <View style={styles.handle} />}
-        <Pressable onPress={toggleAll} style={styles.check}>
-          <Text style={[styles.checkText, textStyle, t.headerText]}>
-            {allChecked ? '☑' : '☐'}
+      <View style={[rowStyles.row, t.row, styles.header, t.header]}>
+        {playlist && <View style={rowStyles.handle} />}
+        <Pressable onPress={checks.toggleAll} style={rowStyles.check}>
+          <Text style={[rowStyles.checkText, textStyle, t.headerText]}>
+            {checks.allChecked ? '☑' : '☐'}
           </Text>
         </Pressable>
         {playlist && (
           <Pressable
-            style={styles.position}
+            style={rowStyles.position}
             onPress={() => {
-              setSort(s => nextSort(s, 'position'))
+              toggleSort('position')
             }}
           >
             <Text
@@ -346,7 +215,7 @@ export const LibraryTable: FC<LibraryTableProps> = props => {
             key={c.key}
             style={{ flex: c.flex }}
             onPress={() => {
-              setSort(s => nextSort(s, c.key))
+              toggleSort(c.key)
             }}
           >
             <Text
@@ -361,34 +230,24 @@ export const LibraryTable: FC<LibraryTableProps> = props => {
       </View>
 
       <View
-        ref={box}
+        ref={drag.box}
         style={[styles.listBox, t.table]}
         onLayout={e => {
           const viewport = e.nativeEvent.layout.height
           setScroll(v => ({ ...v, viewport }))
-          measureBox()
+          drag.measureBox()
         }}
-        onStartShouldSetResponderCapture={e => {
-          measureBox()
-          return (
-            inHandle(e.nativeEvent.pageX) &&
-            rowAt(e.nativeEvent.pageY) !== undefined
-          )
-        }}
+        onStartShouldSetResponderCapture={drag.startCapture}
         onResponderTerminationRequest={() => false}
-        onResponderGrant={e => {
-          beginDrag(e.nativeEvent.pageY)
-        }}
-        onResponderMove={e => {
-          moveDrag(e.nativeEvent.pageY)
-        }}
-        onResponderRelease={endDrag}
-        onResponderTerminate={endDrag}
+        onResponderGrant={drag.begin}
+        onResponderMove={drag.move}
+        onResponderRelease={drag.end}
+        onResponderTerminate={drag.end}
       >
         <FlatList
           ref={list}
           data={rows}
-          scrollEnabled={drag === null}
+          scrollEnabled={drag.drag === null}
           showsVerticalScrollIndicator={!scrollbar}
           style={scrollbar ? { marginRight: scrollbar.track[2] } : undefined}
           onContentSizeChange={(_, content) => {
@@ -411,188 +270,67 @@ export const LibraryTable: FC<LibraryTableProps> = props => {
                 : 'No recordings match your search.'}
             </Text>
           }
-          renderItem={({ item: row, index }) => {
-            const r = row.recording
-            const isSelected = playlist
-              ? row.itemId === playlist.selectedItemId
-              : row.fileName === selected
-            const isLoaded = playlist
-              ? row.itemId === playlist.playingItemId ||
-                (playlist.playingItemId === null &&
-                  row.fileName === props.loaded)
-              : row.fileName === props.loaded
-            const isOver =
-              playlist !== undefined &&
-              playlist.firstOver >= 0 &&
-              row.index !== undefined &&
-              row.index >= playlist.firstOver
-            const cellText = [
-              t.cell,
-              textStyle,
-              t.tableText,
-              isSelected && t.selectedText,
-              !r && {
-                color: pc.missing ?? '#888',
-                fontStyle: 'italic' as const,
-              },
-            ]
-            const key = rowKey(row)
-            return (
-              <Pressable
-                testID={`recording-${key}`}
-                onLayout={
-                  index === 0
-                    ? e => {
-                        rowHeight.current = e.nativeEvent.layout.height
-                      }
-                    : undefined
+          renderItem={({ item: row, index }) => (
+            <LibraryRow
+              row={row}
+              index={index}
+              playlist={playlist}
+              selected={props.selected}
+              loaded={props.loaded}
+              checked={checked.has(rowKey(row))}
+              canReorder={canReorder}
+              shown={shown}
+              textStyle={textStyle}
+              onLayout={
+                index === 0
+                  ? e => {
+                      drag.rowHeight.current = e.nativeEvent.layout.height
+                    }
+                  : undefined
+              }
+              onRightClick={e => {
+                rightClick(row, e)
+              }}
+              onAuxClick={e => {
+                rightClick(row, {
+                  button: e.button ?? 2,
+                  pageX: drag.boxAt.current.x + (e.clientX ?? 0),
+                  pageY:
+                    drag.boxAt.current.y +
+                    index * drag.rowHeight.current -
+                    scroll.offset +
+                    (e.clientY ?? 0),
+                })
+              }}
+              onPress={() => {
+                if (!row.recording || Date.now() - lastMenu.current < 600) {
+                  return
                 }
-                onPressIn={e => {
-                  rightClick(row, e.nativeEvent)
-                }}
-                {...{
-                  // Windows reports the button on pointer events.
-                  onPointerDown: (e: { nativeEvent: MouseLike }) => {
-                    rightClick(row, e.nativeEvent)
-                  },
-                  // macOS: a right-click is an "aux click", with the point
-                  // in the row's own coordinates.
-                  onAuxClick: (e: {
-                    nativeEvent: {
-                      button?: number
-                      clientX?: number
-                      clientY?: number
-                    }
-                  }) => {
-                    rightClick(row, {
-                      button: e.nativeEvent.button ?? 2,
-                      pageX: boxAt.current.x + (e.nativeEvent.clientX ?? 0),
-                      pageY:
-                        boxAt.current.y +
-                        index * rowHeight.current -
-                        scroll.offset +
-                        (e.nativeEvent.clientY ?? 0),
-                    })
-                  },
-                }}
-                onPress={() => {
-                  if (!r || Date.now() - lastMenu.current < 600) {
-                    return
+                if (playlist) {
+                  const source = playlist.rows.find(
+                    p => p.item.id === row.itemId,
+                  )
+                  if (source) {
+                    playlist.onSelectItem(source)
                   }
-                  if (playlist) {
-                    const source = playlist.rows.find(
-                      p => p.item.id === row.itemId,
-                    )
-                    if (source) {
-                      playlist.onSelectItem(source)
-                    }
-                  } else {
-                    props.onSelect(row.fileName)
-                  }
-                }}
-                style={[
-                  styles.row,
-                  t.row,
-                  t.grid,
-                  index % 2 === 1 && t.rowAlternate,
-                  isSelected && styles.rowSelected,
-                  isSelected && t.rowSelected,
-                  isOver && [
-                    styles.over,
-                    { borderLeftColor: pc.over ?? colors.error },
-                  ],
-                ]}
-              >
-                {playlist && (
-                  <View
-                    testID={`handle-${key}`}
-                    style={styles.handle}
-                    pointerEvents="none"
-                  >
-                    {canReorder && (
-                      <Text
-                        style={[
-                          styles.handleText,
-                          { color: pc.handle ?? '#888' },
-                        ]}
-                      >
-                        ≡
-                      </Text>
-                    )}
-                  </View>
-                )}
-                <Pressable
-                  testID={`check-${key}`}
-                  onPress={() => {
-                    toggle(key)
-                  }}
-                  style={styles.check}
-                >
-                  <Text style={[styles.checkText, cellText]}>
-                    {checked.has(key) ? '☑' : '☐'}
-                  </Text>
-                </Pressable>
-                {playlist && (
-                  <Text
-                    style={[styles.cell, styles.position, cellText]}
-                    numberOfLines={1}
-                  >
-                    {row.position}
-                  </Text>
-                )}
-                <Text
-                  style={[styles.cell, cellText, { flex: COLUMNS[0].flex }]}
-                  numberOfLines={1}
-                >
-                  {isLoaded ? '▶ ' : ''}
-                  {row.name}
-                </Text>
-                <Text
-                  style={[styles.cell, cellText, { flex: COLUMNS[1].flex }]}
-                  numberOfLines={1}
-                >
-                  {r ? formatDuration(r.durationMs) : 'missing'}
-                </Text>
-                <Text
-                  style={[styles.cell, cellText, { flex: COLUMNS[2].flex }]}
-                  numberOfLines={1}
-                >
-                  {r ? formatDate(r.recordedAtMs) : ''}
-                </Text>
-                {shown.includes('size') && (
-                  <Text
-                    style={[styles.cell, cellText, { flex: COLUMNS[3].flex }]}
-                    numberOfLines={1}
-                  >
-                    {r ? formatSize(r.sizeBytes) : ''}
-                  </Text>
-                )}
-                {shown.includes('artist') && (
-                  <Text
-                    style={[
-                      styles.cell,
-                      styles.dim,
-                      cellText,
-                      { flex: COLUMNS[4].flex },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {r
-                      ? [r.artist, r.album].filter(Boolean).join(' / ') || '—'
-                      : ''}
-                  </Text>
-                )}
-              </Pressable>
-            )
-          }}
+                } else {
+                  props.onSelect(row.fileName)
+                }
+              }}
+              onToggle={() => {
+                checks.toggle(rowKey(row))
+              }}
+            />
+          )}
         />
-        {drag && rowHeight.current > 0 && (
+        {drag.drag && drag.rowHeight.current > 0 && (
           <View
             pointerEvents="none"
             style={[
               styles.insert,
               {
-                top: drag.target * rowHeight.current - scroll.offset - 1,
+                top:
+                  drag.drag.target * drag.rowHeight.current - scroll.offset - 1,
                 backgroundColor: pc.insert ?? accent,
               },
             ]}
@@ -648,32 +386,11 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   headerText: { fontSize: 12, fontWeight: '600', opacity: 0.7 },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    gap: 8,
-  },
-  rowSelected: { backgroundColor: '#2f6fde22' },
-  cell: { fontSize: 13 },
-  dim: { opacity: 0.7 },
   toolbarLink: {
     color: colors.accent,
     fontSize: 13,
   },
-  check: { width: 20 },
-  checkText: { fontSize: 14 },
-  position: { width: 26, textAlign: 'right' },
-  handle: {
-    width: 14,
-    alignItems: 'center',
-    alignSelf: 'stretch',
-    justifyContent: 'center',
-  },
-  handleText: { fontSize: 14, lineHeight: 16 },
   insert: { position: 'absolute', left: 0, right: 0, height: 2 },
-  over: { borderLeftWidth: 3 },
   empty: { padding: 16, opacity: 0.6, fontSize: 13 },
   listBox: { flex: 1 },
   rootCompact: { marginTop: 0 },

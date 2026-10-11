@@ -1,317 +1,62 @@
 // Layout here comes from skin data (rects, sizes), so styles are inline.
 /* eslint-disable react-native/no-inline-styles */
-import React, { type FC, useCallback, useEffect, useState } from 'react'
+import React, { type FC } from 'react'
 import { Pressable, View } from 'react-native'
 
 import { DragSurface } from '@/components/DragSurface'
 import { SkinImage } from '@/components/SkinImage'
 import { SpriteCell } from '@/components/SpriteCell'
-import { usePlayback } from '@/hooks/usePlayback'
-import { usePlaylists } from '@/hooks/usePlaylists'
 import { useSkin } from '@/hooks/useSkin'
 import { useSkinScale } from '@/hooks/useSkinScale'
-import type { RecorderState } from '@/native/types'
-import { playback } from '@/playback/playback'
 import { formatElapsed } from '@/recorder/formatElapsed'
-import type { Message } from '@/recorder/types'
 import { scaleRect } from '@/skin/scaleRect'
-import type { ElementName, Rect, SkinElement } from '@/skin/types'
+import type { ElementName } from '@/skin/types'
 import { windows } from '@/skin/windows'
 
 import { ElementText } from './ElementText'
 import { LevelMeter } from './LevelMeter'
-import { playbackStatusText } from './playbackStatusText'
 import { SkinAnimation } from './SkinAnimation'
 import { SkinButton } from './SkinButton'
 import { SkinSeek } from './SkinSeek'
-import { statusText } from './statusText'
-import { useRecorder } from './useRecorder'
+import { StatusElement } from './StatusElement'
+import type { ButtonSpec } from './types'
+import { useMainWindow } from './useMainWindow'
+import { useSourceDisplay } from './useSourceDisplay'
+import { useTransport } from './useTransport'
 import { Visualizer } from './Visualizer'
-
-/** Elements that take clicks, so the window doesn't drag from them. */
-const INTERACTIVE: ElementName[] = [
-  'record',
-  'play',
-  'pause',
-  'stop',
-  'seek',
-  'source',
-  'toggleLibrary',
-  'toggleSettings',
-  'minimize',
-  'shade',
-  'close',
-]
 
 /** The skinned main window: transport, time, status, levels and source. */
 export const MainPanel: FC = () => {
   const skin = useSkin()
   const s = useSkinScale()
-  const r = useRecorder()
-  const p = usePlayback()
-  const pl = usePlaylists()
-  const [scrubMs, setScrubMs] = useState<number>()
-  const [shaded, setShaded] = useState(false)
-  const [panels, setPanels] = useState(() => ({
-    library: windows.isPanelVisible('library'),
-    settings: windows.isPanelVisible('settings'),
-  }))
-  const [shownMessage, setShownMessage] = useState<Message>()
-
-  const shade = skin.panels.main.shade
-  const layout = shaded && shade ? shade : skin.panels.main
+  const win = useMainWindow()
+  const { layout } = win
   const els = layout.elements
+  const tape = useTransport(els)
+  const source = useSourceDisplay(tape, els.source)
+  const { levels } = tape
 
-  useEffect(() => {
-    const subscription = windows.onEvent(e => {
-      if (e.window === 'main' && e.event === 'toggleShade') {
-        setShaded(on => !on)
-      } else if (e.window === 'library' || e.window === 'settings') {
-        setPanels(prev => ({ ...prev, [e.window]: e.event === 'shown' }))
-      }
-    })
-    return () => {
-      subscription.remove()
-    }
-  }, [])
-
-  useEffect(() => {
-    const scaled = (rect: Rect): Rect => [
-      rect[0] * s,
-      rect[1] * s,
-      rect[2] * s,
-      rect[3] * s,
-    ]
-    const holes = INTERACTIVE.flatMap(name => {
-      const el = layout.elements[name]
-      return el ? [scaled(el.rect)] : []
-    })
-    windows.setMainLayout(
-      [layout.size[0] * s, layout.size[1] * s],
-      layout.dragRegions.map(scaled),
-      holes,
-      s,
-    )
-  }, [layout, s])
-
-  const { setMessage: showMessage } = r
-  useEffect(
-    () =>
-      playback.onError(text => {
-        showMessage({ text, isError: true })
-      }),
-    [showMessage],
-  )
-
-  // Messages show in the source display for a while.
-  useEffect(() => {
-    if (!r.message) {
-      return
-    }
-    setShownMessage(r.message)
-    const timer = setTimeout(
-      () => {
-        setShownMessage(undefined)
-      },
-      r.message.isError ? 12000 : 6000,
-    )
-    return () => {
-      clearTimeout(timer)
-    }
-  }, [r.message])
-
-  const active = r.state === 'recording' || r.state === 'paused'
-  const busy = r.starting || r.state === 'finalizing'
-  // A recording loaded for playback, and no recording running: the
-  // displays show the playback.
-  const loaded = p.state !== 'empty' && !active && !busy
-  const playing = loaded && p.state === 'playing'
-
-  const { refreshApps, setSelectedPid, selectedPid, setMessage } = r
-  const chooseSource = useCallback(async () => {
-    setShownMessage(undefined)
-    const el = layout.elements.source
-    if (!el) {
-      return
-    }
-    if (active || busy) {
-      setMessage({
-        text: 'Stop recording to change the source',
-        isError: false,
-      })
-      return
-    }
-    const apps = refreshApps()
-    const items = [
-      'All system audio',
-      '-',
-      ...apps.map(a => `${a.isPlaying ? '♪ ' : ''}${a.name}`),
-    ]
-    const index = apps.findIndex(a => a.pid === selectedPid)
-    const checked = selectedPid === 0 || index < 0 ? 0 : index + 2
-    const [x, y, , h] = el.rect
-    const chosen = await windows.showMenu(
-      items,
-      checked,
-      x * s,
-      (y + h + 2) * s,
-    )
-    if (chosen === 0) {
-      setSelectedPid(0)
-    } else if (chosen >= 2) {
-      const app = apps[chosen - 2]
-      if (app) {
-        setSelectedPid(app.pid)
-      }
-    }
-  }, [
-    layout,
-    s,
-    active,
-    busy,
-    refreshApps,
-    setSelectedPid,
-    selectedPid,
-    setMessage,
-  ])
-
-  const close = useCallback(async () => {
-    if (active) {
-      await r.stop()
-    }
-    windows.quit()
-  }, [active, r])
-
-  // Record starts a new recording (unloading what was loaded for
-  // playback). Play is pause while recording or playing, and resumes a
-  // paused recording; record is disabled meanwhile. Skins without a play
-  // element (made before playback) keep record as pause too, unless they
-  // have a separate pause element.
-  const hasPlay = els.play != null
-  const pauseSeparate = els.pause != null || hasPlay
-  const onRecord = () => {
-    if (r.state === 'idle') {
-      void r.record()
-    } else if (hasPlay) {
-      return
-    } else if (r.state === 'paused') {
-      r.resume()
-    } else if (r.state === 'recording' && !pauseSeparate) {
-      r.pause()
-    }
-  }
-  const onPlay = () => {
-    if (r.state === 'recording') {
-      r.pause()
-    } else if (r.state === 'paused') {
-      r.resume()
-    } else if (playing) {
-      playback.pause()
-    } else if (loaded) {
-      void playback.play()
-    }
-  }
-  const onPause = () => {
-    if (active) {
-      if (r.state === 'paused') {
-        r.resume()
-      } else {
-        r.pause()
-      }
-    } else if (playing) {
-      playback.pause()
-    } else if (loaded && p.state === 'paused') {
-      void playback.play()
-    }
-  }
-  const onStop = () => {
-    if (active) {
-      void r.stop()
-    } else if (loaded) {
-      playback.stop()
-    }
-  }
-  const stoppable =
-    active || (loaded && (p.state !== 'stopped' || p.positionMs > 0))
-  const recordMode =
-    r.state === 'paused'
-      ? 'paused'
-      : r.state === 'recording'
-      ? 'recording'
-      : undefined
-  const recordLabel = hasPlay
-    ? 'Record'
-    : r.state === 'paused'
-    ? 'Resume'
-    : r.state === 'recording' && !pauseSeparate
-    ? 'Pause'
-    : 'Record'
-  const playMode =
-    r.state === 'recording' || r.state === 'paused'
-      ? r.state
-      : playing
-      ? 'playing'
-      : undefined
-  const playLabel =
-    r.state === 'paused'
-      ? 'Resume'
-      : r.state === 'recording' || playing
-      ? 'Pause'
-      : 'Play'
-  // Animations follow the tape: recording, or playing back.
-  const tapeState: RecorderState = playing
-    ? 'recording'
-    : loaded && p.state === 'paused'
-    ? 'paused'
-    : r.state
-
-  const togglePanel = (panel: 'library' | 'settings') => {
-    windows.setPanelVisible(panel, !panels[panel])
-  }
-
-  const button = (
-    name: ElementName,
-    label: string,
-    onPress: () => void,
-    flags: { active?: boolean; disabled?: boolean; mode?: string } = {},
-  ) => {
+  const button = (name: ElementName, spec: ButtonSpec) => {
     const el = els[name]
     return el ? (
       <SkinButton
         key={name}
         testID={name}
         element={el}
-        accessibilityLabel={label}
-        onPress={onPress}
-        active={flags.active}
-        disabled={flags.disabled}
-        mode={flags.mode}
+        accessibilityLabel={spec.label}
+        onPress={spec.onPress}
+        active={spec.active}
+        disabled={spec.disabled}
+        mode={spec.mode}
       />
     ) : null
   }
 
   const [width, height] = layout.size
-  const status = loaded
-    ? playbackStatusText(p.state)
-    : statusText(r.state, r.starting)
-  // While recording with a playlist showing, the recording goes into it.
-  const into =
-    (r.state === 'recording' || r.state === 'paused') && pl.activeId !== null
-      ? pl.playlists.find(x => x.id === pl.activeId)?.name
-      : undefined
-  const sourceText =
-    shownMessage?.text ??
-    (loaded && p.title
-      ? `♪ ${p.title}`
-      : into
-      ? `${r.sourceName} → ${into}`
-      : r.sourceName)
-  const levels = loaded ? p.levels : r.levels
-  const elapsedMs = loaded ? scrubMs ?? p.positionMs : r.elapsedMs
 
   return (
     <View
-      testID={shaded ? 'shade-panel' : 'main-panel'}
+      testID={win.shaded ? 'shade-panel' : 'main-panel'}
       style={{
         width: width * s,
         height: height * s,
@@ -328,22 +73,15 @@ export const MainPanel: FC = () => {
       )}
       <DragSurface
         panel="main"
-        drag={layout.dragRegions.map(d => [
-          d[0] * s,
-          d[1] * s,
-          d[2] * s,
-          d[3] * s,
-        ])}
-        onDoubleClick={() => {
-          setShaded(on => !on)
-        }}
+        drag={win.dragRegions}
+        onDoubleClick={win.toggleShade}
       />
       {layout.animations.map((a, i) => (
         <SkinAnimation
           key={a.name ?? i}
           animation={a}
-          state={tapeState}
-          playing={playing}
+          state={tape.tapeState}
+          playing={tape.playing}
           level={levels.peak}
         />
       ))}
@@ -368,24 +106,27 @@ export const MainPanel: FC = () => {
           testID="elapsed"
           element={els.elapsed}
           fonts={skin.fonts}
-          text={formatElapsed(elapsedMs, els.elapsed.style?.tenths !== false)}
+          text={formatElapsed(
+            tape.elapsedMs,
+            els.elapsed.style?.tenths !== false,
+          )}
         />
       )}
       {els.status && (
         <StatusElement
           element={els.status}
           fonts={skin.fonts}
-          state={loaded ? p.state : r.starting ? 'recording' : r.state}
-          text={status}
+          state={tape.status.state}
+          text={tape.status.text}
         />
       )}
       {els.source && (
         <Pressable
           testID="source"
           accessibilityRole="button"
-          accessibilityLabel={`Source: ${r.sourceName}`}
+          accessibilityLabel={source.accessibilityLabel}
           onPress={() => {
-            void chooseSource()
+            void source.choose()
           }}
           style={scaleRect(els.source.rect, s)}
         >
@@ -405,113 +146,35 @@ export const MainPanel: FC = () => {
         <ElementText
           element={els.source}
           fonts={skin.fonts}
-          text={sourceText}
+          text={source.text}
         />
       )}
-      {els.seek && (
-        <SkinSeek
-          element={els.seek}
-          positionMs={p.positionMs}
-          durationMs={p.durationMs}
-          enabled={loaded}
-          onScrub={setScrubMs}
-          onSeek={playback.seek}
-        />
-      )}
-      {button('record', recordLabel, onRecord, {
-        mode: recordMode,
-        disabled: busy || (hasPlay && active),
+      {els.seek && <SkinSeek element={els.seek} {...tape.seek} />}
+      {button('record', tape.record)}
+      {button('play', tape.play)}
+      {button('pause', tape.pause)}
+      {button('stop', tape.stop)}
+      {button('toggleLibrary', {
+        label: 'Library',
+        onPress: () => {
+          win.togglePanel('library')
+        },
+        active: win.panels.library,
       })}
-      {button('play', playLabel, onPlay, {
-        mode: playMode,
-        disabled: busy || (!active && !loaded),
+      {button('toggleSettings', {
+        label: 'Settings',
+        onPress: () => {
+          win.togglePanel('settings')
+        },
+        active: win.panels.settings,
       })}
-      {button(
-        'pause',
-        r.state === 'paused' || (loaded && p.state === 'paused')
-          ? 'Resume'
-          : 'Pause',
-        onPause,
-        {
-          active: r.state === 'paused' || (loaded && p.state === 'paused'),
-          disabled: !active && !(loaded && p.state !== 'stopped'),
-        },
-      )}
-      {button('stop', 'Stop', onStop, { disabled: !stoppable })}
-      {button(
-        'toggleLibrary',
-        'Library',
-        () => {
-          togglePanel('library')
-        },
-        {
-          active: panels.library,
-        },
-      )}
-      {button(
-        'toggleSettings',
-        'Settings',
-        () => {
-          togglePanel('settings')
-        },
-        {
-          active: panels.settings,
-        },
-      )}
-      {button('minimize', 'Minimize', windows.minimize)}
-      {button(
-        'shade',
-        shaded ? 'Expand' : 'Collapse',
-        () => {
-          setShaded(on => !on)
-        },
-        {
-          active: shaded,
-        },
-      )}
-      {button('close', 'Quit', () => {
-        void close()
+      {button('minimize', { label: 'Minimize', onPress: windows.minimize })}
+      {button('shade', {
+        label: win.shaded ? 'Expand' : 'Collapse',
+        onPress: win.toggleShade,
+        active: win.shaded,
       })}
+      {button('close', tape.quit)}
     </View>
-  )
-}
-
-type StatusElementProps = {
-  readonly element: SkinElement
-  readonly fonts: Parameters<typeof ElementText>[0]['fonts']
-  /** A recorder state, or a player state during playback. */
-  readonly state: string
-  readonly text: string
-}
-
-/** The status sprite for the state when the skin has one, else its text. */
-const StatusElement: FC<StatusElementProps> = props => {
-  const { element } = props
-  const s = useSkinScale()
-  const sprite = element.sprite
-  if (sprite) {
-    const at = sprite.states[props.state] ?? sprite.states.idle
-    return (
-      <View
-        testID="status"
-        accessible
-        accessibilityLabel={props.text}
-        style={scaleRect(element.rect, s)}
-      >
-        <SpriteCell
-          image={sprite.image}
-          at={at}
-          size={[element.rect[2], element.rect[3]]}
-        />
-      </View>
-    )
-  }
-  return (
-    <ElementText
-      testID="status"
-      element={element}
-      fonts={props.fonts}
-      text={props.text}
-    />
   )
 }

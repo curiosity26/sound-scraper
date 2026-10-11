@@ -1,11 +1,11 @@
 import { type FC, type ReactNode, useState } from 'react'
 import { Text, View } from 'react-native'
 
+import { useDoubleSize } from '@/hooks/useDoubleSize'
 import { SkinScale } from '@/skin/SkinScale'
 import { styles } from '@/windows/styles'
 
 import { SkinProvider } from './SkinProvider'
-import { useDoubleSize } from './useDoubleSize'
 
 export type SkinnedProps = {
   readonly children: ReactNode

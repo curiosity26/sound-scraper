@@ -1,4 +1,4 @@
-import React, { type FC, useEffect, useState } from 'react'
+import React, { type FC, useEffect, useSyncExternalStore } from 'react'
 import { Platform } from 'react-native'
 
 import { SkinContext } from '@/skin/SkinContext'
@@ -18,15 +18,13 @@ export type SkinProviderProps = {
  */
 export const SkinProvider: FC<SkinProviderProps> = props => {
   const { onError } = props
-  const [skin, setSkin] = useState(skinStore.get())
+  const skin = useSyncExternalStore(skinStore.subscribe, skinStore.get)
   useEffect(() => {
-    const unsubscribe = skinStore.subscribe(setSkin)
     if (!skinStore.get()) {
       skinStore.reload().catch((e: unknown) => {
         onError?.(errorText(e))
       })
     }
-    return unsubscribe
   }, [onError])
   return (
     <SkinContext.Provider value={skin}>

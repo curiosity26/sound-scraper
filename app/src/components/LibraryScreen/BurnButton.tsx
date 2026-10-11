@@ -1,13 +1,13 @@
-import React, { type FC, useEffect, useState } from 'react'
+import React, { type FC } from 'react'
 import { Pressable, StyleSheet, Text } from 'react-native'
 
-import { burnApi } from '@/burn/burnApi'
 import { usePanelStyles } from '@/hooks/usePanelStyles'
 import { usePanelTheme } from '@/hooks/usePanelTheme'
 import type { Capacity } from '@/playlists/types'
 import { colors } from '@/theme/colors'
 
 import { capacityText } from './capacityText'
+import { useHasBurner } from './useHasBurner'
 
 /** Burn CD… (a CD writer is there) or Save CD Image… (none is). */
 export type BurnButtonProps = {
@@ -18,22 +18,7 @@ export type BurnButtonProps = {
 export const BurnButton: FC<BurnButtonProps> = props => {
   const t = usePanelStyles()
   const theme = usePanelTheme()
-  const [hasBurner, setHasBurner] = useState(false)
-  useEffect(() => {
-    const check = () => {
-      try {
-        setHasBurner(burnApi.devices().devices.some(d => d.kind !== 'image'))
-      } catch {
-        setHasBurner(false)
-      }
-    }
-    check()
-    // Burners can be plugged in at any time.
-    const timer = setInterval(check, 3000)
-    return () => {
-      clearInterval(timer)
-    }
-  }, [])
+  const { hasBurner } = useHasBurner()
   const c = props.capacity
   const disabled =
     c.fit === 'empty' || c.fit === 'tooMany' || c.fit === 'tooLong'

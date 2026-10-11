@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { selection } from '@/library/selection'
 import { isRecorderState } from '@/native/isRecorderState'
@@ -94,13 +94,13 @@ export const useRecorder = (): UseRecorderResult => {
     }
   }, [])
 
-  const refreshApps = useCallback(() => {
+  const refreshApps = () => {
     const list = safeList()
     setApps(list)
     return list
-  }, [])
+  }
 
-  const record = useCallback(async () => {
+  const record = async () => {
     setStarting(true)
     setMessage(undefined)
     setElapsedMs(0)
@@ -116,9 +116,9 @@ export const useRecorder = (): UseRecorderResult => {
     } finally {
       setStarting(false)
     }
-  }, [apps, selectedPid])
+  }
 
-  const stop = useCallback(async () => {
+  const stop = async () => {
     let path: string
     try {
       path = await recorder.stop()
@@ -137,7 +137,7 @@ export const useRecorder = (): UseRecorderResult => {
       })
     }
     await playback.recorded(path)
-  }, [])
+  }
 
   const sourceName =
     selectedPid === 0

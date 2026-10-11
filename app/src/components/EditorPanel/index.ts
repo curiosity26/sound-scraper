@@ -1,5 +1,2 @@
-export {
-  EditorPanel,
-  type EditorTarget,
-  type EditorPanelProps,
-} from './EditorPanel'
+export { EditorPanel, type EditorPanelProps } from './EditorPanel'
+export type { EditorTarget } from './types'

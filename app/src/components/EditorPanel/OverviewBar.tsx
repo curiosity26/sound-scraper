@@ -3,10 +3,10 @@
 import React, { type FC } from 'react'
 import { type GestureResponderEvent, StyleSheet, View } from 'react-native'
 
-import type { Edits } from '@/components/EditorPanel/model/types'
 import type { TrackInfo } from '@/native/types'
 
 import { OVERVIEW } from './constants'
+import type { Edits } from './model'
 import { SSWaveformView } from './SSWaveformView'
 import { trackColor } from './trackColor'
 import type { EditorTheme } from './types'

@@ -1,21 +1,19 @@
-import { type FC, useCallback, useState } from 'react'
+import { type FC, useState } from 'react'
 import { Text, View } from 'react-native'
 
 import { openBurnPanel } from '@/burn/openBurnPanel'
 import { LibraryScreen } from '@/components/LibraryScreen'
-import { SkinPanelFrame } from '@/components/SkinPanelFrame'
 import { usePanelText } from '@/hooks/usePanelText'
 import type { Message } from '@/recorder/types'
 import { windows } from '@/skin/windows'
+import { styles } from '@/windows/styles'
 
-import { Skinned } from './Skinned'
-import { styles } from './styles'
-
-type LibraryContentProps = {
+export type LibraryContentProps = {
   readonly onCount: (n: number, playlistName?: string) => void
 }
 
-const LibraryContent: FC<LibraryContentProps> = props => {
+/** The library panel and its status line. */
+export const LibraryContent: FC<LibraryContentProps> = props => {
   const { fg, isDark } = usePanelText('library')
   const [message, setMessage] = useState<Message>()
   return (
@@ -47,22 +45,5 @@ const LibraryContent: FC<LibraryContentProps> = props => {
         </Text>
       )}
     </View>
-  )
-}
-
-/** The library window. */
-export const LibraryApp: FC = () => {
-  // A string, so an unchanged count doesn't re-render (and the callback is
-  // stable: LibraryScreen reports again whenever it changes).
-  const [title, setTitle] = useState('Library')
-  const onCount = useCallback((n: number, playlist?: string) => {
-    setTitle(`${playlist ? `Library: ${playlist}` : 'Library'} (${n})`)
-  }, [])
-  return (
-    <Skinned>
-      <SkinPanelFrame panel="library" title={title}>
-        <LibraryContent onCount={onCount} />
-      </SkinPanelFrame>
-    </Skinned>
   )
 }

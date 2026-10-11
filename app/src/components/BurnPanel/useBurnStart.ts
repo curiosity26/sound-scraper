@@ -1,0 +1,91 @@
+import { useState } from 'react'
+
+import { burnApi } from '@/burn/burnApi'
+import { burnJob } from '@/burn/burnJob'
+import type { Device, Target } from '@/burn/types'
+import { pickSaveFile } from '@/native/pickSaveFile'
+import { errorText } from '@/utils/errorText'
+
+import type { UseBurnSetupResult } from './useBurnSetup'
+
+export type UseBurnStartResult = {
+  /** The burn button: starts, or first asks to erase a CD-RW. */
+  readonly burn: () => void
+  /** Asking whether to erase the CD-RW. */
+  readonly confirmingErase: boolean
+  readonly confirmErase: () => void
+  readonly cancelErase: () => void
+}
+
+type UseBurnStartArgs = {
+  readonly target: Target
+  readonly device: Device | undefined
+  readonly setup: UseBurnSetupResult
+  readonly setError: (message: string | undefined) => void
+}
+
+/**
+ * Starting the burn: asks where to save an image, confirms erasing a
+ * CD-RW, then starts the job and hands it to burnJob (the panel then
+ * shows its progress).
+ */
+export const useBurnStart = (args: UseBurnStartArgs): UseBurnStartResult => {
+  const { target, device, setup, setError } = args
+  const [confirm, setConfirm] = useState<null | (() => void)>(null)
+
+  const start = async () => {
+    if (!device) {
+      return
+    }
+    setError(undefined)
+    let imagePath: string | null = null
+    if (device.kind === 'image') {
+      imagePath = await pickSaveFile(
+        'Save CD image',
+        `${target.name}.cue`,
+        'cue',
+      )
+      if (!imagePath) {
+        return
+      }
+    }
+    try {
+      const id = burnApi.start({
+        deviceId: device.id,
+        title: target.name,
+        tracks: target.tracks,
+        gapSeconds: setup.gap,
+        cdText: setup.cdText,
+        testWrite: setup.testWrite && device.canTest,
+        speed: setup.speed,
+        eject: setup.isDrive && setup.eject,
+        erase: device.media.state === 'erasable',
+        imagePath,
+      })
+      burnJob.set({ id, target, started: Date.now() })
+    } catch (e) {
+      setError(errorText(e))
+    }
+  }
+
+  return {
+    burn: () => {
+      if (device?.media.state === 'erasable') {
+        setConfirm(() => () => {
+          void start()
+        })
+      } else {
+        void start()
+      }
+    },
+    confirmingErase: confirm !== null,
+    confirmErase: () => {
+      const run = confirm
+      setConfirm(null)
+      run?.()
+    },
+    cancelErase: () => {
+      setConfirm(null)
+    },
+  }
+}

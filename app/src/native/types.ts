@@ -51,6 +51,12 @@ export type Settings = {
   masterMaxAgeDays?: number
 }
 
+/** The settings as read back: with the folder recordings actually go to. */
+export type StoredSettings = Settings & { effectiveRecordingsDir: string }
+
+/** The lossless masters kept for the track editor. */
+export type MastersUsage = { count: number; bytes: number }
+
 export type WaveformStatus =
   | { state: 'loading'; progress: number }
   | {

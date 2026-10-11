@@ -4,17 +4,15 @@ import { Pressable, ScrollView, Text, View } from 'react-native'
 import { AboutPanel } from '@/components/AboutPanel'
 import { SettingsPanel } from '@/components/SettingsPanel'
 import { SkinChooser } from '@/components/SkinChooser'
-import { SkinPanelFrame } from '@/components/SkinPanelFrame'
 import { usePanelText } from '@/hooks/usePanelText'
 import { useSkin } from '@/hooks/useSkin'
 import { refreshLibraryViews } from '@/library/refreshLibraryViews'
 import { settingsTab } from '@/skin/settingsTab'
 import { colors } from '@/theme/colors'
+import { styles } from '@/windows/styles'
 
-import { Skinned } from './Skinned'
-import { styles } from './styles'
-
-const SettingsContent: FC = () => {
+/** The settings window's tabs: settings, skin and about. */
+export const SettingsContent: FC = () => {
   const { fg } = usePanelText('settings')
   const skin = useSkin()
   const accent = skin.panels.settings.controls.accent ?? colors.accent
@@ -53,16 +51,5 @@ const SettingsContent: FC = () => {
       )}
       {tab === 'about' && <AboutPanel textStyle={fg} />}
     </View>
-  )
-}
-
-/** The settings window: settings, skin and about. */
-export const SettingsApp: FC = () => {
-  return (
-    <Skinned>
-      <SkinPanelFrame panel="settings" title="Settings">
-        <SettingsContent />
-      </SkinPanelFrame>
-    </Skinned>
   )
 }
