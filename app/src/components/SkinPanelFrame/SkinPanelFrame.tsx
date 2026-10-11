@@ -1,11 +1,10 @@
 // Layout here comes from skin data (rects, sizes), so styles are inline.
 /* eslint-disable react-native/no-inline-styles */
 import React, { type FC } from 'react'
-import { Text, View } from 'react-native'
+import { View } from 'react-native'
 
 import { DragSurface } from '@/components/DragSurface'
 import { NineSlice } from '@/components/NineSlice'
-import { SpriteText } from '@/components/SpriteText'
 import { useSkin } from '@/hooks/useSkin'
 import { useSkinScale } from '@/hooks/useSkinScale'
 import type { PanelName } from '@/skin/types'
@@ -13,6 +12,7 @@ import { windows } from '@/skin/windows'
 import { PanelThemeProvider } from '@/theme/PanelThemeProvider'
 
 import { Grip } from './Grip'
+import { PanelTitle } from './PanelTitle'
 import { themeFromPanel } from './themeFromPanel'
 import { TitleButton } from './TitleButton'
 import { usePanelChrome } from './usePanelChrome'
@@ -43,8 +43,6 @@ export const SkinPanelFrame: FC<SkinPanelFrameProps> = props => {
   const hide = () => {
     windows.setPanelVisible(props.panel, false)
   }
-  const titleFont = def.title?.font ? skin.fonts[def.title.font] : undefined
-  const titleOffset = def.title?.offset ?? [12, 6]
   const theme = { ...themeFromPanel(def), compact: s === 1 }
 
   return (
@@ -66,36 +64,7 @@ export const SkinPanelFrame: FC<SkinPanelFrameProps> = props => {
         />
       )}
       {w > 0 && <DragSurface panel={props.panel} drag={[[0, 0, w, top]]} />}
-      {w > 0 && (
-        <View
-          pointerEvents="none"
-          style={{
-            position: 'absolute',
-            left: titleOffset[0] * s,
-            top: titleOffset[1] * s,
-            paddingHorizontal: 3 * s,
-            backgroundColor: def.title?.background ?? skin.colors.panel,
-          }}
-        >
-          {titleFont ? (
-            <SpriteText
-              font={titleFont}
-              text={props.title.toUpperCase()}
-              width={titleFont.cell[0] * s * props.title.length}
-              marquee={false}
-            />
-          ) : (
-            <Text
-              style={{
-                color: def.title?.color ?? theme.text,
-                fontSize: 11 * s,
-              }}
-            >
-              {props.title}
-            </Text>
-          )}
-        </View>
-      )}
+      {w > 0 && <PanelTitle panel={props.panel} title={props.title} />}
       {close && closeRect && (
         <TitleButton
           testID={`${props.panel}-close`}

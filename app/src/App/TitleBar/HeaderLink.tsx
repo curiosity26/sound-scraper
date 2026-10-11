@@ -1,8 +1,7 @@
 import type { FC } from 'react'
-import { Pressable, StyleSheet, Text } from 'react-native'
 
 import { type OverlayName, useOverlay } from '@/App/Overlay'
-import { colors } from '@/theme/colors'
+import { TextLink } from '@/components/TextLink'
 
 export type HeaderLinkProps = {
   readonly label: string
@@ -14,17 +13,12 @@ export type HeaderLinkProps = {
 export const HeaderLink: FC<HeaderLinkProps> = props => {
   const { open } = useOverlay()
   return (
-    <Pressable
+    <TextLink
+      label={props.label}
       onPress={() => {
         open(props.opens)
       }}
-      testID={`open-${props.opens}`}
-    >
-      <Text style={styles.link}>{props.label}</Text>
-    </Pressable>
+      testName={`open-${props.opens}`}
+    />
   )
 }
-
-const styles = StyleSheet.create({
-  link: { color: colors.accent, fontSize: 13 },
-})

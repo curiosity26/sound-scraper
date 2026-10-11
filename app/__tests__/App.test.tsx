@@ -6,7 +6,7 @@ import { act } from 'react'
 import { create } from 'react-test-renderer'
 
 import { App } from '@/App'
-import { coverUri } from '@/components/DetailsPane/coverUri'
+import { coverUri } from '@/components/DetailsPane/CoverArt/coverUri'
 import { mergeCovers } from '@/components/DetailsPane/mergeCovers'
 import { mergeTags } from '@/components/DetailsPane/mergeTags'
 import { validateTag } from '@/components/DetailsPane/validateTag'

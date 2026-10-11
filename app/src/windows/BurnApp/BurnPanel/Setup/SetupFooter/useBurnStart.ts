@@ -2,11 +2,9 @@ import { useState } from 'react'
 
 import { burnApi } from '@/burn/burnApi'
 import { burnJob } from '@/burn/burnJob'
-import type { Device, Target } from '@/burn/types'
 import { pickSaveFile } from '@/native/pickSaveFile'
 import { errorText } from '@/utils/errorText'
-
-import type { UseBurnSetupResult } from './useBurnSetup'
+import { useBurnSetup } from '@/windows/BurnApp/BurnPanel/Setup/useBurnSetup'
 
 export type UseBurnStartResult = {
   /** The burn button: starts, or first asks to erase a CD-RW. */
@@ -17,20 +15,14 @@ export type UseBurnStartResult = {
   readonly cancelErase: () => void
 }
 
-type UseBurnStartArgs = {
-  readonly target: Target
-  readonly device: Device | undefined
-  readonly setup: UseBurnSetupResult
-  readonly setError: (message: string | undefined) => void
-}
-
 /**
  * Starting the burn: asks where to save an image, confirms erasing a
  * CD-RW, then starts the job and hands it to burnJob (the panel then
  * shows its progress).
  */
-export const useBurnStart = (args: UseBurnStartArgs): UseBurnStartResult => {
-  const { target, device, setup, setError } = args
+export const useBurnStart = (): UseBurnStartResult => {
+  const { target, devices, options: setup, setError } = useBurnSetup()
+  const { device } = devices
   const [confirm, setConfirm] = useState<null | (() => void)>(null)
 
   const start = async () => {

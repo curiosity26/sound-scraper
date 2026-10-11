@@ -2,6 +2,7 @@ import type { FC } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { settingsStyles } from '@/components/SettingsPanel/styles'
+import { useSettingsPanel } from '@/components/SettingsPanel/useSettingsPanel'
 import { usePanelStyles } from '@/hooks/usePanelStyles'
 
 export type StepRowProps = {
@@ -9,12 +10,12 @@ export type StepRowProps = {
   readonly value: string
   readonly onStep: (dir: 1 | -1) => void
   readonly disabled: boolean
-  readonly textStyle: object
 }
 
 /** A label, and its value between − and + buttons. */
 export const StepRow: FC<StepRowProps> = props => {
-  const { label, value, onStep, disabled, textStyle } = props
+  const { label, value, onStep, disabled } = props
+  const { textStyle } = useSettingsPanel()
   const t = usePanelStyles()
   return (
     <View style={[settingsStyles.row, styles.stepRow]}>

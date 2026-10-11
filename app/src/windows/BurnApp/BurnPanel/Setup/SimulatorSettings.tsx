@@ -6,21 +6,18 @@ import { useBurnTheme } from '@/windows/BurnApp/BurnPanel/useBurnTheme'
 
 import { Check } from './Check'
 import { Choice } from './Choice'
-import { useBurnDevices } from './useBurnDevices'
-
-export type SimulatorSettingsProps = {
-  /** Tracks to burn: a fault goes on track 2, or 1 if that's all there is. */
-  readonly tracks: number
-}
+import { useBurnSetup } from './useBurnSetup'
 
 /**
  * The simulated drive's disc, trouble and speed (test builds only), while
  * the simulator is the chosen device.
  */
-export const SimulatorSettings: FC<SimulatorSettingsProps> = props => {
-  const { tracks } = props
+export const SimulatorSettings: FC = () => {
   const th = useBurnTheme()
-  const { device, sim, changeSim: onChange } = useBurnDevices()
+  const { devices, options } = useBurnSetup()
+  const { device, sim, changeSim: onChange } = devices
+  // Tracks to burn: a fault goes on track 2, or 1 if that's all there is.
+  const { tracks } = options.capacity
   if (device?.id !== 'sim' || !sim) {
     return null
   }

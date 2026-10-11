@@ -4,15 +4,9 @@ import { useMemo, useState } from 'react'
 
 import { editorCore } from '@/native/editorCore'
 import type { DetectOptions, Proposal } from '@/native/types'
+import { useEditorPreferences } from '@/windows/EditorApp/useEditorPreferences'
 
-import { DETECT_PRESETS } from './constants'
 import { applyProposals, type Edits } from './model'
-
-// A preference that outlives one editor.
-let detectPreference: DetectOptions = {
-  ...DETECT_PRESETS.digital,
-  removeGaps: false,
-}
 
 export type UseAutoSliceResult = {
   /** Its settings while it's open. */
@@ -36,6 +30,8 @@ export const useAutoSlice = (
   options: UseAutoSliceOptions,
 ): UseAutoSliceResult => {
   const { editorId, ready } = options
+  // The settings it opens with: a preference that outlives one editor.
+  const { detectOptions, setDetectOptions } = useEditorPreferences()
   const [autoSlice, setAutoSlice] = useState<DetectOptions | null>(null)
   const proposals: Proposal[] = useMemo(
     () => (autoSlice && ready ? editorCore.detect(editorId, autoSlice) : []),
@@ -45,10 +41,10 @@ export const useAutoSlice = (
     options: autoSlice,
     proposals,
     toggle: () => {
-      setAutoSlice(autoSlice ? null : detectPreference)
+      setAutoSlice(autoSlice ? null : detectOptions)
     },
     setOptions: o => {
-      detectPreference = o
+      setDetectOptions(o)
       setAutoSlice(o)
     },
     apply: () => {

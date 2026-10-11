@@ -1,6 +1,7 @@
 import React, { type FC, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
+import { useDetailsPane } from '@/components/DetailsPane/useDetailsPane'
 import { TextField } from '@/components/TextField'
 import { usePanelStyles } from '@/hooks/usePanelStyles'
 import { colors } from '@/theme/colors'
@@ -16,11 +17,14 @@ export type InlineFieldProps = {
   readonly multiline?: boolean
   readonly large?: boolean
   readonly onCommit: (text: string) => Promise<boolean>
-  readonly textStyle: object
-  readonly testID?: string
+  /** The value's testID (and `<testName>-input` the text box's). Not a
+   * `testID` prop here, so a test finds the pressable itself rather than
+   * this wrapper. */
+  readonly testName: string
 }
 
 export const InlineField: FC<InlineFieldProps> = props => {
+  const { textStyle } = useDetailsPane()
   const t = usePanelStyles()
   const [editing, setEditing] = useState<string>()
   const commit = async () => {
@@ -39,15 +43,15 @@ export const InlineField: FC<InlineFieldProps> = props => {
   const valueStyle = [
     styles.value,
     props.large && styles.valueLarge,
-    props.textStyle,
+    textStyle,
     t.cell,
   ]
   return (
     <View style={styles.field}>
-      <Text style={[styles.label, props.textStyle, t.cell]}>{props.label}</Text>
+      <Text style={[styles.label, textStyle, t.cell]}>{props.label}</Text>
       {editing !== undefined ? (
         <TextField
-          testID={`${props.testID}-input`}
+          testID={`${props.testName}-input`}
           autoFocus
           selectTextOnFocus
           value={editing}
@@ -68,7 +72,7 @@ export const InlineField: FC<InlineFieldProps> = props => {
         />
       ) : (
         <Pressable
-          testID={props.testID}
+          testID={props.testName}
           accessibilityRole="button"
           accessibilityLabel={`${props.label}: ${
             props.value || 'empty'

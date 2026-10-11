@@ -3,13 +3,13 @@
 import React, { type FC, useRef, useState } from 'react'
 import { type GestureResponderEvent, View } from 'react-native'
 
-import { SpriteCell } from '@/components/SpriteCell'
 import { useSkinScale } from '@/hooks/useSkinScale'
 import { scaleRect } from '@/skin/scaleRect'
 import type { SkinElement } from '@/skin/types'
 import { useTransport } from '@/windows/MainApp/MainPanel/useTransport'
 
 import { seekGeometry } from './seekGeometry'
+import { SeekPiece } from './SeekPiece'
 import { thumbSize } from './thumbSize'
 
 export type SkinSeekProps = {
@@ -103,34 +103,20 @@ export const SkinSeek: FC<SkinSeekProps> = props => {
           height: h * s,
         }}
       >
-        {sprite && track ? (
-          <SpriteCell image={sprite.image} at={track} size={[w, h]} />
-        ) : color('track') ? (
-          <View
-            style={{
-              width: w * s,
-              height: h * s,
-              backgroundColor: color('track'),
-            }}
-          />
-        ) : null}
+        <SeekPiece
+          sprite={sprite}
+          at={track}
+          size={[w, h]}
+          color={color('track')}
+        />
         {enabled && fillWidth > 0 && (
           <View style={{ position: 'absolute', left: 0, top: 0 }}>
-            {sprite && fill ? (
-              <SpriteCell
-                image={sprite.image}
-                at={fill}
-                size={[fillWidth, h]}
-              />
-            ) : color('fill') ? (
-              <View
-                style={{
-                  width: fillWidth * s,
-                  height: h * s,
-                  backgroundColor: color('fill'),
-                }}
-              />
-            ) : null}
+            <SeekPiece
+              sprite={sprite}
+              at={fill}
+              size={[fillWidth, h]}
+              color={color('fill')}
+            />
           </View>
         )}
         {enabled && (
@@ -141,17 +127,12 @@ export const SkinSeek: FC<SkinSeekProps> = props => {
               top: thumbTop * s,
             }}
           >
-            {sprite && thumb ? (
-              <SpriteCell image={sprite.image} at={thumb} size={[tw, th]} />
-            ) : thumbColor ? (
-              <View
-                style={{
-                  width: tw * s,
-                  height: th * s,
-                  backgroundColor: thumbColor,
-                }}
-              />
-            ) : null}
+            <SeekPiece
+              sprite={sprite}
+              at={thumb}
+              size={[tw, th]}
+              color={thumbColor}
+            />
           </View>
         )}
       </View>

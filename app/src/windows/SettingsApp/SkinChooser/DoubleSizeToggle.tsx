@@ -1,0 +1,29 @@
+import type { FC } from 'react'
+import { Platform, Pressable, Text } from 'react-native'
+
+import { useDoubleSize } from '@/hooks/useDoubleSize'
+import { doubleSizeStore } from '@/skin/doubleSizeStore'
+
+import { styles } from './styles'
+import { useSkinChooser } from './useSkinChooser'
+
+const modifier = Platform.OS === 'windows' ? 'Ctrl+D' : '⌘D'
+
+/** Double size, with its shortcut (shared by every window). */
+export const DoubleSizeToggle: FC = () => {
+  const { textStyle } = useSkinChooser()
+  const { double } = useDoubleSize()
+  return (
+    <Pressable
+      testID="double-size"
+      onPress={() => {
+        doubleSizeStore.set(!double)
+      }}
+      style={styles.toggle}
+    >
+      <Text style={[styles.label, textStyle]}>
+        {double ? '☑' : '☐'} Double size ({modifier})
+      </Text>
+    </Pressable>
+  )
+}

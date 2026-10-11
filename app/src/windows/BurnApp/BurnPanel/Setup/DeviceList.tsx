@@ -4,12 +4,12 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { commonStyles } from '@/windows/BurnApp/BurnPanel/commonStyles'
 import { useBurnTheme } from '@/windows/BurnApp/BurnPanel/useBurnTheme'
 
-import { useBurnDevices } from './useBurnDevices'
+import { useBurnSetup } from './useBurnSetup'
 
 /** "Write to": the drives and the image writer, one chosen. */
 export const DeviceList: FC = () => {
   const th = useBurnTheme()
-  const { devices, deviceId, selectDevice } = useBurnDevices()
+  const { devices, deviceId, selectDevice } = useBurnSetup().devices
   const fg = { color: th.text }
   return (
     <View style={[styles.devices, { borderColor: th.border }]}>

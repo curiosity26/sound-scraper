@@ -3,10 +3,10 @@ import { Pressable, Text, View } from 'react-native'
 
 import { usePanelStyles } from '@/hooks/usePanelStyles'
 import { colors } from '@/theme/colors'
-
-import { CARD_W } from './constants'
-import { Preview } from './Preview'
-import { styles } from './styles'
+import { CARD_W } from '@/windows/SettingsApp/SkinChooser/constants'
+import { Preview } from '@/windows/SettingsApp/SkinChooser/Preview'
+import { styles } from '@/windows/SettingsApp/SkinChooser/styles'
+import { useSkinChooser } from '@/windows/SettingsApp/SkinChooser/useSkinChooser'
 
 export type SkinCardProps = {
   readonly name: string
@@ -16,18 +16,20 @@ export type SkinCardProps = {
   readonly chosen: boolean
   readonly error?: string | null
   readonly onPress?: () => void
-  readonly testID?: string
-  readonly textStyle: object
+  /** The card's testID. Not a `testID` prop here, so a test finds the
+   * pressable itself rather than this wrapper. */
+  readonly testName?: string
   readonly children?: React.ReactNode
 }
 
 /** A skin in the grid: its picture, name and author. */
 export const SkinCard: FC<SkinCardProps> = props => {
+  const { textStyle } = useSkinChooser()
   const t = usePanelStyles()
   const accent = t.link.color ?? colors.accent
   return (
     <Pressable
-      testID={props.testID}
+      testID={props.testName}
       onPress={props.onPress}
       disabled={!props.onPress}
       style={[
@@ -39,17 +41,13 @@ export const SkinCard: FC<SkinCardProps> = props => {
       <Preview source={props.preview} width={CARD_W - 12} />
       <Text
         numberOfLines={1}
-        style={[
-          styles.name,
-          props.textStyle,
-          props.error != null && styles.muted,
-        ]}
+        style={[styles.name, textStyle, props.error != null && styles.muted]}
       >
         {props.chosen ? '◉ ' : ''}
         {props.name}
       </Text>
       {props.detail !== '' && (
-        <Text numberOfLines={1} style={[styles.detail, props.textStyle]}>
+        <Text numberOfLines={1} style={[styles.detail, textStyle]}>
           {props.detail}
         </Text>
       )}

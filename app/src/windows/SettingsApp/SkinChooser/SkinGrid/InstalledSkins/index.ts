@@ -1,1 +1,1 @@
-export { InstalledSkins, type InstalledSkinsProps } from './InstalledSkins'
+export { InstalledSkins } from './InstalledSkins'

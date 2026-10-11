@@ -2,21 +2,20 @@ import React, { type FC } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
 import { usePanelStyles } from '@/hooks/usePanelStyles'
+import { pendingInstall } from '@/skin/pendingInstall'
 import type { SkinInspection } from '@/skin/types'
-
-import { Preview } from './Preview'
-import { styles } from './styles'
+import { Preview } from '@/windows/SettingsApp/SkinChooser/Preview'
+import { styles } from '@/windows/SettingsApp/SkinChooser/styles'
+import { useSkinChooser } from '@/windows/SettingsApp/SkinChooser/useSkinChooser'
 
 export type InstallCardProps = {
   readonly inspection: SkinInspection
-  readonly onInstall: () => void
-  readonly onCancel: () => void
-  readonly textStyle: object
 }
 
 /** A .sskin about to be installed: what it is, and Install / Cancel. */
 export const InstallCard: FC<InstallCardProps> = props => {
-  const { inspection: s, textStyle } = props
+  const { inspection: s } = props
+  const { install, textStyle } = useSkinChooser()
   const t = usePanelStyles()
   const replaces = s.installed
     ? `Replaces the installed ${s.installed.name}${
@@ -47,14 +46,21 @@ export const InstallCard: FC<InstallCardProps> = props => {
       <View style={styles.cardButtons}>
         <Pressable
           testID="install-confirm"
-          onPress={props.onInstall}
+          onPress={() => {
+            void install(s)
+          }}
           style={[styles.button, t.button]}
         >
           <Text style={[styles.buttonText, t.buttonText]}>
             {s.installed ? 'Replace' : 'Install'}
           </Text>
         </Pressable>
-        <Pressable onPress={props.onCancel} style={styles.plainButton}>
+        <Pressable
+          onPress={() => {
+            pendingInstall.set(null)
+          }}
+          style={styles.plainButton}
+        >
           <Text style={[styles.link, t.link]}>Cancel</Text>
         </Pressable>
       </View>

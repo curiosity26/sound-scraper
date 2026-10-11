@@ -1,0 +1,44 @@
+import type { FC } from 'react'
+
+import { useSettingsPanel } from '@/components/SettingsPanel/useSettingsPanel'
+import { stepIn as step } from '@/utils/stepIn'
+
+import { AGES_DAYS, BUDGETS_GB, MIN_MINUTES } from './constants'
+import { StepRow } from './StepRow'
+
+/** Which recordings get a master, and how much space and time they keep. */
+export const MasterLimits: FC = () => {
+  const { current, save } = useSettingsPanel()
+  const keep = current.keepMasters !== false
+  const minutes = current.masterMinMinutes ?? 20
+  const budget = current.masterBudgetGb ?? 10
+  const age = current.masterMaxAgeDays ?? 30
+  return (
+    <>
+      <StepRow
+        label="Longer than"
+        value={minutes ? `${minutes} min` : 'any length'}
+        onStep={dir => {
+          void save({ masterMinMinutes: step(MIN_MINUTES, minutes, dir) })
+        }}
+        disabled={!keep}
+      />
+      <StepRow
+        label="Use at most"
+        value={`${budget} GB`}
+        onStep={dir => {
+          void save({ masterBudgetGb: step(BUDGETS_GB, budget, dir) })
+        }}
+        disabled={!keep}
+      />
+      <StepRow
+        label="Keep for"
+        value={`${age} days`}
+        onStep={dir => {
+          void save({ masterMaxAgeDays: step(AGES_DAYS, age, dir) })
+        }}
+        disabled={!keep}
+      />
+    </>
+  )
+}

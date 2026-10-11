@@ -1,54 +1,39 @@
-import React, { type FC } from 'react'
-import { Pressable, Text } from 'react-native'
+import type { FC } from 'react'
 
-import { usePanelStyles } from '@/hooks/usePanelStyles'
-import type { SkinSummary } from '@/skin/types'
-import { SkinCard } from '@/windows/SettingsApp/SkinChooser/SkinCard'
-import { styles } from '@/windows/SettingsApp/SkinChooser/styles'
+import { TextLink } from '@/components/TextLink'
+import { SkinCard } from '@/windows/SettingsApp/SkinChooser/SkinGrid/SkinCard'
+import { useSkinChooser } from '@/windows/SettingsApp/SkinChooser/useSkinChooser'
 
 import { useSkinList } from './useSkinList'
 
-export type InstalledSkinsProps = {
-  /** Changes when the installed skins do. */
-  readonly revision: number
-  readonly isChosen: (skin: SkinSummary) => boolean
-  /** An installed skin's id, or null for Default. */
-  readonly onChoose: (skin: string | null) => void
-  readonly onRemove: (skin: SkinSummary) => void
-  readonly textStyle: object
-}
-
 /** A card for each installed skin (suspends while they load). */
-export const InstalledSkins: FC<InstalledSkinsProps> = props => {
-  const { textStyle } = props
-  const t = usePanelStyles()
-  const { list } = useSkinList(props.revision)
+export const InstalledSkins: FC = () => {
+  const { listRevision, isChosen, choose, remove } = useSkinChooser()
+  const { list } = useSkinList(listRevision)
   return list.map(s => (
     <SkinCard
       key={s.id}
-      testID={`skin-${s.id}`}
+      testName={`skin-${s.id}`}
       name={s.name + (s.version ? ` ${s.version}` : '')}
       detail={s.author ?? (s.builtin ? 'Built in' : '')}
       preview={s.error ? null : s.builtin ? '' : s.id}
-      chosen={props.isChosen(s)}
+      chosen={isChosen(s)}
       error={s.error}
       onPress={
         s.error == null
           ? () => {
-              props.onChoose(s.builtin ? null : s.id)
+              void choose(s.builtin ? null : s.id)
             }
           : undefined
       }
-      textStyle={textStyle}
     >
       {!s.builtin && (
-        <Pressable
+        <TextLink
+          label="Remove"
           onPress={() => {
-            props.onRemove(s)
+            void remove(s)
           }}
-        >
-          <Text style={[styles.link, t.link]}>Remove</Text>
-        </Pressable>
+        />
       )}
     </SkinCard>
   ))

@@ -1,8 +1,6 @@
 import React, { type FC } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
 
-import { VSTRIP } from '@/windows/EditorApp/EditorPanel/constants'
-import { Slider } from '@/windows/EditorApp/EditorPanel/Slider'
 import { SSWaveformView } from '@/windows/EditorApp/EditorPanel/SSWaveformView'
 import { useEditor } from '@/windows/EditorApp/EditorPanel/useEditor'
 
@@ -10,6 +8,7 @@ import { LANE, RULER } from './constants'
 import { NameField } from './NameField'
 import { TimelineRuler } from './TimelineRuler'
 import { TrackLane } from './TrackLane'
+import { VerticalZoom } from './VerticalZoom'
 import { WaveformNote } from './WaveformNote'
 import { WaveOverlays } from './WaveOverlays'
 
@@ -66,18 +65,7 @@ export const Timeline: FC = () => {
 
         <WaveformNote />
       </View>
-      <View style={styles.vstrip}>
-        <Slider
-          vertical
-          label="Vertical zoom"
-          low="zoomOutV"
-          high="zoomInV"
-          length={Math.max(20, view.viewHeight - RULER - LANE - 34)}
-          value={view.vZoom}
-          onChange={view.setVZoom}
-          disabled={!core.ready}
-        />
-      </View>
+      <VerticalZoom />
     </View>
   )
 }
@@ -85,7 +73,6 @@ export const Timeline: FC = () => {
 const styles = StyleSheet.create({
   // The timeline keeps its height; the track list gives way first.
   timelineRow: { flex: 1, flexDirection: 'row', minHeight: 150 },
-  vstrip: { width: VSTRIP, alignItems: 'center', paddingTop: RULER + LANE },
   timeline: {
     flex: 1,
     overflow: 'hidden',

@@ -1,12 +1,14 @@
-/** What the row needs from a press or pointer event's native event. */
-export type MouseLike = { button?: number; pageX?: number; pageY?: number }
+import type { SortKey } from '@/library/types'
 
-/** macOS: a right-click is an "aux click", with the point in the row's own
- * coordinates. */
-export type AuxClick = { button?: number; clientX?: number; clientY?: number }
+import type { UseCheckBoxesResult } from './useCheckBoxes'
+import type { UseLibraryRowsResult } from './useLibraryRows'
 
 /**
- * A right-clicked row: its file name, its item id in a playlist, and the key
- * it's checked under (see rowKey).
+ * What the table's parts share (LibraryTableContext): the rows shown with
+ * their search and sort, the check boxes, and the columns that fit.
  */
-export type RowTarget = { fileName: string; itemId?: number; key: string }
+export type LibraryTableState = UseLibraryRowsResult & {
+  readonly checks: UseCheckBoxesResult
+  /** The columns that fit. */
+  readonly columnsShown: readonly SortKey[]
+}

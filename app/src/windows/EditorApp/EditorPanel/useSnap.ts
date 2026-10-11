@@ -1,11 +1,8 @@
 // Snap: positions land on the ruler's minor ticks. The choice outlives one
-// editor.
-import { useState } from 'react'
+// editor (it's an EditorPreferencesProvider preference).
+import { useEditorPreferences } from '@/windows/EditorApp/useEditorPreferences'
 
 import { snap } from './model'
-
-// A preference that outlives one editor.
-let snapPreference = true
 
 export type UseSnapResult = {
   readonly snapOn: boolean
@@ -15,11 +12,10 @@ export type UseSnapResult = {
 }
 
 export const useSnap = (durationMs: number, stepMs: number): UseSnapResult => {
-  const [snapOn, setSnapOn] = useState(snapPreference)
+  const { snapOn, setSnapOn } = useEditorPreferences()
   return {
     snapOn,
     toggleSnap: () => {
-      snapPreference = !snapOn
       setSnapOn(!snapOn)
     },
     snapMs: ms =>

@@ -6,6 +6,7 @@ import { windows } from '@/skin/windows'
 import { Skinned } from '@/windows/Skinned'
 
 import { EditorContent } from './EditorContent'
+import { EditorPreferencesProvider } from './EditorPreferencesProvider'
 import { useEditorTarget } from './useEditorTarget'
 
 /** The track editor window: the recording chosen with Edit Track…. */
@@ -28,7 +29,9 @@ export const EditorApp: FC = () => {
         panel="editor"
         title={title ? `Editor: ${title}` : 'Editor'}
       >
-        <EditorContent />
+        <EditorPreferencesProvider>
+          <EditorContent />
+        </EditorPreferencesProvider>
       </SkinPanelFrame>
     </Skinned>
   )

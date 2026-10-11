@@ -7,7 +7,7 @@ import { Image } from 'react-native'
 import { create, type ReactTestRenderer } from 'react-test-renderer'
 
 import { DetailsPane } from '@/components/DetailsPane'
-import { thumbGeometry } from '@/components/LibraryScreen/LibraryBody/LibraryTable/SkinScrollbar/thumbGeometry'
+import { thumbGeometry } from '@/components/LibraryScreen/LibraryBody/LibraryTable/RowList/SkinScrollbar/thumbGeometry'
 import { visibleColumns } from '@/components/LibraryScreen/LibraryBody/LibraryTable/visibleColumns'
 import { NineSlice } from '@/components/NineSlice'
 import { imageSource } from '@/components/SkinImage/imageSource'

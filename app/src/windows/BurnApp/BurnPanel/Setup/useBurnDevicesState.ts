@@ -19,7 +19,7 @@ export type UseBurnDevicesStateResult = {
 /**
  * The devices to burn to, refreshed every 2 seconds, the chosen one, and
  * the simulator's settings. `onError` must be stable (a state setter).
- * Setup owns it and shares it through BurnDevicesContext.
+ * Part of useBurnSetupState.
  */
 export const useBurnDevicesState = (
   onError: (message: string) => void,

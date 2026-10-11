@@ -9,7 +9,7 @@ import { readiness } from './readiness'
 
 type Options = ReadonlyArray<readonly [string, string]>
 
-export type UseBurnSetupResult = {
+export type UseBurnOptionsResult = {
   /** Seconds between tracks. */
   readonly gap: number
   readonly setGap: (gap: number) => void
@@ -60,10 +60,10 @@ const rowsOf = (target: Target): PlaylistRow[] =>
  * The burn options for `target` on `device`, and what follows from them:
  * whether it fits, whether it can start, and which options apply.
  */
-export const useBurnSetup = (
+export const useBurnOptions = (
   target: Target,
   device: Device | undefined,
-): UseBurnSetupResult => {
+): UseBurnOptionsResult => {
   const [gap, setGap] = useState(2)
   const [cdText, setCdText] = useState(true)
   const [testWrite, setTestWrite] = useState(false)

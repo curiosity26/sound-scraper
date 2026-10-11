@@ -1,1 +1,1 @@
-export { Masters, type MastersProps } from './Masters'
+export { Masters } from './Masters'
