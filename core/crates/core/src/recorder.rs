@@ -709,6 +709,8 @@ mod tests {
         rate: u32,
         channels: u16,
         audible: fn(u32) -> bool,
+        /// Audio flows only while this is set (always, when there is none).
+        gate: Option<Arc<AtomicBool>>,
         stop: Arc<AtomicBool>,
         thread: Option<JoinHandle<()>>,
     }
@@ -724,6 +726,21 @@ mod tests {
                     rate,
                     channels,
                     audible,
+                    gate: None,
+                    stop: Arc::default(),
+                    thread: None,
+                }) as Box<dyn CaptureBackend>
+            })
+        }
+
+        /// A tone that only flows once `gate` is set.
+        fn gated(rate: u32, channels: u16, gate: Arc<AtomicBool>) -> BackendFactory {
+            Box::new(move || {
+                Box::new(ToneBackend {
+                    rate,
+                    channels,
+                    audible: |_| true,
+                    gate: Some(gate.clone()),
                     stop: Arc::default(),
                     thread: None,
                 }) as Box<dyn CaptureBackend>
@@ -745,6 +762,7 @@ mod tests {
         ) -> Result<Session, CaptureError> {
             let (rate, channels, audible, stop) =
                 (self.rate, self.channels, self.audible, self.stop.clone());
+            let gate = self.gate.clone();
             self.thread = Some(std::thread::spawn(move || {
                 let tone = sine(0.01, rate);
                 let samples: Vec<f32> = match channels {
@@ -757,16 +775,18 @@ mod tests {
                     if stop.load(Ordering::Acquire) {
                         break;
                     }
-                    let samples = if audible(n) {
-                        samples.clone()
-                    } else {
-                        vec![0.0; samples.len()]
-                    };
-                    let _ = sink.try_send(AudioChunk {
-                        samples,
-                        sample_rate: rate,
-                        channels,
-                    });
+                    if gate.as_ref().is_none_or(|g| g.load(Ordering::Acquire)) {
+                        let samples = if audible(n) {
+                            samples.clone()
+                        } else {
+                            vec![0.0; samples.len()]
+                        };
+                        let _ = sink.try_send(AudioChunk {
+                            samples,
+                            sample_rate: rate,
+                            channels,
+                        });
+                    }
                     let next = start + Duration::from_millis(10) * n;
                     std::thread::sleep(next.saturating_duration_since(Instant::now()));
                 }
@@ -808,8 +828,7 @@ mod tests {
     fn pause_excludes_paused_time_and_finalizes() {
         let dir = crate::paths::tempdir();
         let (mut r, events) = recorder(&dir);
-        // Wall time spent recording; sleeps overshoot on a busy machine, so
-        // the duration check compares against this rather than the 1.2 s asked for.
+        // Wall time spent recording (sleeps overshoot on a busy machine).
         let started = std::time::Instant::now();
         r.start(system()).unwrap();
         std::thread::sleep(Duration::from_millis(600));
@@ -832,6 +851,10 @@ mod tests {
         std::thread::sleep(Duration::from_millis(600));
         let path = r.stop().unwrap();
         recorded += resumed.elapsed();
+        // What the encoder actually wrote. A slow runner's encoder lags the
+        // capture, and whatever is still queued at pause or stop is dropped,
+        // so this can fall short of the wall time but never exceed it.
+        let encoded = r.status().elapsed().as_secs_f64();
         assert!(!vis.is_active(), "the analyzer stops with the recording");
 
         assert_eq!(path.extension().unwrap(), "mp3");
@@ -854,8 +877,14 @@ mod tests {
         let d = scan.duration_secs();
         let recorded = recorded.as_secs_f64();
         assert!(
-            d >= 1.05 && (d - recorded).abs() < 0.25,
-            "duration {d:.2}s should match the {recorded:.2}s recorded, excluding the 0.7s pause"
+            (d - encoded).abs() < 0.1,
+            "duration {d:.2}s should match the {encoded:.2}s encoded"
+        );
+        // Had the 0.7 s pause been recorded, the file would run that much
+        // past the wall time spent recording.
+        assert!(
+            d > 0.5 && d < recorded + 0.3,
+            "duration {d:.2}s should be within the {recorded:.2}s recorded, excluding the 0.7s pause"
         );
 
         let tag = id3::Tag::read_from_path(&path).unwrap();
@@ -1001,6 +1030,7 @@ mod tests {
     #[test]
     fn stopping_before_any_audio_leaves_no_file() {
         let dir = crate::paths::tempdir();
+        let gate = Arc::new(AtomicBool::new(false));
         let mut r = Recorder::with_backend(
             RecorderOptions {
                 dir: dir.clone(),
@@ -1009,10 +1039,12 @@ mod tests {
                 trim_silence: false,
                 master: None,
             },
-            ToneBackend::factory(48000, 2),
+            ToneBackend::gated(48000, 2, gate.clone()),
         );
         r.start(system()).unwrap();
-        r.pause().unwrap(); // everything arriving is dropped
+        r.pause().unwrap();
+        // Audio starts only once paused, so all of it is dropped.
+        gate.store(true, Ordering::Release);
         std::thread::sleep(Duration::from_millis(50));
         assert!(r.stop().is_err());
         assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 0);
