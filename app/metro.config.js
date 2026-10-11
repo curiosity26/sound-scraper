@@ -6,7 +6,17 @@ const rnwPath = fs.realpathSync(
   path.resolve(require.resolve('react-native-windows/package.json'), '..'),
 )
 
-//
+// core-js captures built-ins (e.g. Function#toString) when each of its
+// modules first loads, then patches them. Inlined requires would defer those
+// loads until after the patch, so Function#toString recursed forever on
+// Hermes. Its files keep plain top-of-file requires.
+const coreJsDir = fs.realpathSync(
+  path.resolve(require.resolve('core-js/package.json'), '..'),
+)
+const coreJsFiles = fs
+  .readdirSync(coreJsDir, { recursive: true })
+  .filter(f => f.endsWith('.js'))
+  .map(f => path.join(coreJsDir, f))
 
 /**
  * Metro configuration
@@ -34,7 +44,9 @@ const config = {
     getTransformOptions: async () => ({
       transform: {
         experimentalImportSupport: false,
-        inlineRequires: true,
+        inlineRequires: {
+          blockList: Object.fromEntries(coreJsFiles.map(f => [f, true])),
+        },
       },
     }),
   },
