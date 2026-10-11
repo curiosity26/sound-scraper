@@ -9,7 +9,7 @@ import { usePanelStyles } from '@/theme/usePanelStyles'
  * A value shown as text; click to edit in place. Enter (or leaving the
  * field) commits, Esc cancels. `onCommit` resolves false to keep editing.
  */
-export function InlineField(props: {
+export const InlineField = (props: {
   label: string
   value: string
   mixed?: boolean
@@ -18,7 +18,7 @@ export function InlineField(props: {
   onCommit: (text: string) => Promise<boolean>
   textStyle: object
   testID?: string
-}): React.JSX.Element {
+}): React.JSX.Element => {
   const t = usePanelStyles()
   const [editing, setEditing] = useState<string>()
   const commit = async () => {
@@ -67,7 +67,9 @@ export function InlineField(props: {
           accessibilityLabel={`${props.label}: ${
             props.value || 'empty'
           }. Click to edit.`}
-          onPress={() => setEditing(props.mixed ? '' : props.value)}
+          onPress={() => {
+            setEditing(props.mixed ? '' : props.value)
+          }}
           style={styles.valueBox}
         >
           <Text

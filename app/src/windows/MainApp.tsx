@@ -12,7 +12,7 @@ import { windows } from '@/skin/windows'
 import { Skinned } from './Skinned'
 
 /** The main window: the skinned panel. */
-export function MainApp(): React.JSX.Element {
+export const MainApp = (): React.JSX.Element => {
   useEffect(() => {
     // Skins opened before JS started (double-clicking a .sskin launches the
     // app), then as they come.
@@ -29,7 +29,9 @@ export function MainApp(): React.JSX.Element {
         takeSkins()
       }
     })
-    return () => subscription.remove()
+    return () => {
+      subscription.remove()
+    }
   }, [])
   useFolderLiveReload()
   return (
@@ -45,7 +47,13 @@ export function MainApp(): React.JSX.Element {
  */
 function useFolderLiveReload() {
   const [dir, setDir] = useState(() => chosenFolder())
-  useEffect(() => skinStore.subscribe(() => setDir(chosenFolder())), [])
+  useEffect(
+    () =>
+      skinStore.subscribe(() => {
+        setDir(chosenFolder())
+      }),
+    [],
+  )
   useEffect(() => {
     if (!dir) {
       return
@@ -69,7 +77,9 @@ function useFolderLiveReload() {
         busy = false
       }
     }, 1000)
-    return () => clearInterval(timer)
+    return () => {
+      clearInterval(timer)
+    }
   }, [dir])
 }
 

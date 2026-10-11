@@ -1,5 +1,3 @@
-/* eslint-disable react-native/no-inline-styles */
-
 import React from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 
@@ -7,7 +5,7 @@ import { ToolButton } from './ToolButton'
 import type { EditorTheme } from './types'
 
 /** Save: the in-window question whether to keep the original. */
-export function SaveModal(props: {
+export const SaveModal = (props: {
   th: EditorTheme
   title: string
   count: number
@@ -17,7 +15,7 @@ export function SaveModal(props: {
   error?: string
   onCancel: () => void
   onChoose: (keepOriginal: boolean) => void
-}): React.JSX.Element {
+}): React.JSX.Element => {
   const { th } = props
   return (
     <View style={styles.modalBackdrop} testID="editor-save-modal">
@@ -56,12 +54,16 @@ export function SaveModal(props: {
             <ToolButton
               th={th}
               label="No, delete it"
-              onPress={() => props.onChoose(false)}
+              onPress={() => {
+                props.onChoose(false)
+              }}
             />
             <ToolButton
               th={th}
               label="Yes, keep it"
-              onPress={() => props.onChoose(true)}
+              onPress={() => {
+                props.onChoose(true)
+              }}
               accent
             />
           </View>

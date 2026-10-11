@@ -8,10 +8,10 @@ import { usePanelTheme } from '@/theme/usePanelTheme'
 import type { UsePlaylistControlsResult } from './usePlaylistControls'
 
 /** ⋯: rename, duplicate, export or delete the playlist showing. */
-export function PlaylistActionsButton(props: {
+export const PlaylistActionsButton = (props: {
   controls: UsePlaylistControlsResult
   textStyle: object
-}): React.JSX.Element | null {
+}): React.JSX.Element | null => {
   const t = usePanelStyles()
   const theme = usePanelTheme()
   const { controls } = props

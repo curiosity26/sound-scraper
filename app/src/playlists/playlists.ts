@@ -27,7 +27,9 @@ const listeners = new Set<(s: PlaylistsState) => void>()
 
 function publish(change: Partial<PlaylistsState>) {
   state = { ...state, ...change }
-  listeners.forEach(l => l(state))
+  listeners.forEach(l => {
+    l(state)
+  })
 }
 
 /** Re-reads the list and the showing playlist's items from the core. */
@@ -70,7 +72,9 @@ export const playlists = {
     return () => listeners.delete(listener)
   },
   /** Re-reads everything (after a rename or trash elsewhere). */
-  refresh: () => reload(),
+  refresh: () => {
+    reload()
+  },
 
   /** Shows a playlist in the library (null = the whole library). */
   show: (id: number | null) => {
@@ -136,5 +140,7 @@ export const playlists = {
     }
   },
 
-  setPlaying: (itemId: number | null) => publish({ playingItemId: itemId }),
+  setPlaying: (itemId: number | null) => {
+    publish({ playingItemId: itemId })
+  },
 }

@@ -24,7 +24,7 @@ type Props = {
  * size, edges stretch along one axis and the center along both. Children
  * are laid out on top, inside the insets.
  */
-export function NineSlice(props: Props): React.JSX.Element {
+export const NineSlice = (props: Props): React.JSX.Element => {
   const { image, width, height } = props
   const s = useSkinScale()
   const [t, r, b, l] = props.slice

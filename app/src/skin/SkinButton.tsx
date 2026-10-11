@@ -30,7 +30,7 @@ type Props = {
  * active, activePressed, disabled), or an invisible hot spot when the skin
  * paints the button into its background.
  */
-export function SkinButton(props: Props): React.JSX.Element {
+export const SkinButton = (props: Props): React.JSX.Element => {
   const { element, active = false, disabled = false } = props
   const [, , w, h] = element.rect
   const s = useSkinScale()

@@ -2,7 +2,7 @@
 // "Add to ▾" action for checked rows, and the CD capacity bar
 // (docs/playlists-and-cd-burning-design.md §5).
 import { useRef, useState } from 'react'
-import { View } from 'react-native'
+import type { View } from 'react-native'
 
 import { pickSaveFile } from '@/native/pickSaveFile'
 import { playlistsApi } from '@/native/playlistsApi'
@@ -44,7 +44,9 @@ function menuPoint(
     then(0, 0)
     return
   }
-  view.measureInWindow((x, y, _w, h) => then(x, y + h))
+  view.measureInWindow((x, y, _w, h) => {
+    then(x, y + h)
+  })
 }
 
 /** "Playlist 3": the first free default name. */
@@ -79,7 +81,7 @@ export function usePlaylistControls(props: {
     }
   }
 
-  const newPlaylist = (fileNames: string[] = []) =>
+  const newPlaylist = (fileNames: string[] = []) => {
     setPrompt({
       kind: 'name',
       title: fileNames.length
@@ -90,7 +92,7 @@ export function usePlaylistControls(props: {
           }`
         : 'New playlist',
       value: defaultName(state),
-      onDone: name =>
+      onDone: name => {
         run('create the playlist', () => {
           const made = playlists.create(name, fileNames)
           if (fileNames.length === 0) {
@@ -101,8 +103,10 @@ export function usePlaylistControls(props: {
               isError: false,
             })
           }
-        }),
+        })
+      },
     })
+  }
 
   const exportM3u8 = async (id: number, name: string) => {
     try {
@@ -127,7 +131,7 @@ export function usePlaylistControls(props: {
 
   /** The playlist picker: the library, New Playlist…, then the playlists
    * (so the fixed items stay at the top however many playlists there are). */
-  const openPicker = () =>
+  const openPicker = () => {
     menuPoint(picker.current, async (x, y) => {
       const names = state.playlists.map(p => p.name)
       const items = ['Library', NEW, ...(names.length ? ['-', ...names] : [])]
@@ -137,17 +141,22 @@ export function usePlaylistControls(props: {
           : 3 + state.playlists.findIndex(p => p.id === state.activeId)
       const chosen = await showMenu(items, checkedIndex, x, y)
       if (chosen === 0) {
-        run('show the library', () => playlists.show(null))
+        run('show the library', () => {
+          playlists.show(null)
+        })
       } else if (chosen === 1) {
         newPlaylist()
       } else if (chosen >= 3 && chosen < 3 + names.length) {
         const id = state.playlists[chosen - 3].id
-        run('show the playlist', () => playlists.show(id))
+        run('show the playlist', () => {
+          playlists.show(id)
+        })
       }
     })
+  }
 
   /** The ⋯ menu beside the picker: what to do with the playlist showing. */
-  const openActions = () =>
+  const openActions = () => {
     menuPoint(actionsButton.current, async (x, y) => {
       if (!active) {
         return
@@ -155,34 +164,41 @@ export function usePlaylistControls(props: {
       const actions: Array<[string, () => void]> = [
         [
           'Rename Playlist…',
-          () =>
+          () => {
             setPrompt({
               kind: 'name',
               title: 'Rename playlist',
               value: active.name,
-              onDone: name =>
-                run('rename the playlist', () =>
-                  playlists.rename(active.id, name),
-                ),
-            }),
+              onDone: name => {
+                run('rename the playlist', () => {
+                  playlists.rename(active.id, name)
+                })
+              },
+            })
+          },
         ],
         [
           'Duplicate Playlist',
-          () =>
-            run('duplicate the playlist', () => playlists.duplicate(active.id)),
+          () => {
+            run('duplicate the playlist', () => playlists.duplicate(active.id))
+          },
         ],
         ['Export as .m3u8…', () => exportM3u8(active.id, active.name)],
         [
           'Delete Playlist…',
-          () =>
+          () => {
             setPrompt({
               kind: 'confirm',
               title: `Delete “${active.name}”?`,
               body: 'The recordings stay in your library.',
               action: 'Delete',
-              onDone: () =>
-                run('delete the playlist', () => playlists.delete(active.id)),
-            }),
+              onDone: () => {
+                run('delete the playlist', () => {
+                  playlists.delete(active.id)
+                })
+              },
+            })
+          },
         ],
       ]
       // A separator before Delete.
@@ -194,6 +210,7 @@ export function usePlaylistControls(props: {
         actions[3][1]()
       }
     })
+  }
 
   /** Adds checked recordings to a playlist chosen from a menu. */
   const openAddTo = (fileNames: string[], at?: { x: number; y: number }) => {
@@ -222,7 +239,7 @@ export function usePlaylistControls(props: {
     }
   }
 
-  const addToPlaylist = (id: number, name: string, fileNames: string[]) =>
+  const addToPlaylist = (id: number, name: string, fileNames: string[]) => {
     run('add to the playlist', () => {
       const there = playlists.fileNamesIn(id)
       const already = fileNames.filter(f => there.has(f)).length
@@ -239,6 +256,7 @@ export function usePlaylistControls(props: {
       playlists.add(id, fileNames)
       onMessage({ text: `Added to ${name}.`, isError: false })
     })
+  }
 
   return {
     prompt,

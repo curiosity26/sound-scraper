@@ -1,5 +1,3 @@
-/* eslint-disable react-native/no-inline-styles */
-
 import React, { useState } from 'react'
 import { Pressable, StyleSheet, Text } from 'react-native'
 
@@ -11,7 +9,7 @@ import type { EditorTheme } from './types'
  * A tool: a glyph or icon with a label, quiet until hovered or pressed;
  * `active` shows it latched (Snap), `accent` fills it (Save).
  */
-export function ToolButton(props: {
+export const ToolButton = (props: {
   th: EditorTheme
   label: string
   glyph?: string
@@ -24,7 +22,7 @@ export function ToolButton(props: {
   testID?: string
   /** For glyph-only tools (empty label). */
   a11yLabel?: string
-}): React.JSX.Element {
+}): React.JSX.Element => {
   const { th } = props
   const [hover, setHover] = useState(false)
   const fg = props.accent ? th.accentText : props.active ? th.accent : th.text
@@ -36,8 +34,12 @@ export function ToolButton(props: {
       accessibilityState={{ disabled: props.disabled, selected: props.active }}
       disabled={props.disabled}
       onPress={props.onPress}
-      onHoverIn={() => setHover(true)}
-      onHoverOut={() => setHover(false)}
+      onHoverIn={() => {
+        setHover(true)
+      }}
+      onHoverOut={() => {
+        setHover(false)
+      }}
       style={({ pressed }) => [
         styles.tool,
         {

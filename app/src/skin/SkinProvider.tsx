@@ -15,7 +15,7 @@ type Props = {
  * Loads the skin chosen in the settings (once per JS runtime) and provides
  * it; re-renders when another window picks a different skin.
  */
-export function SkinProvider(props: Props): React.JSX.Element {
+export const SkinProvider = (props: Props): React.JSX.Element => {
   const { onError } = props
   const [skin, setSkin] = useState(skinStore.get())
   useEffect(() => {

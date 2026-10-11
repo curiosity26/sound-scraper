@@ -6,7 +6,9 @@ export function shared<T>(initial: T) {
     get: (): T => value,
     set: (v: T) => {
       value = v
-      subscribers.forEach(l => l(v))
+      subscribers.forEach(l => {
+        l(v)
+      })
     },
     subscribe: (listener: (v: T) => void): (() => void) => {
       subscribers.add(listener)

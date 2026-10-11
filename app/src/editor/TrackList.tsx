@@ -1,5 +1,3 @@
-/* eslint-disable react-native/no-inline-styles */
-
 import React, { useEffect, useState } from 'react'
 import {
   Platform,
@@ -19,13 +17,15 @@ import type { EditorTheme } from './types'
 import { withAlpha } from './withAlpha'
 
 /** A track's name, edited in place (Enter or leaving saves, Esc cancels). */
-function TrackName(props: {
+const TrackName = (props: {
   th: EditorTheme
   value: string
   onCommit: (name: string) => void
-}) {
+}) => {
   const [text, setText] = useState(props.value)
-  useEffect(() => setText(props.value), [props.value])
+  useEffect(() => {
+    setText(props.value)
+  }, [props.value])
   const commit = () => {
     const name = text.trim()
     if (name && name !== props.value) {
@@ -56,14 +56,14 @@ export type TrackRow = TrackInfo & {
   name: string
 }
 
-export function TrackList(props: {
+export const TrackList = (props: {
   th: EditorTheme
   rows: TrackRow[]
   selected: number | null
   showReencode: boolean
   onSelect: (index: number) => void
   onRename: (owner: number | 'first', name: string) => void
-}): React.JSX.Element {
+}): React.JSX.Element => {
   const { th } = props
   return (
     <View style={[styles.tracks, { borderColor: th.border }]}>
@@ -93,7 +93,9 @@ export function TrackList(props: {
           return (
             <Pressable
               key={`${i}-${tr.startMs}`}
-              onPress={() => props.onSelect(i)}
+              onPress={() => {
+                props.onSelect(i)
+              }}
               style={[
                 styles.trackRow,
                 selected && { backgroundColor: withAlpha(trackColor(i), 0x38) },
@@ -113,7 +115,9 @@ export function TrackList(props: {
                 <TrackName
                   th={th}
                   value={tr.name}
-                  onCommit={name => props.onRename(tr.owner!, name)}
+                  onCommit={name => {
+                    props.onRename(tr.owner!, name)
+                  }}
                 />
               )}
               <Text style={[styles.colTime, styles.cell, { color: th.dim }]}>

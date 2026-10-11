@@ -1,5 +1,3 @@
-/* eslint-disable react-native/no-inline-styles */
-
 import React from 'react'
 import { Pressable, StyleSheet } from 'react-native'
 
@@ -7,7 +5,7 @@ import { Icon, type IconName } from './Icon'
 import type { EditorTheme } from './types'
 
 /** A square button with an icon (transport). */
-export function IconButton(props: {
+export const IconButton = (props: {
   th: EditorTheme
   icon: IconName
   label: string
@@ -15,7 +13,7 @@ export function IconButton(props: {
   disabled?: boolean
   active?: boolean
   size?: number
-}): React.JSX.Element {
+}): React.JSX.Element => {
   const { th } = props
   const color = props.active ? th.accent : th.text
   return (

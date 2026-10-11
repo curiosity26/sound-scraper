@@ -7,8 +7,12 @@ export const recorder = {
   /** Starts recording `app`, or all system audio when undefined. */
   start: (app?: AudioApp): Promise<void> =>
     NativeSoundScraper.recorderStart(app?.pid ?? 0),
-  pause: (): void => NativeSoundScraper.recorderPause(),
-  resume: (): void => NativeSoundScraper.recorderResume(),
+  pause: (): void => {
+    NativeSoundScraper.recorderPause()
+  },
+  resume: (): void => {
+    NativeSoundScraper.recorderResume()
+  },
   /** Stops and finalizes; resolves with the .mp3 path. */
   stop: (): Promise<string> => NativeSoundScraper.recorderStop(),
   state: (): RecorderState =>

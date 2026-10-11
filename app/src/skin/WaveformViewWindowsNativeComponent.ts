@@ -12,6 +12,4 @@ export interface NativeProps extends ViewProps {
   colors?: string
 }
 
-export default codegenNativeComponent<NativeProps>(
-  'SSWaveformView',
-) as HostComponent<NativeProps>
+export default codegenNativeComponent<NativeProps>('SSWaveformView')

@@ -15,7 +15,7 @@ import type { EditorTheme } from './types'
  * A slider, 0..1, with an icon at each end (zoom). Horizontal by default;
  * `vertical` runs bottom (0) to top (1).
  */
-export function Slider(props: {
+export const Slider = (props: {
   th: EditorTheme
   value: number
   onChange: (value: number) => void
@@ -26,7 +26,7 @@ export function Slider(props: {
   length?: number
   vertical?: boolean
   disabled?: boolean
-}): React.JSX.Element {
+}): React.JSX.Element => {
   const { th, vertical } = props
   const length = Math.max(20, props.length ?? 80)
   const track = useRef<View>(null)
@@ -46,11 +46,11 @@ export function Slider(props: {
       accessibilityLabel={`${props.label}: ${
         which === 'low' ? 'less' : 'more'
       }`}
-      onPress={() =>
+      onPress={() => {
         props.onChange(
           which === 'low' ? Math.max(0, v - 0.1) : Math.min(1, v + 0.1),
         )
-      }
+      }}
       disabled={props.disabled}
       hitSlop={4}
     >

@@ -44,7 +44,7 @@ const INTERACTIVE: ElementName[] = [
 ]
 
 /** The skinned main window: transport, time, status, levels and source. */
-export function MainPanel(): React.JSX.Element {
+export const MainPanel = (): React.JSX.Element => {
   const skin = useSkin()
   const s = useSkinScale()
   const r = useRecorder()
@@ -70,7 +70,9 @@ export function MainPanel(): React.JSX.Element {
         setPanels(prev => ({ ...prev, [e.window]: e.event === 'shown' }))
       }
     })
-    return () => subscription.remove()
+    return () => {
+      subscription.remove()
+    }
   }, [])
 
   useEffect(() => {
@@ -94,7 +96,10 @@ export function MainPanel(): React.JSX.Element {
 
   const { setMessage: showMessage } = r
   useEffect(
-    () => playback.onError(text => showMessage({ text, isError: true })),
+    () =>
+      playback.onError(text => {
+        showMessage({ text, isError: true })
+      }),
     [showMessage],
   )
 
@@ -105,10 +110,14 @@ export function MainPanel(): React.JSX.Element {
     }
     setShownMessage(r.message)
     const timer = setTimeout(
-      () => setShownMessage(undefined),
+      () => {
+        setShownMessage(undefined)
+      },
       r.message.isError ? 12000 : 6000,
     )
-    return () => clearTimeout(timer)
+    return () => {
+      clearTimeout(timer)
+    }
   }, [r.message])
 
   const active = r.state === 'recording' || r.state === 'paused'
@@ -318,7 +327,9 @@ export function MainPanel(): React.JSX.Element {
           d[2] * s,
           d[3] * s,
         ])}
-        onDoubleClick={() => setShaded(on => !on)}
+        onDoubleClick={() => {
+          setShaded(on => !on)
+        }}
       />
       {layout.animations.map((a, i) => (
         <SkinAnimation
@@ -418,17 +429,33 @@ export function MainPanel(): React.JSX.Element {
         },
       )}
       {button('stop', 'Stop', onStop, { disabled: !stoppable })}
-      {button('toggleLibrary', 'Library', () => togglePanel('library'), {
-        active: panels.library,
-      })}
-      {button('toggleSettings', 'Settings', () => togglePanel('settings'), {
-        active: panels.settings,
-      })}
+      {button(
+        'toggleLibrary',
+        'Library',
+        () => {
+          togglePanel('library')
+        },
+        {
+          active: panels.library,
+        },
+      )}
+      {button(
+        'toggleSettings',
+        'Settings',
+        () => {
+          togglePanel('settings')
+        },
+        {
+          active: panels.settings,
+        },
+      )}
       {button('minimize', 'Minimize', windows.minimize)}
       {button(
         'shade',
         shaded ? 'Expand' : 'Collapse',
-        () => setShaded(on => !on),
+        () => {
+          setShaded(on => !on)
+        },
         {
           active: shaded,
         },
@@ -439,13 +466,13 @@ export function MainPanel(): React.JSX.Element {
 }
 
 /** The status sprite for the state when the skin has one, else its text. */
-function StatusElement(props: {
+const StatusElement = (props: {
   element: SkinElement
   fonts: Parameters<typeof ElementText>[0]['fonts']
   /** A recorder state, or a player state during playback. */
   state: string
   text: string
-}) {
+}) => {
   const { element } = props
   const s = useSkinScale()
   const sprite = element.sprite

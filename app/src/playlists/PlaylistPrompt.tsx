@@ -11,11 +11,11 @@ import { playlists } from './playlists'
 import type { UsePlaylistControlsResult } from './usePlaylistControls'
 
 /** The in-panel prompt (name a playlist, confirm a delete, duplicates). */
-export function PlaylistPrompt(props: {
+export const PlaylistPrompt = (props: {
   controls: UsePlaylistControlsResult
   textStyle: object
   onMessage: (m: { text: string; isError: boolean }) => void
-}): React.JSX.Element | null {
+}): React.JSX.Element | null => {
   const { prompt, setPrompt } = props.controls
   const theme = usePanelTheme()
   const t = usePanelStyles()
@@ -24,7 +24,9 @@ export function PlaylistPrompt(props: {
   }
   const bg = theme?.background ?? '#2a2522'
   const fg = { color: theme?.text ?? '#f3ead0' }
-  const close = () => setPrompt(null)
+  const close = () => {
+    setPrompt(null)
+  }
   const button = (label: string, onPress: () => void, accent = false) => (
     <Pressable
       key={label}
@@ -66,7 +68,9 @@ export function PlaylistPrompt(props: {
           autoFocus
           selectTextOnFocus
           value={value}
-          onChangeText={text => setPrompt({ ...prompt, value: text })}
+          onChangeText={text => {
+            setPrompt({ ...prompt, value: text })
+          }}
           onSubmitEditing={ok}
           onKeyPress={e => e.nativeEvent.key === 'Escape' && close()}
           style={[styles.input, props.textStyle, t.input]}
@@ -137,7 +141,9 @@ export function PlaylistPrompt(props: {
             ]),
         button(
           all ? 'Add Again' : 'Add All',
-          () => add(prompt.fileNames),
+          () => {
+            add(prompt.fileNames)
+          },
           true,
         ),
       ]

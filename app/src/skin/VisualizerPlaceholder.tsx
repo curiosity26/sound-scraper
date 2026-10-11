@@ -12,7 +12,7 @@ import { useSkinScale } from './useSkinScale'
  * Where the visualizer will draw (phase 2: a native view fed by the Rust
  * analyzer). For now: the style's grid and a flat line.
  */
-export function VisualizerPlaceholder(props: { element: SkinElement }) {
+export const VisualizerPlaceholder = (props: { element: SkinElement }) => {
   const s = useSkinScale()
   const box = scaleRect(props.element.rect, s)
   const { width: w, height: h } = box

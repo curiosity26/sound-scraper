@@ -9,9 +9,15 @@ import { Skinned } from './Skinned'
 import { styles } from './styles'
 
 /** The burn window: a playlist to CD or a disc image. */
-export function BurnApp(): React.JSX.Element {
+export const BurnApp = (): React.JSX.Element => {
   const [name, setName] = useState(burnTarget.get()?.name)
-  useEffect(() => burnTarget.subscribe(t => setName(t?.name)), [])
+  useEffect(
+    () =>
+      burnTarget.subscribe(t => {
+        setName(t?.name)
+      }),
+    [],
+  )
   return (
     <Skinned>
       <SkinPanelFrame panel="burn" title={name ? `Burn: ${name}` : 'Burn CD'}>

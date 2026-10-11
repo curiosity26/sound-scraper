@@ -8,10 +8,10 @@ import { usePanelTheme } from '@/theme/usePanelTheme'
 import type { UsePlaylistControlsResult } from './usePlaylistControls'
 
 /** The picker button: "▾ Library" or "▾ Road Trip". */
-export function PlaylistPicker(props: {
+export const PlaylistPicker = (props: {
   controls: UsePlaylistControlsResult
   textStyle: object
-}): React.JSX.Element {
+}): React.JSX.Element => {
   const t = usePanelStyles()
   const theme = usePanelTheme()
   const { controls } = props

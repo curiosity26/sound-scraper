@@ -1,5 +1,3 @@
-/* eslint-disable react-native/no-inline-styles */
-
 import React from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 
@@ -7,11 +5,11 @@ import { MONO } from './constants'
 import type { EditorTheme } from './types'
 
 /** The position readout: a small LCD. */
-export function Lcd(props: {
+export const Lcd = (props: {
   th: EditorTheme
   main: string
   sub: string
-}): React.JSX.Element {
+}): React.JSX.Element => {
   const { th } = props
   return (
     <View

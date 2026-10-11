@@ -11,12 +11,12 @@ import { SECTORS_74, SECTORS_80 } from './constants'
 import type { Capacity } from './types'
 
 /** The CD capacity bar with 74 and 80 minute marks, and what it means. */
-export function CapacityBar(props: {
+export const CapacityBar = (props: {
   capacity: Capacity
   textStyle: object
   /** Beside the summary (Burn CD…). */
   action?: React.ReactNode
-}): React.JSX.Element {
+}): React.JSX.Element => {
   const theme = usePanelTheme()
   const t = usePanelStyles()
   const pc = theme?.playlist ?? {}

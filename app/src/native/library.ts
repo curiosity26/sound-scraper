@@ -11,10 +11,13 @@ export const library = {
     NativeSoundScraper.renameRecording(fileName, newName),
   trash: (fileName: string): Promise<void> =>
     NativeSoundScraper.trashRecording(fileName),
-  reveal: (fileName: string): void =>
-    NativeSoundScraper.revealRecording(fileName),
+  reveal: (fileName: string): void => {
+    NativeSoundScraper.revealRecording(fileName)
+  },
   onChanged: (listener: () => void): EventSubscription =>
-    NativeSoundScraper.onLibraryChanged(() => listener()),
+    NativeSoundScraper.onLibraryChanged(() => {
+      listener()
+    }),
   readTags: (fileName: string): Promise<Tags> =>
     NativeSoundScraper.readTags(fileName),
   writeTags: (fileNames: string[], edit: TagEdit): Promise<void> =>

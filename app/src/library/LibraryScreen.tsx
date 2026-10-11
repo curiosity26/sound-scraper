@@ -59,7 +59,7 @@ type Props = {
 }
 
 /** The recordings table with rename/trash/reveal and the tag editor. */
-export function LibraryScreen(props: Props): React.JSX.Element {
+export const LibraryScreen = (props: Props): React.JSX.Element => {
   const { onMessage, textStyle, isDark, onCount } = props
   const [recordings, setRecordings] = useState<Recording[]>([])
   const [checked, setChecked] = useState<Set<string>>(new Set())
@@ -289,7 +289,9 @@ export function LibraryScreen(props: Props): React.JSX.Element {
         hasCover,
         showMenu,
         onChanged: refreshLibraryViews,
-        onTrashed: () => setChecked(new Set()),
+        onTrashed: () => {
+          setChecked(new Set())
+        },
         report: onMessage,
         extra: remove,
       },
@@ -334,7 +336,9 @@ export function LibraryScreen(props: Props): React.JSX.Element {
               {showing && (
                 <Pressable
                   testID="playlist-add-recordings"
-                  onPress={() => setAdding(true)}
+                  onPress={() => {
+                    setAdding(true)
+                  }}
                 >
                   <Text style={[styles.link, t.link, t.cell]}>
                     + Add Recordings…
@@ -361,7 +365,7 @@ export function LibraryScreen(props: Props): React.JSX.Element {
                 props.onBurn ? (
                   <BurnButton
                     capacity={capacity}
-                    onPress={() =>
+                    onPress={() => {
                       props.onBurn!({
                         playlistId: pl.activeId!,
                         name: activeName ?? 'Playlist',
@@ -374,7 +378,7 @@ export function LibraryScreen(props: Props): React.JSX.Element {
                             durationMs: r.recording!.durationMs,
                           })),
                       })
-                    }
+                    }}
                   />
                 ) : undefined
               }
@@ -391,7 +395,9 @@ export function LibraryScreen(props: Props): React.JSX.Element {
               selection.set([renamed])
             }}
             onChanged={refreshLibraryViews}
-            onClose={() => selection.set([])}
+            onClose={() => {
+              selection.set([])
+            }}
             showMenu={props.showMenu}
             textStyle={textStyle}
             isDark={isDark}
@@ -411,7 +417,9 @@ export function LibraryScreen(props: Props): React.JSX.Element {
           recordings={recordings}
           already={new Set(pl.items.map(i => i.fileName))}
           textStyle={textStyle}
-          onCancel={() => setAdding(false)}
+          onCancel={() => {
+            setAdding(false)
+          }}
           onAdd={names => {
             setAdding(false)
             try {

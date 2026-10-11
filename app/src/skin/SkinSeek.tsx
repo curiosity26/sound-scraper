@@ -28,7 +28,7 @@ type Props = {
  * thumbDisabled) or style colors (track, fill, thumb, thumbPressed). Drag
  * or click to seek; it seeks when released.
  */
-export function SkinSeek(props: Props): React.JSX.Element {
+export const SkinSeek = (props: Props): React.JSX.Element => {
   const { element, enabled, durationMs } = props
   const s = useSkinScale()
   const [, , w, h] = element.rect
@@ -39,7 +39,7 @@ export function SkinSeek(props: Props): React.JSX.Element {
   const sprite = element.sprite
   const style = element.style ?? {}
   const color = (key: string) =>
-    typeof style[key] === 'string' ? (style[key] as string) : undefined
+    typeof style[key] === 'string' ? style[key] : undefined
 
   const progress = drag ?? (durationMs > 0 ? props.positionMs / durationMs : 0)
   const { thumbX, fillWidth } = seekGeometry(w, tw, progress)

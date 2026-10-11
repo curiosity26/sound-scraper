@@ -22,7 +22,7 @@ type Props = {
  * handles these in its window class, so this renders nothing there.
  * Render it before the panel's buttons so they stay on top.
  */
-export function DragSurface(props: Props): React.JSX.Element | null {
+export const DragSurface = (props: Props): React.JSX.Element | null => {
   const last = useRef(0)
   if (!windows.jsGestures) {
     return null

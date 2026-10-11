@@ -21,7 +21,7 @@ type Props = {
 }
 
 /** Record / Pause / Resume / Stop with elapsed time and a level meter. */
-export function RecordBar(props: Props): React.JSX.Element {
+export const RecordBar = (props: Props): React.JSX.Element => {
   const { state, starting, elapsedMs, peak, textStyle } = props
   const active = state === 'recording' || state === 'paused'
 
@@ -73,13 +73,13 @@ export function RecordBar(props: Props): React.JSX.Element {
   )
 }
 
-function Button(props: {
+const Button = (props: {
   testID: string
   label: string
   onPress: () => void
   color: string
   disabled?: boolean
-}) {
+}) => {
   return (
     <Pressable
       testID={props.testID}

@@ -10,7 +10,9 @@ export const selection = {
   get: (): string[] => current,
   set: (fileNames: string[]) => {
     current = fileNames
-    listeners.forEach(l => l(fileNames))
+    listeners.forEach(l => {
+      l(fileNames)
+    })
   },
   subscribe: (listener: (fileNames: string[]) => void): (() => void) => {
     listeners.add(listener)

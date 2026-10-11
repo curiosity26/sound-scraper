@@ -58,7 +58,7 @@ type Props = {
  * Show in Finder, cover and trash actions. Several recordings: a bulk edit
  * of their shared tags.
  */
-export function DetailsPane(props: Props): React.JSX.Element {
+export const DetailsPane = (props: Props): React.JSX.Element => {
   const { fileNames, textStyle, isDark, onChanged } = props
   const t = usePanelStyles()
   const [tags, setTags] = useState<Tags[]>()
@@ -298,7 +298,12 @@ export function DetailsPane(props: Props): React.JSX.Element {
           {!props.showMenu && (
             <View style={styles.links}>
               {actions.map(a => (
-                <Pressable key={a.label} onPress={() => a.run(0, 0)}>
+                <Pressable
+                  key={a.label}
+                  onPress={() => {
+                    a.run(0, 0)
+                  }}
+                >
                   <Text style={[styles.link, t.link]}>{a.label}</Text>
                 </Pressable>
               ))}
@@ -313,7 +318,7 @@ export function DetailsPane(props: Props): React.JSX.Element {
   )
 }
 
-function Info(props: { label: string; value: string; textStyle: object }) {
+const Info = (props: { label: string; value: string; textStyle: object }) => {
   const t = usePanelStyles()
   return (
     <View style={styles.infoRow}>

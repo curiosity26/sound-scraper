@@ -14,7 +14,7 @@ import { displayName } from './displayName'
 import { filterRecordings } from './filterRecordings'
 import { formatDuration } from './formatDuration'
 
-export function AddRecordingsSheet(props: {
+export const AddRecordingsSheet = (props: {
   playlistName: string
   recordings: Recording[]
   /** File names already in the playlist (marked, still addable). */
@@ -23,7 +23,7 @@ export function AddRecordingsSheet(props: {
   onCancel: () => void
   /** In the order they were checked. */
   onAdd: (fileNames: string[]) => void
-}): React.JSX.Element {
+}): React.JSX.Element => {
   const theme = usePanelTheme()
   const t = usePanelStyles()
   const [query, setQuery] = useState('')
@@ -36,10 +36,11 @@ export function AddRecordingsSheet(props: {
   const dim = { color: (theme?.text ?? '#f3ead0') + '99' }
   const accent = theme?.accent ?? colors.accent
   const border = theme?.border ?? colors.border
-  const toggle = (name: string) =>
+  const toggle = (name: string) => {
     setPicked(p =>
       p.includes(name) ? p.filter(n => n !== name) : [...p, name],
     )
+  }
   const ms = props.recordings
     .filter(r => picked.includes(r.fileName))
     .reduce((sum, r) => sum + r.durationMs, 0)
@@ -87,7 +88,9 @@ export function AddRecordingsSheet(props: {
               return (
                 <Pressable
                   testID={`add-${r.fileName}`}
-                  onPress={() => toggle(r.fileName)}
+                  onPress={() => {
+                    toggle(r.fileName)
+                  }}
                   style={[
                     styles.row,
                     t.row,
@@ -132,7 +135,9 @@ export function AddRecordingsSheet(props: {
           <Pressable
             testID="add-recordings-add"
             disabled={picked.length === 0}
-            onPress={() => props.onAdd(picked)}
+            onPress={() => {
+              props.onAdd(picked)
+            }}
             style={[
               styles.button,
               { borderColor: border, backgroundColor: accent },

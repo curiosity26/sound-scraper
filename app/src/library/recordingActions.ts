@@ -109,7 +109,14 @@ export function recordingActions(ctx: MenuContext): MenuAction[] {
   const single = ctx.fileNames.length === 1
   return [
     ...(single && editorAvailable && skinsAvailable && ctx.recordings[0]
-      ? [{ label: 'Edit Track…', run: () => editTrack(ctx) }]
+      ? [
+          {
+            label: 'Edit Track…',
+            run: () => {
+              editTrack(ctx)
+            },
+          },
+        ]
       : []),
     ...(ctx.showMenu && playlists.get().playlists.length > 0
       ? [
@@ -120,7 +127,14 @@ export function recordingActions(ctx: MenuContext): MenuAction[] {
         ]
       : []),
     ...(single
-      ? [{ label: REVEAL_LABEL, run: () => library.reveal(ctx.fileNames[0]) }]
+      ? [
+          {
+            label: REVEAL_LABEL,
+            run: () => {
+              library.reveal(ctx.fileNames[0])
+            },
+          },
+        ]
       : []),
     { label: 'Change cover…', run: () => chooseCover(ctx) },
     ...(ctx.hasCover
@@ -132,6 +146,11 @@ export function recordingActions(ctx: MenuContext): MenuAction[] {
         ]
       : []),
     ...(ctx.extra ?? []),
-    { label: `${TRASH_LABEL}…`, run: () => trash(ctx) },
+    {
+      label: `${TRASH_LABEL}…`,
+      run: () => {
+        trash(ctx)
+      },
+    },
   ]
 }

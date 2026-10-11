@@ -16,7 +16,7 @@ import { withAlpha } from './withAlpha'
  * The whole recording at a glance: its tracks, deleted stretches and a box
  * around what the editor shows. Click or drag to move the view.
  */
-export function OverviewBar(props: {
+export const OverviewBar = (props: {
   th: EditorTheme
   editorId: number
   width: number
@@ -27,13 +27,14 @@ export function OverviewBar(props: {
   edits: Edits
   tracks: TrackInfo[]
   onScrollTo: (centerMs: number) => void
-}): React.JSX.Element {
+}): React.JSX.Element => {
   const { th, width, durationMs } = props
   const per = durationMs / Math.max(1, width)
-  const go = (e: GestureResponderEvent) =>
+  const go = (e: GestureResponderEvent) => {
     props.onScrollTo(
       Math.max(0, Math.min(durationMs, e.nativeEvent.locationX * per)),
     )
+  }
   const starts = props.tracks.map(t => t.startMs)
   return (
     <View style={styles.overviewRow}>

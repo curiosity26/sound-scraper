@@ -1,5 +1,3 @@
-/* eslint-disable react-native/no-inline-styles */
-
 import React from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
@@ -7,18 +5,20 @@ import { MONO } from './constants'
 import type { EditorTheme } from './types'
 
 /** A label and a value with ‹ › steppers. */
-export function Stepper(props: {
+export const Stepper = (props: {
   th: EditorTheme
   label: string
   value: string
   onStep: (dir: 1 | -1) => void
-}): React.JSX.Element {
+}): React.JSX.Element => {
   const { th } = props
   const arrow = (dir: 1 | -1) => (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${props.label} ${dir > 0 ? 'up' : 'down'}`}
-      onPress={() => props.onStep(dir)}
+      onPress={() => {
+        props.onStep(dir)
+      }}
       style={({ pressed }) => [
         styles.stepArrow,
         { opacity: pressed ? 0.5 : 1 },

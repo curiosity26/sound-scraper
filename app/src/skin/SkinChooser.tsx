@@ -31,7 +31,9 @@ const CARD_W = 196
  * card for a .sskin being opened, and tools for skin authors (a folder
  * that reloads as it changes, packaging, a starter template).
  */
-export function SkinChooser(props: { textStyle: object }): React.JSX.Element {
+export const SkinChooser = (props: {
+  textStyle: object
+}): React.JSX.Element => {
   const { textStyle } = props
   const t = usePanelStyles()
   const [list, setList] = useState<SkinSummary[]>([])
@@ -41,8 +43,12 @@ export function SkinChooser(props: { textStyle: object }): React.JSX.Element {
   // Shared, so they survive the window re-mounting for a new skin.
   const [{ note, error }, setMessage] = useState(skinMessages.get)
   useEffect(() => skinMessages.subscribe(setMessage), [])
-  const setNote = (text?: string) => skinMessages.set({ note: text })
-  const setError = (text?: string) => skinMessages.set({ error: text })
+  const setNote = (text?: string) => {
+    skinMessages.set({ note: text })
+  }
+  const setError = (text?: string) => {
+    skinMessages.set({ error: text })
+  }
   const [double, setDouble] = useState(doubleSizeStore.get)
   useEffect(() => doubleSizeStore.subscribe(setDouble), [])
   const [warnings, setWarnings] = useState<string[]>(
@@ -84,9 +90,9 @@ export function SkinChooser(props: { textStyle: object }): React.JSX.Element {
   const pickAndInspect = async () => {
     const path = await skins.pickArchive()
     if (path) {
-      await run(async () =>
-        pendingInstall.set({ inspection: await skins.inspect(path) }),
-      )
+      await run(async () => {
+        pendingInstall.set({ inspection: await skins.inspect(path) })
+      })
     }
   }
 
@@ -158,7 +164,9 @@ export function SkinChooser(props: { textStyle: object }): React.JSX.Element {
         <InstallCard
           inspection={pending.inspection}
           onInstall={() => install(pending.inspection)}
-          onCancel={() => pendingInstall.set(null)}
+          onCancel={() => {
+            pendingInstall.set(null)
+          }}
           textStyle={textStyle}
         />
       )}
@@ -170,7 +178,11 @@ export function SkinChooser(props: { textStyle: object }): React.JSX.Element {
           <Text selectable style={styles.error}>
             {pending.error}
           </Text>
-          <Pressable onPress={() => pendingInstall.set(null)}>
+          <Pressable
+            onPress={() => {
+              pendingInstall.set(null)
+            }}
+          >
             <Text style={[styles.link, t.link]}>Dismiss</Text>
           </Pressable>
         </View>
@@ -226,9 +238,9 @@ export function SkinChooser(props: { textStyle: object }): React.JSX.Element {
           <Text style={[styles.link, t.link]}>Use skin folder…</Text>
         </Pressable>
         <Pressable
-          onPress={() =>
+          onPress={() => {
             setNaming(naming === undefined ? 'My Skin' : undefined)
-          }
+          }}
         >
           <Text style={[styles.link, t.link]}>New skin from template…</Text>
         </Pressable>
@@ -261,7 +273,9 @@ export function SkinChooser(props: { textStyle: object }): React.JSX.Element {
 
       <Pressable
         testID="double-size"
-        onPress={() => doubleSizeStore.set(!double)}
+        onPress={() => {
+          doubleSizeStore.set(!double)
+        }}
         style={styles.toggle}
       >
         <Text style={[styles.label, textStyle]}>
@@ -284,7 +298,7 @@ export function SkinChooser(props: { textStyle: object }): React.JSX.Element {
 }
 
 /** A skin in the grid: its picture, name and author. */
-function SkinCard(props: {
+const SkinCard = (props: {
   name: string
   detail: string
   /** For skins.preview: an id, a folder, '' for Default; null for none. */
@@ -295,7 +309,7 @@ function SkinCard(props: {
   testID?: string
   textStyle: object
   children?: React.ReactNode
-}) {
+}) => {
   const t = usePanelStyles()
   const accent = (t.link as { color?: string }).color ?? colors.accent
   return (
@@ -342,11 +356,11 @@ function SkinCard(props: {
  * A skin's picture: drawn by the core and cached, so it follows a skin
  * folder as it changes (the path changes with it).
  */
-function Preview(props: {
+const Preview = (props: {
   source: string | null
   width: number
   path?: string
-}) {
+}) => {
   const [path, setPath] = useState<string | null>(props.path ?? null)
   const [version, setVersion] = useState(0)
   const { source } = props
@@ -367,7 +381,9 @@ function Preview(props: {
   useEffect(
     () =>
       isFolderSkin(source)
-        ? skinStore.subscribe(() => setVersion(v => v + 1))
+        ? skinStore.subscribe(() => {
+            setVersion(v => v + 1)
+          })
         : undefined,
     [source],
   )
@@ -404,12 +420,12 @@ function useImageSize(path: string | null): [number, number] | null {
 }
 
 /** A .sskin about to be installed: what it is, and Install / Cancel. */
-function InstallCard(props: {
+const InstallCard = (props: {
   inspection: SkinInspection
   onInstall: () => void
   onCancel: () => void
   textStyle: object
-}) {
+}) => {
   const { inspection: s, textStyle } = props
   const t = usePanelStyles()
   const replaces = s.installed

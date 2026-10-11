@@ -15,9 +15,9 @@ function useDoubleSize(): boolean {
 }
 
 /** The skin, at the current scale, around a window's content. */
-export function Skinned(props: {
+export const Skinned = (props: {
   children: React.ReactNode
-}): React.JSX.Element {
+}): React.JSX.Element => {
   const [error, setError] = useState<string>()
   const double = useDoubleSize()
   return (

@@ -12,7 +12,9 @@ export const skinStore = {
   set: (skin: Skin) => {
     current = skin
     setImageRevision(skin.revision ?? '')
-    listeners.forEach(l => l(skin))
+    listeners.forEach(l => {
+      l(skin)
+    })
   },
   subscribe: (listener: (skin: Skin) => void): (() => void) => {
     listeners.add(listener)

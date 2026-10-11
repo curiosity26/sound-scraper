@@ -17,7 +17,9 @@ export const doubleSizeStore = {
   },
   set: (on: boolean) => {
     doubleSize = on
-    sizeListeners.forEach(l => l(on))
+    sizeListeners.forEach(l => {
+      l(on)
+    })
     try {
       settings.set({ ...settings.get(), doubleSize: on }).catch(() => {})
     } catch {}

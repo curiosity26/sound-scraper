@@ -12,13 +12,15 @@ import { Skinned } from './Skinned'
 import { styles } from './styles'
 import { usePanelText } from './usePanelText'
 
-function DetailsContent(props: {
+const DetailsContent = (props: {
   menuRef: { current?: (x: number, y: number) => void }
-}) {
+}) => {
   const { fg, isDark } = usePanelText('details')
   const [fileNames, setFileNames] = useState(selection.get())
   useEffect(() => selection.subscribe(setFileNames), [])
-  const close = () => windows.setPanelVisible('details', false)
+  const close = () => {
+    windows.setPanelVisible('details', false)
+  }
   if (fileNames.length === 0) {
     return (
       <View style={styles.content}>
@@ -48,11 +50,13 @@ function DetailsContent(props: {
 }
 
 /** The details window: the selected recording(s). Closing it deselects. */
-export function DetailsApp(): React.JSX.Element {
+export const DetailsApp = (): React.JSX.Element => {
   const [count, setCount] = useState(selection.get().length)
   const menuRef = useRef<(x: number, y: number) => void>(undefined)
   useEffect(() => {
-    const unsubscribe = selection.subscribe(names => setCount(names.length))
+    const unsubscribe = selection.subscribe(names => {
+      setCount(names.length)
+    })
     const subscription = windows.onEvent(e => {
       if (e.window === 'details' && e.event === 'hidden') {
         selection.set([])

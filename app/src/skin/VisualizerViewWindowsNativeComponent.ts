@@ -10,6 +10,4 @@ export interface NativeProps extends ViewProps {
   skinScale?: CodegenTypes.Double
 }
 
-export default codegenNativeComponent<NativeProps>(
-  'SSVisualizerView',
-) as HostComponent<NativeProps>
+export default codegenNativeComponent<NativeProps>('SSVisualizerView')

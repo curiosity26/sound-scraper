@@ -39,11 +39,15 @@ let expectingStop = false
 
 function update(change: Partial<Playback>) {
   current = { ...current, ...change }
-  listeners.forEach(l => l(current))
+  listeners.forEach(l => {
+    l(current)
+  })
 }
 
 function reportError(message: string) {
-  errorListeners.forEach(l => l(message))
+  errorListeners.forEach(l => {
+    l(message)
+  })
 }
 
 function subscribeNative() {
@@ -70,7 +74,9 @@ function subscribeNative() {
         }
         if (ended && current.fileName) {
           const fileName = current.fileName
-          endedListeners.forEach(l => l(fileName))
+          endedListeners.forEach(l => {
+            l(fileName)
+          })
         }
         break
       }
@@ -180,7 +186,9 @@ export const playback = {
       reportError(`Couldn't play: ${errorText(e)}`)
     }
   },
-  pause: () => player.pause(),
+  pause: () => {
+    player.pause()
+  },
   stop: () => {
     expectingStop = true
     player.stop()

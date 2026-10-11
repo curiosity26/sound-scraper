@@ -30,7 +30,7 @@ type Props = {
  * title, a close button and (resizable panels) a grip; the content goes
  * inside the frame's insets, with the panel's colors.
  */
-export function SkinPanelFrame(props: Props): React.JSX.Element {
+export const SkinPanelFrame = (props: Props): React.JSX.Element => {
   const skin = useSkin()
   const s = useSkinScale()
   const def = skin.panels[props.panel]
@@ -89,7 +89,9 @@ export function SkinPanelFrame(props: Props): React.JSX.Element {
     const { width, height } = e.nativeEvent.layout
     setSize([width, height])
   }
-  const hide = () => windows.setPanelVisible(props.panel, false)
+  const hide = () => {
+    windows.setPanelVisible(props.panel, false)
+  }
   const titleFont = def.title?.font ? skin.fonts[def.title.font] : undefined
   const titleOffset = def.title?.offset ?? [12, 6]
   const theme = { ...themeFromPanel(def), compact: s === 1 }
@@ -183,7 +185,7 @@ export function SkinPanelFrame(props: Props): React.JSX.Element {
 }
 
 /** A staircase of dots in the resize corner. */
-function Grip(props: { rect: Rect; color: string; scale: number }) {
+const Grip = (props: { rect: Rect; color: string; scale: number }) => {
   const [x, y, w, h] = props.rect
   const s = props.scale
   const dots = []
@@ -217,13 +219,13 @@ function Grip(props: { rect: Rect; color: string; scale: number }) {
 }
 
 /** A sprite button in the title bar (close, menu). */
-function TitleButton(props: {
+const TitleButton = (props: {
   testID: string
   label: string
   button: NonNullable<FramePanel['close']>
   rect: Rect
   onPress: () => void
-}) {
+}) => {
   const { button, rect } = props
   return (
     <Pressable

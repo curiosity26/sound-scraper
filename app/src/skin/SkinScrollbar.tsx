@@ -21,7 +21,7 @@ type Props = {
  * A vertical scroll bar drawn from the skin's sprites, beside a list whose
  * own indicator is hidden. Drag the thumb, or click the track to jump.
  */
-export function SkinScrollbar(props: Props): React.JSX.Element | null {
+export const SkinScrollbar = (props: Props): React.JSX.Element | null => {
   const { scrollbar, viewport, content, offset } = props
   const s = useSkinScale()
   const width = scrollbar.track[2] * s
@@ -53,8 +53,9 @@ export function SkinScrollbar(props: Props): React.JSX.Element | null {
       props.onScrollTo(scrollFor(y - grab.current))
     }
   }
-  const onMove = (e: GestureResponderEvent) =>
+  const onMove = (e: GestureResponderEvent) => {
     props.onScrollTo(scrollFor(e.nativeEvent.locationY - grab.current))
+  }
 
   const thumbSlice = scrollbar.thumbSlice ?? [0, 0, 0, 0]
   return (

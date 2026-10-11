@@ -76,7 +76,7 @@ const HANDLE_HIT = 28
  * Recordings with sort, search, inline rename, Show in Finder and Trash; or
  * a playlist's rows, in its order, with drag handles to reorder them.
  */
-export function LibraryTable(props: Props): React.JSX.Element {
+export const LibraryTable = (props: Props): React.JSX.Element => {
   const { recordings, textStyle, isDark, playlist } = props
   const t = usePanelStyles()
   const theme = usePanelTheme()
@@ -127,8 +127,9 @@ export function LibraryTable(props: Props): React.JSX.Element {
     }
     onCheckedChange(next)
   }
-  const toggleAll = () =>
+  const toggleAll = () => {
     onCheckedChange(allChecked ? new Set() : new Set(rows.map(rowKey)))
+  }
   const checkedRows = rows.filter(r => checked.has(rowKey(r)))
   const checkedNames = [
     ...new Set(checkedRows.filter(r => r.recording).map(r => r.fileName)),
@@ -239,7 +240,9 @@ export function LibraryTable(props: Props): React.JSX.Element {
   return (
     <View
       style={[styles.root, props.compact && styles.rootCompact]}
-      onLayout={e => setWidth(e.nativeEvent.layout.width)}
+      onLayout={e => {
+        setWidth(e.nativeEvent.layout.width)
+      }}
     >
       <View style={styles.toolbar}>
         {props.toolbarStart}
@@ -255,7 +258,9 @@ export function LibraryTable(props: Props): React.JSX.Element {
           {checkedNames.length > 0 && (
             <Pressable
               testID="edit-checked-tags"
-              onPress={() => props.onEditTags(checkedNames)}
+              onPress={() => {
+                props.onEditTags(checkedNames)
+              }}
             >
               <Text style={[styles.toolbarLink, t.link, t.cell]}>
                 Edit {checkedNames.length} selected
@@ -279,18 +284,18 @@ export function LibraryTable(props: Props): React.JSX.Element {
                   <Pressable
                     testID="playlist-move-up"
                     accessibilityLabel="Move up"
-                    onPress={() =>
+                    onPress={() => {
                       playlist.onReorder(moveBy(order, checkedItemIds, -1))
-                    }
+                    }}
                   >
                     <Text style={[styles.toolbarLink, t.link, t.cell]}>▲</Text>
                   </Pressable>
                   <Pressable
                     testID="playlist-move-down"
                     accessibilityLabel="Move down"
-                    onPress={() =>
+                    onPress={() => {
                       playlist.onReorder(moveBy(order, checkedItemIds, 1))
-                    }
+                    }}
                   >
                     <Text style={[styles.toolbarLink, t.link, t.cell]}>▼</Text>
                   </Pressable>
@@ -324,7 +329,9 @@ export function LibraryTable(props: Props): React.JSX.Element {
         {playlist && (
           <Pressable
             style={styles.position}
-            onPress={() => setSort(s => nextSort(s, 'position'))}
+            onPress={() => {
+              setSort(s => nextSort(s, 'position'))
+            }}
           >
             <Text
               style={[styles.headerText, textStyle, t.headerText]}
@@ -338,7 +345,9 @@ export function LibraryTable(props: Props): React.JSX.Element {
           <Pressable
             key={c.key}
             style={{ flex: c.flex }}
-            onPress={() => setSort(s => nextSort(s, c.key))}
+            onPress={() => {
+              setSort(s => nextSort(s, c.key))
+            }}
           >
             <Text
               style={[styles.headerText, textStyle, t.headerText]}
@@ -367,8 +376,12 @@ export function LibraryTable(props: Props): React.JSX.Element {
           )
         }}
         onResponderTerminationRequest={() => false}
-        onResponderGrant={e => beginDrag(e.nativeEvent.pageY)}
-        onResponderMove={e => moveDrag(e.nativeEvent.pageY)}
+        onResponderGrant={e => {
+          beginDrag(e.nativeEvent.pageY)
+        }}
+        onResponderMove={e => {
+          moveDrag(e.nativeEvent.pageY)
+        }}
         onResponderRelease={endDrag}
         onResponderTerminate={endDrag}
       >
@@ -378,9 +391,9 @@ export function LibraryTable(props: Props): React.JSX.Element {
           scrollEnabled={drag === null}
           showsVerticalScrollIndicator={!scrollbar}
           style={scrollbar ? { marginRight: scrollbar.track[2] } : undefined}
-          onContentSizeChange={(_, content) =>
+          onContentSizeChange={(_, content) => {
             setScroll(v => ({ ...v, content }))
-          }
+          }}
           onScroll={e => {
             const offset = e.nativeEvent.contentOffset.y
             setScroll(v => ({ ...v, offset }))
@@ -434,11 +447,14 @@ export function LibraryTable(props: Props): React.JSX.Element {
                       }
                     : undefined
                 }
-                onPressIn={e => rightClick(row, e.nativeEvent)}
+                onPressIn={e => {
+                  rightClick(row, e.nativeEvent)
+                }}
                 {...{
                   // Windows reports the button on pointer events.
-                  onPointerDown: (e: { nativeEvent: MouseLike }) =>
-                    rightClick(row, e.nativeEvent),
+                  onPointerDown: (e: { nativeEvent: MouseLike }) => {
+                    rightClick(row, e.nativeEvent)
+                  },
                   // macOS: a right-click is an "aux click", with the point
                   // in the row's own coordinates.
                   onAuxClick: (e: {
@@ -447,7 +463,7 @@ export function LibraryTable(props: Props): React.JSX.Element {
                       clientX?: number
                       clientY?: number
                     }
-                  }) =>
+                  }) => {
                     rightClick(row, {
                       button: e.nativeEvent.button ?? 2,
                       pageX: boxAt.current.x + (e.nativeEvent.clientX ?? 0),
@@ -456,7 +472,8 @@ export function LibraryTable(props: Props): React.JSX.Element {
                         index * rowHeight.current -
                         scroll.offset +
                         (e.nativeEvent.clientY ?? 0),
-                    }),
+                    })
+                  },
                 }}
                 onPress={() => {
                   if (!r || Date.now() - lastMenu.current < 600) {
@@ -504,7 +521,9 @@ export function LibraryTable(props: Props): React.JSX.Element {
                 )}
                 <Pressable
                   testID={`check-${key}`}
-                  onPress={() => toggle(key)}
+                  onPress={() => {
+                    toggle(key)
+                  }}
                   style={styles.check}
                 >
                   <Text style={[styles.checkText, cellText]}>

@@ -119,7 +119,7 @@ type Modal = { kind: 'save'; saving: boolean; error?: string } | null
 
 type Naming = number | 'first'
 
-export function EditorPanel(props: Props): React.JSX.Element {
+export const EditorPanel = (props: Props): React.JSX.Element => {
   const { target, colors } = props
   const th = useEditorTheme(colors)
   const c = th.wave
@@ -140,7 +140,9 @@ export function EditorPanel(props: Props): React.JSX.Element {
         ? { state: 'loading', progress: 0 }
         : { state: 'failed', message: "Couldn't open the recording." },
     )
-    return () => editorCore.close(id)
+    return () => {
+      editorCore.close(id)
+    }
   }, [target.path])
   useEffect(() => {
     if (!editorId) {
@@ -159,7 +161,9 @@ export function EditorPanel(props: Props): React.JSX.Element {
         clearInterval(timer)
       }
     }, 200)
-    return () => clearInterval(timer)
+    return () => {
+      clearInterval(timer)
+    }
   }, [editorId])
   const durationMs =
     status.state === 'ready' ? status.durationMs : target.durationMs
@@ -173,17 +177,17 @@ export function EditorPanel(props: Props): React.JSX.Element {
     ),
   )
   const edits = hist.present
-  const commit = useCallback(
-    (next: Edits) => setHist(h => history.push(h, next)),
-    [],
-  )
+  const commit = useCallback((next: Edits) => {
+    setHist(h => history.push(h, next))
+  }, [])
   // Keep a draft so closing the editor (or a crash) loses nothing.
   useEffect(() => {
-    const timer = setTimeout(
-      () => editorCore.saveDraft(target.fileName, editsToJson(edits)),
-      300,
-    )
-    return () => clearTimeout(timer)
+    const timer = setTimeout(() => {
+      editorCore.saveDraft(target.fileName, editsToJson(edits))
+    }, 300)
+    return () => {
+      clearTimeout(timer)
+    }
   }, [edits, target.fileName])
 
   const [drag, setDrag] = useState<Drag | null>(null)
@@ -270,12 +274,13 @@ export function EditorPanel(props: Props): React.JSX.Element {
     }
     return renamed
   }
-  const rename = (owner: Naming, name: string) =>
+  const rename = (owner: Naming, name: string) => {
     commit(
       owner === 'first'
         ? { ...edits, firstName: name }
         : renameSplice(edits, owner, name),
     )
+  }
   /** Clicks anywhere (but the field) close the name field first. */
   const closeNamingOnPress = {
     onStartShouldSetResponderCapture: () => {
@@ -371,7 +376,9 @@ export function EditorPanel(props: Props): React.JSX.Element {
   // The horizontal zoom slider: 0 = the whole recording, 1 = deepest.
   const span = Math.log(MIN_MS_PER_POINT / fit)
   const hZoom = span < 0 ? Math.log(scale / fit) / span : 0
-  const setHZoom = (t: number) => zoomTo(fit * Math.exp(span * t))
+  const setHZoom = (t: number) => {
+    zoomTo(fit * Math.exp(span * t))
+  }
   const gain = Math.pow(MAX_GAIN, vZoom)
 
   // While playing, page the view to keep the playhead in sight.
@@ -581,8 +588,12 @@ export function EditorPanel(props: Props): React.JSX.Element {
     seek(s ? s.atMs : dir > 0 ? durationMs : 0)
     setSelectedSlice(s ? s.id : null)
   }
-  const undo = () => setHist(history.undo)
-  const redo = () => setHist(history.redo)
+  const undo = () => {
+    setHist(history.undo)
+  }
+  const redo = () => {
+    setHist(history.redo)
+  }
   const toggleSnap = () => {
     snapPreference = !snapOn
     setSnapOn(!snapOn)
@@ -909,7 +920,9 @@ export function EditorPanel(props: Props): React.JSX.Element {
           th={th}
           glyph="✶"
           label="Auto Slice"
-          onPress={() => setAutoSlice(autoSlice ? null : detectPreference)}
+          onPress={() => {
+            setAutoSlice(autoSlice ? null : detectPreference)
+          }}
           active={autoSlice !== null}
           disabled={!ready}
         />
@@ -951,7 +964,9 @@ export function EditorPanel(props: Props): React.JSX.Element {
         <ToolButton
           th={th}
           label="Save…"
-          onPress={() => setModal({ kind: 'save', saving: false })}
+          onPress={() => {
+            setModal({ kind: 'save', saving: false })
+          }}
           disabled={!ready || !hasEdits(edits)}
           accent
         />
@@ -964,7 +979,9 @@ export function EditorPanel(props: Props): React.JSX.Element {
           onChange={setAutoOptions}
           found={proposals.length}
           onApply={applyAutoSlice}
-          onCancel={() => setAutoSlice(null)}
+          onCancel={() => {
+            setAutoSlice(null)
+          }}
         />
       )}
 
@@ -1020,7 +1037,9 @@ export function EditorPanel(props: Props): React.JSX.Element {
             ref={scrollRef}
             horizontal
             scrollEventThrottle={16}
-            onScroll={e => setScrollX(e.nativeEvent.contentOffset.x)}
+            onScroll={e => {
+              setScrollX(e.nativeEvent.contentOffset.x)
+            }}
             showsHorizontalScrollIndicator
             style={StyleSheet.absoluteFill}
             contentContainerStyle={{ width: contentWidth }}
@@ -1403,7 +1422,9 @@ export function EditorPanel(props: Props): React.JSX.Element {
           fromMaster={!!hasMaster}
           saving={modal.saving}
           error={modal.error}
-          onCancel={() => setModal(null)}
+          onCancel={() => {
+            setModal(null)
+          }}
           onChoose={save}
         />
       )}

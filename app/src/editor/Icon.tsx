@@ -15,11 +15,11 @@ export type IconName =
   | 'zoomInV'
 
 /** Simple shapes, sized `size` points, in `color`. */
-export function Icon(props: {
+export const Icon = (props: {
   name: IconName
   color: string
   size?: number
-}): React.JSX.Element {
+}): React.JSX.Element => {
   const s = props.size ?? 12
   const c = props.color
   const tri = (dir: 'left' | 'right', h: number) => ({

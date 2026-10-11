@@ -12,12 +12,12 @@ import { useSkinScale } from './useSkinScale'
  * An element's text: its sprite font if it has one, else system text in
  * the element's text style. Positioned at the element's rect.
  */
-export function ElementText(props: {
+export const ElementText = (props: {
   element: SkinElement
   fonts: Record<string, SpriteFont>
   text: string
   testID?: string
-}): React.JSX.Element {
+}): React.JSX.Element => {
   const { element, fonts } = props
   const s = useSkinScale()
   const [, , w, h] = element.rect

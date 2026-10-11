@@ -14,7 +14,7 @@ import { Skinned } from './Skinned'
 import { styles } from './styles'
 import { usePanelText } from './usePanelText'
 
-function SettingsContent() {
+const SettingsContent = () => {
   const { fg } = usePanelText('settings')
   const skin = useSkin()
   const accent = skin.panels.settings.controls.accent ?? colors.accent
@@ -26,7 +26,9 @@ function SettingsContent() {
         {(['settings', 'skin', 'about'] as const).map(t => (
           <Pressable
             key={t}
-            onPress={() => settingsTab.set(t)}
+            onPress={() => {
+              settingsTab.set(t)
+            }}
             testID={`tab-${t}`}
           >
             <Text
@@ -55,7 +57,7 @@ function SettingsContent() {
 }
 
 /** The settings window: settings, skin and about. */
-export function SettingsApp(): React.JSX.Element {
+export const SettingsApp = (): React.JSX.Element => {
   return (
     <Skinned>
       <SkinPanelFrame panel="settings" title="Settings">

@@ -19,7 +19,7 @@ type CellProps = {
 }
 
 /** One cell of a sprite sheet. */
-export function SpriteCell(props: CellProps): React.JSX.Element {
+export const SpriteCell = (props: CellProps): React.JSX.Element => {
   const { image, at, size } = props
   const s = useSkinScale()
   const [w, h] = props.drawSize ?? [size[0] * s, size[1] * s]

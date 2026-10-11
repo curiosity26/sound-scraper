@@ -18,14 +18,14 @@ const STYLE_SYNTAX = [
   },
   {
     selector:
-      "CallExpression[callee.property.name=/^(sort|reverse|splice)$/][arguments.length<=2]",
-    message:
-      'Use the non-mutating toSorted, toReversed or toSpliced instead.',
+      'CallExpression[callee.property.name=/^(sort|reverse|splice)$/][arguments.length<=2]',
+    message: 'Use the non-mutating toSorted, toReversed or toSpliced instead.',
   },
   {
     selector:
       'TSTypeAliasDeclaration[id.name=/(Props|Result)$/] > TSTypeLiteral > TSPropertySignature[readonly!=true]',
-    message: 'Props and hook result types are readonly: mark every property `readonly`.',
+    message:
+      'Props and hook result types are readonly: mark every property `readonly`.',
   },
   {
     selector: `${EXPORTED_FUNCTION} ~ ${EXPORTED_FUNCTION}`,
@@ -107,9 +107,7 @@ module.exports = {
           'internal',
           ['parent', 'sibling', 'index'],
         ],
-        pathGroups: [
-          { pattern: '@/**', group: 'internal' },
-        ],
+        pathGroups: [{ pattern: '@/**', group: 'internal' }],
         'newlines-between': 'always',
         alphabetize: { order: 'asc', caseInsensitive: true },
       },
@@ -160,7 +158,9 @@ module.exports = {
         'import/no-default-export': 'off',
         'no-restricted-syntax': [
           'error',
-          ...STYLE_SYNTAX.filter(s => s.selector !== 'ExportDefaultDeclaration'),
+          ...STYLE_SYNTAX.filter(
+            s => s.selector !== 'ExportDefaultDeclaration',
+          ),
         ],
       },
     },

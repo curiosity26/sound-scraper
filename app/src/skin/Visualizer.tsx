@@ -24,10 +24,10 @@ const listeners = new Set<(i: number) => void>()
  * element's style supplies idle-look colors (grid, line) presets lack, and
  * `pixelated` (default true) for the hard-edged LCD look.
  */
-export function Visualizer(props: {
+export const Visualizer = (props: {
   element: SkinElement
   presets: Array<Record<string, unknown>>
-}): React.JSX.Element {
+}): React.JSX.Element => {
   const { element, presets } = props
   const s = useSkinScale()
   const [index, setIndex] = useState(chosenPreset)
@@ -47,7 +47,9 @@ export function Visualizer(props: {
   })
   const cycle = () => {
     chosenPreset = nextPreset(chosenPreset, presets.length)
-    listeners.forEach(l => l(chosenPreset))
+    listeners.forEach(l => {
+      l(chosenPreset)
+    })
   }
   const name = typeof preset.name === 'string' ? preset.name : 'Visualizer'
   return (

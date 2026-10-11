@@ -1,6 +1,5 @@
 // The track editor's native side (NativeEditor.ts), with JSON decoded.
 import NativeEditor from './NativeEditor'
-
 import type {
   DetectOptions,
   Proposal,
@@ -18,7 +17,9 @@ function native() {
 
 export const editorCore = {
   open: (path: string): number => native().open(path),
-  close: (id: number): void => native().close(id),
+  close: (id: number): void => {
+    native().close(id)
+  },
   status: (id: number): WaveformStatus => JSON.parse(native().status(id)),
   tracks: (id: number, editsJson: string): TrackInfo[] =>
     JSON.parse(native().tracks(id, editsJson) || '[]') ?? [],
@@ -29,9 +30,12 @@ export const editorCore = {
   deleteAllMasters: (): Promise<void> => native().deleteAllMasters(),
   /** The saved draft's JSON, or "null". */
   loadDraft: (fileName: string): string => native().loadDraft(fileName),
-  saveDraft: (fileName: string, editsJson: string): void =>
-    native().saveDraft(fileName, editsJson),
-  discardDraft: (fileName: string): void => native().discardDraft(fileName),
+  saveDraft: (fileName: string, editsJson: string): void => {
+    native().saveDraft(fileName, editsJson)
+  },
+  discardDraft: (fileName: string): void => {
+    native().discardDraft(fileName)
+  },
   save: async (
     fileName: string,
     editsJson: string,

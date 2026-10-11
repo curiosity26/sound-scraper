@@ -10,10 +10,10 @@ import { capacityText } from './capacityText'
 import type { Capacity } from './types'
 
 /** Burn CD… (a CD writer is there) or Save CD Image… (none is). */
-export function BurnButton(props: {
+export const BurnButton = (props: {
   capacity: Capacity
   onPress: () => void
-}): React.JSX.Element {
+}): React.JSX.Element => {
   const t = usePanelStyles()
   const theme = usePanelTheme()
   const [hasBurner, setHasBurner] = useState(false)
@@ -28,7 +28,9 @@ export function BurnButton(props: {
     check()
     // Burners can be plugged in at any time.
     const timer = setInterval(check, 3000)
-    return () => clearInterval(timer)
+    return () => {
+      clearInterval(timer)
+    }
   }, [])
   const c = props.capacity
   const disabled =

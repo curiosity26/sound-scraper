@@ -69,7 +69,9 @@ export function useRecorder() {
           break
       }
     })
-    return () => subscription.remove()
+    return () => {
+      subscription.remove()
+    }
   }, [])
 
   const refreshApps = useCallback(() => {

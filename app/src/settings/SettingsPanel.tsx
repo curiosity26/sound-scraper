@@ -35,7 +35,7 @@ type Props = {
 }
 
 /** App settings; each change is saved right away by the Rust core. */
-export function SettingsPanel(props: Props): React.JSX.Element {
+export const SettingsPanel = (props: Props): React.JSX.Element => {
   const { textStyle } = props
   const t = usePanelStyles()
   const [current, setCurrent] = useState(() => settings.get())
@@ -171,11 +171,11 @@ function formatBytes(bytes: number): string {
  * recordings so the track editor's cuts are sample-exact, within a size
  * budget and an age limit.
  */
-function Masters(props: {
+const Masters = (props: {
   current: Settings
   save: (patch: Partial<Settings>) => Promise<void>
   textStyle: object
-}) {
+}) => {
   const { current, save, textStyle } = props
   const t = usePanelStyles()
   const [usage, setUsage] = useState(() => editorCore.mastersUsage())
@@ -187,13 +187,23 @@ function Masters(props: {
   const row = (label: string, value: string, onStep: (dir: 1 | -1) => void) => (
     <View style={[styles.row, styles.stepRow]}>
       <Text style={[styles.stepLabel, textStyle]}>{label}</Text>
-      <Pressable onPress={() => onStep(-1)} disabled={!keep}>
+      <Pressable
+        onPress={() => {
+          onStep(-1)
+        }}
+        disabled={!keep}
+      >
         <Text style={[styles.link, t.link, !keep && styles.dim]}>−</Text>
       </Pressable>
       <Text style={[styles.stepValue, textStyle, !keep && styles.dim]}>
         {value}
       </Text>
-      <Pressable onPress={() => onStep(1)} disabled={!keep}>
+      <Pressable
+        onPress={() => {
+          onStep(1)
+        }}
+        disabled={!keep}
+      >
         <Text style={[styles.link, t.link, !keep && styles.dim]}>+</Text>
       </Pressable>
     </View>
@@ -248,12 +258,20 @@ function Masters(props: {
             >
               <Text style={[styles.link, t.link]}>Delete</Text>
             </Pressable>
-            <Pressable onPress={() => setConfirming(false)}>
+            <Pressable
+              onPress={() => {
+                setConfirming(false)
+              }}
+            >
               <Text style={[styles.link, t.link]}>Cancel</Text>
             </Pressable>
           </View>
         ) : (
-          <Pressable onPress={() => setConfirming(true)}>
+          <Pressable
+            onPress={() => {
+              setConfirming(true)
+            }}
+          >
             <Text style={[styles.link, t.link]}>Delete all masters…</Text>
           </Pressable>
         ))}
@@ -261,13 +279,13 @@ function Masters(props: {
   )
 }
 
-function Choice(props: {
+const Choice = (props: {
   selected: boolean
   label: string
   detail: string
   onPress: () => void
   textStyle: object
-}) {
+}) => {
   return (
     <Pressable onPress={props.onPress} style={styles.choice}>
       <Text style={[styles.choiceLabel, props.textStyle]}>
@@ -284,7 +302,7 @@ function errorText(e: unknown): string {
     return e.message
   }
   if (e && typeof e === 'object' && 'message' in e) {
-    return String((e as { message: unknown }).message)
+    return String(e.message)
   }
   return String(e)
 }

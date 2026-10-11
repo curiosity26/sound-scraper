@@ -14,7 +14,7 @@ import { Skinned } from './Skinned'
 import { styles } from './styles'
 import { usePanelText } from './usePanelText'
 
-function EditorContent() {
+const EditorContent = () => {
   const { fg } = usePanelText('editor')
   const skin = useSkin()
   const [target, setTarget] = useState(editorTarget.get)
@@ -49,10 +49,12 @@ function EditorContent() {
 }
 
 /** The track editor window: the recording chosen with Edit Track…. */
-export function EditorApp(): React.JSX.Element {
+export const EditorApp = (): React.JSX.Element => {
   const [title, setTitle] = useState(editorTarget.get()?.title)
   useEffect(() => {
-    const unsubscribe = editorTarget.subscribe(t => setTitle(t?.title))
+    const unsubscribe = editorTarget.subscribe(t => {
+      setTitle(t?.title)
+    })
     const subscription = windows.onEvent(e => {
       // Closing the window closes the recording (its edits stay a draft).
       if (e.window === 'editor' && e.event === 'hidden') {

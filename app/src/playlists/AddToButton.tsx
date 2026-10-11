@@ -7,10 +7,10 @@ import { usePanelStyles } from '@/theme/usePanelStyles'
 import type { UsePlaylistControlsResult } from './usePlaylistControls'
 
 /** "Add to ▾", for checked rows. */
-export function AddToButton(props: {
+export const AddToButton = (props: {
   controls: UsePlaylistControlsResult
   fileNames: string[]
-}): React.JSX.Element | null {
+}): React.JSX.Element | null => {
   const t = usePanelStyles()
   if (props.fileNames.length === 0) {
     return null
@@ -19,7 +19,9 @@ export function AddToButton(props: {
     <Pressable
       ref={props.controls.addTo}
       testID="playlist-add-to"
-      onPress={() => props.controls.openAddTo(props.fileNames)}
+      onPress={() => {
+        props.controls.openAddTo(props.fileNames)
+      }}
     >
       <Text style={[styles.link, t.link, t.cell]}>Add to ▾</Text>
     </Pressable>

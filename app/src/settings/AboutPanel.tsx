@@ -37,7 +37,7 @@ type Props = {
 }
 
 /** App info and third-party licenses (LAME's LGPL notice first). */
-export function AboutPanel(props: Props): React.JSX.Element {
+export const AboutPanel = (props: Props): React.JSX.Element => {
   const { textStyle } = props
   const panel = usePanelStyles()
   const [open, setOpen] = useState<string>()
@@ -94,9 +94,9 @@ export function AboutPanel(props: Props): React.JSX.Element {
           ) : (
             <View>
               <Pressable
-                onPress={() =>
+                onPress={() => {
                   setOpen(o => (o === item.key ? undefined : item.key))
-                }
+                }}
                 style={styles.pkg}
               >
                 <Text style={[styles.pkgName, textStyle]} numberOfLines={1}>

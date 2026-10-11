@@ -15,7 +15,7 @@ type Props = {
 }
 
 /** "All system audio" or one app; apps playing sound are marked ♪. */
-export function SourcePicker(props: Props): React.JSX.Element {
+export const SourcePicker = (props: Props): React.JSX.Element => {
   const { apps, selectedPid, onSelect, onRefresh, disabled, textStyle } = props
   return (
     <View style={disabled && styles.disabled}>
@@ -29,7 +29,9 @@ export function SourcePicker(props: Props): React.JSX.Element {
         <Row
           label="All system audio"
           selected={selectedPid === 0}
-          onPress={() => onSelect(0)}
+          onPress={() => {
+            onSelect(0)
+          }}
           disabled={disabled}
           textStyle={textStyle}
         />
@@ -38,7 +40,9 @@ export function SourcePicker(props: Props): React.JSX.Element {
             key={app.pid}
             label={`${app.isPlaying ? '♪ ' : ''}${app.name}`}
             selected={selectedPid === app.pid}
-            onPress={() => onSelect(app.pid)}
+            onPress={() => {
+              onSelect(app.pid)
+            }}
             disabled={disabled}
             textStyle={textStyle}
           />
@@ -48,13 +52,13 @@ export function SourcePicker(props: Props): React.JSX.Element {
   )
 }
 
-function Row(props: {
+const Row = (props: {
   label: string
   selected: boolean
   onPress: () => void
   disabled: boolean
   textStyle: object
-}) {
+}) => {
   return (
     <Pressable
       onPress={props.onPress}

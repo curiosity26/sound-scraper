@@ -388,14 +388,14 @@ test('the main panel plays back a loaded recording', async () => {
       sizeBytes: 1,
       recordedAtMs: 0,
     })
-    mockRecorderListeners.forEach(l =>
+    mockRecorderListeners.forEach(l => {
       l({
         kind: 'playerState',
         playerState: 'stopped',
         positionMs: 0,
         durationMs: 60000,
-      }),
-    )
+      })
+    })
   })
   expect(mockCore.playerLoad).toHaveBeenCalledWith('/music/a.mp3')
   expect(find('play').props.disabled).toBe(false)
@@ -404,15 +404,15 @@ test('the main panel plays back a loaded recording', async () => {
   })
   expect(mockCore.playerPlay).toHaveBeenCalled()
   await ReactTestRenderer.act(async () => {
-    mockRecorderListeners.forEach(l =>
+    mockRecorderListeners.forEach(l => {
       l({
         kind: 'playerState',
         playerState: 'playing',
         positionMs: 0,
         durationMs: 60000,
-      }),
-    )
-    mockRecorderListeners.forEach(l =>
+      })
+    })
+    mockRecorderListeners.forEach(l => {
       l({
         kind: 'playerProgress',
         playerState: 'playing',
@@ -420,8 +420,8 @@ test('the main panel plays back a loaded recording', async () => {
         durationMs: 60000,
         peak: 0.5,
         rms: 0.2,
-      }),
-    )
+      })
+    })
   })
   expect(find('play').props.accessibilityLabel).toBe('Pause')
   expect(find('seek').props.accessibilityValue.now).toBe(30)
@@ -539,7 +539,7 @@ test('panel frames report their chrome and theme their content', async () => {
   }
   skinStore.set(skin)
   let seen: { link: { color?: string } } | undefined
-  function Probe() {
+  const Probe = () => {
     seen = usePanelStyles()
     return null
   }

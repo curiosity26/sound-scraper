@@ -12,14 +12,14 @@ import { useSkinScale } from './useSkinScale'
 const TICK_MS = 33
 
 /** A skin's decorative sprite animation (e.g. the spinning tape reels). */
-export function SkinAnimation(props: {
+export const SkinAnimation = (props: {
   animation: SkinAnimationDef
   state: RecorderState
   /** Playing back (state is then "recording"). */
   playing?: boolean
   /** Linear 0..1, for speed "level". */
   level: number
-}): React.JSX.Element {
+}): React.JSX.Element => {
   const { animation, state, level } = props
   const s = useSkinScale()
   const [frame, setFrame] = useState(0)
@@ -41,7 +41,9 @@ export function SkinAnimation(props: {
       last = now
       setFrame(Math.floor(phase.current))
     }, TICK_MS)
-    return () => clearInterval(timer)
+    return () => {
+      clearInterval(timer)
+    }
   }, [playing, count])
 
   const [, , w, h] = animation.rect

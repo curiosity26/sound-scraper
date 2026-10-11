@@ -11,9 +11,9 @@ import { Skinned } from './Skinned'
 import { styles } from './styles'
 import { usePanelText } from './usePanelText'
 
-function LibraryContent(props: {
+const LibraryContent = (props: {
   onCount: (n: number, playlistName?: string) => void
-}) {
+}) => {
   const { fg, isDark } = usePanelText('library')
   const [message, setMessage] = useState<Message>()
   return (
@@ -24,13 +24,17 @@ function LibraryContent(props: {
         isDark={isDark}
         compact
         onCount={props.onCount}
-        openDetails={() => windows.setPanelVisible('details', true)}
+        openDetails={() => {
+          windows.setPanelVisible('details', true)
+        }}
         showLibraryMenu={(items, checked, x, y) =>
           windows.showMenu(items, checked, x, y, 'library')
         }
-        onBurn={target =>
-          openBurnPanel(target, () => windows.setPanelVisible('burn', true))
-        }
+        onBurn={target => {
+          openBurnPanel(target, () => {
+            windows.setPanelVisible('burn', true)
+          })
+        }}
       />
       {message && (
         <Text
@@ -45,15 +49,13 @@ function LibraryContent(props: {
 }
 
 /** The library window. */
-export function LibraryApp(): React.JSX.Element {
+export const LibraryApp = (): React.JSX.Element => {
   // A string, so an unchanged count doesn't re-render (and the callback is
   // stable: LibraryScreen reports again whenever it changes).
   const [title, setTitle] = useState('Library')
-  const onCount = useCallback(
-    (n: number, playlist?: string) =>
-      setTitle(`${playlist ? `Library: ${playlist}` : 'Library'} (${n})`),
-    [],
-  )
+  const onCount = useCallback((n: number, playlist?: string) => {
+    setTitle(`${playlist ? `Library: ${playlist}` : 'Library'} (${n})`)
+  }, [])
   return (
     <Skinned>
       <SkinPanelFrame panel="library" title={title}>

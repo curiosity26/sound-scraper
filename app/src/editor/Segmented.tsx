@@ -6,12 +6,12 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import type { EditorTheme } from './types'
 
 /** Joined buttons, one selected. */
-export function Segmented<T extends string>(props: {
+export const Segmented = <T extends string>(props: {
   th: EditorTheme
   options: Array<{ value: T; label: string }>
   value: T | null
   onChange: (value: T) => void
-}): React.JSX.Element {
+}): React.JSX.Element => {
   const { th } = props
   return (
     <View style={[styles.segmented, { borderColor: th.border }]}>
@@ -22,7 +22,9 @@ export function Segmented<T extends string>(props: {
             key={o.value}
             accessibilityRole="button"
             accessibilityState={{ selected: on }}
-            onPress={() => props.onChange(o.value)}
+            onPress={() => {
+              props.onChange(o.value)
+            }}
             style={[
               styles.segment,
               i > 0 && { borderLeftWidth: 1, borderLeftColor: th.border },

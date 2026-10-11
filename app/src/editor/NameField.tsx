@@ -1,5 +1,3 @@
-/* eslint-disable react-native/no-inline-styles */
-
 import React from 'react'
 import { Platform, StyleSheet, View } from 'react-native'
 
@@ -8,7 +6,7 @@ import { TextField } from '@/components/TextField'
 import type { EditorTheme } from './types'
 
 /** The name field over a new (or double-clicked) track. */
-export function NameField(props: {
+export const NameField = (props: {
   th: EditorTheme
   left: number
   top: number
@@ -16,7 +14,7 @@ export function NameField(props: {
   onChange: (text: string) => void
   /** Close it, keeping the text (or not, for Esc). */
   onDone: (keep?: boolean) => void
-}): React.JSX.Element {
+}): React.JSX.Element => {
   const { th } = props
   return (
     <View style={[styles.nameField, { left: props.left, top: props.top }]}>
@@ -26,8 +24,12 @@ export function NameField(props: {
         selectTextOnFocus
         value={props.value}
         onChangeText={props.onChange}
-        onSubmitEditing={() => props.onDone()}
-        onBlur={() => props.onDone()}
+        onSubmitEditing={() => {
+          props.onDone()
+        }}
+        onBlur={() => {
+          props.onDone()
+        }}
         onKeyPress={e => {
           if (e.nativeEvent.key === 'Escape') {
             props.onDone(false)

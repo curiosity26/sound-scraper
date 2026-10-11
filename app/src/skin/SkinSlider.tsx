@@ -31,7 +31,7 @@ type Props = {
  * A slider drawn from sprites: the track stretched to the slider's size and
  * the thumb at the value. Vertical when taller than wide (0 at the bottom).
  */
-export function SkinSlider(props: Props): React.JSX.Element {
+export const SkinSlider = (props: Props): React.JSX.Element => {
   const { image, track, thumb, width, height, disabled } = props
   const s = useSkinScale()
   const vertical = height > width

@@ -23,7 +23,7 @@ type Props = {
 }
 
 /** Text drawn with a sprite (bitmap) font. */
-export function SpriteText(props: Props): React.JSX.Element {
+export const SpriteText = (props: Props): React.JSX.Element => {
   const { font, text, width, align = 'left', pad = false } = props
   const s = useSkinScale()
   const [cw, ch] = font.cell
@@ -36,8 +36,12 @@ export function SpriteText(props: Props): React.JSX.Element {
     if (!scrolls) {
       return
     }
-    const timer = setInterval(() => setOffset(o => o + 1), 280)
-    return () => clearInterval(timer)
+    const timer = setInterval(() => {
+      setOffset(o => o + 1)
+    }, 280)
+    return () => {
+      clearInterval(timer)
+    }
   }, [scrolls, text])
   const cells = layoutCells(chars, capacity, align, pad, scrolls ? offset : 0)
   const glyphs = Array.from(font.glyphs)
@@ -82,7 +86,7 @@ const FLIP_MS = 260
  * then the new glyph's bottom half falls from the middle into place. The
  * font draws whole cards (each cell a card split across the middle).
  */
-function FlipCell(props: { font: SpriteFont; at: [number, number] }) {
+const FlipCell = (props: { font: SpriteFont; at: [number, number] }) => {
   const { font, at } = props
   const s = useSkinScale()
   const [cw, ch] = font.cell

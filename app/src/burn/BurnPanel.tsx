@@ -76,7 +76,7 @@ function rowsOf(target: Target): PlaylistRow[] {
   }))
 }
 
-export function BurnPanel(): React.JSX.Element {
+export const BurnPanel = (): React.JSX.Element => {
   const [target, setTarget] = useState(burnTarget.get)
   useEffect(() => burnTarget.subscribe(setTarget), [])
   const [current, setCurrent] = useState(burnJob.get)
@@ -100,7 +100,7 @@ export function BurnPanel(): React.JSX.Element {
 
 // ------------------------------------------------------------ setup
 
-function Setup(props: { th: Theme; target: Target }): React.JSX.Element {
+const Setup = (props: { th: Theme; target: Target }): React.JSX.Element => {
   const { th, target } = props
   const [devices, setDevices] = useState<Device[]>([])
   const [deviceId, setDeviceId] = useState<string>()
@@ -131,7 +131,9 @@ function Setup(props: { th: Theme; target: Target }): React.JSX.Element {
   useEffect(() => {
     refresh()
     const timer = setInterval(refresh, 2000)
-    return () => clearInterval(timer)
+    return () => {
+      clearInterval(timer)
+    }
   }, [refresh])
 
   const device = devices.find(d => d.id === deviceId)
@@ -215,7 +217,9 @@ function Setup(props: { th: Theme; target: Target }): React.JSX.Element {
             <Pressable
               key={d.id}
               testID={`burn-device-${d.id}`}
-              onPress={() => setDeviceId(d.id)}
+              onPress={() => {
+                setDeviceId(d.id)
+              }}
               style={[
                 styles.device,
                 d.id === deviceId && { backgroundColor: th.accent + '33' },
@@ -255,7 +259,9 @@ function Setup(props: { th: Theme; target: Target }): React.JSX.Element {
                 ['none', 'No disc'],
                 ['dvd', 'DVD'],
               ]}
-              onChange={media => changeSim({ media })}
+              onChange={media => {
+                changeSim({ media })
+              }}
             />
             <Choice
               th={th}
@@ -267,20 +273,22 @@ function Setup(props: { th: Theme; target: Target }): React.JSX.Element {
                 ['removed', 'Disc pulled'],
                 ['writeError', 'Write error'],
               ]}
-              onChange={kind =>
+              onChange={kind => {
                 changeSim({
                   fault:
                     kind === 'none'
                       ? { kind: 'none' }
                       : { kind, track: Math.min(2, capacity.tracks || 1) },
                 })
-              }
+              }}
             />
             <Check
               th={th}
               label="Fast (8× quicker than a real drive)"
               value={sim.fast}
-              onChange={fast => changeSim({ fast })}
+              onChange={fast => {
+                changeSim({ fast })
+              }}
             />
           </View>
         )}
@@ -296,7 +304,9 @@ function Setup(props: { th: Theme; target: Target }): React.JSX.Element {
                 s => [String(s), `${s}x`] as [string, string],
               ),
             ]}
-            onChange={v => setSpeed(Number(v))}
+            onChange={v => {
+              setSpeed(Number(v))
+            }}
           />
         )}
         <Choice
@@ -307,7 +317,9 @@ function Setup(props: { th: Theme; target: Target }): React.JSX.Element {
             ['2', '2 seconds'],
             ...(gapless ? [['0', 'None (gapless)'] as [string, string]] : []),
           ]}
-          onChange={v => setGap(Number(v))}
+          onChange={v => {
+            setGap(Number(v))
+          }}
         />
         {(device?.cdText ?? true) && (
           <Check
@@ -363,7 +375,9 @@ function Setup(props: { th: Theme; target: Target }): React.JSX.Element {
           title="Erase the CD-RW?"
           body="Everything on it is erased before burning."
           action="Erase and Burn"
-          onCancel={() => setConfirm(null)}
+          onCancel={() => {
+            setConfirm(null)
+          }}
           onConfirm={() => {
             const run = confirm
             setConfirm(null)
@@ -377,7 +391,7 @@ function Setup(props: { th: Theme; target: Target }): React.JSX.Element {
 
 // ------------------------------------------------------------ progress
 
-function Progress(props: { th: Theme }): React.JSX.Element {
+const Progress = (props: { th: Theme }): React.JSX.Element => {
   const { th } = props
   const current = burnJob.get()!
   const [status, setStatus] = useState<BurnStatus | null>(null)
@@ -595,11 +609,11 @@ function Progress(props: { th: Theme }): React.JSX.Element {
           <Button
             th={th}
             label="Cancel"
-            onPress={() =>
+            onPress={() => {
               image || status?.state === 'preparing'
                 ? cancel()
                 : setConfirm(true)
-            }
+            }}
             testID="burn-cancel"
           />
         ) : (
@@ -640,7 +654,9 @@ function Progress(props: { th: Theme }): React.JSX.Element {
           title="Stop burning?"
           body="A CD-R stopped part way can't be used again."
           action="Stop"
-          onCancel={() => setConfirm(false)}
+          onCancel={() => {
+            setConfirm(false)
+          }}
           onConfirm={cancel}
         />
       )}
@@ -662,7 +678,7 @@ const TRACK_WORDS: Record<TrackState, string> = {
 // ------------------------------------------------------------ parts
 
 /** A status lamp: dark while waiting, lit while working, green or red after. */
-function Lamp(props: { th: Theme; state: TrackState }): React.JSX.Element {
+const Lamp = (props: { th: Theme; state: TrackState }): React.JSX.Element => {
   const { th, state } = props
   const color =
     state === 'done'
@@ -682,8 +698,12 @@ function Lamp(props: { th: Theme; state: TrackState }): React.JSX.Element {
       setBlink(true)
       return
     }
-    const t = setInterval(() => setBlink(b => !b), 450)
-    return () => clearInterval(t)
+    const t = setInterval(() => {
+      setBlink(b => !b)
+    }, 450)
+    return () => {
+      clearInterval(t)
+    }
   }, [state])
   const look = {
     backgroundColor: color,
@@ -695,13 +715,13 @@ function Lamp(props: { th: Theme; state: TrackState }): React.JSX.Element {
   )
 }
 
-function Bar(props: {
+const Bar = (props: {
   value: number
   color: string
   track: string
   label: string
   text: string
-}): React.JSX.Element {
+}): React.JSX.Element => {
   const pct = `${Math.max(0, Math.min(1, props.value)) * 100}%` as const
   return (
     <View style={[styles.bar, { backgroundColor: props.track }]}>
@@ -713,19 +733,19 @@ function Bar(props: {
   )
 }
 
-function Label(props: { th: Theme; text: string }): React.JSX.Element {
+const Label = (props: { th: Theme; text: string }): React.JSX.Element => {
   return (
     <Text style={[styles.label, { color: props.th.dim }]}>{props.text}</Text>
   )
 }
 
-function Choice<T extends string>(props: {
+const Choice = <T extends string>(props: {
   th: Theme
   label: string
   value: T
   options: Array<[T, string]>
   onChange: (v: T) => void
-}): React.JSX.Element {
+}): React.JSX.Element => {
   const { th } = props
   return (
     <View style={styles.choiceRow}>
@@ -736,7 +756,9 @@ function Choice<T extends string>(props: {
           return (
             <Pressable
               key={value}
-              onPress={() => props.onChange(value)}
+              onPress={() => {
+                props.onChange(value)
+              }}
               style={[
                 styles.pill,
                 { borderColor: on ? th.accent : th.border },
@@ -752,16 +774,18 @@ function Choice<T extends string>(props: {
   )
 }
 
-function Check(props: {
+const Check = (props: {
   th: Theme
   label: string
   value: boolean
   onChange: (v: boolean) => void
-}): React.JSX.Element {
+}): React.JSX.Element => {
   return (
     <Pressable
       style={styles.check}
-      onPress={() => props.onChange(!props.value)}
+      onPress={() => {
+        props.onChange(!props.value)
+      }}
     >
       <Text style={[styles.checkBox, { color: props.th.text }]}>
         {props.value ? '☑' : '☐'}
@@ -773,14 +797,14 @@ function Check(props: {
   )
 }
 
-function Button(props: {
+const Button = (props: {
   th: Theme
   label: string
   onPress: () => void
   accent?: boolean
   disabled?: boolean
   testID?: string
-}): React.JSX.Element {
+}): React.JSX.Element => {
   const { th } = props
   return (
     <Pressable
@@ -809,14 +833,14 @@ function Button(props: {
   )
 }
 
-function Modal(props: {
+const Modal = (props: {
   th: Theme
   title: string
   body: string
   action: string
   onCancel: () => void
   onConfirm: () => void
-}): React.JSX.Element {
+}): React.JSX.Element => {
   const { th } = props
   return (
     <View style={styles.backdrop}>

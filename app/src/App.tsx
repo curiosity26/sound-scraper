@@ -30,7 +30,7 @@ function useCoreVersion(): { version?: string; error?: string } {
   }, [])
 }
 
-export function App(): React.JSX.Element {
+export const App = (): React.JSX.Element => {
   const isDark = useColorScheme() === 'dark'
   const fg = isDark ? text.dark : text.light
   const { version, error } = useCoreVersion()
@@ -76,7 +76,9 @@ export function App(): React.JSX.Element {
           break
       }
     })
-    return () => subscription.remove()
+    return () => {
+      subscription.remove()
+    }
   }, [])
 
   const onRecord = useCallback(async () => {
@@ -108,12 +110,19 @@ export function App(): React.JSX.Element {
         <Text style={[styles.title, fg]}>Sound Scraper</Text>
         <View style={styles.headerLinks}>
           <Pressable
-            onPress={() => setOverlay('settings')}
+            onPress={() => {
+              setOverlay('settings')
+            }}
             testID="open-settings"
           >
             <Text style={styles.headerLink}>Settings</Text>
           </Pressable>
-          <Pressable onPress={() => setOverlay('about')} testID="open-about">
+          <Pressable
+            onPress={() => {
+              setOverlay('about')
+            }}
+            testID="open-about"
+          >
             <Text style={styles.headerLink}>About</Text>
           </Pressable>
         </View>
@@ -132,7 +141,9 @@ export function App(): React.JSX.Element {
         apps={apps}
         selectedPid={selectedPid}
         onSelect={setSelectedPid}
-        onRefresh={() => setApps(safeList())}
+        onRefresh={() => {
+          setApps(safeList())
+        }}
         disabled={state !== 'idle' || starting}
         textStyle={fg}
       />
@@ -170,12 +181,19 @@ export function App(): React.JSX.Element {
         >
           {overlay === 'settings' ? (
             <SettingsPanel
-              onClose={() => setOverlay(undefined)}
+              onClose={() => {
+                setOverlay(undefined)
+              }}
               onFolderChanged={refreshLibraryViews}
               textStyle={fg}
             />
           ) : (
-            <AboutPanel onClose={() => setOverlay(undefined)} textStyle={fg} />
+            <AboutPanel
+              onClose={() => {
+                setOverlay(undefined)
+              }}
+              textStyle={fg}
+            />
           )}
         </View>
       )}

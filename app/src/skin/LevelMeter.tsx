@@ -32,7 +32,7 @@ const num = (v: unknown, fallback: number) =>
  * (top 30%), clip (top 10%) and off colors. Style kind "needle" draws
  * analog meters instead (NeedleMeter).
  */
-export function LevelMeter(props: Props): React.JSX.Element {
+export const LevelMeter = (props: Props): React.JSX.Element => {
   return props.element.style?.kind === 'needle' ? (
     <NeedleMeter {...props} />
   ) : (
@@ -40,7 +40,7 @@ export function LevelMeter(props: Props): React.JSX.Element {
   )
 }
 
-function BarMeter(props: Props): React.JSX.Element {
+const BarMeter = (props: Props): React.JSX.Element => {
   const { element } = props
   const s = useSkinScale()
   const box = scaleRect(element.rect, s)
@@ -160,7 +160,7 @@ function needleStyle(st: Record<string, unknown>) {
  * and `reference` must match it (see needleAngle). Needles follow RMS like
  * a VU meter (`source: "peak"` for peaks), eased between level updates.
  */
-function NeedleMeter(props: Props) {
+const NeedleMeter = (props: Props) => {
   const { element } = props
   const s = useSkinScale()
   const box = scaleRect(element.rect, s)
@@ -198,7 +198,7 @@ function NeedleMeter(props: Props) {
   )
 }
 
-function Needle(props: {
+const Needle = (props: {
   angle: number
   left: number
   face: [number, number]
@@ -207,7 +207,7 @@ function Needle(props: {
   width: number
   color: string
   tip: string
-}) {
+}) => {
   const angle = useRef(new Animated.Value(props.angle)).current
   const target = useRef(props.angle)
   useEffect(() => {
@@ -259,7 +259,7 @@ function Needle(props: {
   )
 }
 
-function Cell(props: { element: SkinElement; at: [number, number] }) {
+const Cell = (props: { element: SkinElement; at: [number, number] }) => {
   const { element } = props
   return (
     <SpriteCell

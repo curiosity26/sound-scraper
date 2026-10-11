@@ -1,7 +1,12 @@
 // Layout here comes from skin data (rects, sizes), so styles are inline.
-/* eslint-disable react-native/no-inline-styles */
+
 import React from 'react'
-import { Image, type ImageStyle, PixelRatio, type StyleProp } from 'react-native'
+import {
+  Image,
+  type ImageStyle,
+  PixelRatio,
+  type StyleProp,
+} from 'react-native'
 
 import { imageSource } from './imageSource'
 import type { ImageRef } from './types'
@@ -16,7 +21,7 @@ type Props = {
 }
 
 /** A skin image at its (scaled) point size, or stretched to width × height. */
-export function SkinImage(props: Props): React.JSX.Element {
+export const SkinImage = (props: Props): React.JSX.Element => {
   const { image } = props
   const s = useSkinScale()
   return (

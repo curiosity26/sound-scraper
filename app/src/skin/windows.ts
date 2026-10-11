@@ -13,7 +13,7 @@ export const windows = {
     drag: Rect[],
     holes: Rect[],
     scale: number,
-  ) =>
+  ) => {
     native().setPanelLayout(
       'main',
       size[0],
@@ -24,7 +24,8 @@ export const windows = {
       size[0],
       size[1],
       scale,
-    ),
+    )
+  },
   /** A side panel's chrome (its size is the user's). */
   setPanelChrome: (
     panel: PanelName,
@@ -35,7 +36,7 @@ export const windows = {
       minSize: [number, number]
       scale: number
     },
-  ) =>
+  ) => {
     native().setPanelLayout(
       panel,
       0,
@@ -46,15 +47,22 @@ export const windows = {
       chrome.minSize[0],
       chrome.minSize[1],
       chrome.scale,
-    ),
-  minimize: () => native().windowAction('minimize'),
+    )
+  },
+  minimize: () => {
+    native().windowAction('minimize')
+  },
   /** Windows: the React views start window moves and resizes. */
   jsGestures: Platform.OS === 'windows',
-  beginGesture: (panel: 'main' | PanelName, kind: 'move' | 'resize') =>
-    native().beginGesture(panel, kind),
-  quit: () => native().windowAction('quit'),
-  setPanelVisible: (panel: PanelName, visible: boolean) =>
-    native().setPanelVisible(panel, visible),
+  beginGesture: (panel: 'main' | PanelName, kind: 'move' | 'resize') => {
+    native().beginGesture(panel, kind)
+  },
+  quit: () => {
+    native().windowAction('quit')
+  },
+  setPanelVisible: (panel: PanelName, visible: boolean) => {
+    native().setPanelVisible(panel, visible)
+  },
   isPanelVisible: (panel: PanelName): boolean => native().isPanelVisible(panel),
   /** Native pop-up menu at (x, y) in a panel; '-' is a separator. */
   showMenu: (

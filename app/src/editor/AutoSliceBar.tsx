@@ -1,5 +1,3 @@
-/* eslint-disable react-native/no-inline-styles */
-
 import React from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 
@@ -23,14 +21,14 @@ const MIN_TRACKS = [0, 5000, 10_000, 20_000, 30_000, 60_000, 120_000, 300_000]
  * Auto Slice's settings, in a bar above the waveform so the proposed
  * slices (dashed) stay in view while the settings change.
  */
-export function AutoSliceBar(props: {
+export const AutoSliceBar = (props: {
   th: EditorTheme
   options: DetectOptions
   onChange: (o: DetectOptions) => void
   found: number
   onApply: () => void
   onCancel: () => void
-}): React.JSX.Element {
+}): React.JSX.Element => {
   const { th, options: o, onChange } = props
   const preset = (
     Object.keys(DETECT_PRESETS) as Array<'digital' | 'vinyl'>
@@ -56,40 +54,44 @@ export function AutoSliceBar(props: {
           { value: 'digital', label: 'Digital' },
           { value: 'vinyl', label: 'Vinyl / Radio' },
         ]}
-        onChange={k => onChange({ ...o, ...DETECT_PRESETS[k] })}
+        onChange={k => {
+          onChange({ ...o, ...DETECT_PRESETS[k] })
+        }}
       />
       <Stepper
         th={th}
         label="Silence below"
         value={`${o.thresholdDb} dB`}
-        onStep={dir =>
+        onStep={dir => {
           onChange({
             ...o,
             thresholdDb: stepIn(THRESHOLDS, o.thresholdDb, dir),
           })
-        }
+        }}
       />
       <Stepper
         th={th}
         label="Gaps over"
         value={formatStep(o.minGapMs)}
-        onStep={dir =>
+        onStep={dir => {
           onChange({ ...o, minGapMs: stepIn(GAPS, o.minGapMs, dir) })
-        }
+        }}
       />
       <Stepper
         th={th}
         label="Tracks over"
         value={o.minTrackMs ? formatStep(o.minTrackMs) : 'any'}
-        onStep={dir =>
+        onStep={dir => {
           onChange({ ...o, minTrackMs: stepIn(MIN_TRACKS, o.minTrackMs, dir) })
-        }
+        }}
       />
       <ToolButton
         th={th}
         label="Remove gaps"
         glyph={o.removeGaps ? '☑' : '☐'}
-        onPress={() => onChange({ ...o, removeGaps: !o.removeGaps })}
+        onPress={() => {
+          onChange({ ...o, removeGaps: !o.removeGaps })
+        }}
       />
       <View style={styles.flex} />
       <Text style={[styles.autoFound, { color: th.dim }]}>
