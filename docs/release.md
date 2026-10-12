@@ -25,15 +25,11 @@ No secret is in the repo. Everything below lives in GitHub secrets, the Apple De
 
 ### 1. GitHub environment
 
-Settings › Environments › **New environment** `release`. Under *Deployment branches and tags*, pick **Selected branches and tags** and add a **tag** rule `v*`. The Mac and Windows jobs run in this environment, so its secrets only reach builds of `v*` tags, and Azure trusts only this environment (step 4).
+Settings › Environments › **New environment** `release`. Under *Deployment branches and tags*, pick **Selected branches and tags** and add a **tag** rule `v*`. The Mac and Windows jobs run in this environment, so its secrets only reach builds of `v*` tags, and Azure trusts only this environment (step 3).
 
 All secrets below are **environment secrets** of `release` (Settings › Environments › release › Add environment secret), or set them with `gh secret set NAME --env release`.
 
-### 2. GitHub Packages (Linux)
-
-The Linux jobs (and the `linux-app` lint job) install `@curiosity26/react-native-gtk4` from GitHub Packages, which wants a token even to read. They use the run's own `GITHUB_TOKEN` (`packages: read`), which works once the package lets this repository read it: on the package's page (github.com/users/curiosity26/packages/npm/package/react-native-gtk4) › Package settings › **Manage Actions access** › Add repository › `sound-scraper`, role Read. Or store a classic personal access token with `read:packages` as the repository secret `GH_PACKAGES_TOKEN` (Settings › Secrets and variables › Actions); the jobs prefer it when it's set.
-
-### 3. Apple
+### 2. Apple
 
 **Developer ID certificate.** In Keychain Access › login › My Certificates, right-click *Developer ID Application: Alex Boyce (B53W8TX3Q9)* (with its private key) › Export › `.p12`, with a strong password. Then:
 
@@ -53,7 +49,7 @@ gh secret set APPLE_NOTARY_ISSUER_ID --env release   # Issuer ID
 
 Keep the `.p8` somewhere safe (a password manager) or delete it; a new key can always be generated.
 
-### 4. Azure (sign-in without a stored password)
+### 3. Azure (sign-in without a stored password)
 
 GitHub signs in to Azure with a short-lived OIDC token; nothing long-lived is stored.
 

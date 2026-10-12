@@ -1,14 +1,11 @@
 # Sets up a Linux runner (Ubuntu 24.04) to build the GTK4 app: the system
 # packages react-native-gtk4 and the Rust core need, Node with the app's
-# dependencies plus @curiosity26/react-native-gtk4 (an optional dependency
-# from GitHub Packages, which wants a token even for reading), and Rust.
+# dependencies (including @curiosity26/react-native-gtk4, an optional
+# dependency installed from its public GitHub repository), and Rust.
 name: Set up the Linux build
 description: System packages, Node + react-native-gtk4, Rust
 
 inputs:
-  packages-token:
-    description: A token that can read @curiosity26/react-native-gtk4 on GitHub Packages
-    required: true
   cache-key:
     description: Rust cache key
     required: true
@@ -29,18 +26,10 @@ runs:
         node-version-file: app/.nvmrc
         cache: npm
         cache-dependency-path: app/package-lock.json
-    - name: Install JS dependencies and react-native-gtk4
+    - name: Install JS dependencies
       shell: bash
       working-directory: app
-      env:
-        NODE_AUTH_TOKEN: ${{ inputs.packages-token }}
-      run: |
-        npm ci
-        # The version is the optionalDependencies entry in package.json.
-        version=$(node -p "require('./package.json').optionalDependencies['@curiosity26/react-native-gtk4']")
-        npm config set --location=project "//npm.pkg.github.com/:_authToken" '${NODE_AUTH_TOKEN}'
-        npm install --no-save "@curiosity26/react-native-gtk4@$version"
-        git checkout -- .npmrc
+      run: npm ci
     - run: rustup toolchain install
       shell: bash
     - uses: Swatinem/rust-cache@v2

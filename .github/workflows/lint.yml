@@ -94,19 +94,15 @@ jobs:
           fi
 
   # The Linux app: the GTK4 native modules (app/linux) against
-  # @curiosity26/react-native-gtk4, from GitHub Packages (an optional
-  # dependency, installed here with a token: GH_PACKAGES_TOKEN if set, else
-  # this run's token, which needs read access to the package).
+  # @curiosity26/react-native-gtk4 (an optional dependency, from GitHub).
   linux-app:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
-      packages: read
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-linux
         with:
-          packages-token: ${{ secrets.GH_PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
           cache-key: lint-linux
       - name: Build the app (Release) and check it starts without JS errors
         working-directory: app

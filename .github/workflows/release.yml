@@ -198,12 +198,10 @@ jobs:
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
-      packages: read   # @curiosity26/react-native-gtk4 on GitHub Packages
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-linux
         with:
-          packages-token: ${{ secrets.GH_PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
           cache-key: linux-${{ matrix.arch }}
       - name: Build the .deb and the .tar.gz
         working-directory: app

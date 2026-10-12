@@ -274,14 +274,7 @@ sudo apt install -y clang cmake ninja-build pkg-config git python3 \
 
 plus Node 22 (not Ubuntu's packaged 18) and Rust via rustup.
 
-`@curiosity26/react-native-gtk4` is an **optional dependency** from GitHub Packages: npm skips it on macOS and Windows (it's Linux-only), and also when it can't read GitHub Packages, so `npm ci` works without a token. To build for Linux, install it with a token that has `read:packages` (`app/.npmrc` maps the `@curiosity26` scope to GitHub Packages):
-
-```sh
-cd app
-echo "//npm.pkg.github.com/:_authToken=<token>" >> ~/.npmrc
-npm ci
-npm install --no-save @curiosity26/react-native-gtk4@0.83.1   # the optionalDependencies version
-```
+`@curiosity26/react-native-gtk4` is an **optional dependency**, installed from its public GitHub repository (no token): `npm ci` installs it on Linux and skips it on macOS and Windows (it's Linux-only).
 
 `app/react-native.config.js` and `metro.config.js` add the package's `linux` platform and commands only when it's installed (the CLI reads them only from regular dependencies).
 
