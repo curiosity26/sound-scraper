@@ -1,4 +1,4 @@
-import React, { type FC, useState } from 'react'
+import React, { type FC, startTransition, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { useDetailsPane } from '@/features/tags/components/DetailsPane/useDetailsPane'
@@ -40,7 +40,12 @@ export const InlineField: FC<InlineFieldProps> = props => {
       return
     }
     if (await props.onCommit(text)) {
-      setEditing(undefined)
+      // In a transition, so the field closes together with the pane's
+      // re-read after a save (pending transitions commit together) and
+      // never shows the old value in between.
+      startTransition(() => {
+        setEditing(undefined)
+      })
     }
   }
   const valueStyle = [
