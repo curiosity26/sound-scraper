@@ -2,6 +2,8 @@
  * @format
  */
 
+import { describe, expect, test, vi } from 'vitest'
+
 import { nextSort } from '@/features/library/components/LibraryScreen/LibraryBody/LibraryTable/nextSort'
 import { sortRecordings } from '@/features/library/components/LibraryScreen/LibraryBody/LibraryTable/sortRecordings'
 import { filterRecordings } from '@/features/library/filterRecordings'
@@ -14,27 +16,27 @@ import { mergeCovers } from '@/features/tags/components/DetailsPane/mergeCovers'
 import { mergeTags } from '@/features/tags/components/DetailsPane/mergeTags'
 import { validateTag } from '@/features/tags/components/DetailsPane/validateTag'
 
-jest.mock('@/bridge/NativeSoundScraper', () => ({
+vi.mock('@/bridge/NativeSoundScraper', () => ({
   __esModule: true,
   default: {
     getVersion: () => '0.0.0-test',
     listAudioApps: () => [],
-    recordTestWav: jest.fn(),
-    recorderStart: jest.fn(() => Promise.resolve()),
-    recorderPause: jest.fn(),
-    recorderResume: jest.fn(),
-    recorderStop: jest.fn(() => Promise.resolve('/tmp/x.mp3')),
+    recordTestWav: vi.fn(),
+    recorderStart: vi.fn(() => Promise.resolve()),
+    recorderPause: vi.fn(),
+    recorderResume: vi.fn(),
+    recorderStop: vi.fn(() => Promise.resolve('/tmp/x.mp3')),
     recorderState: () => 'idle',
     recoverPartialRecordings: () => 0,
-    onRecorderEvent: () => ({ remove: jest.fn() }),
-    onLibraryChanged: () => ({ remove: jest.fn() }),
-    listRecordings: jest.fn(() => Promise.resolve([])),
-    renameRecording: jest.fn(),
-    trashRecording: jest.fn(),
-    revealRecording: jest.fn(),
-    readTags: jest.fn(),
-    writeTags: jest.fn(),
-    pickImage: jest.fn(),
+    onRecorderEvent: () => ({ remove: vi.fn() }),
+    onLibraryChanged: () => ({ remove: vi.fn() }),
+    listRecordings: vi.fn(() => Promise.resolve([])),
+    renameRecording: vi.fn(),
+    trashRecording: vi.fn(),
+    revealRecording: vi.fn(),
+    readTags: vi.fn(),
+    writeTags: vi.fn(),
+    pickImage: vi.fn(),
     getSettings: () =>
       // What ss_settings_get sends for the defaults.
       JSON.stringify({
@@ -52,8 +54,8 @@ jest.mock('@/bridge/NativeSoundScraper', () => ({
         masterBudgetGb: 10,
         masterMaxAgeDays: 30,
       }),
-    setSettings: jest.fn(() => Promise.resolve()),
-    pickFolder: jest.fn(),
+    setSettings: vi.fn(() => Promise.resolve()),
+    pickFolder: vi.fn(),
   },
 }))
 

@@ -1,3 +1,5 @@
+import { expect, test, vi } from 'vitest'
+
 import type { Device } from '@/bridge/generated'
 import { formatClock } from '@/features/burn/components/BurnPanel/Progress/formatClock'
 import { speedText } from '@/features/burn/components/BurnPanel/Progress/speedText'
@@ -7,7 +9,7 @@ import { playlistRows } from '@/features/library/components/LibraryScreen/Librar
 import { SECTORS_74 } from '@/features/playlists/constants'
 import { discCapacity } from '@/features/playlists/discCapacity'
 
-jest.mock('@/bridge/NativeSoundScraper', () => ({
+vi.mock('@/bridge/NativeSoundScraper', () => ({
   __esModule: true,
   default: {},
 }))

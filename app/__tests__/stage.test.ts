@@ -2,6 +2,8 @@
  * @format
  */
 
+import { describe, expect, it, vi } from 'vitest'
+
 import { parseNative } from '@/bridge/parseNative'
 import { isPlacements } from '@/features/skins/stage/guards/isPlacements'
 import { stage } from '@/features/skins/stage/stage'
@@ -55,7 +57,7 @@ const fake = {
   moveToNextMonitor: () => {},
 }
 
-jest.mock('@/features/skins/stage/stageNative', () => ({
+vi.mock('@/features/skins/stage/stageNative', () => ({
   stageNative: () => fake,
 }))
 

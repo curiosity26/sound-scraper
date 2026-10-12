@@ -1,5 +1,5 @@
 # Code-quality checks for every pull request and push to main: ESLint
-# (React Native config + Prettier), TypeScript, Jest, cargo fmt, clippy with
+# (React Native config + Prettier), TypeScript, Vitest, cargo fmt, clippy with
 # warnings denied, the Rust tests, that the generated bridge types
 # (app/src/bridge/generated) match the Rust definitions, and that the Linux app
 # (app/linux, GTK4) builds. Clippy runs on each OS because the capture

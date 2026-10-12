@@ -5,6 +5,7 @@
 import { act, type FC, type ReactElement } from 'react'
 import { Image } from 'react-native'
 import { create, type ReactTestRenderer } from 'react-test-renderer'
+import { expect, test, vi } from 'vitest'
 
 import type {
   ImageRef,
@@ -52,38 +53,38 @@ import {
 } from '@/shared/utils/guards'
 import { isDarkColor } from '@/shared/utils/isDarkColor'
 
-// jest.mock is hoisted above the imports, so each mock is built inside its
+// vi.mock is hoisted above the imports, so each mock is built inside its
 // factory and reached through the (mocked) module below.
-jest.mock('@/bridge/NativeSkins', () => ({
+vi.mock('@/bridge/NativeSkins', () => ({
   __esModule: true,
   default: {
-    onWindowEvent: () => ({ remove: jest.fn() }),
-    loadCurrentSkin: jest.fn(),
-    setPanelLayout: jest.fn(),
-    setPanelVisible: jest.fn(),
-    windowAction: jest.fn(),
+    onWindowEvent: () => ({ remove: vi.fn() }),
+    loadCurrentSkin: vi.fn(),
+    setPanelLayout: vi.fn(),
+    setPanelVisible: vi.fn(),
+    windowAction: vi.fn(),
     isPanelVisible: () => false,
-    showMenu: jest.fn(() => Promise.resolve(-1)),
-    inspectSkin: jest.fn(),
+    showMenu: vi.fn(() => Promise.resolve(-1)),
+    inspectSkin: vi.fn(),
   },
 }))
-jest.mock('@/bridge/NativeSoundScraper', () => ({
+vi.mock('@/bridge/NativeSoundScraper', () => ({
   __esModule: true,
   default: {
     listAudioApps: () => [],
-    recorderStart: jest.fn(() => Promise.resolve()),
-    recorderPause: jest.fn(),
-    recorderResume: jest.fn(),
-    recorderStop: jest.fn(() => Promise.resolve('/tmp/x.mp3')),
+    recorderStart: vi.fn(() => Promise.resolve()),
+    recorderPause: vi.fn(),
+    recorderResume: vi.fn(),
+    recorderStop: vi.fn(() => Promise.resolve('/tmp/x.mp3')),
     recorderState: () => 'idle',
     recoverPartialRecordings: () => 0,
-    onRecorderEvent: jest.fn(() => ({ remove: jest.fn() })),
-    playerLoad: jest.fn(() => Promise.resolve()),
-    playerUnload: jest.fn(),
-    playerPlay: jest.fn(() => Promise.resolve()),
-    playerPause: jest.fn(),
-    playerStop: jest.fn(),
-    playerSeek: jest.fn(),
+    onRecorderEvent: vi.fn(() => ({ remove: vi.fn() })),
+    playerLoad: vi.fn(() => Promise.resolve()),
+    playerUnload: vi.fn(),
+    playerPlay: vi.fn(() => Promise.resolve()),
+    playerPause: vi.fn(),
+    playerStop: vi.fn(),
+    playerSeek: vi.fn(),
     playerState: () => 'empty',
     // What ss_settings_get sends: every field, plus the folder in use.
     getSettings: () =>
@@ -102,19 +103,19 @@ jest.mock('@/bridge/NativeSoundScraper', () => ({
         masterBudgetGb: 10,
         masterMaxAgeDays: 30,
       }),
-    setSettings: jest.fn(() => Promise.resolve()),
-    readTags: jest.fn(),
-    listRecordings: jest.fn(),
-    writeTags: jest.fn(),
-    renameRecording: jest.fn(),
+    setSettings: vi.fn(() => Promise.resolve()),
+    readTags: vi.fn(),
+    listRecordings: vi.fn(),
+    writeTags: vi.fn(),
+    renameRecording: vi.fn(),
   },
 }))
 
 if (!NativeSkins) {
   throw new Error('NativeSkins is mocked above')
 }
-const mockSkins = jest.mocked(NativeSkins)
-const mockCore = jest.mocked(NativeSoundScraper)
+const mockSkins = vi.mocked(NativeSkins)
+const mockCore = vi.mocked(NativeSoundScraper)
 
 /** Sends a player event to every recorder-event listener. */
 const emitPlayer = (
@@ -742,13 +743,13 @@ test('the details pane edits a tag in place and renames', async () => {
   mockCore.renameRecording.mockImplementation(() =>
     Promise.resolve('New name.mp3'),
   )
-  const onRenamed = jest.fn()
+  const onRenamed = vi.fn()
   const tree = await render(
     <DetailsPane
       fileNames={['Song.mp3']}
       onRenamed={onRenamed}
-      onChanged={jest.fn()}
-      onClose={jest.fn()}
+      onChanged={vi.fn()}
+      onClose={vi.fn()}
       textStyle={{}}
       isDark
     />,

@@ -1,3 +1,5 @@
+import { expect, test } from 'vitest'
+
 import type { Recording } from '@/bridge/types'
 import { capacitySummary } from '@/features/library/components/LibraryScreen/LibraryBody/CapacityBar/capacitySummary'
 import { capacityText } from '@/features/library/components/LibraryScreen/LibraryBody/CapacityBar/capacityText'

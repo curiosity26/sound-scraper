@@ -253,10 +253,6 @@ module.exports = {
       },
     },
     {
-      files: ['__tests__/**', '*.test.ts', '*.test.tsx'],
-      env: { jest: true },
-    },
-    {
       // Tests keep their fakes and what they record at module level.
       files: ['__tests__/**/*.ts', '*.test.ts'],
       rules: {
@@ -280,6 +276,19 @@ module.exports = {
       ],
       rules: {
         'import/no-default-export': 'off',
+      },
+    },
+    {
+      // Vitest reads its config's default export.
+      files: ['vitest.config.ts'],
+      rules: {
+        'import/no-default-export': 'off',
+        'no-restricted-syntax': [
+          'error',
+          ...STYLE_SYNTAX.filter(
+            s => s.selector !== 'ExportDefaultDeclaration',
+          ),
+        ],
       },
     },
   ],
