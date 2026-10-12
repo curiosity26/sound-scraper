@@ -866,6 +866,21 @@ describe('the track editor', () => {
       })
     })
 
+    describe('given another recording was loaded for playback', () => {
+      describe('when Play is pressed', () => {
+        it('plays this one, with Pause and Stop to press', async () => {
+          const user = userEvent.setup()
+          await fakeCore.native.playerLoad(sideA.path)
+          await openEditor(tape)
+          await press(user, 'Play')
+          expect(
+            await screen.findByRole('button', { name: 'Pause' }),
+          ).toBeOnTheScreen()
+          expect(screen.getByRole('button', { name: 'Stop' })).toBeEnabled()
+        })
+      })
+    })
+
     describe('given the recording playing at 1:05.25', () => {
       it('shows the playhead to a tenth of a second', async () => {
         const user = userEvent.setup()

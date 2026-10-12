@@ -269,7 +269,15 @@ const native = {
   recorderState: vi.fn(() => state.recorder),
   recoverPartialRecordings: vi.fn(() => 0),
   playerLoad: vi.fn((path: string) => {
+    const replacing = state.player.path !== null
     state.player = { state: 'stopped', path, positionMs: 0 }
+    // The core unloads what was there first. Its events reach JS later, so
+    // that 'empty' arrives after the new file is already loaded.
+    if (replacing) {
+      recorderEvents.emit(
+        recorderEvent({ kind: 'playerState', playerState: 'empty' }),
+      )
+    }
     recorderEvents.emit(recorderEvent({ kind: 'playerState' }))
     return Promise.resolve()
   }),
