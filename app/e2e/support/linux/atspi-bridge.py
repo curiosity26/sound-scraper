@@ -11,6 +11,8 @@ Requests ("name" is the element's accessible name; "match" is "exact"
   "element": the first match's name, role and states, or null.
 - {"op": "press", "app": PID, "name": ..., "match": ..., "role": ...}
   Performs the element's activate action (what Enter or a click does).
+- {"op": "doubleClick", "app": PID, "name": ..., "match": ..., "role": ...}
+  Double-clicks the middle of the element with the (synthesized) mouse.
 - {"op": "type", "app": PID, "text": ...}
   Replaces the text of the focused text field (an RN TextInput has no
   accessible name of its own, so it's found by focus) with "text".
@@ -175,6 +177,18 @@ def press(node):
     raise RuntimeError(f"{name_of(node)!r} can't be pressed (actions: {names})")
 
 
+def double_click(node):
+    component = node.get_component_iface()
+    if component is None:
+        raise RuntimeError(f"{name_of(node)!r} has no position to click")
+    box = Atspi.Component.get_extents(component, Atspi.CoordType.SCREEN)
+    if box.width <= 0 or box.height <= 0:
+        raise RuntimeError(f"{name_of(node)!r} has no size to click")
+    x, y = box.x + box.width // 2, box.y + box.height // 2
+    # "b1d": button 1, double-clicked.
+    Atspi.generate_mouse_event(x, y, "b1d")
+
+
 def handle(request):
     op = request["op"]
     if op == "find":
@@ -185,6 +199,12 @@ def handle(request):
         if node is None:
             raise RuntimeError(f"no element named {request['name']!r}")
         press(node)
+        return {}
+    if op == "doubleClick":
+        node = find(request)
+        if node is None:
+            raise RuntimeError(f"no element named {request['name']!r}")
+        double_click(node)
         return {}
     if op == "type":
         type_text(request)

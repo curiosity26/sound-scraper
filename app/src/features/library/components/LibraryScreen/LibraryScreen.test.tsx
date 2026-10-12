@@ -9,6 +9,7 @@ import {
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { editorTarget } from '@/features/editor/editorTarget'
 import { selection } from '@/features/library/selection'
 import { playback } from '@/features/playback/playback'
 import { playlists } from '@/features/playlists/playlists'
@@ -453,6 +454,36 @@ describe('the library screen', () => {
       })
     })
 
+    describe('when it is double-clicked', () => {
+      it('plays it', async () => {
+        const user = userEvent.setup()
+        await renderLibrary()
+        await user.press(screen.getByText('Delta'))
+        await user.press(await table().findByText('▶ Delta'))
+        await vi.waitFor(() => {
+          expect(fakeCore.native.playerPlay).toHaveBeenCalledTimes(1)
+        })
+        expect(fakeCore.native.playerLoad).toHaveBeenCalledTimes(1)
+      })
+    })
+
+    describe('when it is pressed twice, a second apart', () => {
+      afterEach(() => {
+        vi.useRealTimers()
+      })
+
+      it('only loads it', async () => {
+        vi.useFakeTimers({ toFake: ['Date'] })
+        const user = userEvent.setup()
+        await renderLibrary()
+        await user.press(screen.getByText('Delta'))
+        vi.setSystemTime(Date.now() + 1000)
+        await user.press(await table().findByText('▶ Delta'))
+        expect(await table().findByText('▶ Delta')).toBeOnTheScreen()
+        expect(fakeCore.native.playerPlay).not.toHaveBeenCalled()
+      })
+    })
+
     describe('given it is loaded for playback', () => {
       describe('when the player unloads it', () => {
         it('no longer marks it as loaded', async () => {
@@ -485,6 +516,59 @@ describe('the library screen', () => {
     })
   })
 
+  describe('given two recordings, one open in the track editor', () => {
+    beforeEach(() => {
+      fakeCore.setRecordings([
+        recording('Echo.mp3', { recordedAtMs: 2 }),
+        recording('Foxtrot.mp3', { recordedAtMs: 1 }),
+      ])
+      const echo = recording('Echo.mp3')
+      editorTarget.set({
+        fileName: echo.fileName,
+        path: echo.path,
+        title: 'Echo',
+        durationMs: echo.durationMs,
+      })
+    })
+
+    // The editor's recording is shared app state that outlives a test.
+    afterEach(() => {
+      editorTarget.set(null)
+      playback.clear()
+    })
+
+    describe('when the other recording is pressed', () => {
+      it('opens it in the track editor', async () => {
+        const user = userEvent.setup()
+        await renderLibrary()
+        await user.press(screen.getByText('Foxtrot'))
+        expect(editorTarget.get()).toMatchObject({
+          fileName: 'Foxtrot.mp3',
+          title: 'Foxtrot',
+        })
+      })
+    })
+  })
+
+  describe('given two recordings and the track editor closed', () => {
+    beforeEach(() => {
+      fakeCore.setRecordings([recording('Echo.mp3'), recording('Foxtrot.mp3')])
+    })
+
+    afterEach(() => {
+      playback.clear()
+    })
+
+    describe('when a recording is pressed', () => {
+      it('leaves the track editor closed', async () => {
+        const user = userEvent.setup()
+        await renderLibrary()
+        await user.press(screen.getByText('Foxtrot'))
+        expect(editorTarget.get()).toBeNull()
+      })
+    })
+  })
+
   describe('given a playlist with a missing recording is showing', () => {
     let playlistId = 0
 
@@ -504,6 +588,26 @@ describe('the library screen', () => {
     it('numbers the rows from 1', async () => {
       await renderLibrary(true)
       expectRows(['1', '2', '3'])
+    })
+
+    describe('when a row is double-clicked', () => {
+      // The playing track is shared app state that outlives a test.
+      afterEach(() => {
+        playlists.setPlaying(null)
+        playback.clear()
+      })
+
+      it('plays it as the playlist’s playing track', async () => {
+        const user = userEvent.setup()
+        await renderLibrary(true)
+        await user.press(table().getByText('a'))
+        await user.press(await table().findByText('▶ a'))
+        await vi.waitFor(() => {
+          expect(fakeCore.native.playerPlay).toHaveBeenCalledTimes(1)
+        })
+        expect(playback.get().fileName).toBe('a.mp3')
+        expect(playlists.get().playingItemId).not.toBeNull()
+      })
     })
 
     it('marks the missing recording', async () => {

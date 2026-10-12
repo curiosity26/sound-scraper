@@ -8,6 +8,7 @@ import {
 } from '@e2e/support/audio/analyzeRecording'
 import { openDetails } from '@e2e/support/openDetails'
 import { openSession, type Session } from '@e2e/support/openSession'
+import { recordTake } from '@e2e/support/recordTake'
 import { waitForRecordings } from '@e2e/support/waitForRecordings'
 import { waitToShow } from '@e2e/support/waitToShow'
 
@@ -60,6 +61,38 @@ describe('Splitting a recording into tracks', () => {
           expect(part.audibleMs).toBeLessThan(3500)
           expect(part.toneRatio).toBeGreaterThan(0.95)
         }
+      })
+    })
+  })
+})
+
+describe('Switching recordings in the track editor', () => {
+  describe('Given two recordings, the first open in the track editor', () => {
+    describe('When I click the second in the library', () => {
+      let session: Session
+      let second: string
+
+      beforeAll(async () => {
+        session = await openSession()
+        const { app } = session
+        await session.play('E2E tone', 1000)
+        await recordTake(app, 1500)
+        await waitForRecordings(session.sandbox, 1)
+        await recordTake(app, 1500)
+        const [first = '', other = ''] = (
+          await waitForRecordings(session.sandbox, 2)
+        ).map(path => basename(path, '.mp3'))
+        second = other
+        await openDetails(app, first)
+        await app.press({ name: 'Details actions' })
+        await app.press({ name: 'Edit Track…' })
+        await waitToShow(app, { name: `Close Editor: ${first}` })
+        await app.press({ name: second })
+      })
+      afterAll(() => session.close())
+
+      it('opens it in the track editor', async () => {
+        await waitToShow(session.app, { name: `Close Editor: ${second}` })
       })
     })
   })

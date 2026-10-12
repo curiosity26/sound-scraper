@@ -1,16 +1,20 @@
 // Clicks on a row: a press shows it (in the details, or selects the
-// playlist item); a right-click opens the same menu as the details panel's
-// gear.
+// playlist item, and in the track editor when that's open); a double-click
+// plays it; a right-click opens the same menu as the details panel's gear.
 import { type RefObject, useRef } from 'react'
 
 import { rowKey } from '@/features/library/components/LibraryScreen/LibraryBody/LibraryTable/rowKey'
 import { showDetails } from '@/features/library/components/LibraryScreen/LibraryBody/showDetails'
 import { useLibraryView } from '@/features/library/components/LibraryScreen/LibraryBody/useLibraryView'
 import { useLibraryScreen } from '@/features/library/components/LibraryScreen/useLibraryScreen'
+import { followInEditor } from '@/features/library/followInEditor'
 import type { Row } from '@/features/library/types'
+import { playback } from '@/features/playback/playback'
 import { playlists } from '@/features/playlists/playlists'
+import { errorText } from '@/shared/utils/errorText'
 
 import { auxClickPoint } from './auxClickPoint'
+import { DOUBLE_CLICK_MS } from './constants'
 import type { AuxClick, MouseLike } from './types'
 import { useRecordingMenu } from './useRecordingMenu'
 
@@ -29,6 +33,12 @@ export type UseRowClicksResult = {
   readonly rightClick: (row: Row, e: MouseLike) => void
   /** macOS: an aux click on the row at `index`, in the row's coordinates. */
   readonly auxClick: (row: Row, index: number, e: AuxClick) => void
+}
+
+// playback reports a failed load or play itself, so this only sees
+// something throwing past that: dev console.
+const warnPlayFailed = (e: unknown) => {
+  console.warn(`Playing the double-clicked row failed: ${errorText(e)}`)
 }
 
 export const useRowClicks = (props: UseRowClicksProps): UseRowClicksResult => {
@@ -55,11 +65,22 @@ export const useRowClicks = (props: UseRowClicksProps): UseRowClicksResult => {
     )
   }
 
+  // The last press, to tell a double-click (a second press on the same row
+  // soon after) from two clicks.
+  const lastPress = useRef({ key: '', at: 0 })
+
   return {
     press: row => {
-      if (!row.recording || Date.now() - lastMenu.current < 600) {
+      const recording = row.recording
+      if (!recording || Date.now() - lastMenu.current < 600) {
         return
       }
+      const key = rowKey(row)
+      const now = Date.now()
+      const last = lastPress.current
+      const double = last.key === key && now - last.at < DOUBLE_CLICK_MS
+      // A third press starts a new double-click.
+      lastPress.current = double ? { key: '', at: 0 } : { key, at: now }
       if (playlist) {
         const source = playlist.rows.find(p => p.item.id === row.itemId)
         if (source) {
@@ -68,6 +89,10 @@ export const useRowClicks = (props: UseRowClicksProps): UseRowClicksResult => {
       } else {
         playlists.setPlaying(null)
         showDetails([row.fileName], openDetails)
+      }
+      followInEditor(recording)
+      if (double) {
+        playback.selectAndPlay(recording).catch(warnPlayFailed)
       }
     },
     rightClick,

@@ -2,8 +2,10 @@
 // React Native Windows, which mis-centres a single-line box's text (it lands
 // in the bottom half and is clipped) but top-aligns a multiline one. There,
 // single-line fields are multiline boxes limited to one line that still
-// submit (and blur) on Enter. Its placeholder there is drawn near-black
-// whatever the text color, so it gets the text color, faded, as on macOS.
+// submit (and blur) on Enter (a multiline box there ignores submitBehavior
+// and submits only on its submitKeyEvents). Its placeholder there is drawn
+// near-black whatever the text color, so it gets the text color, faded, as
+// on macOS.
 // Use this instead of TextInput everywhere.
 import type { FC, Ref } from 'react'
 import {
@@ -15,10 +17,16 @@ import {
 
 import { withAlpha } from '@/shared/utils/withAlpha'
 
-const windowsSingleLine: Partial<TextInputProps> = {
+/** React Native Windows' (and macOS's) key that submits a multiline box. */
+type SubmitKeyEvent = { readonly key: string }
+
+const windowsSingleLine: Partial<TextInputProps> & {
+  readonly submitKeyEvents: readonly SubmitKeyEvent[]
+} = {
   multiline: true,
   numberOfLines: 1,
   submitBehavior: 'blurAndSubmit',
+  submitKeyEvents: [{ key: 'Enter' }],
 }
 
 export type TextFieldProps = TextInputProps & {

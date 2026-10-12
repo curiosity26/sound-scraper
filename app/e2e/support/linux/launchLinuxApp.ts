@@ -36,6 +36,7 @@ export const launchLinuxApp = async (sandbox: Sandbox): Promise<AppDriver> => {
     find: async query => (await bridge.find(pid, query)) ?? undefined,
     // Like a user, waits for what it presses to show up.
     press: query => eventually(() => bridge.press(pid, query)),
+    doubleClick: query => eventually(() => bridge.doubleClick(pid, query)),
     type: text => bridge.type(pid, text),
     key: key => bridge.key(key),
     names: () => bridge.names(pid),
