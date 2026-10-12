@@ -21,7 +21,7 @@ export const InstalledSkins: FC = () => {
       onPress={
         s.error == null
           ? () => {
-              void choose(s.builtin ? null : s.id)
+              choose(s.builtin ? null : s.id)
             }
           : undefined
       }
@@ -30,7 +30,7 @@ export const InstalledSkins: FC = () => {
         <TextLink
           label="Remove"
           onPress={() => {
-            void remove(s)
+            remove(s)
           }}
         />
       )}

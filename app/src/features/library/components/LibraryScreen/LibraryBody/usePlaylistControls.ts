@@ -8,6 +8,7 @@ import { useLibraryScreen } from '@/features/library/components/LibraryScreen/us
 import { playlists, type PlaylistsState } from '@/features/playlists/playlists'
 import { playlistsApi } from '@/features/playlists/playlistsApi'
 import { errorText } from '@/shared/utils/errorText'
+import { onRejected } from '@/shared/utils/onRejected'
 import { pickSaveFile } from '@/shared/utils/pickSaveFile'
 
 import { useLibraryView } from './useLibraryView'
@@ -33,7 +34,7 @@ const menuPoint = (
 const defaultName = (state: PlaylistsState): string => {
   const taken = new Set(state.playlists.map(p => p.name.toLowerCase()))
   for (let n = 1; ; n++) {
-    const name = `Playlist ${n}`
+    const name = `Playlist ${String(n)}`
     if (!taken.has(name.toLowerCase())) {
       return name
     }
@@ -69,6 +70,12 @@ export const usePlaylistControls = (): UsePlaylistControlsResult => {
     }
   }
 
+  /** For a promise nothing waits for: its failure, as "Couldn't …". */
+  const failed = (what: string) =>
+    onRejected(message => {
+      onMessage({ text: `Couldn't ${what}: ${message}`, isError: true })
+    })
+
   const newPlaylist = (fileNames: readonly string[] = []) => {
     setPrompt({
       kind: 'name',
@@ -76,7 +83,7 @@ export const usePlaylistControls = (): UsePlaylistControlsResult => {
         ? `New playlist with ${
             fileNames.length === 1
               ? '1 recording'
-              : `${fileNames.length} recordings`
+              : `${String(fileNames.length)} recordings`
           }`
         : 'New playlist',
       value: defaultName(state),
@@ -97,24 +104,20 @@ export const usePlaylistControls = (): UsePlaylistControlsResult => {
   }
 
   const exportM3u8 = async (id: number, name: string) => {
-    try {
-      const path = await pickSaveFile('Export playlist', `${name}.m3u8`, 'm3u8')
-      if (!path) {
-        return
-      }
-      const missing = playlistsApi.exportM3u8(id, path)
-      onMessage({
-        text:
-          missing > 0
-            ? `Exported ${name}; ${missing} missing ${
-                missing === 1 ? 'recording was' : 'recordings were'
-              } left out.`
-            : `Exported ${name}.`,
-        isError: false,
-      })
-    } catch (e) {
-      onMessage({ text: `Couldn't export: ${errorText(e)}`, isError: true })
+    const path = await pickSaveFile('Export playlist', `${name}.m3u8`, 'm3u8')
+    if (!path) {
+      return
     }
+    const missing = playlistsApi.exportM3u8(id, path)
+    onMessage({
+      text:
+        missing > 0
+          ? `Exported ${name}; ${String(missing)} missing ${
+              missing === 1 ? 'recording was' : 'recordings were'
+            } left out.`
+          : `Exported ${name}.`,
+      isError: false,
+    })
   }
 
   /** The playlist picker: the library, New Playlist…, then the playlists
@@ -144,7 +147,7 @@ export const usePlaylistControls = (): UsePlaylistControlsResult => {
       }
     }
     menuPoint(button, (x, y) => {
-      void pick(x, y)
+      pick(x, y).catch(failed('open the menu'))
     })
   }
 
@@ -179,7 +182,7 @@ export const usePlaylistControls = (): UsePlaylistControlsResult => {
         [
           'Export as .m3u8…',
           () => {
-            void exportM3u8(active.id, active.name)
+            exportM3u8(active.id, active.name).catch(failed('export'))
           },
         ],
       ]
@@ -209,7 +212,7 @@ export const usePlaylistControls = (): UsePlaylistControlsResult => {
       }
     }
     menuPoint(button, (x, y) => {
-      void pick(x, y)
+      pick(x, y).catch(failed('open the menu'))
     })
   }
 
@@ -236,7 +239,7 @@ export const usePlaylistControls = (): UsePlaylistControlsResult => {
       }
     }
     menuPoint(button, (x, y) => {
-      void show(x, y)
+      show(x, y).catch(failed('open the menu'))
     })
   }
 

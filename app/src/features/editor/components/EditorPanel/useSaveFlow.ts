@@ -21,7 +21,8 @@ export type UseSaveFlowResult = {
   readonly isOpen: boolean
   readonly ask: () => void
   readonly cancel: () => void
-  readonly save: (keepOriginal: boolean) => Promise<void>
+  /** Saves; a failure shows in the dialog (state `failed`). */
+  readonly save: (keepOriginal: boolean) => void
 }
 
 export const useSaveFlow = (
@@ -30,6 +31,19 @@ export const useSaveFlow = (
   onSaved: (files: string[], keptOriginal: boolean) => void,
 ): UseSaveFlowResult => {
   const [state, setState] = useState<SaveState>({ kind: 'closed' })
+  const save = async (keepOriginal: boolean) => {
+    setState({ kind: 'saving' })
+    const result = await editorCore.save(
+      target.fileName,
+      editsToJson(edits),
+      keepOriginal,
+    )
+    setState({ kind: 'closed' })
+    onSaved(result.files, keepOriginal)
+  }
+  const showFailure = (e: unknown) => {
+    setState({ kind: 'failed', error: errorText(e) })
+  }
   return {
     state,
     isOpen: state.kind !== 'closed',
@@ -39,19 +53,8 @@ export const useSaveFlow = (
     cancel: () => {
       setState({ kind: 'closed' })
     },
-    save: async keepOriginal => {
-      setState({ kind: 'saving' })
-      try {
-        const result = await editorCore.save(
-          target.fileName,
-          editsToJson(edits),
-          keepOriginal,
-        )
-        setState({ kind: 'closed' })
-        onSaved(result.files, keepOriginal)
-      } catch (e) {
-        setState({ kind: 'failed', error: errorText(e) })
-      }
+    save: keepOriginal => {
+      save(keepOriginal).catch(showFailure)
     },
   }
 }

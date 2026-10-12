@@ -1,7 +1,5 @@
-// Layout here comes from skin data (rects, sizes), so styles are inline.
-/* eslint-disable react-native/no-inline-styles */
 import React, { type FC } from 'react'
-import { View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 
 import { DragSurface } from '@/features/skins/components/DragSurface'
 import { SkinImage } from '@/features/skins/components/SkinImage'
@@ -45,10 +43,7 @@ export const MainPanel: FC = () => {
             }}
           >
             {layout.background && (
-              <SkinImage
-                image={layout.background}
-                style={{ position: 'absolute', left: 0, top: 0 }}
-              />
+              <SkinImage image={layout.background} style={styles.background} />
             )}
             <DragSurface
               panel="main"
@@ -67,3 +62,7 @@ export const MainPanel: FC = () => {
     </MainWindowContext>
   )
 }
+
+const styles = StyleSheet.create({
+  background: { position: 'absolute', left: 0, top: 0 },
+})

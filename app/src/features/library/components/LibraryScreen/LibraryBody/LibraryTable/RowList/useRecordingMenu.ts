@@ -37,7 +37,7 @@ export const useRecordingMenu = (): UseRecordingMenuResult => {
     let itemIds: number[] = []
     if (showing) {
       const picked = many
-        ? rows.filter(r => checked.has(`#${r.item.id}`))
+        ? rows.filter(r => checked.has(`#${String(r.item.id)}`))
         : rows.filter(r => r.item.id === target.itemId)
       itemIds = picked.map(r => r.item.id)
       fileNames = [
@@ -57,7 +57,7 @@ export const useRecordingMenu = (): UseRecordingMenuResult => {
             {
               label:
                 itemIds.length > 1
-                  ? `Remove ${itemIds.length} from Playlist`
+                  ? `Remove ${String(itemIds.length)} from Playlist`
                   : 'Remove from Playlist',
               run: () => {
                 try {
@@ -87,7 +87,7 @@ export const useRecordingMenu = (): UseRecordingMenuResult => {
     } catch {
       // Offer what doesn't need the tags.
     }
-    void openRecordingMenu(
+    openRecordingMenu(
       {
         fileNames,
         recordings: recordings.filter(r => fileNames.includes(r.fileName)),
@@ -106,7 +106,9 @@ export const useRecordingMenu = (): UseRecordingMenuResult => {
   return {
     openRowMenu: showLibraryMenu
       ? (target, x, y) => {
-          void contextMenu(showLibraryMenu, target, x, y)
+          contextMenu(showLibraryMenu, target, x, y).catch((e: unknown) => {
+            onMessage({ text: errorText(e), isError: true })
+          })
         }
       : undefined,
   }

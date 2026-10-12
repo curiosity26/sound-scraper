@@ -13,7 +13,7 @@ export const ProposedSlices: FC = () => {
   return (
     <>
       {autoSlice.proposals.map(p => (
-        <React.Fragment key={`p${p.atMs}`}>
+        <React.Fragment key={`p${String(p.atMs)}`}>
           <View
             pointerEvents="none"
             style={[

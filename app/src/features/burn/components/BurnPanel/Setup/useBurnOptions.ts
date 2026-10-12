@@ -100,7 +100,7 @@ export const useBurnOptions = (
             ['0', 'Maximum'],
             ...device.speeds.map((s): readonly [string, string] => [
               String(s),
-              `${s}x`,
+              `${String(s)}x`,
             ]),
           ]
         : null,

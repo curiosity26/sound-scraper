@@ -14,7 +14,9 @@ export const WaveformNote: FC = () => {
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.center]}>
       <Text style={[styles.note, { color: th.wave('rulerText', '#f3ead0') }]}>
         {status.state === 'loading'
-          ? `Reading the waveform… ${Math.round(status.progress * 100)}%`
+          ? `Reading the waveform… ${String(
+              Math.round(status.progress * 100),
+            )}%`
           : `Couldn't read the recording: ${status.message}`}
       </Text>
     </View>

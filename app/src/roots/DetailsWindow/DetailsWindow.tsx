@@ -26,7 +26,7 @@ export const DetailsWindow: FC = () => {
     <Skinned>
       <SkinPanelFrame
         panel="details"
-        title={count > 1 ? `Details (${count})` : 'Details'}
+        title={count > 1 ? `Details (${String(count)})` : 'Details'}
         onMenu={count > 0 ? (x, y) => menuRef.current?.(x, y) : undefined}
       >
         <DetailsContent menuRef={menuRef} />

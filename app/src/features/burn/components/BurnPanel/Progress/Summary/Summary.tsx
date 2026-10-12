@@ -2,6 +2,7 @@ import type { FC } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 
 import { formatClock } from '@/features/burn/components/BurnPanel/Progress/formatClock'
+import { formatPercent } from '@/features/burn/components/BurnPanel/Progress/formatPercent'
 import { useBurnProgress } from '@/features/burn/components/BurnPanel/Progress/useBurnProgress'
 import { useBurnTheme } from '@/features/burn/components/BurnPanel/useBurnTheme'
 import { colors } from '@/shared/theme/colors'
@@ -25,7 +26,7 @@ export const Summary: FC = () => {
             ? th.c('failed', colors.error)
             : th.c('bar', th.accent)
         }
-        valueText={`${Math.floor((status?.overall ?? 0) * 100)}%`}
+        valueText={formatPercent(status?.overall ?? 0)}
         clock={
           formatClock(status?.elapsedMs ?? 0) +
           (running && status?.remainingMs != null
@@ -38,7 +39,7 @@ export const Summary: FC = () => {
           label="Buffer"
           value={running ? status.buffer : 0}
           color={th.c('buffer', '#6fa0d8')}
-          valueText={running ? `${Math.round(status.buffer * 100)}%` : ''}
+          valueText={running ? formatPercent(status.buffer, Math.round) : ''}
         />
       )}
     </View>

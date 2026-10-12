@@ -52,8 +52,10 @@ export const DuplicatesPrompt: FC<DuplicatesPromptProps> = props => {
         all
           ? n === 1
             ? 'This recording is already in the playlist. Add it again?'
-            : `All ${n} recordings are already in the playlist. Add them again?`
-          : `${prompt.already} of the ${n} recordings ${
+            : `All ${String(
+                n,
+              )} recordings are already in the playlist. Add them again?`
+          : `${String(prompt.already)} of the ${String(n)} recordings ${
               prompt.already === 1 ? 'is' : 'are'
             } already in the playlist.`
       }

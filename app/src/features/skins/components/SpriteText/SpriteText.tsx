@@ -1,7 +1,5 @@
-// Layout here comes from skin data (rects, sizes), so styles are inline.
-/* eslint-disable react-native/no-inline-styles */
 import React, { type FC, useEffect, useState } from 'react'
-import { View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 
 import type { ResolvedFont } from '@/bridge/generated'
 import { SpriteCell } from '@/features/skins/components/SpriteCell'
@@ -52,12 +50,7 @@ export const SpriteText: FC<SpriteTextProps> = props => {
       accessible
       accessibilityLabel={text}
       pointerEvents="none"
-      style={{
-        flexDirection: 'row',
-        width,
-        height: ch * s,
-        overflow: 'hidden',
-      }}
+      style={[styles.row, { width, height: ch * s }]}
     >
       {cells.map((c, i) => {
         const index = glyphs.indexOf(c)
@@ -74,6 +67,10 @@ export const SpriteText: FC<SpriteTextProps> = props => {
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  row: { flexDirection: 'row', overflow: 'hidden' },
+})
 
 const glyphAt = (font: ResolvedFont, index: number): [number, number] => {
   const [cw, ch] = font.cell

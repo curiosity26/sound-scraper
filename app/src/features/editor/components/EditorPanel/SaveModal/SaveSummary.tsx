@@ -12,11 +12,11 @@ export const SaveSummary: FC = () => {
   const { reencoded } = tracks
   return (
     <Text style={[modalStyles.modalBody, { color: th.text }]}>
-      Saving creates {count === 1 ? '1 track' : `${count} tracks`} from “
-      {target.title}”.
+      Saving creates {count === 1 ? '1 track' : `${String(count)} tracks`} from
+      “{target.title}”.
       {reencoded > 0
         ? ` ${
-            reencoded === 1 ? 'One is' : `${reencoded} are`
+            reencoded === 1 ? 'One is' : `${String(reencoded)} are`
           } re-encoded because a stretch inside was deleted.`
         : ''}
       {core.hasMaster

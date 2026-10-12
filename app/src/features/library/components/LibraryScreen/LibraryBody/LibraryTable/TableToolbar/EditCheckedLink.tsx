@@ -15,7 +15,7 @@ export const EditCheckedLink: FC = () => {
   }
   return (
     <ToolbarLink
-      label={`Edit ${checkedNames.length} selected`}
+      label={`Edit ${String(checkedNames.length)} selected`}
       onPress={() => {
         showDetails(checkedNames, openDetails)
       }}

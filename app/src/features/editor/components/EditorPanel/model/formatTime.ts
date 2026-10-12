@@ -15,5 +15,7 @@ export const formatTime = (ms: number, step = 1000): string => {
     String(sec).padStart(2, '0') +
     (decimals > 0 ? '.' + String(frac).padStart(decimals, '0') : '')
   const m = hours > 0 ? String(minutes).padStart(2, '0') : String(minutes)
-  return (negative ? '-' : '') + (hours > 0 ? `${hours}:` : '') + `${m}:${s}`
+  return (
+    (negative ? '-' : '') + (hours > 0 ? `${String(hours)}:` : '') + `${m}:${s}`
+  )
 }

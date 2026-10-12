@@ -60,14 +60,20 @@ export const useBurnStart = (): UseBurnStartResult => {
     }
   }
 
+  /** A failed save dialog shows in the setup's error line. */
+  const showError = (e: unknown) => {
+    setError(errorText(e))
+  }
+  const startReporting = () => {
+    start().catch(showError)
+  }
+
   return {
     burn: () => {
       if (device?.media.state === 'erasable') {
-        setConfirm(() => () => {
-          void start()
-        })
+        setConfirm(() => startReporting)
       } else {
-        void start()
+        startReporting()
       }
     },
     confirmingErase: confirm !== null,

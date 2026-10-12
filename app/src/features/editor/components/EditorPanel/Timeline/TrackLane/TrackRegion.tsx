@@ -23,7 +23,7 @@ export const TrackRegion: FC<TrackRegionProps> = props => {
   const color = trackColor(i)
   return (
     <View
-      accessibilityLabel={`Track ${i + 1}: ${tr.name}`}
+      accessibilityLabel={`Track ${String(i + 1)}: ${tr.name}`}
       style={[
         styles.region,
         {

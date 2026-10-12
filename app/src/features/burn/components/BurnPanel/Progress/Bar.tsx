@@ -1,6 +1,8 @@
 import type { FC } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 
+import { toPercent } from '@/shared/utils/toPercent'
+
 export type BarProps = {
   readonly value: number
   readonly color: string
@@ -10,7 +12,7 @@ export type BarProps = {
 }
 
 export const Bar: FC<BarProps> = props => {
-  const pct = `${Math.max(0, Math.min(1, props.value)) * 100}%` as const
+  const pct = toPercent(props.value)
   return (
     <View style={[styles.bar, { backgroundColor: props.track }]}>
       <View

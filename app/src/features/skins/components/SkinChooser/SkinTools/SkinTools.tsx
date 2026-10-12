@@ -14,18 +14,8 @@ export const SkinTools: FC = () => {
   return (
     <>
       <View style={styles.actions}>
-        <TextLink
-          label="Install skin…"
-          onPress={() => {
-            void pickAndInspect()
-          }}
-        />
-        <TextLink
-          label="Use skin folder…"
-          onPress={() => {
-            void chooseFolder()
-          }}
-        />
+        <TextLink label="Install skin…" onPress={pickAndInspect} />
+        <TextLink label="Use skin folder…" onPress={chooseFolder} />
         <TextLink
           label="New skin from template…"
           onPress={() => {

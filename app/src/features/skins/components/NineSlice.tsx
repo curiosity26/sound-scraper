@@ -1,7 +1,5 @@
-// Layout here comes from skin data (rects, sizes), so styles are inline.
-/* eslint-disable react-native/no-inline-styles */
 import React, { type FC } from 'react'
-import { type StyleProp, View, type ViewStyle } from 'react-native'
+import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native'
 
 import type { ImageRef } from '@/bridge/generated'
 import { useSkinScale } from '@/features/skins/hooks/useSkinScale'
@@ -50,12 +48,12 @@ export const NineSlice: FC<NineSliceProps> = props => {
       if (sw > 0 && sh > 0 && dw > 0 && dh > 0) {
         pieces.push(
           <SpriteCell
-            key={`${sx},${sy}`}
+            key={`${String(sx)},${String(sy)}`}
             image={image}
             at={[ox + sx, oy + sy]}
             size={[sw, sh]}
             drawSize={[dw, dh]}
-            style={{ position: 'absolute', left: dx, top: dy }}
+            style={[styles.piece, { left: dx, top: dy }]}
           />,
         )
       }
@@ -65,16 +63,15 @@ export const NineSlice: FC<NineSliceProps> = props => {
     <View style={[{ width, height }, props.style]}>
       {pieces}
       <View
-        style={{
-          position: 'absolute',
-          left: dl,
-          top: dt,
-          right: dr,
-          bottom: db,
-        }}
+        style={[styles.content, { left: dl, top: dt, right: dr, bottom: db }]}
       >
         {props.children}
       </View>
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  piece: { position: 'absolute' },
+  content: { position: 'absolute' },
+})

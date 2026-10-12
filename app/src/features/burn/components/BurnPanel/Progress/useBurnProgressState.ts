@@ -46,7 +46,7 @@ const headlineOf = (status: BurnStatus | null, name: string): string => {
       ? `Saved ${name}.cue`
       : status.testWrite
       ? 'Test write finished: the disc would burn fine'
-      : `Burned ${status.tracks.length} tracks to CD`
+      : `Burned ${String(status.tracks.length)} tracks to CD`
     : status.state === 'failed'
     ? `${verb} failed`
     : status.state === 'cancelled'
@@ -108,6 +108,19 @@ export const useBurnProgressState = (
     } catch {}
     burnJob.set(null)
   }
+  const saveLog = async () => {
+    const path = await pickSaveFile(
+      'Save burn log',
+      `${current.target.name} burn log.txt`,
+      'txt',
+    )
+    if (path) {
+      burnApi.saveLog(current.id, path)
+    }
+  }
+  const showError = (e: unknown) => {
+    setError(errorText(e))
+  }
 
   return {
     status,
@@ -123,20 +136,7 @@ export const useBurnProgressState = (
       burnTarget.set({ ...current.target })
     },
     saveLog: () => {
-      void (async () => {
-        try {
-          const path = await pickSaveFile(
-            'Save burn log',
-            `${current.target.name} burn log.txt`,
-            'txt',
-          )
-          if (path) {
-            burnApi.saveLog(current.id, path)
-          }
-        } catch (e) {
-          setError(errorText(e))
-        }
-      })()
+      saveLog().catch(showError)
     },
     cancel: () => {
       try {

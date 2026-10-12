@@ -4,9 +4,11 @@ import { useRef, useState } from 'react'
 import type { GestureResponderEvent } from 'react-native'
 
 import { playback } from '@/features/playback/playback'
+import { onRejected } from '@/shared/utils/onRejected'
 
 import type { ResponderProps } from './types'
 import type { UseEditorTransportResult } from './useEditorTransport'
+import { warnPlaybackFailed } from './warnPlaybackFailed'
 
 /** Snippets played while scrubbing, and the stop after the pointer rests. */
 const SCRUB_INTERVAL_MS = 60
@@ -41,7 +43,7 @@ export const useRulerScrub = (
     last: 0,
   })
   const [scrubMs, setScrubMs] = useState<number | null>(null)
-  const grant = async (e: GestureResponderEvent) => {
+  const grant = (e: GestureResponderEvent) => {
     options.onPress()
     transport.cancelPauseTimer()
     const from = snapMs(e.nativeEvent.locationX * scale)
@@ -53,7 +55,7 @@ export const useRulerScrub = (
       last: 0,
     }
     setScrubMs(from)
-    await transport.seek(from)
+    transport.seek(from)
   }
   const move = async (e: GestureResponderEvent) => {
     const sc = scrub.current
@@ -95,10 +97,10 @@ export const useRulerScrub = (
     rulerResponder: {
       onStartShouldSetResponder: () => options.enabled,
       onResponderGrant: e => {
-        void grant(e)
+        grant(e)
       },
       onResponderMove: e => {
-        void move(e)
+        move(e).catch(onRejected(warnPlaybackFailed))
       },
       onResponderRelease: release,
       onResponderTerminate: release,

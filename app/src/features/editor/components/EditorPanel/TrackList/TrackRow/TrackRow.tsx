@@ -27,7 +27,7 @@ export const TrackRow: FC<TrackRowProps> = props => {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Track ${i + 1}: ${
+      accessibilityLabel={`Track ${String(i + 1)}: ${
         tr.name
       }, starts ${start}, ${length} long`}
       onPress={() => {
@@ -48,7 +48,7 @@ export const TrackRow: FC<TrackRowProps> = props => {
         </Text>
       ) : (
         <TrackName
-          label={`Track ${i + 1} name`}
+          label={`Track ${String(i + 1)} name`}
           value={tr.name}
           onCommit={name => {
             naming.rename(owner, name)

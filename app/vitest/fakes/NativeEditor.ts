@@ -44,7 +44,7 @@ const durationOf = (id: number) => {
   const path = state.open[id]
   const durationMs = path === undefined ? undefined : state.recordings[path]
   if (durationMs === undefined) {
-    throw new Error(`No editor ${id}`)
+    throw new Error(`No editor ${String(id)}`)
   }
   return durationMs
 }

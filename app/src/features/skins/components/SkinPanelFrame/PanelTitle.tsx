@@ -1,7 +1,5 @@
-// Layout here comes from skin data (rects, sizes), so styles are inline.
-/* eslint-disable react-native/no-inline-styles */
 import React, { type FC } from 'react'
-import { Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 
 import { SpriteText } from '@/features/skins/components/SpriteText'
 import { useSkin } from '@/features/skins/hooks/useSkin'
@@ -25,13 +23,15 @@ export const PanelTitle: FC<PanelTitleProps> = props => {
   return (
     <View
       pointerEvents="none"
-      style={{
-        position: 'absolute',
-        left: titleOffset[0] * s,
-        top: titleOffset[1] * s,
-        paddingHorizontal: 3 * s,
-        backgroundColor: def.title?.background ?? skin.colors.panel,
-      }}
+      style={[
+        styles.title,
+        {
+          left: titleOffset[0] * s,
+          top: titleOffset[1] * s,
+          paddingHorizontal: 3 * s,
+          backgroundColor: def.title?.background ?? skin.colors.panel,
+        },
+      ]}
     >
       {titleFont ? (
         <SpriteText
@@ -53,3 +53,7 @@ export const PanelTitle: FC<PanelTitleProps> = props => {
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  title: { position: 'absolute' },
+})

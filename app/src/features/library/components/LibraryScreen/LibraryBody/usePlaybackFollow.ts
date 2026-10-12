@@ -7,6 +7,7 @@ import { useSelection } from '@/features/library/hooks/useSelection'
 import { selection } from '@/features/library/selection'
 import { playback } from '@/features/playback/playback'
 import { playlists } from '@/features/playlists/playlists'
+import { errorText } from '@/shared/utils/errorText'
 
 import { playlistRows } from './playlistRows'
 
@@ -15,6 +16,12 @@ export type UsePlaybackFollowProps = {
   /** Autoplay moved on to this playlist row (stable: it's an effect's
    * dependency). */
   readonly onAdvance: (itemId: number) => void
+}
+
+// playback.select shows a failed load through playback.onError itself, so
+// this only sees something throwing past that: dev console.
+const warnSelectFailed = (e: unknown) => {
+  console.warn(`Selecting for playback failed: ${errorText(e)}`)
 }
 
 export const usePlaybackFollow = (props: UsePlaybackFollowProps): void => {
@@ -37,7 +44,7 @@ export const usePlaybackFollow = (props: UsePlaybackFollowProps): void => {
     }
     const recording = recordings.find(r => r.fileName === selected[0])
     if (recording) {
-      void playback.select(recording)
+      playback.select(recording).catch(warnSelectFailed)
     }
   }, [selected, recordings])
 

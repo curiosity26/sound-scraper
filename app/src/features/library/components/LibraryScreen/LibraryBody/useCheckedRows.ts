@@ -52,7 +52,7 @@ export const useCheckedRows = (
   // File names behind the checked rows (playlist rows are keyed by item).
   const checkedNames = showing
     ? rows
-        .filter(r => checked.has(`#${r.item.id}`) && r.recording)
+        .filter(r => checked.has(`#${String(r.item.id)}`) && r.recording)
         .map(r => r.item.fileName)
     : [...checked]
 

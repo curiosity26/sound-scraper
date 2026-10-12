@@ -9,5 +9,7 @@ export const formatElapsed = (ms: number, tenths = true): string => {
       '0',
     )}`
   }
-  return `${minutes}:${String(seconds).padStart(2, '0')}.${total % 10}`
+  return `${String(minutes)}:${String(seconds).padStart(2, '0')}.${String(
+    total % 10,
+  )}`
 }

@@ -26,13 +26,13 @@ export const FolderSkinCard: FC<FolderSkinCardProps> = props => {
       <TextLink
         label="Package skin…"
         onPress={() => {
-          void packageFolder(folder)
+          packageFolder(folder)
         }}
       />
       <TextLink
         label="Stop"
         onPress={() => {
-          void choose(null)
+          choose(null)
         }}
       />
     </SkinCard>

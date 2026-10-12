@@ -1,5 +1,7 @@
 // Stable promises for use(): the same key returns the same promise across
-// renders, and a rejected promise is dropped so the next read retries.
+// renders, a rejected one included, so the error boundary shows the error
+// (dropping it would make React's retry render load again, never showing
+// it). Clear the key, e.g. from the boundary's onReset, to read again.
 export type PromiseCache<K, V> = {
   readonly get: (key: K) => Promise<V>
   /** Forgets one key, or every key, so the next read loads again. */
@@ -18,11 +20,6 @@ export const promiseCache = <K, V>(
       }
       const promise = load(key)
       promises.set(key, promise)
-      promise.catch(() => {
-        if (promises.get(key) === promise) {
-          promises.delete(key)
-        }
-      })
       return promise
     },
     clear: key => {

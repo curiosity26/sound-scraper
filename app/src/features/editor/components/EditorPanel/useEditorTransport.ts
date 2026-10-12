@@ -5,9 +5,11 @@ import { useEffect, useRef } from 'react'
 
 import { usePlayback } from '@/features/playback/hooks/usePlayback'
 import { playback } from '@/features/playback/playback'
+import { onRejected } from '@/shared/utils/onRejected'
 
 import { deletedAt, type Edits } from './model'
 import type { EditorTarget } from './types'
+import { warnPlaybackFailed } from './warnPlaybackFailed'
 
 /** P plays this much either side of the selected slice. */
 const PREVIEW_MS = 2000
@@ -18,12 +20,12 @@ export type UseEditorTransportResult = {
   readonly playing: boolean
   /** Where the player is (0 when it has another recording). */
   readonly playheadMs: number
-  readonly playPause: () => Promise<void>
+  readonly playPause: () => void
   /** Moves the playhead (loading the recording first if needed). */
-  readonly seek: (ms: number) => Promise<void>
+  readonly seek: (ms: number) => void
   readonly stop: () => void
   /** Plays a couple of seconds either side of a point, then pauses. */
-  readonly previewAround: (atMs: number) => Promise<void>
+  readonly previewAround: (atMs: number) => void
   /** Pauses after a while (unless something cancels it first). */
   readonly pauseAfter: (ms: number) => void
   readonly cancelPauseTimer: () => void
@@ -93,21 +95,31 @@ export const useEditorTransport = (
     }
   }, [loaded, pb.state, pb.positionMs, edits, durationMs])
 
+  const previewAround = async (atMs: number) => {
+    await seek(atMs - PREVIEW_MS)
+    await playback.play()
+    pauseAfter(Math.min(atMs, PREVIEW_MS) + PREVIEW_MS)
+  }
+
+  // Started from presses and keys, which don't wait: failures to load or
+  // play are shown by playback itself.
   return {
     loaded,
     playing: loaded && pb.state === 'playing',
     playheadMs: loaded ? pb.positionMs : 0,
-    playPause,
-    seek,
+    playPause: () => {
+      playPause().catch(onRejected(warnPlaybackFailed))
+    },
+    seek: ms => {
+      seek(ms).catch(onRejected(warnPlaybackFailed))
+    },
     stop: () => {
       if (loaded) {
         playback.stop()
       }
     },
-    previewAround: async atMs => {
-      await seek(atMs - PREVIEW_MS)
-      await playback.play()
-      pauseAfter(Math.min(atMs, PREVIEW_MS) + PREVIEW_MS)
+    previewAround: atMs => {
+      previewAround(atMs).catch(onRejected(warnPlaybackFailed))
     },
     pauseAfter,
     cancelPauseTimer,

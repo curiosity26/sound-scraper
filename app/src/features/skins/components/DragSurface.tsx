@@ -1,7 +1,5 @@
-// Layout here comes from skin data (rects, sizes), so styles are inline.
-/* eslint-disable react-native/no-inline-styles */
 import React, { type FC, useRef } from 'react'
-import { View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 
 import type { PanelName, Rect } from '@/features/skins/types'
 import { windows } from '@/features/skins/windows'
@@ -44,19 +42,20 @@ export const DragSurface: FC<DragSurfaceProps> = props => {
     <View
       key={key}
       onStartShouldSetResponder={start(kind)}
-      style={{
-        position: 'absolute',
-        left: r[0],
-        top: r[1],
-        width: r[2],
-        height: r[3],
-      }}
+      style={[
+        styles.area,
+        { left: r[0], top: r[1], width: r[2], height: r[3] },
+      ]}
     />
   )
   return (
     <>
-      {props.drag.map((r, i) => area(r, 'move', `d${i}`))}
+      {props.drag.map((r, i) => area(r, 'move', `d${String(i)}`))}
       {props.grip && area(props.grip, 'resize', 'grip')}
     </>
   )
 }
+
+const styles = StyleSheet.create({
+  area: { position: 'absolute' },
+})

@@ -1,7 +1,5 @@
-// Layout here comes from skin data (rects, sizes), so styles are inline.
-/* eslint-disable react-native/no-inline-styles */
 import React, { type FC } from 'react'
-import { Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 
 import type { ResolvedElement } from '@/bridge/generated'
 import { SpriteText } from '@/features/skins/components/SpriteText'
@@ -28,10 +26,7 @@ export const ElementText: FC<ElementTextProps> = props => {
   const align = element.align ?? 'left'
   const t = element.text
   return (
-    <View
-      pointerEvents="none"
-      style={[scaleRect(element.rect, s), { justifyContent: 'center' }]}
-    >
+    <View pointerEvents="none" style={[scaleRect(element.rect, s), styles.box]}>
       {font ? (
         <SpriteText
           font={font}
@@ -44,14 +39,16 @@ export const ElementText: FC<ElementTextProps> = props => {
       ) : (
         <Text
           numberOfLines={1}
-          style={{
-            color: t?.color ?? '#ffffff',
-            fontSize: (t?.size ?? Math.max(8, h * 0.7)) * s,
-            fontFamily: t?.family ?? undefined,
-            fontWeight: t?.weight === 'bold' ? '700' : '400',
-            textAlign: align,
-            fontVariant: ['tabular-nums'],
-          }}
+          style={[
+            styles.text,
+            t?.weight === 'bold' && styles.bold,
+            {
+              color: t?.color ?? '#ffffff',
+              fontSize: (t?.size ?? Math.max(8, h * 0.7)) * s,
+              fontFamily: t?.family ?? undefined,
+              textAlign: align,
+            },
+          ]}
         >
           {t?.uppercase ? props.text.toUpperCase() : props.text}
         </Text>
@@ -59,3 +56,9 @@ export const ElementText: FC<ElementTextProps> = props => {
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  box: { justifyContent: 'center' },
+  text: { fontWeight: '400', fontVariant: ['tabular-nums'] },
+  bold: { fontWeight: '700' },
+})

@@ -82,11 +82,18 @@ const TS_RULES = {
     { assertionStyle: 'never' },
   ],
   '@typescript-eslint/consistent-type-definitions': ['error', 'type'],
-  // Numbers read naturally in messages ("3 tracks"); everything else still
-  // has to be a string.
+  // Only strings go into template literals: a number is formatted on
+  // purpose (String, toFixed, a format helper), so `${x}` can't print
+  // "undefined", "NaN" or a float with 15 decimals by accident.
   '@typescript-eslint/restrict-template-expressions': [
     'error',
-    { allowNumber: true },
+    {
+      allowAny: false,
+      allowBoolean: false,
+      allowNullish: false,
+      allowNumber: false,
+      allowRegExp: false,
+    },
   ],
   '@typescript-eslint/switch-exhaustiveness-check': [
     'error',
@@ -112,8 +119,12 @@ module.exports = {
   rules: {
     'prettier/prettier': 'error',
     'prefer-const': 'error',
-    // `void promise()` marks a deliberate fire-and-forget call.
-    'no-void': ['error', { allowAsStatement: true }],
+    // A promise nobody awaits still says what happens when it fails
+    // (`.catch(...)`), rather than `void` dropping the rejection.
+    'no-void': 'error',
+    // Static styles go in StyleSheet.create; inline objects only carry
+    // values computed at render (skin rects, scale, progress).
+    'react-native/no-inline-styles': 'error',
     'react/function-component-definition': [
       'error',
       {
@@ -231,6 +242,7 @@ module.exports = {
       files: [
         'src/shared/utils/guards/**',
         'src/shared/utils/errorText.ts',
+        'src/shared/utils/onRejected.ts',
         'src/shared/components/AsyncBoundary/ErrorFallback.tsx',
       ],
       rules: {

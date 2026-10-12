@@ -5,6 +5,7 @@ import { capacityText } from '@/features/library/components/LibraryScreen/Librar
 import { useCapacityColors } from '@/features/library/components/LibraryScreen/LibraryBody/CapacityBar/useCapacityColors'
 import { useLibraryView } from '@/features/library/components/LibraryScreen/LibraryBody/useLibraryView'
 import { SECTORS_74, SECTORS_80 } from '@/features/playlists/constants'
+import { toPercent } from '@/shared/utils/toPercent'
 
 // The scale runs a little past 80 minutes so "too long" shows.
 const SCALE = SECTORS_80 * 1.1
@@ -14,8 +15,8 @@ const MARKS = [
   { sectors: SECTORS_80, label: '80' },
 ] as const
 
-const pct = (sectors: number): `${number}%` =>
-  `${Math.min(100, (sectors / SCALE) * 100)}%`
+/** A style width or offset: the share of the scale, as "NN%". */
+const pct = (sectors: number) => toPercent(sectors / SCALE)
 
 /** The bar, filled to the playlist's length, with the 74 and 80 minute
  * marks and their labels under it. */

@@ -175,11 +175,11 @@ const deleteStretch = async (
 /** A row of the track list, by everything it shows. */
 const trackRow = (n: number, name: string, start: string, length: string) =>
   screen.queryByRole('button', {
-    name: `Track ${n}: ${name}, starts ${start}, ${length} long`,
+    name: `Track ${String(n)}: ${name}, starts ${start}, ${length} long`,
   })
 
 const anyTrackRow = (n: number) =>
-  screen.queryByRole('button', { name: new RegExp(`^Track ${n}: `) })
+  screen.queryByRole('button', { name: new RegExp(`^Track ${String(n)}: `) })
 
 /** The position readout: where the playhead is, and of how long. */
 const position = () => screen.getByRole('timer')

@@ -1,7 +1,5 @@
-// Layout here comes from skin data (rects, sizes), so styles are inline.
-/* eslint-disable react-native/no-inline-styles */
 import React, { type FC, useEffect, useRef } from 'react'
-import { Animated, Easing, View } from 'react-native'
+import { Animated, Easing, StyleSheet, View } from 'react-native'
 
 export type NeedleProps = {
   readonly angle: number
@@ -39,26 +37,24 @@ export const Needle: FC<NeedleProps> = props => {
   })
   return (
     <View
-      style={{
-        position: 'absolute',
-        left: props.left,
-        top: 0,
-        width: props.face[0],
-        height: props.face[1],
-        overflow: 'hidden',
-      }}
+      style={[
+        styles.face,
+        { left: props.left, width: props.face[0], height: props.face[1] },
+      ]}
     >
       {/* Twice the needle's length, centered on the pivot, so it turns
           about the pivot; only the top half is drawn. */}
       <Animated.View
-        style={{
-          position: 'absolute',
-          left: props.pivot[0] - width / 2,
-          top: props.pivot[1] - length,
-          width,
-          height: length * 2,
-          transform: [{ rotate }],
-        }}
+        style={[
+          styles.needle,
+          {
+            left: props.pivot[0] - width / 2,
+            top: props.pivot[1] - length,
+            width,
+            height: length * 2,
+            transform: [{ rotate }],
+          },
+        ]}
       >
         <View style={{ height: length * 0.2, backgroundColor: props.tip }} />
         <View style={{ height: length * 0.8, backgroundColor: props.color }} />
@@ -66,3 +62,8 @@ export const Needle: FC<NeedleProps> = props => {
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  face: { position: 'absolute', top: 0, overflow: 'hidden' },
+  needle: { position: 'absolute' },
+})

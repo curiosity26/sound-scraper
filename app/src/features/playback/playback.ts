@@ -113,7 +113,7 @@ const subscribeNative = () => {
         })
         break
       case 'playerError':
-        reportError(`Playback failed: ${e.message}`)
+        reportError(`Playback failed: ${String(e.message)}`)
         break
       case 'state':
       case 'progress':

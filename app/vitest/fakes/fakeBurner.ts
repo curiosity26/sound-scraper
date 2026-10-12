@@ -60,7 +60,7 @@ const state: State = initialState()
 const jobNumbered = (id: number) => {
   const found = state.jobs.find(j => j.id === id)
   if (!found) {
-    throw new Error(`No burn job ${id}`)
+    throw new Error(`No burn job ${String(id)}`)
   }
   return found
 }

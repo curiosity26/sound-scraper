@@ -24,7 +24,7 @@ export const readiness = (
     return {
       ok: false,
       action,
-      reason: `A CD holds at most ${MAX_TRACKS} tracks.`,
+      reason: `A CD holds at most ${String(MAX_TRACKS)} tracks.`,
     }
   }
   const media = device.media

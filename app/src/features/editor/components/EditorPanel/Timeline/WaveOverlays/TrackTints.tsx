@@ -15,7 +15,7 @@ export const TrackTints: FC = () => {
     <>
       {tracks.rows.map((tr, i) => (
         <View
-          key={`t${i}-${tr.startMs}`}
+          key={`t${String(i)}-${String(tr.startMs)}`}
           pointerEvents="none"
           style={[
             overlayStyles.band,

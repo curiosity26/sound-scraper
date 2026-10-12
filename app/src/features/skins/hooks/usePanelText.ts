@@ -1,5 +1,3 @@
-import { isDarkColor } from '@/shared/utils/isDarkColor'
-
 import { useSkin } from './useSkin'
 
 export type UsePanelTextResult = {
@@ -17,4 +15,14 @@ export const usePanelText = (
     fg: { color: c.text ?? '#f2f2f2' },
     isDark: isDarkColor(c.background ?? '#1e1e1e'),
   }
+}
+
+const isDarkColor = (hex: string): boolean => {
+  const h = hex.replace('#', '')
+  const v = (i: number) =>
+    parseInt(
+      h.length < 6 ? h.charAt(i).repeat(2) : h.slice(i * 2, i * 2 + 2),
+      16,
+    )
+  return 0.299 * v(0) + 0.587 * v(1) + 0.114 * v(2) < 128
 }

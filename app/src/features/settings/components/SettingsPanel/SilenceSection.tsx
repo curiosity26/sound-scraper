@@ -16,7 +16,7 @@ export const SilenceSection: FC = () => {
         label="Trim silence"
         detail="Cuts the quiet before the first and after the last sound of a recording · default"
         onPress={() => {
-          void save({ trimSilence: !current.trimSilence })
+          save({ trimSilence: !current.trimSilence })
         }}
         testName="trim-silence"
       />

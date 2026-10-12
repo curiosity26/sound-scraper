@@ -1,7 +1,5 @@
-// Layout here comes from skin data (rects, sizes), so styles are inline.
-/* eslint-disable react-native/no-inline-styles */
 import React, { type FC } from 'react'
-import { type StyleProp, View, type ViewStyle } from 'react-native'
+import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native'
 
 import type { ImageRef } from '@/bridge/generated'
 import { useSkinScale } from '@/features/skins/hooks/useSkinScale'
@@ -32,16 +30,21 @@ export const SpriteCell: FC<SpriteCellProps> = props => {
   return (
     <View
       pointerEvents="none"
-      style={[{ width: w, height: h, overflow: 'hidden' }, props.style]}
+      style={[styles.cell, { width: w, height: h }, props.style]}
     >
       {at && (
         <SkinImage
           image={image}
           width={image.width * kx}
           height={image.height * ky}
-          style={{ position: 'absolute', left: -at[0] * kx, top: -at[1] * ky }}
+          style={[styles.image, { left: -at[0] * kx, top: -at[1] * ky }]}
         />
       )}
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  cell: { overflow: 'hidden' },
+  image: { position: 'absolute' },
+})

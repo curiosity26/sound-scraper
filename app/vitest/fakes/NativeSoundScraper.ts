@@ -159,7 +159,7 @@ const summary = (p: PlaylistRecord): Playlist => ({
 const playlistNamed = (id: number) => {
   const found = state.playlists.find(p => p.id === id)
   if (!found) {
-    throw new Error(`No playlist ${id}`)
+    throw new Error(`No playlist ${String(id)}`)
   }
   return found
 }

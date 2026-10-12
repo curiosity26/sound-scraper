@@ -19,7 +19,7 @@ export const RecordingsFolder: FC = () => {
         <TextLink
           label="Choose…"
           onPress={() => {
-            void chooseFolder()
+            chooseFolder()
           }}
           testName="choose-folder"
         />
@@ -27,7 +27,7 @@ export const RecordingsFolder: FC = () => {
           <TextLink
             label="Use default"
             onPress={() => {
-              void save({ recordingsDir: null })
+              save({ recordingsDir: null })
             }}
           />
         )}

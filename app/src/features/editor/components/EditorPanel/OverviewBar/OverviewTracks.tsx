@@ -21,7 +21,7 @@ export const OverviewTracks: FC<OverviewTracksProps> = props => {
     <>
       {tracks.tracks.map((t, i) => (
         <View
-          key={`${i}-${t.startMs}`}
+          key={`${String(i)}-${String(t.startMs)}`}
           pointerEvents="none"
           style={[
             overviewStyles.band,

@@ -19,7 +19,7 @@ export const QualitySection: FC = () => {
           label={q.label}
           detail={q.detail}
           onPress={() => {
-            void save({ quality: q.value })
+            save({ quality: q.value })
           }}
         />
       ))}

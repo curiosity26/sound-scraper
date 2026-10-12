@@ -20,7 +20,7 @@ export const TransportGroup: FC = () => {
         icon="toStart"
         label="To the start"
         onPress={() => {
-          void transport.seek(0)
+          transport.seek(0)
         }}
         disabled={!ready}
       />
@@ -28,7 +28,7 @@ export const TransportGroup: FC = () => {
         icon={transport.playing ? 'pause' : 'play'}
         label={transport.playing ? 'Pause' : 'Play'}
         onPress={() => {
-          void transport.playPause()
+          transport.playPause()
         }}
         disabled={!ready}
         active={transport.playing}

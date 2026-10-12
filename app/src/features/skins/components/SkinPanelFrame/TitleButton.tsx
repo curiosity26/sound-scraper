@@ -1,7 +1,5 @@
-// Layout here comes from skin data (rects, sizes), so styles are inline.
-/* eslint-disable react-native/no-inline-styles */
 import React, { type FC } from 'react'
-import { Pressable } from 'react-native'
+import { Pressable, StyleSheet } from 'react-native'
 
 import type { ResolvedFramePanel } from '@/bridge/generated'
 import { buttonState } from '@/features/skins/buttonState'
@@ -23,13 +21,10 @@ export const TitleButton: FC<TitleButtonProps> = props => {
       accessibilityRole="button"
       accessibilityLabel={props.label}
       onPress={props.onPress}
-      style={{
-        position: 'absolute',
-        left: rect[0],
-        top: rect[1],
-        width: rect[2],
-        height: rect[3],
-      }}
+      style={[
+        styles.button,
+        { left: rect[0], top: rect[1], width: rect[2], height: rect[3] },
+      ]}
     >
       {({ pressed }) => (
         <SpriteCell
@@ -49,3 +44,7 @@ export const TitleButton: FC<TitleButtonProps> = props => {
     </Pressable>
   )
 }
+
+const styles = StyleSheet.create({
+  button: { position: 'absolute' },
+})

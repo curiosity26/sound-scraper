@@ -49,7 +49,7 @@ export const AutoSliceSettings: FC<AutoSliceSettingsProps> = props => {
       />
       <Stepper
         label="Silence below"
-        value={`${o.thresholdDb} dB`}
+        value={`${String(o.thresholdDb)} dB`}
         onStep={dir => {
           onChange({
             ...o,

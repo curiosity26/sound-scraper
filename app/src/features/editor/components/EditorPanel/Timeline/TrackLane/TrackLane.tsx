@@ -13,7 +13,11 @@ export const TrackLane: FC = () => {
   return (
     <View style={[styles.lane, { width: view.contentWidth }]}>
       {tracks.rows.map((tr, i) => (
-        <TrackRegion key={`${i}-${tr.startMs}`} track={tr} index={i} />
+        <TrackRegion
+          key={`${String(i)}-${String(tr.startMs)}`}
+          track={tr}
+          index={i}
+        />
       ))}
       {/* Slice edges: grab to move */}
       {drag.shown.splices.map(s => (

@@ -23,7 +23,7 @@ export const NewSkinName: FC<NewSkinNameProps> = props => {
         onChangeText={setNaming}
         onSubmitEditing={() => {
           if (naming.trim()) {
-            void create(naming.trim())
+            create(naming.trim())
           }
         }}
         placeholder="Skin name"
@@ -33,7 +33,7 @@ export const NewSkinName: FC<NewSkinNameProps> = props => {
       <Pressable
         disabled={!naming.trim()}
         onPress={() => {
-          void create(naming.trim())
+          create(naming.trim())
         }}
         style={[styles.button, t.button]}
       >

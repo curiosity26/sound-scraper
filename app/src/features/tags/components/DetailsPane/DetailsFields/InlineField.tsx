@@ -5,6 +5,7 @@ import { useDetailsPane } from '@/features/tags/components/DetailsPane/useDetail
 import { TextField } from '@/shared/components/TextField'
 import { usePanelStyles } from '@/shared/hooks/usePanelStyles'
 import { colors } from '@/shared/theme/colors'
+import { errorText } from '@/shared/utils/errorText'
 
 /**
  * A value shown as text; click to edit in place. Enter (or leaving the
@@ -17,6 +18,12 @@ export type InlineFieldProps = {
   readonly multiline?: boolean
   readonly large?: boolean
   readonly onCommit: (text: string) => Promise<boolean>
+}
+
+// onCommit reports its own failures in the pane and resolves false to keep
+// the field open, so this only sees a bug: dev console.
+const warnCommitFailed = (e: unknown) => {
+  console.warn(`Committing a field failed: ${errorText(e)}`)
 }
 
 export const InlineField: FC<InlineFieldProps> = props => {
@@ -53,10 +60,10 @@ export const InlineField: FC<InlineFieldProps> = props => {
           multiline={props.multiline}
           onChangeText={setEditing}
           onSubmitEditing={() => {
-            void commit()
+            commit().catch(warnCommitFailed)
           }}
           onBlur={() => {
-            void commit()
+            commit().catch(warnCommitFailed)
           }}
           onKeyPress={e => {
             if (e.nativeEvent.key === 'Escape') {

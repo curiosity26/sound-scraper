@@ -20,6 +20,7 @@ import type {
   Merged,
 } from '@/features/tags/types'
 import { errorText } from '@/shared/utils/errorText'
+import { onRejected } from '@/shared/utils/onRejected'
 
 import { mergeCovers } from './mergeCovers'
 import { mergeTags } from './mergeTags'
@@ -76,27 +77,27 @@ export const useRecordingDetails = (
   const [error, setError] = useState<string>()
   const [notice, setNotice] = useState<string>()
   const [busy, setBusy] = useState(false)
+  const readFailed = (message: string) => {
+    setError(`Couldn't read the tags: ${message}`)
+  }
   const key = fileNames.join('\u0000')
 
+  /** Reads the tags and library entries (rejects when they can't be read). */
   const load = useCallback(async () => {
     const names = key.split('\u0000').filter(Boolean)
-    try {
-      const [loaded, all] = await Promise.all([
-        Promise.all(names.map(n => library.readTags(n))),
-        library.list(),
-      ])
-      setTags(loaded)
-      setRecordings(all.filter(r => names.includes(r.fileName)))
-    } catch (e) {
-      setError(`Couldn't read the tags: ${errorText(e)}`)
-    }
+    const [loaded, all] = await Promise.all([
+      Promise.all(names.map(n => library.readTags(n))),
+      library.list(),
+    ])
+    setTags(loaded)
+    setRecordings(all.filter(r => names.includes(r.fileName)))
   }, [key])
 
   useEffect(() => {
     setTags(undefined)
     setError(undefined)
     setNotice(undefined)
-    void load()
+    load().catch(onRejected(readFailed))
   }, [load])
 
   const merged = useMemo(() => (tags ? mergeTags(tags) : undefined), [tags])
@@ -105,7 +106,12 @@ export const useRecordingDetails = (
     [tags],
   )
 
-  /** Writes one change to every selected recording, then reloads. */
+  const saveFailed = (message: string) => {
+    setError(`Couldn't save: ${message}`)
+  }
+
+  /** Writes one change to every selected recording, then reloads (rejects
+   * when the write fails). */
   const write = async (
     edits: Partial<Record<Field, string>>,
     coverChange: CoverChange,
@@ -119,9 +125,7 @@ export const useRecordingDetails = (
         buildEdit(edits, coverChange, v23),
       )
       onChanged()
-      await load()
-    } catch (e) {
-      setError(`Couldn't save: ${errorText(e)}`)
+      await load().catch(onRejected(readFailed))
     } finally {
       setBusy(false)
     }
@@ -133,7 +137,11 @@ export const useRecordingDetails = (
       setError(problem)
       return false
     }
-    await write({ [field]: text }, { kind: 'keep' })
+    try {
+      await write({ [field]: text }, { kind: 'keep' })
+    } catch (e) {
+      saveFailed(errorText(e))
+    }
     return true
   }
 
@@ -160,7 +168,7 @@ export const useRecordingDetails = (
   const dropImage = (uri: string | undefined) => {
     const path = uri ? decodeURI(uri.replace(/^file:\/\//, '')) : undefined
     if (path && /\.(png|jpe?g)$/i.test(path)) {
-      void write({}, { kind: 'set', path })
+      write({}, { kind: 'set', path }).catch(onRejected(saveFailed))
     } else if (path) {
       setError('Drop a PNG or JPEG image.')
     }
@@ -173,7 +181,7 @@ export const useRecordingDetails = (
     showMenu: options.showMenu,
     onChanged: () => {
       onChanged()
-      void load()
+      load().catch(onRejected(readFailed))
     },
     onTrashed: options.onTrashed,
     report: m => {
@@ -193,11 +201,11 @@ export const useRecordingDetails = (
     rename,
     dropImage,
     chooseCover: () => {
-      void chooseCoverFor(menuContext)
+      chooseCoverFor(menuContext)
     },
     actions: recordingActions(menuContext),
     openMenu: (x, y) => {
-      void openRecordingMenu(menuContext, x, y)
+      openRecordingMenu(menuContext, x, y)
     },
   }
 }
