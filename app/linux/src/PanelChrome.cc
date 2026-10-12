@@ -260,14 +260,21 @@ void PanelChrome::showMenu(const std::vector<std::string> &items, int checked, d
   state->done = std::move(done);
 
   // One action per item ("m.i<index>"); the checked one is stateful, so it
-  // shows a check mark. '-' starts a new section (a separator line).
+  // shows a check mark. '-' starts a new section (a separator line); an
+  // empty one (a trailing '-', say the source menu with no apps) would show
+  // as a blank row, so it's left out.
   GSimpleActionGroup *actions = g_simple_action_group_new();
   GMenu *menu = g_menu_new();
   GMenu *section = g_menu_new();
+  auto endSection = [&] {
+    if (g_menu_model_get_n_items(G_MENU_MODEL(section)) > 0) {
+      g_menu_append_section(menu, nullptr, G_MENU_MODEL(section));
+    }
+    g_object_unref(section);
+  };
   for (size_t i = 0; i < items.size(); i++) {
     if (items[i] == "-") {
-      g_menu_append_section(menu, nullptr, G_MENU_MODEL(section));
-      g_object_unref(section);
+      endSection();
       section = g_menu_new();
       continue;
     }
@@ -292,8 +299,7 @@ void PanelChrome::showMenu(const std::vector<std::string> &items, int checked, d
     std::string detailed = "m." + name;
     g_menu_append(section, items[i].c_str(), detailed.c_str());
   }
-  g_menu_append_section(menu, nullptr, G_MENU_MODEL(section));
-  g_object_unref(section);
+  endSection();
 
   GtkWidget *popover = gtk_popover_menu_new_from_model(G_MENU_MODEL(menu));
   g_object_unref(menu);
