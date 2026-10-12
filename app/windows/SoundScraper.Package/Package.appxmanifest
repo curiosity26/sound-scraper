@@ -3,8 +3,9 @@
 <Package
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap4="http://schemas.microsoft.com/appx/manifest/uap/windows10/4"
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
-  IgnorableNamespaces="uap rescap">
+  IgnorableNamespaces="uap uap4 rescap">
 
   <Identity
     Name="com.alexboyce.soundscraper"
@@ -50,6 +51,14 @@
             </uap:SupportedFileTypes>
           </uap:FileTypeAssociation>
         </uap:Extension>
+        <!-- Material Icons (assets/fonts), for the editor's transport icons. RN
+             Windows draws text from the system font collection only, so the
+             package shares the font with the system while it is installed. -->
+        <uap4:Extension Category="windows.sharedFonts">
+          <uap4:SharedFonts>
+            <uap4:Font File="Assets\Fonts\MaterialIcons-Regular.ttf" />
+          </uap4:SharedFonts>
+        </uap4:Extension>
       </Extensions>
     </Application>
   </Applications>
