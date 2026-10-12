@@ -10,7 +10,8 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@test/*": ["vitest/*"]
+      "@test/*": ["vitest/*"],
+      "@e2e/*": ["e2e/*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx"],

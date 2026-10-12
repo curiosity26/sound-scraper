@@ -1,0 +1,17 @@
+[package]
+name = "sound_scraper_probe"
+description = "Sound Scraper end-to-end test tool: writes test tones and checks what a recording captured"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "sound-scraper-probe"
+path = "src/main.rs"
+
+[dependencies]
+hound = "3.5"
+id3 = "1.17"
+serde_json = "1"
+symphonia = { version = "0.5", default-features = false, features = ["mp3", "wav", "pcm"] }

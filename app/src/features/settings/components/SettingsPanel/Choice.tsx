@@ -15,7 +15,14 @@ export type ChoiceProps = {
 export const Choice: FC<ChoiceProps> = props => {
   const { textStyle } = useSettingsPanel()
   return (
-    <Pressable onPress={props.onPress} style={settingsStyles.choice}>
+    <Pressable
+      accessibilityRole="radio"
+      accessibilityLabel={props.label}
+      accessibilityHint={props.detail}
+      accessibilityState={{ checked: props.selected }}
+      onPress={props.onPress}
+      style={settingsStyles.choice}
+    >
       <Text style={[settingsStyles.choiceLabel, textStyle]}>
         {props.selected ? '● ' : '○ '}
         {props.label}
