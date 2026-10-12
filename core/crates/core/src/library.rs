@@ -482,13 +482,52 @@ pub(crate) fn reveal_in_file_manager(path: &Path) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     return reveal_windows(path);
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    let status = std::process::Command::new("xdg-open")
-        .arg(path.parent().unwrap_or(path))
-        .status();
+    let status = reveal_freedesktop(path);
     #[cfg(not(target_os = "windows"))]
     status
         .map(|_| ())
         .map_err(|e| format!("showing {}: {e}", path.display()))
+}
+
+/// Shows the file selected in the desktop's file manager (Files, Nemo,
+/// Dolphin...) through the org.freedesktop.FileManager1 D-Bus interface, or
+/// opens its folder when no file manager offers it.
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+fn reveal_freedesktop(path: &Path) -> std::io::Result<std::process::ExitStatus> {
+    use std::os::unix::ffi::OsStrExt;
+    use std::process::{Command, Stdio};
+    // A file:// URI: everything but unreserved characters and '/' escaped
+    // (quotes too, so it can't end the GVariant string below).
+    let mut uri = String::from("file://");
+    for &byte in path.as_os_str().as_bytes() {
+        if byte.is_ascii_alphanumeric() || b"-._~/".contains(&byte) {
+            uri.push(char::from(byte));
+        } else {
+            uri.push_str(&format!("%{byte:02X}"));
+        }
+    }
+    let shown = Command::new("gdbus")
+        .args([
+            "call",
+            "--session",
+            "--dest",
+            "org.freedesktop.FileManager1",
+            "--object-path",
+            "/org/freedesktop/FileManager1",
+            "--method",
+            "org.freedesktop.FileManager1.ShowItems",
+        ])
+        .arg(format!("['{uri}']"))
+        .arg("")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+    match shown {
+        Ok(status) if status.success() => Ok(status),
+        _ => Command::new("xdg-open")
+            .arg(path.parent().unwrap_or(path))
+            .status(),
+    }
 }
 
 /// Opens Explorer on the folder with the file selected. Uses the Shell API

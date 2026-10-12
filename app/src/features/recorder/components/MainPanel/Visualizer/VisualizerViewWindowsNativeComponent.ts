@@ -1,5 +1,6 @@
-// Windows: the visualizer view (app/windows/SoundScraper/VisualizerView.h),
-// a Fabric component. codegenNativeComponent gives it a static view config.
+// Windows and Linux: the visualizer view (app/windows/SoundScraper/VisualizerView.h,
+// app/linux/src/Views.cc), a Fabric component. codegenNativeComponent gives it
+// a static view config.
 import {
   codegenNativeComponent,
   type CodegenTypes,

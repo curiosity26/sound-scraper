@@ -52,4 +52,15 @@ const config = {
   },
 }
 
-module.exports = mergeConfig(getDefaultConfig(__dirname), config)
+const merged = mergeConfig(getDefaultConfig(__dirname), config)
+
+// Linux: @curiosity26/react-native-gtk4 (an optional dependency, installed
+// on Linux only) adds Metro's `linux` platform.
+let withLinux = metroConfig => metroConfig
+try {
+  withLinux = require('@curiosity26/react-native-gtk4/metro-config').withLinux
+} catch {
+  // Not on Linux.
+}
+
+module.exports = withLinux(merged)

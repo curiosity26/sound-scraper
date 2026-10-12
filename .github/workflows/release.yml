@@ -1,5 +1,6 @@
-# Builds the signed, notarized Mac .dmg and the signed Windows ARM64 and x64
-# .msix for a version tag, then publishes them as a GitHub Release.
+# Builds the signed, notarized Mac .dmg, the signed Windows ARM64 and x64
+# .msix and the Linux x86_64 and aarch64 .deb and .tar.gz for a version tag,
+# then publishes them as a GitHub Release.
 #   git tag v1.2.0 && git push origin v1.2.0           # release
 #   git tag v1.2.0-beta.1 && git push origin v1.2.0-beta.1   # pre-release
 # The tag must match the version in every project file (scripts/version.py
@@ -180,8 +181,53 @@ jobs:
           path: dist/*.msix
           if-no-files-found: error
 
+  # Linux (GTK4, react-native-gtk4): a .deb for Ubuntu 24.04 and Linux Mint
+  # 22 (and newer), and the same app as a tree to unpack anywhere
+  # (install.sh puts it in ~/.local). Built on Ubuntu 24.04, so the .deb's
+  # Depends name that release's libraries.
+  linux:
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: x86_64
+          - runner: ubuntu-24.04-arm
+            arch: aarch64
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: read   # @curiosity26/react-native-gtk4 on GitHub Packages
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-linux
+        with:
+          packages-token: ${{ secrets.GH_PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
+          cache-key: linux-${{ matrix.arch }}
+      - name: Build the .deb and the .tar.gz
+        working-directory: app
+        run: |
+          npx react-native package-linux --format deb --output ../dist
+          npx react-native package-linux --format dir --output linux/build/package
+          version=$(node -p "require('./package.json').version")
+          tar -C linux/build/package -czf "../dist/SoundScraper-$version-linux-${{ matrix.arch }}.tar.gz" \
+            "SoundScraper-$version-${{ matrix.arch }}"
+          ls -la ../dist
+      - name: Check the packaged app starts
+        run: |
+          sudo apt-get install -y ./dist/*.deb
+          xvfb-run -a env GDK_BACKEND=x11 /usr/bin/SoundScraper --smoke
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.arch }}
+          path: |
+            dist/*.deb
+            dist/*.tar.gz
+          if-no-files-found: error
+
   release:
-    needs: [version, macos, windows]
+    needs: [version, macos, windows, linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write

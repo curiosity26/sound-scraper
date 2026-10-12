@@ -12,6 +12,7 @@ It builds, on GitHub-hosted runners:
 
 - `SoundScraper-0.2.0.dmg`: Apple silicon, signed with Developer ID, notarized and stapled (macos-26, `scripts/package-macos.sh`).
 - `SoundScraper-0.2.0.0-ARM64.msix` and `SoundScraper-0.2.0.0-x64.msix`: signed with Azure Artifact Signing (windows-2025, cross-compiled, `scripts/package-windows.ps1 -ArtifactSigning`).
+- `sound-scraper_0.2.0-1_amd64.deb`, `sound-scraper_0.2.0-1_arm64.deb` and `SoundScraper-0.2.0-linux-<x86_64|aarch64>.tar.gz`: the GTK4 app, unsigned (ubuntu-24.04 and ubuntu-24.04-arm, `react-native package-linux`). The `.deb` depends on Ubuntu 24.04's libraries, so it installs on 24.04, Mint 22 and newer.
 - `HiFi74.sskin` and any other skin in `skins/` except the built-in Default, packaged by the `package_skin` example.
 
 and publishes them, with a `SHA256SUMS.txt`, as a GitHub Release with generated notes. A tag with a `-label` becomes a pre-release.
@@ -24,11 +25,15 @@ No secret is in the repo. Everything below lives in GitHub secrets, the Apple De
 
 ### 1. GitHub environment
 
-Settings › Environments › **New environment** `release`. Under *Deployment branches and tags*, pick **Selected branches and tags** and add a **tag** rule `v*`. The Mac and Windows jobs run in this environment, so its secrets only reach builds of `v*` tags, and Azure trusts only this environment (step 3).
+Settings › Environments › **New environment** `release`. Under *Deployment branches and tags*, pick **Selected branches and tags** and add a **tag** rule `v*`. The Mac and Windows jobs run in this environment, so its secrets only reach builds of `v*` tags, and Azure trusts only this environment (step 4).
 
 All secrets below are **environment secrets** of `release` (Settings › Environments › release › Add environment secret), or set them with `gh secret set NAME --env release`.
 
-### 2. Apple
+### 2. GitHub Packages (Linux)
+
+The Linux jobs (and the `linux-app` lint job) install `@curiosity26/react-native-gtk4` from GitHub Packages, which wants a token even to read. They use the run's own `GITHUB_TOKEN` (`packages: read`), which works once the package lets this repository read it: on the package's page (github.com/users/curiosity26/packages/npm/package/react-native-gtk4) › Package settings › **Manage Actions access** › Add repository › `sound-scraper`, role Read. Or store a classic personal access token with `read:packages` as the repository secret `GH_PACKAGES_TOKEN` (Settings › Secrets and variables › Actions); the jobs prefer it when it's set.
+
+### 3. Apple
 
 **Developer ID certificate.** In Keychain Access › login › My Certificates, right-click *Developer ID Application: Alex Boyce (B53W8TX3Q9)* (with its private key) › Export › `.p12`, with a strong password. Then:
 
@@ -48,7 +53,7 @@ gh secret set APPLE_NOTARY_ISSUER_ID --env release   # Issuer ID
 
 Keep the `.p8` somewhere safe (a password manager) or delete it; a new key can always be generated.
 
-### 3. Azure (sign-in without a stored password)
+### 4. Azure (sign-in without a stored password)
 
 GitHub signs in to Azure with a short-lived OIDC token; nothing long-lived is stored.
 
@@ -68,4 +73,5 @@ The account name, profile (`SoundScraperPublic`) and East US endpoint are in the
 
 - Each run checks the signatures: the Mac script runs `codesign --verify`, `stapler` and `spctl`; the Windows script checks that the signer's subject equals the manifest's Publisher and that the signature is Valid.
 - On a private repository, releases are visible only to people with access to the repo, and macOS runner minutes count ten times against the plan's included minutes.
+- The Linux packages aren't signed: Ubuntu doesn't check `.deb` signatures for local installs (only APT repositories are signed).
 - A failed run can be retried from the Actions tab (Re-run failed jobs). To redo a release from scratch, delete the GitHub Release and the tag, then push the tag again.

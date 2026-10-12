@@ -10,6 +10,7 @@ Download the latest build from [GitHub Releases](https://github.com/curiosity26/
 
 - **macOS** (Apple silicon, macOS 14.2 or later): open `SoundScraper-<version>.dmg` and drag Sound Scraper into Applications. The app is signed and notarized, so it opens normally.
 - **Windows 10/11** (build 20348 or later for single-app capture): download the `.msix` for your PC, `ARM64` or `x64`, and double-click it to install. The package is signed, so Windows installs it without extra steps.
+- **Linux** (Ubuntu 24.04, Linux Mint 22 or newer; GNOME or Cinnamon, Wayland or X11): install the `.deb` for your PC, `amd64` or `arm64`, with `sudo apt install ./sound-scraper_<version>-1_amd64.deb`. On other distributions, unpack `SoundScraper-<version>-linux-<arch>.tar.gz` and run its `install.sh` (installs into `~/.local`). Recording uses PulseAudio or PipeWire. The panels open as separate windows and don't dock to each other, and CD burning isn't available on Linux yet.
 
 Releases marked *Pre-release* are betas. Each release has a `SHA256SUMS.txt` if you want to check your download.
 

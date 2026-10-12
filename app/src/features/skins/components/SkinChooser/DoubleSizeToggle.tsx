@@ -1,13 +1,14 @@
 import type { FC } from 'react'
-import { Platform, Pressable, Text } from 'react-native'
+import { Pressable, Text } from 'react-native'
 
 import { doubleSizeStore } from '@/features/skins/doubleSizeStore'
 import { useDoubleSize } from '@/features/skins/hooks/useDoubleSize'
+import { platformText } from '@/shared/platformText'
 
 import { styles } from './styles'
 import { useSkinChooser } from './useSkinChooser'
 
-const modifier = Platform.OS === 'windows' ? 'Ctrl+D' : '⌘D'
+const modifier = `${platformText.shortcutModifier}D`
 
 /** Double size, with its shortcut (shared by every window). */
 export const DoubleSizeToggle: FC = () => {

@@ -1,0 +1,55 @@
+# Sets up a Linux runner (Ubuntu 24.04) to build the GTK4 app: the system
+# packages react-native-gtk4 and the Rust core need, Node with the app's
+# dependencies plus @curiosity26/react-native-gtk4 (an optional dependency
+# from GitHub Packages, which wants a token even for reading), and Rust.
+name: Set up the Linux build
+description: System packages, Node + react-native-gtk4, Rust
+
+inputs:
+  packages-token:
+    description: A token that can read @curiosity26/react-native-gtk4 on GitHub Packages
+    required: true
+  cache-key:
+    description: Rust cache key
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install system packages
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang cmake ninja-build pkg-config git python3 \
+          libgtk-4-dev libsoup-3.0-dev libssl-dev libicu-dev libreadline-dev \
+          libpulse-dev libasound2-dev \
+          python3-gi gir1.2-gdkpixbuf-2.0 desktop-file-utils appstream dpkg-dev xvfb
+    - uses: actions/setup-node@v4
+      with:
+        node-version-file: app/.nvmrc
+        cache: npm
+        cache-dependency-path: app/package-lock.json
+    - name: Install JS dependencies and react-native-gtk4
+      shell: bash
+      working-directory: app
+      env:
+        NODE_AUTH_TOKEN: ${{ inputs.packages-token }}
+      run: |
+        npm ci
+        # The version is the optionalDependencies entry in package.json.
+        version=$(node -p "require('./package.json').optionalDependencies['@curiosity26/react-native-gtk4']")
+        npm config set --location=project "//npm.pkg.github.com/:_authToken" '${NODE_AUTH_TOKEN}'
+        npm install --no-save "@curiosity26/react-native-gtk4@$version"
+        git checkout -- .npmrc
+    - run: rustup toolchain install
+      shell: bash
+    - uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: core
+        key: ${{ inputs.cache-key }}
+    # React Native's sources and the host library (prebuilt where the
+    # package has one for this system).
+    - uses: actions/cache@v4
+      with:
+        path: ~/.cache/react-native-gtk4
+        key: rngtk-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('app/package.json') }}

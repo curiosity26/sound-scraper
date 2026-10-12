@@ -1,13 +1,14 @@
 import { type FC, useState } from 'react'
-import { Platform, View } from 'react-native'
+import { View } from 'react-native'
 
 import { Button } from '@/features/burn/components/BurnPanel/Button'
 import { commonStyles } from '@/features/burn/components/BurnPanel/commonStyles'
 import { Modal } from '@/features/burn/components/BurnPanel/Modal'
+import { platformText } from '@/shared/platformText'
 
 import { useBurnProgress } from './useBurnProgress'
 
-const REVEAL = Platform.OS === 'windows' ? 'Show in Explorer' : 'Show in Finder'
+const REVEAL = platformText.revealLabel
 
 /**
  * Cancel while it runs (asking before stopping a CD-R part way), then

@@ -1,8 +1,9 @@
 import type { FC } from 'react'
-import { Platform, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 
 import { licenseData } from '@/features/settings/components/AboutPanel/LicenseList/licenseData'
 import type { Pkg } from '@/features/settings/components/AboutPanel/LicenseList/types'
+import { platformText } from '@/shared/platformText'
 import { colors } from '@/shared/theme/colors'
 
 export type LicenseTextProps = {
@@ -46,7 +47,7 @@ const styles = StyleSheet.create({
   repo: { fontSize: 11, color: colors.accent, marginBottom: 6 },
   licenseText: {
     fontSize: 10,
-    fontFamily: Platform.select({ windows: 'Consolas', default: 'Menlo' }),
+    fontFamily: platformText.monoFont,
     opacity: 0.85,
     marginBottom: 6,
   },
