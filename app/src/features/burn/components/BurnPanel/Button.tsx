@@ -8,14 +8,12 @@ export type ButtonProps = {
   readonly onPress: () => void
   readonly accent?: boolean
   readonly disabled?: boolean
-  readonly testID?: string
 }
 
 export const Button: FC<ButtonProps> = props => {
   const th = useBurnTheme()
   return (
     <Pressable
-      testID={props.testID}
       accessibilityRole="button"
       disabled={props.disabled}
       onPress={props.onPress}

@@ -45,6 +45,7 @@ export const LibraryTable: FC<LibraryTableProps> = props => {
       value={{ ...rows, checks, columnsShown: visibleColumns(width) }}
     >
       <View
+        accessibilityLabel="Recordings"
         style={[styles.root, compact && styles.rootCompact]}
         onLayout={e => {
           setWidth(e.nativeEvent.layout.width)

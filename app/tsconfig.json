@@ -9,7 +9,8 @@
     "lib": ["ES2023"],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@test/*": ["vitest/*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx"],

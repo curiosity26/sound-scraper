@@ -22,6 +22,16 @@ const CONTENT: Record<WindowName, FC> = {
   burn: BurnWindow,
 }
 
+/** What each panel is called (each is a window on macOS and Windows). */
+const LABELS: Record<WindowName, string> = {
+  main: 'Main panel',
+  library: 'Library panel',
+  settings: 'Settings panel',
+  details: 'Details panel',
+  editor: 'Editor panel',
+  burn: 'Burn panel',
+}
+
 // The windows' roots, kept as they are while their frames change.
 const Content = memo<{ readonly id: WindowName }>(props => {
   const Root = CONTENT[props.id]
@@ -44,7 +54,7 @@ export const StagePanelView: FC<StagePanelViewProps> = props => {
   const { id, frame, visible } = props.panel
   return (
     <View
-      testID={`stage-${id}`}
+      accessibilityLabel={LABELS[id]}
       onTouchStart={() => {
         stage.raise(id)
       }}

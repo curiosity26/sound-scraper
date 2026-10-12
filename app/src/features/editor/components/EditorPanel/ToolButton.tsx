@@ -14,7 +14,6 @@ export type ToolButtonProps = {
   readonly disabled?: boolean
   readonly active?: boolean
   readonly accent?: boolean
-  readonly testID?: string
   /** For glyph-only tools (empty label). */
   readonly a11yLabel?: string
 }
@@ -29,7 +28,6 @@ export const ToolButton: FC<ToolButtonProps> = props => {
   const fg = props.accent ? th.accentText : props.active ? th.accent : th.text
   return (
     <Pressable
-      testID={props.testID}
       accessibilityRole="button"
       accessibilityLabel={props.a11yLabel ?? props.label}
       accessibilityState={{ disabled: props.disabled, selected: props.active }}

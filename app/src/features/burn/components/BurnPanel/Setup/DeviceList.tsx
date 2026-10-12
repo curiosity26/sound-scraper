@@ -16,7 +16,8 @@ export const DeviceList: FC = () => {
       {devices.map(d => (
         <Pressable
           key={d.id}
-          testID={`burn-device-${d.id}`}
+          accessibilityRole="radio"
+          accessibilityState={{ checked: d.id === deviceId }}
           onPress={() => {
             selectDevice(d.id)
           }}

@@ -32,7 +32,6 @@ export const OverviewBar: FC = () => {
   return (
     <View style={styles.overviewRow}>
       <View
-        testID="editor-overview"
         style={[
           styles.overview,
           {

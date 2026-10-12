@@ -23,10 +23,7 @@ export const SetupFooter: FC = () => {
     <>
       <View style={[styles.footer, { borderColor: th.border }]}>
         <View style={commonStyles.flex}>
-          <Text
-            style={[commonStyles.small, { color: th.text }]}
-            testID="burn-fit"
-          >
+          <Text style={[commonStyles.small, { color: th.text }]}>
             {options.fit}
           </Text>
           {(error || ready.reason) && (
@@ -45,7 +42,6 @@ export const SetupFooter: FC = () => {
           accent
           disabled={!ready.ok}
           onPress={burn}
-          testID="burn-start"
         />
       </View>
       {confirmingErase && (

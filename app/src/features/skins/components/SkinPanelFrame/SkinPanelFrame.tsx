@@ -67,7 +67,6 @@ export const SkinPanelFrame: FC<SkinPanelFrameProps> = props => {
       {w > 0 && <PanelTitle panel={props.panel} title={props.title} />}
       {close && closeRect && (
         <TitleButton
-          testID={`${props.panel}-close`}
           label={`Close ${props.title}`}
           button={close}
           rect={closeRect}
@@ -76,7 +75,6 @@ export const SkinPanelFrame: FC<SkinPanelFrameProps> = props => {
       )}
       {menu && menuRect && props.onMenu && (
         <TitleButton
-          testID={`${props.panel}-menu`}
           label={`${props.title} actions`}
           button={menu}
           rect={menuRect}

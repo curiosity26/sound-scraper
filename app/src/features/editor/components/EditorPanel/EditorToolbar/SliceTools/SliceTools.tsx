@@ -16,7 +16,6 @@ export const SliceTools: FC = () => {
         label="Slice"
         onPress={commands.addSliceAtPlayhead}
         disabled={!core.ready}
-        testID="editor-add-slice"
       />
       <ToolButton
         glyph="✶"

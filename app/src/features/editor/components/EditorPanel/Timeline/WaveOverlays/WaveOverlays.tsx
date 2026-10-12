@@ -21,7 +21,11 @@ export const WaveOverlays: FC = () => {
   const { drag } = useEditor()
   // Layers in drawing order: later ones draw on top.
   return (
-    <View style={styles.waveArea} {...drag.waveResponder}>
+    <View
+      accessibilityLabel="Waveform"
+      style={styles.waveArea}
+      {...drag.waveResponder}
+    >
       <TrackTints />
       <DeletedStretches />
       <SelectionBand />

@@ -22,7 +22,6 @@ export const SliceEdge: FC<SliceEdgeProps> = props => {
   const selected = s.id === selection.selectedSlice
   return (
     <View
-      testID={`editor-slice-${s.id}`}
       accessibilityLabel={`Slice ${s.name} at ${formatTime(s.atMs, 100)}`}
       style={[styles.edge, { left: s.atMs / view.scale - HANDLE / 2 }]}
       {...drag.sliceResponder(s.id, s.atMs)}

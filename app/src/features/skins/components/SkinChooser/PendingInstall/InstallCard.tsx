@@ -23,10 +23,7 @@ export const InstallCard: FC<InstallCardProps> = props => {
       }.`
     : null
   return (
-    <View
-      testID="install-card"
-      style={[styles.card, styles.installCard, t.border]}
-    >
+    <View style={[styles.card, styles.installCard, t.border]}>
       <Text style={[styles.title, textStyle]}>Install this skin?</Text>
       {s.preview && <Preview source={null} path={s.preview} width={360} />}
       <Text style={[styles.name, textStyle]}>
@@ -45,7 +42,6 @@ export const InstallCard: FC<InstallCardProps> = props => {
       ))}
       <View style={styles.cardButtons}>
         <Pressable
-          testID="install-confirm"
           onPress={() => {
             void install(s)
           }}

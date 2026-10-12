@@ -29,7 +29,7 @@ export const CoverArt: FC<CoverArtProps> = props => {
   return (
     <View {...dropProps} style={styles.coverBox}>
       <Pressable
-        testID="details-cover"
+        accessibilityRole="button"
         accessibilityLabel="Cover art. Click to choose an image, or drop one here."
         onPress={chooseCover}
         style={[
@@ -41,6 +41,9 @@ export const CoverArt: FC<CoverArtProps> = props => {
       >
         {cover.kind === 'image' ? (
           <Image
+            accessible
+            accessibilityRole="image"
+            accessibilityLabel="Cover"
             source={{ uri: coverUri(cover.path) }}
             style={{ width: size, height: size }}
             resizeMode="cover"

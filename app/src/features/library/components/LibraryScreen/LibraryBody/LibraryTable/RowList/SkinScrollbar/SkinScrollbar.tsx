@@ -61,7 +61,8 @@ export const SkinScrollbar: FC<SkinScrollbarProps> = props => {
   const thumbSlice = scrollbar.thumbSlice ?? [0, 0, 0, 0]
   return (
     <View
-      testID="skin-scrollbar"
+      accessible
+      accessibilityRole="scrollbar"
       style={{
         position: 'absolute',
         right: 0,

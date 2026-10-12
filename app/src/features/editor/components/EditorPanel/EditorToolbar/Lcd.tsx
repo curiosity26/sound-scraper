@@ -15,6 +15,8 @@ export const Lcd: FC = () => {
   const { liveSelection } = drag
   return (
     <View
+      accessible
+      accessibilityRole="timer"
       style={[styles.lcd, { backgroundColor: th.lcd, borderColor: th.border }]}
     >
       <Text style={[styles.lcdMain, { color: th.lcdText }]}>

@@ -39,6 +39,7 @@ export const EditorPanel: FC<EditorPanelProps> = props => {
     <EditorContext value={editor}>
       <View
         ref={editor.rootRef}
+        accessibilityLabel="Track editor"
         style={styles.root}
         focusable
         {...editor.commands.keyProps}

@@ -17,10 +17,6 @@ export type InlineFieldProps = {
   readonly multiline?: boolean
   readonly large?: boolean
   readonly onCommit: (text: string) => Promise<boolean>
-  /** The value's testID (and `<testName>-input` the text box's). Not a
-   * `testID` prop here, so a test finds the pressable itself rather than
-   * this wrapper. */
-  readonly testName: string
 }
 
 export const InlineField: FC<InlineFieldProps> = props => {
@@ -51,7 +47,6 @@ export const InlineField: FC<InlineFieldProps> = props => {
       <Text style={[styles.label, textStyle, t.cell]}>{props.label}</Text>
       {editing !== undefined ? (
         <TextField
-          testID={`${props.testName}-input`}
           autoFocus
           selectTextOnFocus
           value={editing}
@@ -72,10 +67,9 @@ export const InlineField: FC<InlineFieldProps> = props => {
         />
       ) : (
         <Pressable
-          testID={props.testName}
           accessibilityRole="button"
           accessibilityLabel={`${props.label}: ${
-            props.value || 'empty'
+            props.mixed ? 'Mixed' : props.value || 'empty'
           }. Click to edit.`}
           onPress={() => {
             setEditing(props.mixed ? '' : props.value)

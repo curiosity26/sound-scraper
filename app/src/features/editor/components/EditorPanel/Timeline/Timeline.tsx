@@ -22,6 +22,7 @@ export const Timeline: FC = () => {
   return (
     <View style={styles.timelineRow}>
       <View
+        accessibilityLabel="Timeline"
         style={[
           styles.timeline,
           {

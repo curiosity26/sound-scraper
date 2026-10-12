@@ -14,11 +14,7 @@ export const Summary: FC = () => {
   const { status, running, headline } = useBurnProgress()
   return (
     <View style={styles.summary}>
-      <Text
-        style={[styles.headline, { color: th.text }]}
-        numberOfLines={2}
-        testID="burn-headline"
-      >
+      <Text style={[styles.headline, { color: th.text }]} numberOfLines={2}>
         {headline}
       </Text>
       <Meter

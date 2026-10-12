@@ -4,7 +4,8 @@
 // React Native ships Flow source and loads its internals with plain require(),
 // which Vitest hands straight to Node, so Vite plugins and vi.mock never see
 // those files. This installs Node module hooks that:
-// - compile react-native and @react-native/* files with the RN Babel preset,
+// - compile react-native, @react-native/* and react-native-gtk4 files with
+//   the RN Babel preset,
 // - resolve platform files (Foo.ios.js / Foo.native.js before Foo.js),
 // - let react-native/jest/setup.js (run by ./setup.ts) reach Libraries/*.
 const fs = require('node:fs')
@@ -14,7 +15,9 @@ const { fileURLToPath, pathToFileURL } = require('node:url')
 const babel = require('@babel/core')
 
 const rnRoot = path.dirname(require.resolve('react-native/package.json'))
-const compiled = /[\\/]node_modules[\\/](react-native|@react-native)[\\/]/
+// react-native-gtk4's JS (the Linux tests) is Flow too.
+const compiled =
+  /[\\/]node_modules[\\/](react-native|@react-native|@curiosity26[\\/]react-native-gtk4)[\\/]/
 const platformExts = ['.ios.js', '.native.js', '.js']
 
 function withPlatform(file) {

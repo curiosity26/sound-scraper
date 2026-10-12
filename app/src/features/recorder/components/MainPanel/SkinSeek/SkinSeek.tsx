@@ -76,7 +76,6 @@ export const SkinSeek: FC<SkinSeekProps> = props => {
 
   return (
     <View
-      testID="seek"
       accessible
       accessibilityRole="adjustable"
       accessibilityLabel="Position"

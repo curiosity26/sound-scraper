@@ -19,7 +19,6 @@ export const SkinTools: FC = () => {
           onPress={() => {
             void pickAndInspect()
           }}
-          testName="install-skin"
         />
         <TextLink
           label="Use skin folder…"

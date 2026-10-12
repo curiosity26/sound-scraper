@@ -18,7 +18,6 @@ export const DetailsHeading: FC = () => {
   }
   return (
     <InlineField
-      testName="details-name"
       label="File name"
       value={recording ? displayName(recording) : fileNames[0] ?? ''}
       onCommit={rename}

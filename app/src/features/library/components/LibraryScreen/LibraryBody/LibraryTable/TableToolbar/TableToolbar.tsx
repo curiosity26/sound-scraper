@@ -36,7 +36,6 @@ export const TableToolbar: FC<TableToolbarProps> = props => {
         <PlaylistItemActions />
       </View>
       <TextField
-        testID="library-search"
         style={[
           styles.search,
           props.start ? styles.searchNarrow : null,

@@ -36,7 +36,6 @@ export const MainPanel: FC = () => {
       <TransportProvider elements={layout.elements}>
         <VisualizerPresetProvider>
           <View
-            testID={win.shaded ? 'shade-panel' : 'main-panel'}
             style={{
               width: width * s,
               height: height * s,

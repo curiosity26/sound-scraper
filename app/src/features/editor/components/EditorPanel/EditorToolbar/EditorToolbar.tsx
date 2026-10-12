@@ -30,7 +30,6 @@ export const EditorToolbar: FC = () => {
         detail={formatStep(view.steps.minor)}
         onPress={snap.toggleSnap}
         active={snap.snapOn}
-        testID="editor-snap"
       />
       <View style={styles.flex} />
       <SaveTools />

@@ -21,7 +21,7 @@ export const CapacityBar: FC = () => {
   const c = useLibraryView().shown.capacity
   const { fill, text } = useCapacityColors()
   return (
-    <View style={styles.capacity} testID="cd-capacity">
+    <View style={styles.capacity}>
       <View style={styles.capacityTop}>
         <Text
           style={[
