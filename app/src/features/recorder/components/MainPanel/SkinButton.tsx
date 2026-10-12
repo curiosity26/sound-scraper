@@ -21,7 +21,6 @@ export type SkinButtonProps = {
    */
   readonly mode?: string
   readonly disabled?: boolean
-  readonly testID?: string
   readonly accessibilityLabel: string
 }
 
@@ -37,7 +36,6 @@ export const SkinButton: FC<SkinButtonProps> = props => {
   const sprite = element.sprite
   return (
     <Pressable
-      testID={props.testID}
       accessibilityRole="button"
       accessibilityLabel={props.accessibilityLabel}
       accessibilityState={{ disabled, selected: active }}

@@ -21,10 +21,7 @@ export const TrackRow: FC<TrackRowProps> = props => {
   const { track: t, index: i } = props
   const th = useBurnTheme()
   return (
-    <View
-      testID={`burn-track-${i + 1}`}
-      style={[styles.trackRow, { borderColor: th.border }]}
-    >
+    <View style={[styles.trackRow, { borderColor: th.border }]}>
       <Lamp state={t.state} />
       <Text style={[styles.trackNo, { color: th.dim }]}>{i + 1}</Text>
       <Text style={[styles.trackTitle, { color: th.text }]} numberOfLines={1}>

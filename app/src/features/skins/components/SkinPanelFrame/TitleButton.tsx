@@ -9,7 +9,6 @@ import { SpriteCell } from '@/features/skins/components/SpriteCell'
 import type { Rect } from '@/features/skins/types'
 
 export type TitleButtonProps = {
-  readonly testID: string
   readonly label: string
   readonly button: NonNullable<ResolvedFramePanel['close']>
   readonly rect: Rect
@@ -21,7 +20,6 @@ export const TitleButton: FC<TitleButtonProps> = props => {
   const { button, rect } = props
   return (
     <Pressable
-      testID={props.testID}
       accessibilityRole="button"
       accessibilityLabel={props.label}
       onPress={props.onPress}

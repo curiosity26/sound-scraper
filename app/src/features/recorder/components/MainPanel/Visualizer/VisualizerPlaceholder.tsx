@@ -24,7 +24,7 @@ export const VisualizerPlaceholder: FC<VisualizerPlaceholderProps> = props => {
   const grid = color(st.grid, '#ffffff1a')
   const line = color(st.line, '#9fd630')
   return (
-    <View testID="visualizer" pointerEvents="none" style={box}>
+    <View pointerEvents="none" style={box}>
       {Array.from({ length: Math.floor(w / (8 * s)) + 1 }, (_, i) => (
         <View
           key={i}

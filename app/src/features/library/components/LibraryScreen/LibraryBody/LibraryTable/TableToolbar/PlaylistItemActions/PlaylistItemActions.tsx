@@ -19,7 +19,6 @@ export const PlaylistItemActions: FC = () => {
   return (
     <>
       <ToolbarLink
-        id="playlist-remove"
         label="Remove"
         onPress={() => {
           playlist.onRemove(checkedItemIds)
@@ -29,7 +28,6 @@ export const PlaylistItemActions: FC = () => {
       {canReorder && (
         <>
           <ToolbarLink
-            id="playlist-move-up"
             label="▲"
             accessibilityLabel="Move up"
             onPress={() => {
@@ -37,7 +35,6 @@ export const PlaylistItemActions: FC = () => {
             }}
           />
           <ToolbarLink
-            id="playlist-move-down"
             label="▼"
             accessibilityLabel="Move down"
             onPress={() => {

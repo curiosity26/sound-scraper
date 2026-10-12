@@ -5,8 +5,6 @@ import { usePanelStyles } from '@/shared/hooks/usePanelStyles'
 import { colors } from '@/shared/theme/colors'
 
 export type ToolbarLinkProps = {
-  /** The pressable's testID (named so tests find the Pressable, not this). */
-  readonly id: string
   readonly label: string
   readonly accessibilityLabel?: string
   readonly onPress: () => void
@@ -17,7 +15,7 @@ export const ToolbarLink: FC<ToolbarLinkProps> = props => {
   const t = usePanelStyles()
   return (
     <Pressable
-      testID={props.id}
+      accessibilityRole="button"
       accessibilityLabel={props.accessibilityLabel}
       onPress={props.onPress}
     >

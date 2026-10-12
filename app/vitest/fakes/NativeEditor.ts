@@ -1,5 +1,7 @@
 // The track editor's native module (src/bridge/NativeEditor.ts), faked: the
-// drafts it keeps per recording. Tests replace the module with this one:
+// drafts it keeps per recording, and the recordings it can open (read at
+// once, from a lossless master), working out the tracks an edit list makes
+// as the core does. Tests replace the module with this one:
 //
 //   vi.mock('@/bridge/NativeEditor', () => import('@test/fakes/NativeEditor'))
 //
@@ -7,21 +9,96 @@
 // in a beforeEach.
 import { vi } from 'vitest'
 
+import type { EditList, EditorTrack, WaveformStatus } from '@/bridge/generated'
 import type { Spec } from '@/bridge/NativeEditor'
+import { parseNative } from '@/bridge/parseNative'
+import { isEditList } from '@/features/editor/guards/isEditList'
 
-type State = { drafts: Record<string, string> }
+type State = {
+  drafts: Record<string, string>
+  /** The length of each recording that opens, by path. */
+  recordings: Record<string, number>
+  /** The recording each open editor is on, by editor id. */
+  open: Record<number, string>
+  nextId: number
+}
 
-const state: State = { drafts: {} }
+const initialState = (): State => ({
+  drafts: {},
+  recordings: {},
+  open: {},
+  nextId: 1,
+})
+
+const state: State = initialState()
 
 const notInTests = () => {
   throw new Error('Not faked')
 }
 
+const durationOf = (id: number) => {
+  const path = state.open[id]
+  const durationMs = path === undefined ? undefined : state.recordings[path]
+  if (durationMs === undefined) {
+    throw new Error(`No editor ${id}`)
+  }
+  return durationMs
+}
+
+const overlap = (start: number, end: number, edits: EditList) =>
+  edits.deleted.reduce(
+    (sum, r) =>
+      sum + Math.max(0, Math.min(end, r.endMs) - Math.max(start, r.startMs)),
+    0,
+  )
+
+/** The tracks an edit list makes: one per splice, after the first. */
+const tracksOf = (durationMs: number, edits: EditList): EditorTrack[] => {
+  const starts = [
+    { atMs: 0, name: edits.firstName },
+    ...edits.splices.toSorted((a, b) => a.atMs - b.atMs),
+  ]
+  return starts.map((s, i) => {
+    const end = starts[i + 1]?.atMs ?? durationMs
+    const cut = overlap(s.atMs, end, edits)
+    return {
+      name: s.name,
+      startMs: s.atMs,
+      durationMs: end - s.atMs - cut,
+      reencode: cut > 0,
+    }
+  })
+}
+
 const native = {
-  open: vi.fn((_path: string): number => notInTests()),
-  close: vi.fn((_id: number) => {}),
-  status: vi.fn((_id: number): string => notInTests()),
-  tracks: vi.fn((_id: number, _editsJson: string): string => notInTests()),
+  open: vi.fn((path: string): number => {
+    if (state.recordings[path] === undefined) {
+      return 0
+    }
+    const id = state.nextId++
+    state.open = { ...state.open, [id]: path }
+    return id
+  }),
+  close: vi.fn((id: number) => {
+    const { [id]: _, ...rest } = state.open
+    state.open = rest
+  }),
+  status: vi.fn((id: number): string => {
+    const status: WaveformStatus = {
+      state: 'ready',
+      rate: 44_100,
+      durationMs: durationOf(id),
+      frameMs: null,
+      frameOffsetMs: null,
+      master: true,
+    }
+    return JSON.stringify(status)
+  }),
+  tracks: vi.fn((id: number, editsJson: string): string =>
+    JSON.stringify(
+      tracksOf(durationOf(id), parseNative(editsJson, isEditList, 'edits')),
+    ),
+  ),
   detect: vi.fn((_id: number, _optionsJson: string): string => notInTests()),
   loadDraft: vi.fn((fileName: string) => state.drafts[fileName] ?? 'null'),
   saveDraft: vi.fn((fileName: string, editsJson: string) => {
@@ -44,7 +121,7 @@ export default native
 export const fakeEditor = {
   native,
   reset: () => {
-    state.drafts = {}
+    Object.assign(state, initialState())
     Object.values(native).forEach(fn => {
       fn.mockClear()
     })
@@ -52,5 +129,11 @@ export const fakeEditor = {
   /** Stores the raw draft JSON the core keeps for `fileName`. */
   setDraft: (fileName: string, json: string) => {
     state.drafts = { ...state.drafts, [fileName]: json }
+  },
+  /** The raw draft JSON kept for `fileName`, if any. */
+  draft: (fileName: string): string | undefined => state.drafts[fileName],
+  /** Lets the editor open the recording at `path`, `durationMs` long. */
+  addRecording: (path: string, durationMs: number) => {
+    state.recordings = { ...state.recordings, [path]: durationMs }
   },
 }

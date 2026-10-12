@@ -16,7 +16,6 @@ export const TimelineRuler: FC = () => {
   const c = th.wave
   return (
     <View
-      testID="editor-ruler"
       style={[
         styles.ruler,
         {

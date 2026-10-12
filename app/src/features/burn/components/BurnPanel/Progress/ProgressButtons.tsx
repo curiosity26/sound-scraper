@@ -46,7 +46,6 @@ export const ProgressButtons: FC = () => {
                 setConfirm(true)
               }
             }}
-            testID="burn-cancel"
           />
         ) : (
           <>
@@ -58,7 +57,7 @@ export const ProgressButtons: FC = () => {
               <Button label="Try Again" onPress={again} />
             )}
             <Button label="Save Log…" onPress={saveLog} />
-            <Button label="Close" accent onPress={close} testID="burn-close" />
+            <Button label="Close" accent onPress={close} />
           </>
         )}
       </View>

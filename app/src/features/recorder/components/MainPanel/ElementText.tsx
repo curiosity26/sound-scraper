@@ -12,7 +12,6 @@ import { scaleRect } from '@/features/skins/scaleRect'
 export type ElementTextProps = {
   readonly element: ResolvedElement
   readonly text: string
-  readonly testID?: string
 }
 
 /**
@@ -30,7 +29,6 @@ export const ElementText: FC<ElementTextProps> = props => {
   const t = element.text
   return (
     <View
-      testID={props.testID}
       pointerEvents="none"
       style={[scaleRect(element.rect, s), { justifyContent: 'center' }]}
     >

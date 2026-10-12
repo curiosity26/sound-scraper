@@ -16,7 +16,7 @@ export const SaveModal: FC = () => {
   }
   const error = state.kind === 'failed' ? state.error : undefined
   return (
-    <View style={styles.modalBackdrop} testID="editor-save-modal">
+    <View style={styles.modalBackdrop}>
       <View
         style={[
           styles.modal,

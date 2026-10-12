@@ -394,6 +394,9 @@ export const fakeCore = {
     state.playlists = [...state.playlists, created]
     return created.id
   },
+  /** A playlist's file names, in its order. */
+  playlistFiles: (id: number): readonly string[] =>
+    playlistNamed(id).items.map(i => i.fileName),
   /** Sends a recorder or player event, as the core does while running. */
   emit: (event: Partial<RecorderEvent>) => {
     recorderEvents.emit(recorderEvent(event))

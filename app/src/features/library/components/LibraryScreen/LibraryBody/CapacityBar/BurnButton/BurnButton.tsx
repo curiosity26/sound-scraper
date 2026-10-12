@@ -23,7 +23,7 @@ export const BurnButton: FC = () => {
     c.fit === 'empty' || c.fit === 'tooMany' || c.fit === 'tooLong'
   return (
     <Pressable
-      testID="burn-cd"
+      accessibilityRole="button"
       disabled={disabled}
       accessibilityHint={disabled ? capacityText(c) : undefined}
       onPress={() => {

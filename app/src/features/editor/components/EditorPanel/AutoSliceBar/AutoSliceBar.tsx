@@ -21,7 +21,6 @@ export const AutoSliceBar: FC = () => {
         styles.autoBar,
         { backgroundColor: th.raised, borderColor: th.border },
       ]}
-      testID="editor-auto-slice"
     >
       <Text style={[styles.autoTitle, { color: th.text }]}>Auto Slice</Text>
       <AutoSliceSettings options={autoSlice.options} />

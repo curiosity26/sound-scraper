@@ -29,6 +29,8 @@ export const SortHeaderCell: FC<SortHeaderCellProps> = props => {
   const t = usePanelStyles()
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Sort by ${props.label}`}
       style={props.style}
       onPress={() => {
         toggleSort(sortKey)

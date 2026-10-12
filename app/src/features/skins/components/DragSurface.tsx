@@ -43,7 +43,6 @@ export const DragSurface: FC<DragSurfaceProps> = props => {
   const area = (r: Rect, kind: 'move' | 'resize', key: string) => (
     <View
       key={key}
-      testID={`${props.panel}-${kind}-area`}
       onStartShouldSetResponder={start(kind)}
       style={{
         position: 'absolute',

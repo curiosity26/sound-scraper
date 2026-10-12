@@ -31,7 +31,6 @@ export const TagFields: FC<TagFieldsProps> = props => {
     return (
       <InlineField
         key={`${key}-${field}`}
-        testName={`details-${field}`}
         label={FIELD_LABELS[field]}
         value={m.kind === 'value' ? m.text : ''}
         mixed={m.kind === 'mixed'}

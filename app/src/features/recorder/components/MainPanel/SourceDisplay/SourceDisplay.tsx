@@ -24,7 +24,6 @@ export const SourceDisplay: FC<SourceDisplayProps> = props => {
   return (
     <>
       <Pressable
-        testID="source"
         accessibilityRole="button"
         accessibilityLabel={source.accessibilityLabel}
         onPress={() => {

@@ -41,7 +41,6 @@ export const Visualizer: FC<VisualizerProps> = props => {
   const name = typeof preset.name === 'string' ? preset.name : 'Visualizer'
   return (
     <Pressable
-      testID="visualizer"
       accessibilityRole="button"
       accessibilityLabel={`Visualizer: ${name}. Click for the next look.`}
       onPress={cycle}

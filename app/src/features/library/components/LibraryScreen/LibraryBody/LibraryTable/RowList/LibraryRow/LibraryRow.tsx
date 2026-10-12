@@ -63,7 +63,6 @@ export const LibraryRow: FC<LibraryRowProps> = props => {
   const key = rowKey(row)
   return (
     <Pressable
-      testID={`recording-${key}`}
       onLayout={props.onLayout}
       onPressIn={e => {
         props.onRightClick(e.nativeEvent)
@@ -91,11 +90,7 @@ export const LibraryRow: FC<LibraryRowProps> = props => {
       ]}
     >
       {playlist && (
-        <View
-          testID={`handle-${key}`}
-          style={rowStyles.handle}
-          pointerEvents="none"
-        >
+        <View style={rowStyles.handle} pointerEvents="none">
           {canReorder && (
             <Text style={[styles.handleText, { color: pc.handle ?? '#888' }]}>
               ≡
@@ -104,7 +99,9 @@ export const LibraryRow: FC<LibraryRowProps> = props => {
         </View>
       )}
       <Pressable
-        testID={`check-${key}`}
+        accessibilityRole="checkbox"
+        accessibilityLabel={`Select ${row.name}`}
+        accessibilityState={{ checked: checkedRows.checked.has(key) }}
         onPress={() => {
           checks.toggle(key)
         }}

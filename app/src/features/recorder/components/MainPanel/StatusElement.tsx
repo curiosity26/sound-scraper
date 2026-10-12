@@ -27,7 +27,6 @@ export const StatusElement: FC<StatusElementProps> = props => {
     const at = sprite.states[status.state] ?? sprite.states.idle
     return (
       <View
-        testID="status"
         accessible
         accessibilityLabel={status.text}
         style={scaleRect(element.rect, s)}
@@ -40,5 +39,5 @@ export const StatusElement: FC<StatusElementProps> = props => {
       </View>
     )
   }
-  return <ElementText testID="status" element={element} text={status.text} />
+  return <ElementText element={element} text={status.text} />
 }

@@ -20,7 +20,6 @@ export const ElapsedTime: FC<ElapsedTimeProps> = props => {
   const { elapsedMs } = useTransport()
   return (
     <ElementText
-      testID="elapsed"
       element={element}
       text={formatElapsed(elapsedMs, element.style?.tenths !== false)}
     />

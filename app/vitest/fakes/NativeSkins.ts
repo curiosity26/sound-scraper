@@ -8,7 +8,7 @@
 // a beforeEach.
 import { vi } from 'vitest'
 
-import type { SkinInspection } from '@/bridge/generated'
+import type { ResolvedSkin, SkinInspection } from '@/bridge/generated'
 import type { Spec, WindowEvent } from '@/bridge/NativeSkins'
 
 import { fakeEmitter } from './emitter'
@@ -32,6 +32,8 @@ type State = {
   menuChoice: number
   inspections: Record<string, SkinInspection | Error>
   opened: string[]
+  /** What loading the skin chosen in the settings answers. */
+  current: ResolvedSkin | null
 }
 
 const initialState = (): State => ({
@@ -40,6 +42,7 @@ const initialState = (): State => ({
   menuChoice: -1,
   inspections: {},
   opened: [],
+  current: null,
 })
 
 const state: State = initialState()
@@ -50,7 +53,11 @@ const notInTests = () => Promise.reject(new Error('Not faked'))
 const native = {
   onWindowEvent: vi.fn(windowEvents.on),
   loadSkin: vi.fn((_idOrPath: string) => notInTests()),
-  loadCurrentSkin: vi.fn(() => notInTests()),
+  loadCurrentSkin: vi.fn(() =>
+    state.current === null
+      ? notInTests()
+      : Promise.resolve(JSON.stringify(state.current)),
+  ),
   listSkins: vi.fn(() => Promise.resolve('[]')),
   installSkin: vi.fn((_archivePath: string) => notInTests()),
   removeSkin: vi.fn((_id: string) => Promise.resolve()),
@@ -135,6 +142,10 @@ export const fakeSkins = {
   /** The panel's chrome from its latest layout, if it has reported one. */
   layoutOf: (panel: string): PanelLayout | undefined => state.layouts[panel],
   isVisible: (panel: string): boolean => state.visible[panel] ?? false,
+  /** Shows or hides a panel's window quietly, as if it already was. */
+  setVisible: (panel: string, visible: boolean) => {
+    state.visible = { ...state.visible, [panel]: visible }
+  },
   /** The item index the next native menu answers (-1 = dismissed). */
   chooseMenuItem: (index: number) => {
     state.menuChoice = index
@@ -142,6 +153,10 @@ export const fakeSkins = {
   /** What inspecting the .sskin at `path` answers (an Error rejects). */
   setInspection: (path: string, answer: SkinInspection | Error) => {
     state.inspections = { ...state.inspections, [path]: answer }
+  },
+  /** The skin that loading the one chosen in the settings answers. */
+  setCurrentSkin: (skin: ResolvedSkin) => {
+    state.current = skin
   },
   /** Sends a window event, as the native windows do. */
   emit: (event: WindowEvent) => {

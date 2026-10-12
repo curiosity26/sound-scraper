@@ -21,7 +21,13 @@ export const TableHeader: FC = () => {
   return (
     <View style={[rowStyles.row, t.row, styles.header, t.header]}>
       {playlist && <View style={rowStyles.handle} />}
-      <Pressable onPress={checks.toggleAll} style={rowStyles.check}>
+      <Pressable
+        accessibilityRole="checkbox"
+        accessibilityLabel="Select all"
+        accessibilityState={{ checked: checks.allChecked }}
+        onPress={checks.toggleAll}
+        style={rowStyles.check}
+      >
         <Text style={[rowStyles.checkText, textStyle, t.headerText]}>
           {checks.allChecked ? '☑' : '☐'}
         </Text>

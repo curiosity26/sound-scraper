@@ -8,7 +8,7 @@ import { useMainWindow } from './useMainWindow'
 import { useTransport } from './useTransport'
 
 export type TransportButtonProps = {
-  /** The layout's element (when it has one), and its test ID. */
+  /** The layout's element, when it has one. */
   readonly name: ElementName
   readonly control: TransportControl
 }
@@ -22,7 +22,6 @@ export const TransportButton: FC<TransportButtonProps> = props => {
   }
   return (
     <SkinButton
-      testID={props.name}
       element={element}
       accessibilityLabel={spec.label}
       onPress={spec.onPress}

@@ -5,7 +5,7 @@ import { useMainWindow } from '@/features/recorder/components/MainPanel/useMainW
 import type { ElementName } from '@/features/skins/types'
 
 export type WindowButtonProps = {
-  /** The layout's element (when it has one), and its test ID. */
+  /** The layout's element, when it has one. */
   readonly name: ElementName
   readonly label: string
   readonly onPress: () => void
@@ -21,7 +21,6 @@ export const WindowButton: FC<WindowButtonProps> = props => {
   }
   return (
     <SkinButton
-      testID={props.name}
       element={element}
       accessibilityLabel={props.label}
       onPress={props.onPress}

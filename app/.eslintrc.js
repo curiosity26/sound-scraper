@@ -262,14 +262,15 @@ module.exports = {
       },
     },
     {
-      // Tests keep their fakes and what they record at module level.
-      files: ['__tests__/**/*.ts', '*.test.ts'],
+      // Tests and their fakes keep what they record at module level.
+      files: ['*.test.ts', 'vitest/**/*.ts'],
+      excludedFiles: ['vitest/fakes/Native*.ts'],
       rules: {
         'no-restricted-syntax': ['error', ...STYLE_SYNTAX],
       },
     },
     {
-      files: ['__tests__/**/*.tsx', '*.test.tsx'],
+      files: ['*.test.tsx'],
       rules: {
         'no-restricted-syntax': ['error', ...STYLE_SYNTAX, ...COMPONENT_SYNTAX],
       },

@@ -199,6 +199,33 @@ The Rust version is pinned in `rust-toolchain.toml` (used locally, in CI
 and for releases). To upgrade, change `channel`, fix any new clippy
 warnings, and commit both together.
 
+## Tests
+
+The app's tests run on Vitest (`cd app && npm test`; Node 22.15+, see
+`app/.nvmrc`) and follow the testing section of the style guide:
+
+- Each test sits beside the file it tests, named after it
+  (`MainPanel.tsx` → `MainPanel.test.tsx`).
+- Tests describe behavior in Given–When–Then form: nested `describe` blocks
+  for the starting state and the action, and one `it` per observable
+  outcome, so the names read as sentences.
+- UI tests render a feature's entry component with React Native Testing
+  Library, act through `userEvent`, find elements by role and accessible
+  name, and assert only what a user can see. A component that can't be
+  found by role or name needs an accessibility label, not a `testID`.
+- Tests go through the public edge of a unit: a component, or a shared
+  function's own API. Helpers used by one component are tested through
+  that component.
+- Nothing the app owns is mocked. The native modules are the boundary:
+  `app/vitest/fakes/` has in-memory fakes of them (recordings, tags,
+  settings, recorder and player, playlists, skinned windows, the editor's
+  drafts), which a test swaps in with
+  `vi.mock('@/bridge/NativeSoundScraper', () => import('@test/fakes/NativeSoundScraper'))`
+  and resets in a `beforeEach`. `@test/` points at `app/vitest/`.
+
+Vitest runs on Node, so it can't catch a built-in Hermes lacks; check those
+on a device.
+
 ## macOS
 
 Requirements: Xcode 16+ (tested with 26.6), CocoaPods, and Rust via rustup. The Rust version and targets are pinned in `rust-toolchain.toml`; rustup installs them on the first cargo build, or up front with `rustup toolchain install` from the repo.
