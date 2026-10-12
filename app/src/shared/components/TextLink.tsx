@@ -16,7 +16,11 @@ export type TextLinkProps = {
 export const TextLink: FC<TextLinkProps> = props => {
   const t = usePanelStyles()
   return (
-    <Pressable onPress={props.onPress} testID={props.testName}>
+    <Pressable
+      accessibilityRole="button"
+      onPress={props.onPress}
+      testID={props.testName}
+    >
       <Text style={[styles.link, t.link]}>{props.label}</Text>
     </Pressable>
   )

@@ -9,6 +9,7 @@ import {
 import { readTags, type Tags } from '@e2e/support/audio/readTags'
 import { openSession, type Session } from '@e2e/support/openSession'
 import { recordTake } from '@e2e/support/recordTake'
+import { setChecked } from '@e2e/support/setChecked'
 import { waitForRecordings } from '@e2e/support/waitForRecordings'
 import { waitToShow } from '@e2e/support/waitToShow'
 
@@ -185,8 +186,11 @@ describe('Trimming silence', () => {
         session = await openSession()
         const { app } = session
         await app.press({ name: 'Settings' })
-        await app.press({ name: '☑ Trim silence', match: 'prefix' })
-        await waitToShow(app, { name: '☐ Trim silence', match: 'prefix' })
+        await setChecked(
+          app,
+          { name: 'Trim silence', role: 'check box' },
+          false,
+        )
         analysis = await recordToneBetweenSilences(session)
       })
       afterAll(() => session.close())
@@ -210,10 +214,8 @@ describe('Recording settings', () => {
         session = await openSession()
         const { app } = session
         await app.press({ name: 'Settings' })
-        await app.press({ name: '○ 320 kbps', match: 'prefix' })
-        await waitToShow(app, { name: '● 320 kbps', match: 'prefix' })
-        await app.press({ name: '○ ID3v2.3', match: 'prefix' })
-        await waitToShow(app, { name: '● ID3v2.3', match: 'prefix' })
+        await setChecked(app, { name: '320 kbps', role: 'radio button' }, true)
+        await setChecked(app, { name: 'ID3v2.3', role: 'radio button' }, true)
         await session.play('E2E tone', 1000)
         await recordTake(app, 3000)
         const [path = ''] = await waitForRecordings(session.sandbox, 1)
