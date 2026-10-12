@@ -1,10 +1,11 @@
 import {
   fireEvent,
   render,
+  renderHook,
   screen,
   userEvent,
 } from '@testing-library/react-native'
-import React, { type FC } from 'react'
+import React, { type FC, type ReactNode } from 'react'
 import { Text } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -38,21 +39,23 @@ const framedSkin = () => {
   return skin
 }
 
-const Content: FC = () => {
-  const t = usePanelStyles()
-  return <Text style={t.link}>A link</Text>
-}
+/** The skinned library frame, around whatever it shows. */
+const LibraryFrame: FC<{ readonly children: ReactNode }> = props => (
+  <SkinProvider>
+    <SkinPanelFrame panel="library" title="Library">
+      {props.children}
+    </SkinPanelFrame>
+  </SkinProvider>
+)
 
 describe('a skinned panel frame', () => {
   beforeEach(async () => {
     fakeSkins.reset()
     skinStore.set(framedSkin())
     await render(
-      <SkinProvider>
-        <SkinPanelFrame panel="library" title="Library">
-          <Content />
-        </SkinPanelFrame>
-      </SkinProvider>,
+      <LibraryFrame>
+        <Text>Recordings</Text>
+      </LibraryFrame>,
     )
   })
 
@@ -105,8 +108,18 @@ describe('a skinned panel frame', () => {
       })
     })
   })
+})
 
-  it("colors its content with the panel's colors", () => {
-    expect(screen.getByText('A link')).toHaveStyle({ color: '#00ff00' })
+describe("a skinned panel frame's content", () => {
+  beforeEach(() => {
+    fakeSkins.reset()
+    skinStore.set(framedSkin())
+  })
+
+  it("styles links with the panel's accent", async () => {
+    const { result } = await renderHook(() => usePanelStyles(), {
+      wrapper: LibraryFrame,
+    })
+    expect(result.current.link).toMatchObject({ color: '#00ff00' })
   })
 })
