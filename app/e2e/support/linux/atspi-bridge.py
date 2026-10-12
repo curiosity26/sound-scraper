@@ -11,6 +11,8 @@ Requests ("name" is the element's accessible name; "match" is "exact"
   "element": the first match's name, role and states, or null.
 - {"op": "press", "app": PID, "name": ..., "match": ..., "role": ...}
   Performs the element's activate action (what Enter or a click does).
+- {"op": "doubleClick", "app": PID, "name": ..., "match": ..., "role": ...}
+  Activates the element twice, a moment apart (a double-click).
 - {"op": "type", "app": PID, "text": ...}
   Replaces the text of the focused text field (an RN TextInput has no
   accessible name of its own, so it's found by focus) with "text".
@@ -175,6 +177,15 @@ def press(node):
     raise RuntimeError(f"{name_of(node)!r} can't be pressed (actions: {names})")
 
 
+def double_click(node):
+    # Synthesized (XTest) mouse clicks at the element's extents don't reach
+    # the app's rows in the test session, so activate it twice, a moment
+    # apart, as a hand double-clicks.
+    press(node)
+    time.sleep(0.12)
+    press(node)
+
+
 def handle(request):
     op = request["op"]
     if op == "find":
@@ -185,6 +196,12 @@ def handle(request):
         if node is None:
             raise RuntimeError(f"no element named {request['name']!r}")
         press(node)
+        return {}
+    if op == "doubleClick":
+        node = find(request)
+        if node is None:
+            raise RuntimeError(f"no element named {request['name']!r}")
+        double_click(node)
         return {}
     if op == "type":
         type_text(request)

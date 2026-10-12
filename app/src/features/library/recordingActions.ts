@@ -12,6 +12,7 @@ import { errorText } from '@/shared/utils/errorText'
 import { chooseCover } from './chooseCover'
 import { REVEAL_LABEL, TRASH_LABEL, TRASH_NAME } from './constants'
 import { displayName } from './displayName'
+import { editorTargetOf } from './editorTargetOf'
 import { library } from './library'
 import type { MenuAction, MenuContext } from './types'
 import { writeCover } from './writeCover'
@@ -57,12 +58,7 @@ const editTrack = (ctx: MenuContext) => {
   if (!r) {
     return
   }
-  editorTarget.set({
-    fileName: r.fileName,
-    path: r.path,
-    title: displayName(r),
-    durationMs: r.durationMs,
-  })
+  editorTarget.set(editorTargetOf(r))
   windows.setPanelVisible('editor', true)
 }
 

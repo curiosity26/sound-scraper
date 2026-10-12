@@ -3,6 +3,7 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { afterAll, beforeAll, describe, it } from 'vitest'
 
 import { createPlaylist } from '@e2e/support/createPlaylist'
+import { eventually } from '@e2e/support/eventually'
 import { openSession, type Session } from '@e2e/support/openSession'
 import { recordTake } from '@e2e/support/recordTake'
 import { waitForRecordings } from '@e2e/support/waitForRecordings'
@@ -64,6 +65,29 @@ describe('Adding a recording to a playlist', () => {
       it('lists it in the playlist', async () => {
         await waitToShow(session.app, { name: 'LIBRARY: ROAD TRIP (1)' })
         await waitToShow(session.app, { name: `Select ${name}` })
+      })
+    })
+  })
+})
+
+describe('Naming a new playlist', () => {
+  describe('Given the library', () => {
+    describe('When I type a new playlist’s name and press Return', () => {
+      let session: Session
+
+      beforeAll(async () => {
+        session = await openSession()
+        const { app } = session
+        await app.press({ name: 'Library' })
+        await app.press({ name: 'Choose the library or a playlist' })
+        await app.press({ name: 'New Playlist…' })
+        await eventually(() => app.type('Road Trip'))
+        await app.key('Return')
+      })
+      afterAll(() => session.close())
+
+      it('creates the playlist and shows it', async () => {
+        await waitToShow(session.app, { name: 'LIBRARY: ROAD TRIP (0)' })
       })
     })
   })

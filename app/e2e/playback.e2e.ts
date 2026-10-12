@@ -55,3 +55,41 @@ describe('Playing a recording back', () => {
     })
   })
 })
+
+describe('Playing a recording by double-clicking it', () => {
+  describe('Given a recording of a tone, and nothing else playing', () => {
+    describe('When I double-click it in the library', () => {
+      let session: Session
+      let heard: RecordingAnalysis
+
+      beforeAll(async () => {
+        session = await openSession()
+        const { app } = session
+        const tone = await session.play('E2E tone', 1000)
+        await recordTake(app, 3000)
+        await tone.stop()
+        const [path = ''] = await waitForRecordings(session.sandbox, 1)
+        const name = basename(path, '.mp3')
+        await app.press({ name: 'Library' })
+
+        const wav = join(session.sandbox.home, 'heard.wav')
+        const listener = recordOutput(wav)
+        await app.doubleClick({ name })
+        await waitToShow(app, { name: 'Pause', role: 'push button' })
+        await sleep(2000)
+        await listener.stop()
+        heard = await analyzeRecording(wav, 1000)
+      })
+      afterAll(() => session.close())
+
+      it('plays it', () => {
+        expect(heard.audibleMs).toBeGreaterThanOrEqual(1000)
+        expect(heard.toneRatio).toBeGreaterThan(0.9)
+      })
+
+      it('shows Pause while it plays', async () => {
+        await waitToShow(session.app, { name: 'Pause', role: 'push button' })
+      })
+    })
+  })
+})

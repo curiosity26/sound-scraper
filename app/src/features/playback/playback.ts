@@ -39,6 +39,8 @@ let subscribed = false
 // that comes from the end of the file can be told apart from one the user
 // pressed.
 let expectingStop = false
+// The load select started last, so selecting it again waits for it.
+let loading: Promise<void> = Promise.resolve()
 
 const publish = (next: Playback) => {
   current = next
@@ -60,6 +62,16 @@ const reportError = (message: string) => {
   errorListeners.forEach(l => {
     l(message)
   })
+}
+
+const load = async (recording: Recording) => {
+  try {
+    expectingStop = true
+    await player.load(recording.path)
+  } catch (e) {
+    unloaded()
+    reportError(`Couldn't load ${recording.fileName}: ${errorText(e)}`)
+  }
 }
 
 const subscribeNative = () => {
@@ -137,7 +149,12 @@ export const playback = {
   /** Loads `recording` unless it's already loaded or a recording runs. */
   select: async (recording: Recording) => {
     subscribeNative()
-    if (recorder.state() !== 'idle' || current.path === recording.path) {
+    if (recorder.state() !== 'idle') {
+      return
+    }
+    if (current.path === recording.path) {
+      // It may still be loading: done once it's in.
+      await loading
       return
     }
     update({
@@ -147,13 +164,8 @@ export const playback = {
       positionMs: 0,
       durationMs: recording.durationMs,
     })
-    try {
-      expectingStop = true
-      await player.load(recording.path)
-    } catch (e) {
-      unloaded()
-      reportError(`Couldn't load ${recording.fileName}: ${errorText(e)}`)
-    }
+    loading = load(recording)
+    await loading
   },
 
   /**
@@ -203,6 +215,15 @@ export const playback = {
             ? newName.replace(/\.mp3$/i, '')
             : current.title,
       })
+    }
+  },
+
+  /** Loads `recording` (if it isn't already) and plays it; not while
+   * recording. */
+  selectAndPlay: async (recording: Recording) => {
+    await playback.select(recording)
+    if (current.path === recording.path) {
+      await playback.play()
     }
   },
 

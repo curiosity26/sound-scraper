@@ -25,6 +25,8 @@ export type AppDriver = {
   readonly find: (query: Query) => Promise<ElementInfo | undefined>
   /** Activates the element (a click, or Enter on it) once it shows. */
   readonly press: (query: Query) => Promise<void>
+  /** Double-clicks the element once it shows. */
+  readonly doubleClick: (query: Query) => Promise<void>
   /** Replaces the text of the focused text field with `text`. */
   readonly type: (text: string) => Promise<void>
   /** Presses a key (Return, Escape or Tab) in the focused window. */

@@ -35,7 +35,10 @@ const isNamesReply = isShape<NamesReply>({ names: isArrayOf(isString) })
 const isDone = isShape<Done>({ ok: isOneOf(true) })
 
 type Request =
-  | ({ readonly op: 'find' | 'press'; readonly app: number } & Query)
+  | ({
+      readonly op: 'find' | 'press' | 'doubleClick'
+      readonly app: number
+    } & Query)
   | { readonly op: 'names'; readonly app: number }
   | { readonly op: 'type'; readonly app: number; readonly text: string }
   | { readonly op: 'key'; readonly key: Key }
@@ -44,6 +47,7 @@ type Request =
 export type AtspiBridge = {
   readonly find: (app: number, query: Query) => Promise<ElementInfo | null>
   readonly press: (app: number, query: Query) => Promise<void>
+  readonly doubleClick: (app: number, query: Query) => Promise<void>
   readonly type: (app: number, text: string) => Promise<void>
   readonly key: (key: Key) => Promise<void>
   readonly names: (app: number) => Promise<readonly string[]>
@@ -99,6 +103,9 @@ export const createAtspiBridge = (): AtspiBridge => {
       (await request({ op: 'find', app, ...query }, isFindReply)).element,
     press: async (app, query) => {
       await request({ op: 'press', app, ...query }, isDone)
+    },
+    doubleClick: async (app, query) => {
+      await request({ op: 'doubleClick', app, ...query }, isDone)
     },
     type: async (app, text) => {
       await request({ op: 'type', app, text }, isDone)
