@@ -107,7 +107,7 @@ module.exports = {
   extends: ['@react-native', 'plugin:import/typescript'],
   plugins: ['prettier', 'import', 'react-refresh', 'sound-scraper'],
   settings: {
-    'import/internal-regex': '^@/',
+    'import/internal-regex': '^@(test)?/',
   },
   rules: {
     'prettier/prettier': 'error',
@@ -133,7 +133,10 @@ module.exports = {
           'internal',
           ['parent', 'sibling', 'index'],
         ],
-        pathGroups: [{ pattern: '@/**', group: 'internal' }],
+        pathGroups: [
+          { pattern: '@/**', group: 'internal' },
+          { pattern: '@test/**', group: 'internal' },
+        ],
         'newlines-between': 'always',
         alphabetize: { order: 'asc', caseInsensitive: true },
       },
@@ -199,7 +202,13 @@ module.exports = {
       // React Native codegen reads these specs literally: it requires an
       // `interface Spec extends TurboModule` (or props interface) and a
       // default export of the registry lookup.
-      files: ['src/bridge/Native*.ts', 'src/**/*NativeComponent.ts'],
+      // Their test fakes (vitest/fakes) stand in for them, default export
+      // and all.
+      files: [
+        'src/bridge/Native*.ts',
+        'src/**/*NativeComponent.ts',
+        'vitest/fakes/Native*.ts',
+      ],
       rules: {
         '@typescript-eslint/consistent-type-definitions': 'off',
         'import/no-default-export': 'off',

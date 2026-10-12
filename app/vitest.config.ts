@@ -6,7 +6,7 @@ import { defineConfig, type Plugin } from 'vitest/config'
 
 const require = createRequire(import.meta.url)
 
-// Names the app and tests import from react-native.
+// Names the app, tests and test fakes import from react-native.
 const usedNames = (dirs: readonly string[]) =>
   new Set(
     dirs.flatMap(dir =>
@@ -32,7 +32,7 @@ const usedNames = (dirs: readonly string[]) =>
 const reactNativeEsm = (): Plugin => {
   const id = '\0react-native-esm'
   const entry = require.resolve('react-native')
-  const used = usedNames(['src', '__tests__'])
+  const used = usedNames(['src', '__tests__', 'vitest'])
   const names = Array.from(
     readFileSync(entry, 'utf8').matchAll(/^ {2}get (\w+)\(\)/gm),
     ([, name]) => name,
@@ -58,11 +58,17 @@ const reactNativeEsm = (): Plugin => {
 export default defineConfig({
   plugins: [reactNativeEsm()],
   resolve: {
-    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+    alias: {
+      '@test': fileURLToPath(new URL('./vitest', import.meta.url)),
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
   },
   test: {
-    include: ['__tests__/**/*.test.{ts,tsx}'],
+    include: ['src/**/*.test.{ts,tsx}', '__tests__/**/*.test.{ts,tsx}'],
     setupFiles: ['./vitest/setup.ts'],
+    // Testing Library registers its matchers and cleanup on the globals.
+    // Tests still import describe, it and expect from vitest.
+    globals: true,
     // Like Jest: mock calls build up across a file's tests (skin.test.tsx
     // emits to listeners subscribed in earlier tests).
     clearMocks: false,
