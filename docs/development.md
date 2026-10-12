@@ -241,10 +241,16 @@ on a device.
 ### End-to-end tests
 
 `app/e2e/*.e2e.ts` test the built, installed app: each launches it with a
-fresh home folder, plays test tones, presses its buttons through the
-platform's accessibility API (by accessible name, like the unit tests), and
-decodes the recordings it saves to check they hold the tones and nothing
-else (`core/crates/probe`). They're written Given–When–Then too; the
+fresh home folder, plays test tones, presses its buttons and types into
+its fields through the platform's accessibility API (by accessible name,
+like the unit tests), and checks what it saved with `core/crates/probe`:
+that recordings hold the tones and nothing else, their bitrate, and their
+ID3 tags. Playback is checked by recording the speakers. They cover
+recording (system audio, one app, pausing, trimming silence, quality and
+tag settings), the library (renaming, tags, the Trash), playback, the
+track editor's Auto Slice and playlists. Helpers in `app/e2e/support`
+(`openSession`, `recordTake`, `openDetails`, `editField`…) read like the
+steps a user takes. They're written Given–When–Then too; the
 actions run once in a `beforeAll`, and each `it` checks one outcome.
 
 They run on Linux for now (the E2E workflow, on every pull request): in a
@@ -254,7 +260,7 @@ AT-SPI (`app/e2e/support/linux/atspi-bridge.py`). To run them on Ubuntu
 24.04, install the app's .deb and:
 
 ```sh
-sudo apt-get install pipewire pipewire-pulse wireplumber pulseaudio-utils \
+sudo apt-get install pipewire pipewire-pulse pipewire-alsa wireplumber pulseaudio-utils \
   at-spi2-core gir1.2-atspi-2.0 python3-gi
 cargo build --release --manifest-path core/Cargo.toml -p sound_scraper_probe
 scripts/e2e-linux-session.sh npm --prefix app run e2e

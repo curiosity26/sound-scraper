@@ -34,7 +34,10 @@ export const launchLinuxApp = async (sandbox: Sandbox): Promise<AppDriver> => {
 
   const driver: AppDriver = {
     find: async query => (await bridge.find(pid, query)) ?? undefined,
-    press: query => bridge.press(pid, query),
+    // Like a user, waits for what it presses to show up.
+    press: query => eventually(() => bridge.press(pid, query)),
+    type: text => bridge.type(pid, text),
+    key: key => bridge.key(key),
     names: () => bridge.names(pid),
     quit: async () => {
       if (running()) {

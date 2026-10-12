@@ -3,8 +3,9 @@
 # tests (app/e2e): its own D-Bus session bus, an X server (Xvfb), the
 # accessibility bus the tests drive the app through, and a PipeWire sound
 # server whose default output is a null sink, so audio the tests play can
-# be recorded without a sound card. The CI e2e workflow runs this; so can
-# you, on Ubuntu 24.04 with the packages it installs:
+# be recorded without a sound card (the app plays back through ALSA, which
+# pipewire-alsa routes to the same server). The CI e2e workflow runs this;
+# so can you, on Ubuntu 24.04 with the packages it installs:
 #
 #   scripts/e2e-linux-session.sh npm --prefix app run e2e
 set -euo pipefail

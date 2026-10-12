@@ -11,6 +11,11 @@ Requests ("name" is the element's accessible name; "match" is "exact"
   "element": the first match's name, role and states, or null.
 - {"op": "press", "app": PID, "name": ..., "match": ..., "role": ...}
   Performs the element's activate action (what Enter or a click does).
+- {"op": "type", "app": PID, "text": ...}
+  Replaces the text of the focused text field (an RN TextInput has no
+  accessible name of its own, so it's found by focus) with "text".
+- {"op": "key", "key": "Return"}
+  Sends a key press (one of KEYSYMS) to the focused window.
 - {"op": "names", "app": PID}
   "names": every named element as "role: name", for a failed find's message.
 
@@ -21,6 +26,7 @@ showing (on-screen) part of the tree, fresh on every request.
 import json
 import re
 import sys
+import time
 import warnings
 
 import gi
@@ -31,6 +37,9 @@ from gi.repository import Atspi  # noqa: E402
 # get_action_name's replacement, get_name, is hidden behind
 # Accessible.get_name in Python.
 warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+# The keys tests send, as X keysyms.
+KEYSYMS = {"Return": 0xFF0D, "Escape": 0xFF1B, "Tab": 0xFF09}
 
 # Bounds a walk of a broken (cyclic or huge) tree.
 MAX_NODES = 20000
@@ -124,6 +133,36 @@ def find(request):
     return None
 
 
+def focused_text(app):
+    for node in walk(app):
+        states = node.get_state_set()
+        if states.contains(Atspi.StateType.FOCUSED) and node.get_editable_text_iface():
+            return node
+    return None
+
+
+def type_text(request):
+    app = application(request["app"])
+    node = focused_text(app) if app else None
+    if node is None:
+        raise RuntimeError("no text field has focus")
+    editable = node.get_editable_text_iface()
+    if not Atspi.EditableText.set_text_contents(editable, request["text"]):
+        raise RuntimeError("the text field refused the text")
+    # A field still settling (React setting its initial value) can replace
+    # the text again: check it stuck, so the caller can retry.
+    time.sleep(0.3)
+    text = node.get_text_iface()
+    now = Atspi.Text.get_text(text, 0, -1) if text else None
+    if now != request["text"]:
+        raise RuntimeError(f"the text field shows {now!r}, not {request['text']!r}")
+
+
+def send_key(request):
+    keysym = KEYSYMS[request["key"]]
+    Atspi.generate_keyboard_event(keysym, None, Atspi.KeySynthType.SYM)
+
+
 def press(node):
     action = node.get_action_iface()
     if action is None:
@@ -146,6 +185,12 @@ def handle(request):
         if node is None:
             raise RuntimeError(f"no element named {request['name']!r}")
         press(node)
+        return {}
+    if op == "type":
+        type_text(request)
+        return {}
+    if op == "key":
+        send_key(request)
         return {}
     if op == "names":
         app = application(request["app"])

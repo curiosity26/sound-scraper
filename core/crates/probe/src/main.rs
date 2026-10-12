@@ -3,17 +3,23 @@
 //!
 //! ```text
 //! sound-scraper-probe tone OUT.wav HZ SECONDS
-//! sound-scraper-probe analyze RECORDING.mp3 HZ
+//! sound-scraper-probe analyze RECORDING.mp3|.wav HZ
+//! sound-scraper-probe tags RECORDING.mp3
 //! ```
 //!
 //! `tone` writes a 48 kHz stereo sine at -6 dBFS with short fades.
 //! `analyze` decodes the recording and prints JSON:
 //!
 //! - `durationMs`: the decoded length.
+//! - `bitrateKbps`: the audio's average bitrate (the file less its ID3 tag).
 //! - `rmsDbfs`: the level over the whole file.
 //! - `audibleMs`: how much of it is louder than -40 dBFS, in 100 ms windows.
 //! - `toneRatio`: the share of the audible windows' energy at HZ (1 for a
 //!   clean sine at HZ, near 0 for silence or something else).
+//!
+//! `tags` prints the ID3 tag as JSON: `version` ("2.3" or "2.4"), the text
+//! frames the app edits (`title`, `artist`, `album`, `albumArtist`, `year`,
+//! `track`, `genre`, `comment`; null when absent) and `hasCover`.
 
 use std::{f64::consts::PI, fs::File, path::Path, process::ExitCode};
 
@@ -39,9 +45,11 @@ fn main() -> ExitCode {
             .and_then(|hz| Ok((hz, number(secs)?)))
             .and_then(|(hz, secs)| tone(Path::new(out), hz, secs)),
         ["analyze", file, hz] => number(hz).and_then(|hz| analyze(Path::new(file), hz)),
+        ["tags", file] => tags(Path::new(file)),
         _ => Err(
             "usage: sound-scraper-probe tone OUT.wav HZ SECONDS\n       \
-                  sound-scraper-probe analyze RECORDING.mp3 HZ"
+                  sound-scraper-probe analyze RECORDING.mp3|.wav HZ\n       \
+                  sound-scraper-probe tags RECORDING.mp3"
                 .into(),
         ),
     };
@@ -95,12 +103,56 @@ fn analyze(file: &Path, hz: f64) -> Result<(), String> {
         audible_energy += energy;
         at_hz += goertzel_energy(chunk, hz, f64::from(rate));
     }
+    let duration_ms = samples.len() as u64 * 1000 / u64::from(rate);
+    let audio_bytes = std::fs::metadata(file).map_err(|e| e.to_string())?.len()
+        - id3_tag_size(file).map_err(|e| e.to_string())?;
     let report = serde_json::json!({
-        "durationMs": samples.len() as u64 * 1000 / u64::from(rate),
+        "durationMs": duration_ms,
+        "bitrateKbps": audio_bytes * 8 / duration_ms.max(1),
         "sampleRate": rate,
         "rmsDbfs": dbfs(total / samples.len().max(1) as f64),
         "audibleMs": audible_windows * 100,
         "toneRatio": if audible_energy > 0.0 { at_hz / audible_energy } else { 0.0 },
+    });
+    println!("{report}");
+    Ok(())
+}
+
+/// The size of the ID3v2 tag at the start of `file` (0 without one).
+fn id3_tag_size(file: &Path) -> std::io::Result<u64> {
+    use std::io::Read;
+    let mut header = [0u8; 10];
+    let read = File::open(file)?.read(&mut header)?;
+    if read < 10 || &header[..3] != b"ID3" {
+        return Ok(0);
+    }
+    // A syncsafe size (7 bits a byte), not counting the header (or footer).
+    let size = header[6..10]
+        .iter()
+        .fold(0u64, |n, &b| (n << 7) | u64::from(b & 0x7f));
+    let footer = if header[5] & 0x10 != 0 { 10 } else { 0 };
+    Ok(10 + size + footer)
+}
+
+fn tags(file: &Path) -> Result<(), String> {
+    use id3::TagLike;
+    let tag = id3::Tag::read_from_path(file).map_err(|e| e.to_string())?;
+    let version = match tag.version() {
+        id3::Version::Id3v22 => "2.2",
+        id3::Version::Id3v23 => "2.3",
+        id3::Version::Id3v24 => "2.4",
+    };
+    let report = serde_json::json!({
+        "version": version,
+        "title": tag.title(),
+        "artist": tag.artist(),
+        "album": tag.album(),
+        "albumArtist": tag.album_artist(),
+        "year": tag.date_recorded().map(|d| d.to_string()).or_else(|| tag.year().map(|y| y.to_string())),
+        "track": tag.track(),
+        "genre": tag.genre(),
+        "comment": tag.comments().next().map(|c| c.text.clone()),
+        "hasCover": tag.pictures().next().is_some(),
     });
     println!("{report}");
     Ok(())

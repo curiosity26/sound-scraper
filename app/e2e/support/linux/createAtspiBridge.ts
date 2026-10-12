@@ -13,7 +13,7 @@ import {
   isShape,
   isString,
 } from '@/shared/utils/guards'
-import type { ElementInfo, Query } from '@e2e/support/types'
+import type { ElementInfo, Key, Query } from '@e2e/support/types'
 
 const SCRIPT = fileURLToPath(new URL('./atspi-bridge.py', import.meta.url))
 
@@ -37,11 +37,15 @@ const isDone = isShape<Done>({ ok: isOneOf(true) })
 type Request =
   | ({ readonly op: 'find' | 'press'; readonly app: number } & Query)
   | { readonly op: 'names'; readonly app: number }
+  | { readonly op: 'type'; readonly app: number; readonly text: string }
+  | { readonly op: 'key'; readonly key: Key }
 
 /** The app process's accessibility tree, through atspi-bridge.py. */
 export type AtspiBridge = {
   readonly find: (app: number, query: Query) => Promise<ElementInfo | null>
   readonly press: (app: number, query: Query) => Promise<void>
+  readonly type: (app: number, text: string) => Promise<void>
+  readonly key: (key: Key) => Promise<void>
   readonly names: (app: number) => Promise<readonly string[]>
   readonly close: () => Promise<void>
 }
@@ -93,6 +97,12 @@ export const createAtspiBridge = (): AtspiBridge => {
       (await request({ op: 'find', app, ...query }, isFindReply)).element,
     press: async (app, query) => {
       await request({ op: 'press', app, ...query }, isDone)
+    },
+    type: async (app, text) => {
+      await request({ op: 'type', app, text }, isDone)
+    },
+    key: async key => {
+      await request({ op: 'key', key }, isDone)
     },
     names: async app =>
       (await request({ op: 'names', app }, isNamesReply)).names,
