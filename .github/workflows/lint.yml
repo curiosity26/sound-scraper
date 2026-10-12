@@ -102,10 +102,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-linux
+        id: setup
         with:
           cache-key: lint-linux
+          host: debug
       - name: Build the app (Release) and check it starts without JS errors
         working-directory: app
         run: |
           npx react-native run-linux --release --build-only
           xvfb-run -a env GDK_BACKEND=x11 linux/build/Release/SoundScraper --smoke
+      - name: Trim the react-native-gtk4 build cache
+        if: steps.setup.outputs.rngtk-cache-hit != 'true'
+        run: scripts/trim-rngtk-cache.sh ~/.cache/react-native-gtk4
+      - uses: actions/cache/save@v4
+        if: steps.setup.outputs.rngtk-cache-hit != 'true'
+        with:
+          path: ~/.cache/react-native-gtk4
+          key: ${{ steps.setup.outputs.rngtk-cache-key }}
