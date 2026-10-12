@@ -7,6 +7,7 @@ import { AsyncBoundary } from '@/shared/components/AsyncBoundary'
 
 import { FolderSkinCard } from './FolderSkinCard'
 import { InstalledSkins } from './InstalledSkins'
+import { skinLists } from './InstalledSkins/skinLists'
 
 /** The skin folder in use (if any), then the installed skins. */
 export const SkinGrid: FC = () => {
@@ -14,7 +15,13 @@ export const SkinGrid: FC = () => {
   return (
     <View style={styles.grid}>
       {folderInUse && <FolderSkinCard folder={folderInUse} />}
-      <AsyncBoundary what="list the skins" resetKeys={[listRevision]}>
+      <AsyncBoundary
+        what="list the skins"
+        resetKeys={[listRevision]}
+        onReset={() => {
+          skinLists.clear()
+        }}
+      >
         <InstalledSkins />
       </AsyncBoundary>
     </View>

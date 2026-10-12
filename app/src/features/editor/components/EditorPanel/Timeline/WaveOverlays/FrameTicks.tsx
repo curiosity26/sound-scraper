@@ -11,7 +11,7 @@ export const FrameTicks: FC = () => {
     <>
       {view.frameTicks.map(ms => (
         <View
-          key={`f${ms}`}
+          key={`f${String(ms)}`}
           pointerEvents="none"
           style={[
             styles.frameTick,

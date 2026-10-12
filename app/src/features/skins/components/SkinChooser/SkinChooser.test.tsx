@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react-native'
+import { render, screen, userEvent } from '@testing-library/react-native'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -90,6 +90,24 @@ describe('the skin chooser', () => {
 
     it('shows no skin being made', () => {
       expect(screen.queryByText(/^Live from/)).not.toBeOnTheScreen()
+    })
+  })
+
+  describe('given the installed skins cannot be read', () => {
+    it('says so, with a Retry that reads them again', async () => {
+      fakeSkins.native.listSkins.mockRejectedValueOnce(new Error('disk gone'))
+      fakeCore.setSettings({ skin: null })
+      skinStore.set(testSkin())
+      await render(
+        <SkinProvider>
+          <SkinChooser textStyle={{}} />
+        </SkinProvider>,
+      )
+      expect(
+        await screen.findByText("Couldn't list the skins: disk gone"),
+      ).toBeOnTheScreen()
+      await userEvent.setup().press(screen.getByText('Retry'))
+      expect(await screen.findByText('◉ Default')).toBeOnTheScreen()
     })
   })
 })

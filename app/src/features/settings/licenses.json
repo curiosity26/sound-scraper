@@ -4947,6 +4947,15 @@
 ]
 },
 {
+"name": "Material Icons (font)",
+"version": "4.0.0",
+"license": "Apache-2.0",
+"repository": "https://github.com/google/material-design-icons",
+"texts": [
+"26add7f7fb98"
+]
+},
+{
 "name": "abort-controller",
 "version": "3.0.0",
 "license": "MIT",

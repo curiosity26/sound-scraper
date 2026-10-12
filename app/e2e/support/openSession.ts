@@ -37,7 +37,7 @@ export const openSession = async (): Promise<Session> => {
     sandbox,
     app,
     play: async (name, hz) => {
-      const wav = join(sandbox.home, `tone-${hz}.wav`)
+      const wav = join(sandbox.home, `tone-${String(hz)}.wav`)
       await writeTone(wav, hz, TONE_SECONDS)
       const tone = playTone(wav, name)
       tones.push(tone)

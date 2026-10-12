@@ -15,7 +15,7 @@ export const SaveButtons: FC = () => {
     )
   }
   const choose = (keepOriginal: boolean) => {
-    void saveFlow.save(keepOriginal)
+    saveFlow.save(keepOriginal)
   }
   return (
     <View style={styles.modalButtons}>

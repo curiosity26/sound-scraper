@@ -1,5 +1,5 @@
 import type { Settings, StoredSettings } from '@/bridge/generated'
-import NativeSoundScraper from '@/bridge/NativeSoundScraper'
+import { NativeSoundScraper } from '@/bridge/NativeSoundScraper'
 import { parseNative } from '@/bridge/parseNative'
 
 import { isStoredSettings } from './guards/isStoredSettings'

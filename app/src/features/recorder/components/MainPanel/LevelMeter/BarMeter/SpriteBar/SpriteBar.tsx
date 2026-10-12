@@ -1,7 +1,5 @@
-// Layout here comes from skin data (rects, sizes), so styles are inline.
-/* eslint-disable react-native/no-inline-styles */
 import React, { type FC } from 'react'
-import { View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 
 import type { ResolvedElement, ResolvedSprite } from '@/bridge/generated'
 import { useSkinScale } from '@/features/skins/hooks/useSkinScale'
@@ -27,34 +25,24 @@ export const SpriteBar: FC<SpriteBarProps> = props => {
   const reveal = vertical ? Math.round(h * level) : Math.round(w * level)
   const cell = (state: string) => sprite.states[state]
   return (
-    <View
-      testID="levels"
-      pointerEvents="none"
-      style={[box, { overflow: 'hidden' }]}
-    >
+    <View testID="levels" pointerEvents="none" style={[box, styles.clip]}>
       <MeterCell element={element} at={cell('off')} />
       <View
-        style={{
-          position: 'absolute',
-          overflow: 'hidden',
-          left: 0,
-          bottom: 0,
-          width: vertical ? w : reveal,
-          height: vertical ? reveal : h,
-        }}
+        style={[
+          styles.reveal,
+          { width: vertical ? w : reveal, height: vertical ? reveal : h },
+        ]}
       >
-        <View
-          style={{
-            position: 'absolute',
-            left: 0,
-            bottom: 0,
-            width: w,
-            height: h,
-          }}
-        >
+        <View style={[styles.on, { width: w, height: h }]}>
           <MeterCell element={element} at={cell('on')} />
         </View>
       </View>
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  clip: { overflow: 'hidden' },
+  reveal: { position: 'absolute', overflow: 'hidden', left: 0, bottom: 0 },
+  on: { position: 'absolute', left: 0, bottom: 0 },
+})

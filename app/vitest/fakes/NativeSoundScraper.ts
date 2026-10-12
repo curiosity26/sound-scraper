@@ -159,7 +159,7 @@ const summary = (p: PlaylistRecord): Playlist => ({
 const playlistNamed = (id: number) => {
   const found = state.playlists.find(p => p.id === id)
   if (!found) {
-    throw new Error(`No playlist ${id}`)
+    throw new Error(`No playlist ${String(id)}`)
   }
   return found
 }
@@ -269,7 +269,15 @@ const native = {
   recorderState: vi.fn(() => state.recorder),
   recoverPartialRecordings: vi.fn(() => 0),
   playerLoad: vi.fn((path: string) => {
+    const replacing = state.player.path !== null
     state.player = { state: 'stopped', path, positionMs: 0 }
+    // The core unloads what was there first. Its events reach JS later, so
+    // that 'empty' arrives after the new file is already loaded.
+    if (replacing) {
+      recorderEvents.emit(
+        recorderEvent({ kind: 'playerState', playerState: 'empty' }),
+      )
+    }
     recorderEvents.emit(recorderEvent({ kind: 'playerState' }))
     return Promise.resolve()
   }),
@@ -349,7 +357,7 @@ const native = {
   ),
 } satisfies Spec
 
-export default native
+export const NativeSoundScraper = native
 
 /** The test's handle on the fake core. */
 export const fakeCore = {

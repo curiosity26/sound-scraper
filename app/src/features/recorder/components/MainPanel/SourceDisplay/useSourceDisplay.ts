@@ -3,13 +3,14 @@ import { usePlaylists } from '@/features/playlists/hooks/usePlaylists'
 import { useTransport } from '@/features/recorder/components/MainPanel/useTransport'
 import { useSkinScale } from '@/features/skins/hooks/useSkinScale'
 import { windows } from '@/features/skins/windows'
+import { errorText } from '@/shared/utils/errorText'
 
 export type UseSourceDisplayResult = {
   /** A recent message, the title playing back, or the capture source. */
   readonly text: string
   readonly accessibilityLabel: string
-  /** Shows the source menu under the element. */
-  readonly choose: () => Promise<void>
+  /** Shows the source menu under the element; a failure shows as the message. */
+  readonly choose: () => void
 }
 
 /**
@@ -26,7 +27,7 @@ export const useSourceDisplay = (
   const { recorder: r, active, busy, loaded, shownMessage } = transport
   const { setMessage } = r
 
-  const choose = async () => {
+  const showMenu = async () => {
     transport.dismissMessage()
     if (active || busy) {
       setMessage({
@@ -59,6 +60,15 @@ export const useSourceDisplay = (
         r.setSelectedPid(app.pid)
       }
     }
+  }
+
+  const choose = () => {
+    showMenu().catch((e: unknown) => {
+      setMessage({
+        text: `Couldn't show the sources: ${errorText(e)}`,
+        isError: true,
+      })
+    })
   }
 
   // While recording with a playlist showing, the recording goes into it.

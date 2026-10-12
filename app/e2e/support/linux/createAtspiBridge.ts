@@ -68,7 +68,9 @@ export const createAtspiBridge = (): AtspiBridge => {
       () =>
         new Promise<T>((resolve, reject) => {
           if (child.exitCode !== null) {
-            reject(new Error(`the AT-SPI bridge exited (${child.exitCode})`))
+            reject(
+              new Error(`the AT-SPI bridge exited (${String(child.exitCode)})`),
+            )
             return
           }
           waiting.push(line => {

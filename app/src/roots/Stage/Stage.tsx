@@ -1,7 +1,5 @@
-// Layout here comes from the stage (frames), so styles are inline.
-/* eslint-disable react-native/no-inline-styles */
 import type { FC } from 'react'
-import { View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 
 import { stage } from '@/features/skins/stage/stage'
 import type { StagePanel } from '@/features/skins/stage/types'
@@ -25,7 +23,7 @@ export const Stage: FC = () => {
   const { started, panels, order } = useStage()
   return (
     <View
-      style={{ flex: 1, backgroundColor: 'transparent' }}
+      style={styles.stage}
       onLayout={e => {
         stage.setSize(e.nativeEvent.layout.width, e.nativeEvent.layout.height)
       }}
@@ -41,3 +39,7 @@ export const Stage: FC = () => {
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  stage: { flex: 1, backgroundColor: 'transparent' },
+})

@@ -1,7 +1,5 @@
-// Layout here comes from skin data (rects, sizes), so styles are inline.
-/* eslint-disable react-native/no-inline-styles */
 import React, { type FC, useRef, useState } from 'react'
-import { type GestureResponderEvent, View } from 'react-native'
+import { type GestureResponderEvent, StyleSheet, View } from 'react-native'
 
 import type { ResolvedElement } from '@/bridge/generated'
 import { useTransport } from '@/features/recorder/components/MainPanel/useTransport'
@@ -94,13 +92,7 @@ export const SkinSeek: FC<SkinSeekProps> = props => {
     >
       <View
         pointerEvents="none"
-        style={{
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          width: w * s,
-          height: h * s,
-        }}
+        style={[styles.origin, { width: w * s, height: h * s }]}
       >
         <SeekPiece
           sprite={sprite}
@@ -109,7 +101,7 @@ export const SkinSeek: FC<SkinSeekProps> = props => {
           color={color('track')}
         />
         {enabled && fillWidth > 0 && (
-          <View style={{ position: 'absolute', left: 0, top: 0 }}>
+          <View style={styles.origin}>
             <SeekPiece
               sprite={sprite}
               at={fill}
@@ -119,13 +111,7 @@ export const SkinSeek: FC<SkinSeekProps> = props => {
           </View>
         )}
         {enabled && (
-          <View
-            style={{
-              position: 'absolute',
-              left: thumbX * s,
-              top: thumbTop * s,
-            }}
-          >
+          <View style={[styles.thumb, { left: thumbX * s, top: thumbTop * s }]}>
             <SeekPiece
               sprite={sprite}
               at={thumb}
@@ -138,3 +124,8 @@ export const SkinSeek: FC<SkinSeekProps> = props => {
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  origin: { position: 'absolute', left: 0, top: 0 },
+  thumb: { position: 'absolute' },
+})

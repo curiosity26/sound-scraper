@@ -24,21 +24,21 @@ export type UseSkinActionsResult = {
   readonly naming: string | undefined
   readonly setNaming: (name: string | undefined) => void
   /** An installed skin's id, a folder, or null for Default. */
-  readonly choose: (skin: string | null) => Promise<void>
-  readonly chooseFolder: () => Promise<void>
+  readonly choose: (skin: string | null) => void
+  readonly chooseFolder: () => void
   /** Picks a .sskin and shows its install card. */
-  readonly pickAndInspect: () => Promise<void>
-  readonly install: (inspection: SkinInspection) => Promise<void>
-  readonly remove: (skin: SkinSummary) => Promise<void>
+  readonly pickAndInspect: () => void
+  readonly install: (inspection: SkinInspection) => void
+  readonly remove: (skin: SkinSummary) => void
   /** Writes the folder in use as a .sskin. */
-  readonly packageFolder: (dir: string) => Promise<void>
+  readonly packageFolder: (dir: string) => void
   /** A new skin folder from the template, in a folder the user picks. */
-  readonly create: (name: string) => Promise<void>
+  readonly create: (name: string) => void
 }
 
 /**
  * Choosing, installing, removing, making and packaging skins for Settings ›
- * Skin. Notes and errors go to skinMessages.
+ * Skin. Nothing waits on them: notes and errors go to skinMessages.
  */
 export const useSkinActions = (): UseSkinActionsResult => {
   const [chosen, setChosen] = useState<string | null>(
@@ -68,19 +68,19 @@ export const useSkinActions = (): UseSkinActionsResult => {
   const setNote = (text?: string) => {
     skinMessages.set({ note: text })
   }
-  const run = async (action: () => Promise<void>) => {
-    skinMessages.set({})
-    try {
-      await action()
-    } catch (e) {
-      skinMessages.set({ error: errorText(e) })
-    }
+  const showError = (e: unknown) => {
+    skinMessages.set({ error: errorText(e) })
   }
-  const choose = (skin: string | null) =>
+  const run = (action: () => Promise<void>) => {
+    skinMessages.set({})
+    action().catch(showError)
+  }
+  const choose = (skin: string | null) => {
     run(async () => {
       await chooseSkin(skin)
       setChosen(skin)
     })
+  }
 
   const folderInUse = isFolderSkin(chosen) ? chosen : null
 
@@ -94,21 +94,29 @@ export const useSkinActions = (): UseSkinActionsResult => {
     naming,
     setNaming,
     choose,
-    chooseFolder: async () => {
-      const dir = await skins.pickFolder()
-      if (dir) {
-        await choose(dir)
-      }
-    },
-    pickAndInspect: async () => {
-      const path = await skins.pickArchive()
-      if (path) {
-        await run(async () => {
-          pendingInstall.set({ inspection: await skins.inspect(path) })
+    chooseFolder: () => {
+      skins
+        .pickFolder()
+        .then(dir => {
+          if (dir) {
+            choose(dir)
+          }
         })
-      }
+        .catch(showError)
     },
-    install: inspection =>
+    pickAndInspect: () => {
+      skins
+        .pickArchive()
+        .then(path => {
+          if (path) {
+            run(async () => {
+              pendingInstall.set({ inspection: await skins.inspect(path) })
+            })
+          }
+        })
+        .catch(showError)
+    },
+    install: inspection => {
       run(async () => {
         pendingInstall.set(null)
         const installed = await skins.install(inspection.path)
@@ -116,8 +124,9 @@ export const useSkinActions = (): UseSkinActionsResult => {
         await chooseSkin(installed.id)
         setChosen(installed.id)
         setNote(`Installed ${installed.name}.`)
-      }),
-    remove: skin =>
+      })
+    },
+    remove: skin => {
       run(async () => {
         if (chosen === skin.id) {
           await chooseSkin(null)
@@ -125,8 +134,9 @@ export const useSkinActions = (): UseSkinActionsResult => {
         }
         await skins.remove(skin.id)
         refresh()
-      }),
-    packageFolder: dir =>
+      })
+    },
+    packageFolder: dir => {
       run(async () => {
         const name = skinStore.get()?.name ?? 'Skin'
         const out = await skins.pickSaveLocation(`${name}.sskin`)
@@ -135,8 +145,9 @@ export const useSkinActions = (): UseSkinActionsResult => {
         }
         const packaged = await skins.package(dir, out)
         setNote(`Packaged ${packaged.name} as ${packaged.dir}.`)
-      }),
-    create: name =>
+      })
+    },
+    create: name => {
       run(async () => {
         const parent = await skins.pickAnyFolder(
           'Where should the new skin go?',
@@ -153,6 +164,7 @@ export const useSkinActions = (): UseSkinActionsResult => {
           `Made ${name} from the Default skin. Edit its files and the app ` +
             'updates as you save. README.md in the folder explains the format.',
         )
-      }),
+      })
+    },
   }
 }

@@ -11,7 +11,7 @@ export const LibraryWindow: FC = () => {
   // stable: LibraryScreen reports again whenever it changes).
   const [title, setTitle] = useState('Library')
   const onCount = useCallback((n: number, playlist?: string) => {
-    setTitle(`${playlist ? `Library: ${playlist}` : 'Library'} (${n})`)
+    setTitle(`${playlist ? `Library: ${playlist}` : 'Library'} (${String(n)})`)
   }, [])
   return (
     <Skinned>

@@ -3,7 +3,7 @@ import { View } from 'react-native'
 
 import { trackColor } from '@/features/editor/components/EditorPanel/trackColor'
 import { useEditor } from '@/features/editor/components/EditorPanel/useEditor'
-import { withAlpha } from '@/features/editor/components/EditorPanel/withAlpha'
+import { withAlpha } from '@/shared/utils/withAlpha'
 
 import { overlayStyles } from './styles'
 
@@ -15,7 +15,7 @@ export const TrackTints: FC = () => {
     <>
       {tracks.rows.map((tr, i) => (
         <View
-          key={`t${i}-${tr.startMs}`}
+          key={`t${String(i)}-${String(tr.startMs)}`}
           pointerEvents="none"
           style={[
             overlayStyles.band,

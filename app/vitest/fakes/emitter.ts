@@ -18,7 +18,13 @@ export type FakeEmitter<T> = {
 export const fakeEmitter = <T>(name: string): FakeEmitter<T> => ({
   on: listener =>
     DeviceEventEmitter.addListener(name, (event: T) => {
-      void listener(event)
+      // A listener that rejects fails the test, as an unhandled rejection
+      // would in the app.
+      Promise.resolve(listener(event)).catch((e: unknown) => {
+        queueMicrotask(() => {
+          throw e
+        })
+      })
     }),
   emit: event => {
     DeviceEventEmitter.emit(name, event)

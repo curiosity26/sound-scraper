@@ -14,7 +14,9 @@ export const LibraryHeading: FC = () => {
     <Text style={[styles.section, textStyle, t.text]}>
       Library{' '}
       <Text style={styles.count}>
-        {rows.length === total ? total : `${rows.length} of ${total}`}
+        {rows.length === total
+          ? total
+          : `${String(rows.length)} of ${String(total)}`}
       </Text>
     </Text>
   )

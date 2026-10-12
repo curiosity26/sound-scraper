@@ -6,6 +6,7 @@ import { usePlayback } from '@/features/playback/hooks/usePlayback'
 import { playback } from '@/features/playback/playback'
 import type { Transport } from '@/features/recorder/components/MainPanel/types'
 import { windows } from '@/features/skins/windows'
+import { onRejected } from '@/shared/utils/onRejected'
 
 import { playbackStatusText } from './playbackStatusText'
 import { statusText } from './statusText'
@@ -41,9 +42,16 @@ export const useTransportState = (
   // have a separate pause element.
   const hasPlay = elements.play != null
   const pauseSeparate = elements.pause != null || hasPlay
+  // For actions nothing waits on. Playing, stopping and saving already show
+  // their own failures as messages, so this only sees something throwing
+  // past those.
+  const showError = (action: string) =>
+    onRejected(message => {
+      r.setMessage({ text: `${action}: ${message}`, isError: true })
+    })
   const onRecord = () => {
     if (r.state === 'idle') {
-      void r.record()
+      r.record()
     } else if (hasPlay) {
       return
     } else if (r.state === 'paused') {
@@ -60,7 +68,7 @@ export const useTransportState = (
     } else if (playing) {
       playback.pause()
     } else if (loaded) {
-      void playback.play()
+      playback.play().catch(showError("Couldn't play"))
     }
   }
   const onPause = () => {
@@ -73,12 +81,12 @@ export const useTransportState = (
     } else if (playing) {
       playback.pause()
     } else if (loaded && p.state === 'paused') {
-      void playback.play()
+      playback.play().catch(showError("Couldn't play"))
     }
   }
   const onStop = () => {
     if (active) {
-      void r.stop()
+      r.stop().catch(showError("Couldn't stop"))
     } else if (loaded) {
       playback.stop()
     }
@@ -153,7 +161,7 @@ export const useTransportState = (
     quit: {
       label: 'Quit',
       onPress: () => {
-        void close()
+        close().catch(showError("Couldn't quit"))
       },
     },
     tapeState,

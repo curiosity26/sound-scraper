@@ -1,7 +1,5 @@
-// Layout here comes from skin data (rects, sizes), so styles are inline.
-/* eslint-disable react-native/no-inline-styles */
 import React, { type FC } from 'react'
-import { Pressable } from 'react-native'
+import { Pressable, StyleSheet } from 'react-native'
 
 import type { ResolvedElement } from '@/bridge/generated'
 import { buttonState } from '@/features/skins/buttonState'
@@ -59,10 +57,14 @@ export const SkinButton: FC<SkinButtonProps> = props => {
             image={sprite.image}
             at={sprite.states[state]}
             size={[w, h]}
-            style={dim ? { opacity: 0.5 } : undefined}
+            style={dim ? styles.dim : undefined}
           />
         )
       }}
     </Pressable>
   )
 }
+
+const styles = StyleSheet.create({
+  dim: { opacity: 0.5 },
+})

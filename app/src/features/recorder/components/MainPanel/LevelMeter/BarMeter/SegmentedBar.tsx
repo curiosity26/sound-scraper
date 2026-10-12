@@ -1,7 +1,5 @@
-// Layout here comes from skin data (rects, sizes), so styles are inline.
-/* eslint-disable react-native/no-inline-styles */
 import React, { type FC } from 'react'
-import { View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 
 import { color } from '@/features/recorder/components/MainPanel/color'
 import { num } from '@/features/recorder/components/MainPanel/LevelMeter/num'
@@ -54,15 +52,17 @@ export const SegmentedBar: FC<SegmentedBarProps> = props => {
           const b = row * (rowSize + gap)
           return (
             <View
-              key={`${row}-${i}`}
-              style={{
-                position: 'absolute',
-                backgroundColor: fill,
-                left: vertical ? b : a,
-                top: vertical ? along - a - segSize : b,
-                width: vertical ? rowSize : segSize,
-                height: vertical ? segSize : rowSize,
-              }}
+              key={`${String(row)}-${String(i)}`}
+              style={[
+                styles.segment,
+                {
+                  backgroundColor: fill,
+                  left: vertical ? b : a,
+                  top: vertical ? along - a - segSize : b,
+                  width: vertical ? rowSize : segSize,
+                  height: vertical ? segSize : rowSize,
+                },
+              ]}
             />
           )
         }),
@@ -70,3 +70,7 @@ export const SegmentedBar: FC<SegmentedBarProps> = props => {
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  segment: { position: 'absolute' },
+})

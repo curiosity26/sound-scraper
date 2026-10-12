@@ -43,7 +43,7 @@ export const InstallCard: FC<InstallCardProps> = props => {
       <View style={styles.cardButtons}>
         <Pressable
           onPress={() => {
-            void install(s)
+            install(s)
           }}
           style={[styles.button, t.button]}
         >

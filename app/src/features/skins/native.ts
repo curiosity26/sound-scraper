@@ -1,4 +1,4 @@
-import NativeSkins from '@/bridge/NativeSkins'
+import { NativeSkins } from '@/bridge/NativeSkins'
 
 export const native = () => {
   if (!NativeSkins) {

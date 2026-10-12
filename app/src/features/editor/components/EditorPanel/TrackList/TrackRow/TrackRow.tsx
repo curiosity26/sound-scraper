@@ -6,7 +6,7 @@ import { trackColor } from '@/features/editor/components/EditorPanel/trackColor'
 import { listStyles } from '@/features/editor/components/EditorPanel/TrackList/styles'
 import type { TrackRow as Track } from '@/features/editor/components/EditorPanel/types'
 import { useEditor } from '@/features/editor/components/EditorPanel/useEditor'
-import { withAlpha } from '@/features/editor/components/EditorPanel/withAlpha'
+import { withAlpha } from '@/shared/utils/withAlpha'
 
 import { TrackName } from './TrackName'
 
@@ -27,7 +27,7 @@ export const TrackRow: FC<TrackRowProps> = props => {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Track ${i + 1}: ${
+      accessibilityLabel={`Track ${String(i + 1)}: ${
         tr.name
       }, starts ${start}, ${length} long`}
       onPress={() => {
@@ -48,7 +48,7 @@ export const TrackRow: FC<TrackRowProps> = props => {
         </Text>
       ) : (
         <TrackName
-          label={`Track ${i + 1} name`}
+          label={`Track ${String(i + 1)} name`}
           value={tr.name}
           onCommit={name => {
             naming.rename(owner, name)

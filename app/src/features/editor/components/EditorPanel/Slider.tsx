@@ -1,5 +1,3 @@
-/* eslint-disable react-native/no-inline-styles */
-
 import React, { type FC, useRef } from 'react'
 import {
   type GestureResponderEvent,
@@ -64,7 +62,7 @@ export const Slider: FC<SliderProps> = props => {
     <View
       style={[
         vertical ? styles.sliderV : styles.slider,
-        { opacity: props.disabled ? 0.35 : 1 },
+        props.disabled && styles.disabled,
       ]}
     >
       {end(vertical ? 'high' : 'low')}
@@ -137,6 +135,7 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   sliderFill: { position: 'absolute', left: 0, height: 3, borderRadius: 2 },
+  disabled: { opacity: 0.35 },
   sliderThumb: {
     position: 'absolute',
     width: 10,

@@ -29,26 +29,27 @@ export const useFolderLiveReload = (): void => {
     }
     let last: string | undefined
     let busy = false
-    const check = async () => {
+    const check = () => {
       if (busy) {
         return
       }
       busy = true
-      try {
-        const stamp = await skins.folderStamp(dir)
-        if (last !== undefined && stamp !== last) {
-          await skinStore.reload()
-        }
-        last = stamp
-      } catch {
-        // A save in progress, or the folder went away: try again.
-      } finally {
-        busy = false
-      }
+      skins
+        .folderStamp(dir)
+        .then(async stamp => {
+          if (last !== undefined && stamp !== last) {
+            await skinStore.reload()
+          }
+          last = stamp
+        })
+        .catch(() => {
+          // A save in progress, or the folder went away: try again.
+        })
+        .finally(() => {
+          busy = false
+        })
     }
-    const timer = setInterval(() => {
-      void check()
-    }, 1000)
+    const timer = setInterval(check, 1000)
     return () => {
       clearInterval(timer)
     }

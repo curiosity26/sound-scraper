@@ -5,6 +5,7 @@ import type { BurnStatus } from '@/bridge/generated'
 import { commonStyles } from '@/features/burn/components/BurnPanel/commonStyles'
 import { Bar } from '@/features/burn/components/BurnPanel/Progress/Bar'
 import { formatClock } from '@/features/burn/components/BurnPanel/Progress/formatClock'
+import { formatPercent } from '@/features/burn/components/BurnPanel/Progress/formatPercent'
 import { useBurnTheme } from '@/features/burn/components/BurnPanel/useBurnTheme'
 
 import { TRACK_WORDS } from './constants'
@@ -40,7 +41,7 @@ export const TrackRow: FC<TrackRowProps> = props => {
                 : th.c('bar', th.accent)
             }
             track={th.c('track', '#0004')}
-            label={`${Math.floor(t.progress * 100)}%`}
+            label={formatPercent(t.progress)}
             text={th.text}
           />
         ) : (

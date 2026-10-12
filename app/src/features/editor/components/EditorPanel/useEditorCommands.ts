@@ -145,21 +145,20 @@ export const useEditorCommands = (
         ),
       )
     } else {
-      void seek(playheadMs + dir * step)
+      seek(playheadMs + dir * step)
     }
   }
   const jump = (dir: 1 | -1) => {
     const s = adjacentSplice(edits, playheadMs, dir)
-    void seek(s ? s.atMs : dir > 0 ? durationMs : 0)
+    seek(s ? s.atMs : dir > 0 ? durationMs : 0)
     selection.setSelectedSlice(s ? s.id : null)
   }
   /** P: plays a couple of seconds either side of the selected slice. */
-  const previewSlice = async () => {
+  const previewSlice = () => {
     const s = edits.splices.find(x => x.id === selectedSlice)
-    if (!s) {
-      return
+    if (s) {
+      transport.previewAround(s.atMs)
     }
-    await transport.previewAround(s.atMs)
   }
   const selectTrack = (i: number) => {
     naming.finishNaming()
@@ -168,7 +167,7 @@ export const useEditorCommands = (
     selection.setSelectedTrack(i)
     const tr = rows[i]
     if (tr) {
-      void seek(tr.startMs)
+      seek(tr.startMs)
     }
   }
   // A track's region: click to select the track, double-click to rename it.
@@ -200,7 +199,7 @@ export const useEditorCommands = (
     }
     switch (key) {
       case ' ':
-        void transport.playPause()
+        transport.playPause()
         break
       case 'm':
       case 'M':
@@ -221,7 +220,7 @@ export const useEditorCommands = (
         break
       case 'p':
       case 'P':
-        void previewSlice()
+        previewSlice()
         break
       case '=':
       case '+':

@@ -44,7 +44,7 @@ export const TimelineRuler: FC = () => {
         .filter(tick => tick.major)
         .map(tick => (
           <Text
-            key={`l${tick.ms}`}
+            key={`l${String(tick.ms)}`}
             pointerEvents="none"
             style={[
               styles.tickLabel,

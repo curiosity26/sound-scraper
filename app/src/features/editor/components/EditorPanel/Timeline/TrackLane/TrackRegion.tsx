@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from 'react-native'
 import { trackColor } from '@/features/editor/components/EditorPanel/trackColor'
 import type { TrackRow } from '@/features/editor/components/EditorPanel/types'
 import { useEditor } from '@/features/editor/components/EditorPanel/useEditor'
-import { withAlpha } from '@/features/editor/components/EditorPanel/withAlpha'
+import { withAlpha } from '@/shared/utils/withAlpha'
 
 export type TrackRegionProps = {
   readonly track: TrackRow
@@ -23,7 +23,7 @@ export const TrackRegion: FC<TrackRegionProps> = props => {
   const color = trackColor(i)
   return (
     <View
-      accessibilityLabel={`Track ${i + 1}: ${tr.name}`}
+      accessibilityLabel={`Track ${String(i + 1)}: ${tr.name}`}
       style={[
         styles.region,
         {

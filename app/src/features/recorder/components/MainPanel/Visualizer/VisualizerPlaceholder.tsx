@@ -1,7 +1,5 @@
-// Layout here comes from skin data (rects, sizes), so styles are inline.
-/* eslint-disable react-native/no-inline-styles */
 import React, { type FC } from 'react'
-import { View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 
 import type { ResolvedElement } from '@/bridge/generated'
 import { color } from '@/features/recorder/components/MainPanel/color'
@@ -28,26 +26,28 @@ export const VisualizerPlaceholder: FC<VisualizerPlaceholderProps> = props => {
       {Array.from({ length: Math.floor(w / (8 * s)) + 1 }, (_, i) => (
         <View
           key={i}
-          style={{
-            position: 'absolute',
-            left: i * 8 * s,
-            top: 0,
-            width: s,
-            height: h,
-            backgroundColor: grid,
-          }}
+          style={[
+            styles.gridLine,
+            { left: i * 8 * s, width: s, height: h, backgroundColor: grid },
+          ]}
         />
       ))}
       <View
-        style={{
-          position: 'absolute',
-          left: 0,
-          top: Math.floor(h / 2),
-          width: w,
-          height: s,
-          backgroundColor: line,
-        }}
+        style={[
+          styles.line,
+          {
+            top: Math.floor(h / 2),
+            width: w,
+            height: s,
+            backgroundColor: line,
+          },
+        ]}
       />
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  gridLine: { position: 'absolute', top: 0 },
+  line: { position: 'absolute', left: 0 },
+})

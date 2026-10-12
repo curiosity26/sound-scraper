@@ -1,4 +1,4 @@
-import NativeSoundScraper from '@/bridge/NativeSoundScraper'
+import { NativeSoundScraper } from '@/bridge/NativeSoundScraper'
 import type { PlayerState } from '@/bridge/types'
 
 import { isPlayerState } from './guards/isPlayerState'

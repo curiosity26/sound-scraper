@@ -1,7 +1,5 @@
-// Layout here comes from skin data (rects, sizes), so styles are inline.
-/* eslint-disable react-native/no-inline-styles */
 import React, { type FC } from 'react'
-import { View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 
 import { DragSurface } from '@/features/skins/components/DragSurface'
 import { NineSlice } from '@/features/skins/components/NineSlice'
@@ -48,10 +46,10 @@ export const SkinPanelFrame: FC<SkinPanelFrameProps> = props => {
   return (
     <View
       testID={`${props.panel}-frame`}
-      style={{
-        flex: 1,
-        backgroundColor: def.frame ? undefined : theme.background,
-      }}
+      style={[
+        styles.root,
+        { backgroundColor: def.frame ? undefined : theme.background },
+      ]}
       onLayout={chrome.onLayout}
     >
       {def.frame && w > 0 && (
@@ -60,7 +58,7 @@ export const SkinPanelFrame: FC<SkinPanelFrameProps> = props => {
           slice={def.frame.slice}
           width={w}
           height={h}
-          style={{ position: 'absolute', left: 0, top: 0 }}
+          style={styles.frame}
         />
       )}
       {w > 0 && <DragSurface panel={props.panel} drag={[[0, 0, w, top]]} />}
@@ -86,15 +84,10 @@ export const SkinPanelFrame: FC<SkinPanelFrameProps> = props => {
       )}
       <PanelThemeProvider value={theme}>
         <View
-          style={{
-            position: 'absolute',
-            left,
-            top,
-            right,
-            bottom,
-            backgroundColor: theme.background,
-            overflow: 'hidden',
-          }}
+          style={[
+            styles.content,
+            { left, top, right, bottom, backgroundColor: theme.background },
+          ]}
         >
           {props.children}
         </View>
@@ -104,3 +97,9 @@ export const SkinPanelFrame: FC<SkinPanelFrameProps> = props => {
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  frame: { position: 'absolute', left: 0, top: 0 },
+  content: { position: 'absolute', overflow: 'hidden' },
+})

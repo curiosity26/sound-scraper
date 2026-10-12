@@ -1,7 +1,5 @@
-// Layout here comes from skin data (rects, sizes), so styles are inline.
-/* eslint-disable react-native/no-inline-styles */
 import React, { type FC } from 'react'
-import { View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 
 import { useSkinScale } from '@/features/skins/hooks/useSkinScale'
 import type { Rect } from '@/features/skins/types'
@@ -21,15 +19,17 @@ export const Grip: FC<GripProps> = props => {
       if (row + col >= 2) {
         dots.push(
           <View
-            key={`${row}-${col}`}
-            style={{
-              position: 'absolute',
-              left: w - (3 - col) * 3 * s - s,
-              top: h - (3 - row) * 3 * s - s,
-              width: 2 * s,
-              height: 2 * s,
-              backgroundColor: props.color,
-            }}
+            key={`${String(row)}-${String(col)}`}
+            style={[
+              styles.absolute,
+              {
+                left: w - (3 - col) * 3 * s - s,
+                top: h - (3 - row) * 3 * s - s,
+                width: 2 * s,
+                height: 2 * s,
+                backgroundColor: props.color,
+              },
+            ]}
           />,
         )
       }
@@ -38,9 +38,13 @@ export const Grip: FC<GripProps> = props => {
   return (
     <View
       pointerEvents="none"
-      style={{ position: 'absolute', left: x, top: y, width: w, height: h }}
+      style={[styles.absolute, { left: x, top: y, width: w, height: h }]}
     >
       {dots}
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  absolute: { position: 'absolute' },
+})

@@ -6,6 +6,9 @@ import { defineConfig, type Plugin } from 'vitest/config'
 
 const require = createRequire(import.meta.url)
 
+/** A JS string literal for generated code. */
+const quote = (text: string): string => JSON.stringify(text)
+
 // Names the app, tests and test fakes import from react-native.
 const usedNames = (dirs: readonly string[]) =>
   new Set(
@@ -35,7 +38,7 @@ const reactNativeEsm = (): Plugin => {
   const used = usedNames(['src', 'vitest'])
   const names = Array.from(
     readFileSync(entry, 'utf8').matchAll(/^ {2}get (\w+)\(\)/gm),
-    ([, name]) => name,
+    ([, name = '']) => name,
   ).filter(name => used.has(name))
   return {
     name: 'react-native-esm',
@@ -45,9 +48,7 @@ const reactNativeEsm = (): Plugin => {
       loaded === id
         ? [
             "import { createRequire } from 'node:module'",
-            `const rn = createRequire(${JSON.stringify(
-              entry,
-            )})(${JSON.stringify(entry)})`,
+            `const rn = createRequire(${quote(entry)})(${quote(entry)})`,
             'export default rn',
             ...names.map(n => `export const ${n} = rn.${n}`),
           ].join('\n')

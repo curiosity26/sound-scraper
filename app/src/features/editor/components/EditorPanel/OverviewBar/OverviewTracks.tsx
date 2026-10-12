@@ -3,7 +3,7 @@ import { View } from 'react-native'
 
 import { trackColor } from '@/features/editor/components/EditorPanel/trackColor'
 import { useEditor } from '@/features/editor/components/EditorPanel/useEditor'
-import { withAlpha } from '@/features/editor/components/EditorPanel/withAlpha'
+import { withAlpha } from '@/shared/utils/withAlpha'
 
 import { overviewStyles } from './styles'
 
@@ -21,7 +21,7 @@ export const OverviewTracks: FC<OverviewTracksProps> = props => {
     <>
       {tracks.tracks.map((t, i) => (
         <View
-          key={`${i}-${t.startMs}`}
+          key={`${String(i)}-${String(t.startMs)}`}
           pointerEvents="none"
           style={[
             overviewStyles.band,

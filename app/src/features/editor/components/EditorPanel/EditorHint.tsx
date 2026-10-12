@@ -12,7 +12,9 @@ export const EditorHint: FC = () => {
       {core.hasMaster ? 'Lossless master: every cut is exact.  ' : ''}
       {reencoded > 0
         ? `${
-            reencoded === 1 ? 'One track has' : `${reencoded} tracks have`
+            reencoded === 1
+              ? 'One track has'
+              : `${String(reencoded)} tracks have`
           } a deleted stretch inside, so saving re-encodes ${
             reencoded === 1 ? 'it' : 'them'
           }.  `

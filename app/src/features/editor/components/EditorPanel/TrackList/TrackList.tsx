@@ -14,7 +14,11 @@ export const TrackList: FC = () => {
       <TrackListHeader />
       <ScrollView>
         {tracks.rows.map((tr, i) => (
-          <TrackRow key={`${i}-${tr.startMs}`} track={tr} index={i} />
+          <TrackRow
+            key={`${String(i)}-${String(tr.startMs)}`}
+            track={tr}
+            index={i}
+          />
         ))}
       </ScrollView>
     </View>

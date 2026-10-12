@@ -17,25 +17,25 @@ export const MasterLimits: FC = () => {
     <>
       <StepRow
         label="Longer than"
-        value={minutes ? `${minutes} min` : 'any length'}
+        value={minutes ? `${String(minutes)} min` : 'any length'}
         onStep={dir => {
-          void save({ masterMinMinutes: step(MIN_MINUTES, minutes, dir) })
+          save({ masterMinMinutes: step(MIN_MINUTES, minutes, dir) })
         }}
         disabled={!keep}
       />
       <StepRow
         label="Use at most"
-        value={`${budget} GB`}
+        value={`${String(budget)} GB`}
         onStep={dir => {
-          void save({ masterBudgetGb: step(BUDGETS_GB, budget, dir) })
+          save({ masterBudgetGb: step(BUDGETS_GB, budget, dir) })
         }}
         disabled={!keep}
       />
       <StepRow
         label="Keep for"
-        value={`${age} days`}
+        value={`${String(age)} days`}
         onStep={dir => {
-          void save({ masterMaxAgeDays: step(AGES_DAYS, age, dir) })
+          save({ masterMaxAgeDays: step(AGES_DAYS, age, dir) })
         }}
         disabled={!keep}
       />

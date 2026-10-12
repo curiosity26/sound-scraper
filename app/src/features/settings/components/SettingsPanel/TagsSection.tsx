@@ -19,7 +19,7 @@ export const TagsSection: FC = () => {
           label={v.label}
           detail={v.detail}
           onPress={() => {
-            void save({ id3Version: v.value })
+            save({ id3Version: v.value })
           }}
         />
       ))}

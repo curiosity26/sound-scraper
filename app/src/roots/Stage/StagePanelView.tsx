@@ -1,7 +1,5 @@
-// Layout here comes from the stage (frames), so styles are inline.
-/* eslint-disable react-native/no-inline-styles */
 import { type FC, memo } from 'react'
-import { View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 
 import { stage } from '@/features/skins/stage/stage'
 import type { StagePanel } from '@/features/skins/stage/types'
@@ -60,19 +58,28 @@ export const StagePanelView: FC<StagePanelViewProps> = props => {
       }}
       style={
         props.placed
-          ? {
-              position: 'absolute',
-              left: frame.x,
-              top: frame.y,
-              width: frame.w,
-              height: frame.h,
-              zIndex: props.z,
-              display: visible ? 'flex' : 'none',
-            }
-          : { position: 'absolute', opacity: 0 }
+          ? [
+              styles.placed,
+              {
+                left: frame.x,
+                top: frame.y,
+                width: frame.w,
+                height: frame.h,
+                zIndex: props.z,
+              },
+              visible ? styles.shown : styles.hidden,
+            ]
+          : styles.measuring
       }
     >
       <Content id={id} />
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  placed: { position: 'absolute' },
+  shown: { display: 'flex' },
+  hidden: { display: 'none' },
+  measuring: { position: 'absolute', opacity: 0 },
+})

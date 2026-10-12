@@ -156,18 +156,53 @@ const noUnknownShape = {
     type: 'problem',
     docs: {
       description:
-        'Allow `unknown` only as a type guard parameter or a caught error.',
+        'Allow `unknown` only as a type guard parameter or a caught error (a catch clause or a rejection handler).',
     },
     schema: [],
   },
   create(context) {
     const isGuard = fn =>
       fn.returnType?.typeAnnotation.type === 'TSTypePredicate'
+    // `promise.catch(fn)` or `promise.then(_, fn)`: fn's first parameter is
+    // the rejection, as unknown as a catch clause's.
+    const isRejectionArgument = node => {
+      const call = node.parent
+      if (
+        call?.type !== 'CallExpression' ||
+        call.callee.type !== 'MemberExpression'
+      ) {
+        return false
+      }
+      const name = call.callee.property.name
+      return (
+        (name === 'catch' && call.arguments[0] === node) ||
+        (name === 'then' && call.arguments[1] === node)
+      )
+    }
+    // An inline rejection handler, or a named one (`const fail = (e) => …`)
+    // that is only ever passed as one.
+    const isRejectionHandler = fn => {
+      if (isRejectionArgument(fn)) return true
+      const declarator = fn.parent
+      if (declarator?.type !== 'VariableDeclarator' || declarator.init !== fn) {
+        return false
+      }
+      const [variable] = context.sourceCode.getDeclaredVariables(declarator)
+      const uses = (variable?.references ?? []).filter(r => !r.init)
+      return (
+        uses.length > 0 && uses.every(r => isRejectionArgument(r.identifier))
+      )
+    }
     const allowed = node => {
       for (let n = node.parent; n; n = n.parent) {
         if (n.type === 'CatchClause') return true
         if (isFunction(n) || n.type === 'TSFunctionType') {
-          return isGuard(n) && n.params.some(p => within(node, p))
+          const param = n.params.findIndex(p => within(node, p))
+          if (param === -1) return false
+          return (
+            isGuard(n) ||
+            (param === 0 && isFunction(n) && isRejectionHandler(n))
+          )
         }
       }
       return false
@@ -182,7 +217,7 @@ const noUnknownShape = {
           context.report({
             node,
             message:
-              "Say what the data is: use the generated bridge types (src/bridge/generated) or a domain type, and narrow input with a type guard. `unknown` is only for a guard's parameter or a caught error.",
+              "Say what the data is: use the generated bridge types (src/bridge/generated) or a domain type, and narrow input with a type guard. `unknown` is only for a guard's parameter or a caught error (catch clause or rejection handler).",
           })
       },
     }

@@ -175,11 +175,11 @@ const deleteStretch = async (
 /** A row of the track list, by everything it shows. */
 const trackRow = (n: number, name: string, start: string, length: string) =>
   screen.queryByRole('button', {
-    name: `Track ${n}: ${name}, starts ${start}, ${length} long`,
+    name: `Track ${String(n)}: ${name}, starts ${start}, ${length} long`,
   })
 
 const anyTrackRow = (n: number) =>
-  screen.queryByRole('button', { name: new RegExp(`^Track ${n}: `) })
+  screen.queryByRole('button', { name: new RegExp(`^Track ${String(n)}: `) })
 
 /** The position readout: where the playhead is, and of how long. */
 const position = () => screen.getByRole('timer')
@@ -863,6 +863,21 @@ describe('the track editor', () => {
       it('shows its length in hours, minutes and seconds', async () => {
         await openEditor(recording('Set.mp3', { durationMs: 3_725_000 }))
         expect(position()).toHaveTextContent(/OF 1:02:05$/)
+      })
+    })
+
+    describe('given another recording was loaded for playback', () => {
+      describe('when Play is pressed', () => {
+        it('plays this one, with Pause and Stop to press', async () => {
+          const user = userEvent.setup()
+          await fakeCore.native.playerLoad(sideA.path)
+          await openEditor(tape)
+          await press(user, 'Play')
+          expect(
+            await screen.findByRole('button', { name: 'Pause' }),
+          ).toBeOnTheScreen()
+          expect(screen.getByRole('button', { name: 'Stop' })).toBeEnabled()
+        })
       })
     })
 

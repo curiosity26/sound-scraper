@@ -24,7 +24,7 @@ export const Masters: FC = () => {
         label="Keep a lossless copy of long recordings"
         detail="So the track editor cuts them exactly, without re-encoding the MP3. About 400 MB per hour, kept out of your recordings folder · default"
         onPress={() => {
-          void save({ keepMasters: !keep })
+          save({ keepMasters: !keep })
         }}
       />
       <MasterLimits />

@@ -1,9 +1,10 @@
 import { type FC, useState } from 'react'
-import { Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 
 import { settingsStyles } from '@/features/settings/components/SettingsPanel/styles'
 import { useSettingsPanel } from '@/features/settings/components/SettingsPanel/useSettingsPanel'
 import { TextLink } from '@/shared/components/TextLink'
+import { colors } from '@/shared/theme/colors'
 
 import { useMastersUsage } from './useMastersUsage'
 
@@ -11,14 +12,14 @@ import { useMastersUsage } from './useMastersUsage'
  * a confirmation). */
 export const MastersStorage: FC = () => {
   const { textStyle } = useSettingsPanel()
-  const { usage, deleteAll } = useMastersUsage()
+  const { usage, error, deleteAll } = useMastersUsage()
   const [confirming, setConfirming] = useState(false)
   return (
     <>
       <Text style={[settingsStyles.note, textStyle]}>
         {usage.count === 0
           ? 'No masters are kept right now.'
-          : `${usage.count} ${
+          : `${String(usage.count)} ${
               usage.count === 1 ? 'master' : 'masters'
             }, ${formatBytes(
               usage.bytes,
@@ -52,13 +53,18 @@ export const MastersStorage: FC = () => {
             }}
           />
         ))}
+      {error && <Text style={styles.error}>{error}</Text>}
     </>
   )
 }
+
+const styles = StyleSheet.create({
+  error: { color: colors.error, fontSize: 12, marginTop: 8 },
+})
 
 const formatBytes = (bytes: number): string => {
   if (bytes >= 1024 ** 3) {
     return `${(bytes / 1024 ** 3).toFixed(1)} GB`
   }
-  return `${Math.round(bytes / 1024 ** 2)} MB`
+  return `${String(Math.round(bytes / 1024 ** 2))} MB`
 }

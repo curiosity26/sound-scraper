@@ -1,6 +1,6 @@
 import type { EventSubscription } from 'react-native'
 
-import NativeSoundScraper from '@/bridge/NativeSoundScraper'
+import { NativeSoundScraper } from '@/bridge/NativeSoundScraper'
 import type { AudioApp, RecorderEvent, RecorderState } from '@/bridge/types'
 
 import { isRecorderEventKind } from './guards/isRecorderEventKind'

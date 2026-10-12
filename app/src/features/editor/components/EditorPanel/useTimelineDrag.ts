@@ -25,7 +25,7 @@ export type UseTimelineDragOptions = {
   /** Presses start drags (the waveform is read and no dialog is up). */
   readonly enabled: boolean
   readonly selection: UseEditorSelectionResult
-  readonly seek: (ms: number) => Promise<void>
+  readonly seek: (ms: number) => void
   /** Called first on every press (closes the name field, takes the keys). */
   readonly onPress: () => void
 }
@@ -103,7 +103,7 @@ export const useTimelineDrag = (
       // A click: move the playhead; a click in a deleted stretch selects it.
       selection.clearSelections()
       selection.setSelectedRegion(deletedAt(edits, drag.anchorMs)?.id ?? null)
-      void options.seek(snapMs(drag.anchorMs))
+      options.seek(snapMs(drag.anchorMs))
     } else {
       const a = snapMs(Math.min(drag.anchorMs, drag.ms))
       const b = snapMs(Math.max(drag.anchorMs, drag.ms))

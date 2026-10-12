@@ -26,9 +26,7 @@ export const SourceDisplay: FC<SourceDisplayProps> = props => {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={source.accessibilityLabel}
-        onPress={() => {
-          void source.choose()
-        }}
+        onPress={source.choose}
         style={scaleRect(element.rect, s)}
       >
         {element.sprite && (

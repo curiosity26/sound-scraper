@@ -51,7 +51,9 @@ export const launchLinuxApp = async (sandbox: Sandbox): Promise<AppDriver> => {
     await eventually(
       async () => {
         if (!running()) {
-          throw new Error(`${APP} exited (${app.exitCode}) while starting`)
+          throw new Error(
+            `${APP} exited (${String(app.exitCode)}) while starting`,
+          )
         }
         if (!(await driver.find({ name: 'Record' }))) {
           throw new Error(`${APP} didn't show its Record button`)

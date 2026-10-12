@@ -82,7 +82,13 @@ def lame():
                      'LAME 3.100 or later. Its source is in core/vendor/mp3lame-sys/lame-3.100 of the '
                      'Sound Scraper source code.')}
 
-data = {'lame': lame(), 'rust': rust(), 'js': js()}
+def material_icons():
+    base = os.path.join(ROOT, 'app', 'assets', 'fonts')
+    return {'name': 'Material Icons (font)', 'version': '4.0.0', 'license': 'Apache-2.0',
+            'repository': 'https://github.com/google/material-design-icons',
+            'texts': license_files(base)}
+
+data = {'lame': lame(), 'rust': rust(), 'js': sorted(js() + [material_icons()], key=lambda p: (p['name'], p['version']))}
 data['texts'] = texts
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 with open(OUT, 'w') as f:

@@ -1,5 +1,3 @@
-/* eslint-disable react-native/no-inline-styles */
-
 import React, { type ReactNode } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
@@ -30,7 +28,7 @@ export const Segmented = <T extends string>(
             }}
             style={[
               styles.segment,
-              i > 0 && { borderLeftWidth: 1, borderLeftColor: th.border },
+              i > 0 && [styles.divided, { borderLeftColor: th.border }],
               on && { backgroundColor: th.accent },
             ]}
           >
@@ -57,5 +55,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   segment: { paddingHorizontal: 9, height: 22, justifyContent: 'center' },
+  divided: { borderLeftWidth: 1 },
   segmentText: { fontSize: 11 },
 })

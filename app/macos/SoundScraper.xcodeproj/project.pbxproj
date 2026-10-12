@@ -15,6 +15,7 @@
 		947FFCBE3A77FD0F31586C1A /* RCTSoundScraperSkins.mm in Sources */ = {isa = PBXBuildFile; fileRef = 56FA495BE7C653BE46B56DAF /* RCTSoundScraperSkins.mm */; };
 		A1E0000000000000000000B1 /* RCTSoundScraperEditor.mm in Sources */ = {isa = PBXBuildFile; fileRef = A1E0000000000000000000F1 /* RCTSoundScraperEditor.mm */; };
 		A1E0000000000000000000B2 /* SSWaveformView.mm in Sources */ = {isa = PBXBuildFile; fileRef = A1E0000000000000000000F2 /* SSWaveformView.mm */; };
+		B04A64366E28905D5438FF02 /* MaterialIcons-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = B7638243B17435B4B6C6B200 /* MaterialIcons-Regular.ttf */; };
 		D57C0543DCA2748EE47094F0 /* SkinWindows.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD7DFE5FE4ACD6635EC0DC59 /* SkinWindows.swift */; };
 		F6AC4F5485CDFD084586FDC1 /* libPods-SoundScraper-macOS.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 0611457090C7612CA6A5F3B2 /* libPods-SoundScraper-macOS.a */; };
 		FA7DD333D6844B22CA71C689 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 79E74B956427CCFF212B2D96 /* PrivacyInfo.xcprivacy */; };
@@ -55,6 +56,7 @@
 		A1E0000000000000000000F2 /* SSWaveformView.mm */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.objcpp; path = SSWaveformView.mm; sourceTree = "<group>"; };
 		A1E0000000000000000000F3 /* RCTSoundScraperEditor.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = RCTSoundScraperEditor.h; sourceTree = "<group>"; };
 		AF2788C4B7C1A4DEEEE2FC8D /* RCTSoundScraper.mm */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.objcpp; path = RCTSoundScraper.mm; sourceTree = "<group>"; };
+		B7638243B17435B4B6C6B200 /* MaterialIcons-Regular.ttf */ = {isa = PBXFileReference; includeInIndex = 1; name = "MaterialIcons-Regular.ttf"; path = "../assets/fonts/MaterialIcons-Regular.ttf"; sourceTree = SOURCE_ROOT; };
 		CD7DFE5FE4ACD6635EC0DC59 /* SkinWindows.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SkinWindows.swift; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		FBA1E720647BB226D7641C95 /* RCTSoundScraper.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = RCTSoundScraper.h; sourceTree = "<group>"; };
@@ -97,6 +99,14 @@
 			path = Pods;
 			sourceTree = "<group>";
 		};
+		4C4CFDFE8C932718BC50D9B4 /* Fonts */ = {
+			isa = PBXGroup;
+			children = (
+				B7638243B17435B4B6C6B200 /* MaterialIcons-Regular.ttf */,
+			);
+			name = Fonts;
+			sourceTree = "<group>";
+		};
 		5142014A2437B4B30078DB4F /* SoundScraper-macOS */ = {
 			isa = PBXGroup;
 			children = (
@@ -114,6 +124,7 @@
 				A1E0000000000000000000F2 /* SSWaveformView.mm */,
 				1D96829639D2D0C6BDE6B2E9 /* SSVisualizerView.mm */,
 				0E525FD5619867D2EEFF91BA /* SoundScraper-Bridging-Header.h */,
+				4C4CFDFE8C932718BC50D9B4 /* Fonts */,
 			);
 			path = "SoundScraper-macOS";
 			sourceTree = "<group>";
@@ -243,6 +254,7 @@
 			files = (
 				514201522437B4B40078DB4F /* Assets.xcassets in Resources */,
 				FAD4F5693A8D32AB335EED29 /* PrivacyInfo.xcprivacy in Resources */,
+				B04A64366E28905D5438FF02 /* MaterialIcons-Regular.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

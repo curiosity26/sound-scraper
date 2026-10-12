@@ -20,6 +20,8 @@ export const capacityText = (c: Capacity): string => {
         -c.spareSectors,
       )} too long for a CD: remove a track or two`
     case 'tooMany':
-      return `${c.tracks} tracks: a CD holds at most ${MAX_TRACKS}`
+      return `${String(c.tracks)} tracks: a CD holds at most ${String(
+        MAX_TRACKS,
+      )}`
   }
 }

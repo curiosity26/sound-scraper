@@ -1,11 +1,8 @@
 import { use, useEffect } from 'react'
 
 import type { SkinSummary } from '@/bridge/generated'
-import { skins } from '@/features/skins/skins'
-import { promiseCache } from '@/shared/utils/promiseCache'
 
-// One read per list revision.
-const skinLists = promiseCache<number, SkinSummary[]>(() => skins.list())
+import { skinLists } from './skinLists'
 
 export type UseSkinListResult = {
   readonly list: readonly SkinSummary[]

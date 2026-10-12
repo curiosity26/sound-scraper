@@ -157,9 +157,21 @@ types in `types.ts` and shared constants in `constants.ts`. ESLint
 (`app/.eslintrc.js`, typescript-eslint `strict-type-checked` plus the guide's
 rules) enforces most of it. `lib` is ES2023; Hermes lacks some of its built-ins, so
 `app/src/shared/polyfills/es2023.ts` adds them with core-js. Raise `lib` only
-together with that list. The React Native codegen specs
-(`src/bridge/Native*.ts`, `src/**/*NativeComponent.ts`) keep the
-`interface` and default export that codegen requires.
+together with that list. The React Native codegen specs keep the `interface`
+codegen requires (it only reads interfaces that extend `TurboModule` or
+`ViewProps`). Turbo Modules are named exports (`NativeSoundScraper`);
+`src/**/*NativeComponent.ts` keep a default export too, because the codegen
+Babel plugin only builds the static view config Windows needs from
+`export default codegenNativeComponent(...)`.
+
+Template literals take strings only (`restrict-template-expressions` with
+every `allow*` off): format numbers on purpose with `String()`,
+`toFixed` or a helper such as `@/shared/utils/toPercent`. There is no
+`void` for promises: a promise nothing awaits gets a `.catch` that reports
+the error, usually `.catch(onRejected(report))`
+(`@/shared/utils/onRejected`), where `report` takes the message as text.
+Styles live in `StyleSheet.create`; only values that change at run time
+(skin colors, measured sizes) are added inline next to them.
 
 Components call hooks and render. A component may hold up to two
 `useState`/`useReducer` and one `useEffect` itself
@@ -174,8 +186,10 @@ used by only one component nest in that component's folder. Components never
 fetch in an effect (`sound-scraper/no-effect-fetch`): simple display reads
 use `use()` under `AsyncBoundary` (`react-error-boundary` + `Suspense`) with
 a stable promise (`@/shared/utils/promiseCache`, or held in state and refreshed in
-`startTransition`); reads tangled with edits or polling live in a hook
-instead. Error boundaries only catch render errors, so user actions keep
+`startTransition`). `promiseCache` keeps a rejected promise so the boundary
+can show it, so the boundary's `onReset` clears it for Retry. Polling and
+synchronous native reads (burn progress, the waveform, settings) have no
+promise to suspend on and live in a hook. Error boundaries only catch render errors, so user actions keep
 their own try/catch, and in dev the red box shows even for caught errors.
 
 The Lint workflow runs these on every pull request; run them before pushing.

@@ -21,21 +21,14 @@ const trash = (ctx: MenuContext) => {
   const first = ctx.recordings.find(r => r.fileName === names[0])
   const what =
     names.length > 1
-      ? `${names.length} recordings`
-      : `"${first ? displayName(first) : names[0]}"`
+      ? `${String(names.length)} recordings`
+      : `"${first ? displayName(first) : String(names[0])}"`
   const moveToTrash = async () => {
-    try {
-      for (const name of names) {
-        await library.trash(name)
-      }
-      ctx.onChanged()
-      ctx.onTrashed?.()
-    } catch (e) {
-      ctx.report({
-        text: `Couldn't move to ${TRASH_NAME}: ${errorText(e)}`,
-        isError: true,
-      })
+    for (const name of names) {
+      await library.trash(name)
     }
+    ctx.onChanged()
+    ctx.onTrashed?.()
   }
   Alert.alert(
     `Move ${what} to ${TRASH_NAME}?`,
@@ -46,7 +39,12 @@ const trash = (ctx: MenuContext) => {
         text: TRASH_LABEL,
         style: 'destructive',
         onPress: () => {
-          void moveToTrash()
+          moveToTrash().catch((e: unknown) => {
+            ctx.report({
+              text: `Couldn't move to ${TRASH_NAME}: ${errorText(e)}`,
+              isError: true,
+            })
+          })
         },
       },
     ],
@@ -83,29 +81,22 @@ const addToPlaylist = async (ctx: MenuContext, x: number, y: number) => {
   if (!target) {
     return
   }
-  try {
-    const there = playlists.fileNamesIn(target.id)
-    const adding = ctx.fileNames.filter(n => !there.has(n))
-    if (adding.length > 0) {
-      playlists.add(target.id, adding)
-    }
-    ctx.report({
-      text:
-        adding.length === 0
-          ? `Already in ${target.name}.`
-          : adding.length < ctx.fileNames.length
-          ? `Added to ${target.name} (${
-              ctx.fileNames.length - adding.length
-            } already there).`
-          : `Added to ${target.name}.`,
-      isError: false,
-    })
-  } catch (e) {
-    ctx.report({
-      text: `Couldn't add to the playlist: ${errorText(e)}`,
-      isError: true,
-    })
+  const there = playlists.fileNamesIn(target.id)
+  const adding = ctx.fileNames.filter(n => !there.has(n))
+  if (adding.length > 0) {
+    playlists.add(target.id, adding)
   }
+  ctx.report({
+    text:
+      adding.length === 0
+        ? `Already in ${target.name}.`
+        : adding.length < ctx.fileNames.length
+        ? `Added to ${target.name} (${String(
+            ctx.fileNames.length - adding.length,
+          )} already there).`
+        : `Added to ${target.name}.`,
+    isError: false,
+  })
 }
 
 export const recordingActions = (ctx: MenuContext): MenuAction[] => {
@@ -126,7 +117,12 @@ export const recordingActions = (ctx: MenuContext): MenuAction[] => {
           {
             label: 'Add to Playlist…',
             run: (x: number, y: number) => {
-              void addToPlaylist(ctx, x, y)
+              addToPlaylist(ctx, x, y).catch((e: unknown) => {
+                ctx.report({
+                  text: `Couldn't add to the playlist: ${errorText(e)}`,
+                  isError: true,
+                })
+              })
             },
           },
         ]
@@ -147,7 +143,7 @@ export const recordingActions = (ctx: MenuContext): MenuAction[] => {
     {
       label: 'Change cover…',
       run: () => {
-        void chooseCover(ctx)
+        chooseCover(ctx)
       },
     },
     ...(ctx.hasCover
@@ -155,7 +151,7 @@ export const recordingActions = (ctx: MenuContext): MenuAction[] => {
           {
             label: 'Remove cover',
             run: () => {
-              void writeCover(ctx, { kind: 'remove' })
+              writeCover(ctx, { kind: 'remove' })
             },
           },
         ]

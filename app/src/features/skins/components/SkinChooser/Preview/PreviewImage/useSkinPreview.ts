@@ -62,7 +62,7 @@ export const useSkinPreview = (
         : undefined,
     [source],
   )
-  const key = source === null || path ? null : `${version}:${source}`
+  const key = source === null || path ? null : `${String(version)}:${source}`
   useEffect(
     () =>
       key === null

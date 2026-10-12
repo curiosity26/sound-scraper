@@ -74,6 +74,12 @@ const subscribeNative = () => {
           break
         }
         const state = e.playerState
+        // Loading a file unloads the one before, and that 'empty' can reach
+        // us after the new file is in (from another window, or our own
+        // select): the player says what's really loaded.
+        if (state === 'empty' && player.state() !== 'empty') {
+          break
+        }
         const ended =
           current.state === 'playing' && state === 'stopped' && !expectingStop
         expectingStop = false
@@ -113,7 +119,7 @@ const subscribeNative = () => {
         })
         break
       case 'playerError':
-        reportError(`Playback failed: ${e.message}`)
+        reportError(`Playback failed: ${String(e.message)}`)
         break
       case 'state':
       case 'progress':

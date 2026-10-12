@@ -13,7 +13,7 @@ export const AutoSliceActions: FC = () => {
       <Text style={[styles.autoFound, { color: th.dim }]}>
         {found === 0
           ? 'No gaps found'
-          : `${found + 1} tracks · ${found} ${
+          : `${String(found + 1)} tracks · ${String(found)} ${
               found === 1 ? 'slice' : 'slices'
             }`}
       </Text>

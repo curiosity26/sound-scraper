@@ -1,7 +1,5 @@
-// Layout here comes from skin data (rects, sizes), so styles are inline.
-/* eslint-disable react-native/no-inline-styles */
 import React, { type FC, useLayoutEffect, useRef, useState } from 'react'
-import { Animated, Easing, View } from 'react-native'
+import { Animated, Easing, StyleSheet, View } from 'react-native'
 
 import type { ResolvedFont } from '@/bridge/generated'
 import { SpriteCell } from '@/features/skins/components/SpriteCell'
@@ -24,7 +22,8 @@ export const FlipCell: FC<FlipCellProps> = props => {
   const { font, at } = props
   const s = useSkinScale()
   const [cw, ch] = font.cell
-  const key = `${at[0]},${at[1]}`
+  const [ax, ay] = at
+  const key = cellKey(at)
   const [from, setFrom] = useState(at)
   const shown = useRef(key)
   const t = useRef(new Animated.Value(1)).current
@@ -43,17 +42,15 @@ export const FlipCell: FC<FlipCellProps> = props => {
     })
     run.start(({ finished }) => {
       if (finished) {
-        setFrom(at)
+        setFrom([ax, ay])
       }
     })
     return () => {
       // Interrupted by the next change: flip on from this glyph.
       run.stop()
-      setFrom(at)
+      setFrom([ax, ay])
     }
-    // `at` changes with `key`.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, t])
+  }, [ax, ay, key, t])
   const w = cw * s
   const h = ch * s
   const half = (glyph: readonly [number, number], bottom: boolean) => (
@@ -61,17 +58,10 @@ export const FlipCell: FC<FlipCellProps> = props => {
       image={font.image}
       at={glyph}
       size={[cw, ch]}
-      style={{ position: 'absolute', left: 0, top: bottom ? -h / 2 : 0 }}
+      style={[styles.half, bottom && { top: -h / 2 }]}
     />
   )
-  const clip = (top: number) => ({
-    position: 'absolute' as const,
-    left: 0,
-    top,
-    width: w,
-    height: h / 2,
-    overflow: 'hidden' as const,
-  })
+  const clip = (top: number) => [styles.clip, { top, width: w, height: h / 2 }]
   // Scaling a half about its own center, shifted so its middle-of-card
   // edge stays put (a fold seen head on).
   const topFold = {
@@ -110,25 +100,24 @@ export const FlipCell: FC<FlipCellProps> = props => {
       },
     ],
   }
-  const shadow = (range: number[], to: number[]) => ({
-    position: 'absolute' as const,
-    left: 0,
-    top: 0,
-    width: w,
-    height: h / 2,
-    backgroundColor: '#000000',
-    opacity: t.interpolate({
-      inputRange: range,
-      outputRange: to,
-      extrapolate: 'clamp',
-    }),
-  })
+  const shadow = (range: number[], to: number[]) => [
+    styles.shadow,
+    {
+      width: w,
+      height: h / 2,
+      opacity: t.interpolate({
+        inputRange: range,
+        outputRange: to,
+        extrapolate: 'clamp',
+      }),
+    },
+  ]
   return (
     <View style={{ width: w, height: h }}>
       {/* Behind the flaps: the new top half and the old bottom half. */}
       <View style={clip(0)}>{half(at, false)}</View>
       <View style={clip(h / 2)}>{half(from, true)}</View>
-      {key !== `${from[0]},${from[1]}` && (
+      {key !== cellKey(from) && (
         <>
           <Animated.View style={[clip(0), topFold]}>
             {half(from, false)}
@@ -143,3 +132,17 @@ export const FlipCell: FC<FlipCellProps> = props => {
     </View>
   )
 }
+
+const cellKey = (at: readonly [number, number]) =>
+  `${String(at[0])},${String(at[1])}`
+
+const styles = StyleSheet.create({
+  half: { position: 'absolute', left: 0, top: 0 },
+  clip: { position: 'absolute', left: 0, overflow: 'hidden' },
+  shadow: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    backgroundColor: '#000000',
+  },
+})

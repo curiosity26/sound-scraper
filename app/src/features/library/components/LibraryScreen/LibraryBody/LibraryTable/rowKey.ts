@@ -2,5 +2,5 @@ import type { Row } from '@/features/library/types'
 
 /** The key a row is checked under. */
 export const rowKey = (row: Row): string => {
-  return row.itemId === undefined ? row.fileName : `#${row.itemId}`
+  return row.itemId === undefined ? row.fileName : `#${String(row.itemId)}`
 }

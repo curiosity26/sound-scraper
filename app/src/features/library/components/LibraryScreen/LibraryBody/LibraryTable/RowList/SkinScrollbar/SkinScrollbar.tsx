@@ -1,7 +1,5 @@
-// Layout here comes from skin data (rects, sizes), so styles are inline.
-/* eslint-disable react-native/no-inline-styles */
 import React, { type FC, useRef } from 'react'
-import { type GestureResponderEvent, View } from 'react-native'
+import { type GestureResponderEvent, StyleSheet, View } from 'react-native'
 
 import type { ResolvedFramePanel } from '@/bridge/generated'
 import { NineSlice } from '@/features/skins/components/NineSlice'
@@ -63,13 +61,7 @@ export const SkinScrollbar: FC<SkinScrollbarProps> = props => {
     <View
       accessible
       accessibilityRole="scrollbar"
-      style={{
-        position: 'absolute',
-        right: 0,
-        top: 0,
-        width,
-        height: viewport,
-      }}
+      style={[styles.bar, { width, height: viewport }]}
       onStartShouldSetResponder={() => true}
       onMoveShouldSetResponder={() => true}
       onResponderGrant={onGrant}
@@ -89,13 +81,17 @@ export const SkinScrollbar: FC<SkinScrollbarProps> = props => {
           slice={thumbSlice}
           width={scrollbar.thumb[2] * s}
           height={length}
-          style={{
-            position: 'absolute',
-            top,
-            left: (width - scrollbar.thumb[2] * s) / 2,
-          }}
+          style={[
+            styles.thumb,
+            { top, left: (width - scrollbar.thumb[2] * s) / 2 },
+          ]}
         />
       </View>
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  bar: { position: 'absolute', right: 0, top: 0 },
+  thumb: { position: 'absolute' },
+})

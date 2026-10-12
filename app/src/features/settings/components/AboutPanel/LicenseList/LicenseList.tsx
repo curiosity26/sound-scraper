@@ -9,7 +9,11 @@ import type { LicenseRow } from './types'
 const rows: readonly LicenseRow[] = [
   { kind: 'header', key: 'h-lame', title: 'MP3 encoder' },
   { kind: 'pkg', key: 'lame', pkg: data.lame },
-  { kind: 'header', key: 'h-rust', title: `Rust crates (${data.rust.length})` },
+  {
+    kind: 'header',
+    key: 'h-rust',
+    title: `Rust crates (${String(data.rust.length)})`,
+  },
   ...data.rust.map(
     (p): LicenseRow => ({
       kind: 'pkg',
@@ -20,7 +24,7 @@ const rows: readonly LicenseRow[] = [
   {
     kind: 'header',
     key: 'h-js',
-    title: `JavaScript packages (${data.js.length})`,
+    title: `JavaScript packages (${String(data.js.length)})`,
   },
   ...data.js.map(
     (p): LicenseRow => ({

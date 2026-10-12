@@ -14,6 +14,7 @@ import { safeRecover } from '@/features/recorder/safeRecover'
 import { safeState } from '@/features/recorder/safeState'
 import type { Levels, Message } from '@/features/recorder/types'
 import { errorText } from '@/shared/utils/errorText'
+import { onRejected } from '@/shared/utils/onRejected'
 
 export type UseRecorderResult = {
   readonly apps: readonly AudioApp[]
@@ -27,7 +28,8 @@ export type UseRecorderResult = {
   readonly levels: Levels
   readonly message: Message | undefined
   readonly setMessage: (message: Message | undefined) => void
-  readonly record: () => Promise<void>
+  /** Starts a recording; a failure shows as the message. */
+  readonly record: () => void
   readonly pause: () => void
   readonly resume: () => void
   readonly stop: () => Promise<void>
@@ -52,7 +54,7 @@ export const useRecorder = (): UseRecorderResult => {
     const recovered = safeRecover()
     if (recovered > 0) {
       setMessage({
-        text: `Recovered ${recovered} interrupted recording${
+        text: `Recovered ${String(recovered)} interrupted recording${
           recovered === 1 ? '' : 's'
         }`,
         isError: false,
@@ -86,7 +88,10 @@ export const useRecorder = (): UseRecorderResult => {
           })
           break
         case 'error':
-          setMessage({ text: `Recording failed: ${e.message}`, isError: true })
+          setMessage({
+            text: `Recording failed: ${String(e.message)}`,
+            isError: true,
+          })
           break
         case 'playerState':
         case 'playerProgress':
@@ -115,7 +120,11 @@ export const useRecorder = (): UseRecorderResult => {
     return list
   }
 
-  const record = async () => {
+  const startFailed = (reason: string) => {
+    setMessage({ text: `Couldn't start: ${reason}`, isError: true })
+  }
+
+  const start = async () => {
     setStarting(true)
     setMessage(undefined)
     setElapsedMs(0)
@@ -127,10 +136,14 @@ export const useRecorder = (): UseRecorderResult => {
       await recorder.start(app)
       rememberSource(app)
     } catch (e) {
-      setMessage({ text: `Couldn't start: ${errorText(e)}`, isError: true })
+      startFailed(errorText(e))
     } finally {
       setStarting(false)
     }
+  }
+
+  const record = () => {
+    start().catch(onRejected(startFailed))
   }
 
   const stop = async () => {

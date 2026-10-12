@@ -1,5 +1,5 @@
 import type { PlaylistsRequest } from '@/bridge/generated'
-import NativeSoundScraper from '@/bridge/NativeSoundScraper'
+import { NativeSoundScraper } from '@/bridge/NativeSoundScraper'
 import { requestReply } from '@/bridge/requestReply'
 import {
   type Guard,

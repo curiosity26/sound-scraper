@@ -2,7 +2,7 @@ import React, { type FC } from 'react'
 import { StyleSheet, View } from 'react-native'
 
 import { useEditor } from '@/features/editor/components/EditorPanel/useEditor'
-import { withAlpha } from '@/features/editor/components/EditorPanel/withAlpha'
+import { withAlpha } from '@/shared/utils/withAlpha'
 
 import { overlayStyles } from './styles'
 
@@ -13,7 +13,7 @@ export const ProposedSlices: FC = () => {
   return (
     <>
       {autoSlice.proposals.map(p => (
-        <React.Fragment key={`p${p.atMs}`}>
+        <React.Fragment key={`p${String(p.atMs)}`}>
           <View
             pointerEvents="none"
             style={[

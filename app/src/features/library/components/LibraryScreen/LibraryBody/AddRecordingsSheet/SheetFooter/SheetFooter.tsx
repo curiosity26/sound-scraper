@@ -23,7 +23,7 @@ export const SheetFooter: FC<SheetFooterProps> = props => {
       <Text style={[styles.count, dim]}>
         {picked.length === 0
           ? 'Click recordings to choose them.'
-          : `${picked.length} chosen · ${formatDuration(pickedMs)}`}
+          : `${String(picked.length)} chosen · ${formatDuration(pickedMs)}`}
       </Text>
       <SheetButton
         id="add-recordings-cancel"
@@ -32,7 +32,7 @@ export const SheetFooter: FC<SheetFooterProps> = props => {
       />
       <SheetButton
         id="add-recordings-add"
-        label={picked.length > 1 ? `Add ${picked.length}` : 'Add'}
+        label={picked.length > 1 ? `Add ${String(picked.length)}` : 'Add'}
         accent
         disabled={picked.length === 0}
         onPress={() => {
