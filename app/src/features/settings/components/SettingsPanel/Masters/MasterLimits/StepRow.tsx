@@ -21,6 +21,9 @@ export const StepRow: FC<StepRowProps> = props => {
     <View style={[settingsStyles.row, styles.stepRow]}>
       <Text style={[styles.stepLabel, textStyle]}>{label}</Text>
       <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${label}: less`}
+        accessibilityState={{ disabled }}
         onPress={() => {
           onStep(-1)
         }}
@@ -34,6 +37,9 @@ export const StepRow: FC<StepRowProps> = props => {
         {value}
       </Text>
       <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${label}: more`}
+        accessibilityState={{ disabled }}
         onPress={() => {
           onStep(1)
         }}

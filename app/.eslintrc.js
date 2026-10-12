@@ -107,7 +107,7 @@ module.exports = {
   extends: ['@react-native', 'plugin:import/typescript'],
   plugins: ['prettier', 'import', 'react-refresh', 'sound-scraper'],
   settings: {
-    'import/internal-regex': '^@(test)?/',
+    'import/internal-regex': '^@(test|e2e)?/',
   },
   rules: {
     'prettier/prettier': 'error',
@@ -136,6 +136,7 @@ module.exports = {
         pathGroups: [
           { pattern: '@/**', group: 'internal' },
           { pattern: '@test/**', group: 'internal' },
+          { pattern: '@e2e/**', group: 'internal' },
         ],
         'newlines-between': 'always',
         alphabetize: { order: 'asc', caseInsensitive: true },

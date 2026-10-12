@@ -18,7 +18,6 @@ export const SilenceSection: FC = () => {
         onPress={() => {
           void save({ trimSilence: !current.trimSilence })
         }}
-        testName="trim-silence"
       />
     </>
   )

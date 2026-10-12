@@ -26,7 +26,6 @@ export const Masters: FC = () => {
         onPress={() => {
           void save({ keepMasters: !keep })
         }}
-        testName="keep-masters"
       />
       <MasterLimits />
       <MastersStorage />
