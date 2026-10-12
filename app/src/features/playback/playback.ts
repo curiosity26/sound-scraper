@@ -40,11 +40,20 @@ let subscribed = false
 // pressed.
 let expectingStop = false
 
-const update = (change: Partial<Playback>) => {
-  current = { ...current, ...change }
+const publish = (next: Playback) => {
+  current = next
   listeners.forEach(l => {
     l(current)
   })
+}
+
+const update = (change: Partial<Playback>) => {
+  publish({ ...current, ...change })
+}
+
+/** Nothing loaded: drops the recording too, which merging EMPTY would keep. */
+const unloaded = () => {
+  publish(EMPTY)
 }
 
 const reportError = (message: string) => {
@@ -69,7 +78,7 @@ const subscribeNative = () => {
           current.state === 'playing' && state === 'stopped' && !expectingStop
         expectingStop = false
         if (state === 'empty') {
-          update(EMPTY)
+          unloaded()
         } else {
           update({
             state,
@@ -136,7 +145,7 @@ export const playback = {
       expectingStop = true
       await player.load(recording.path)
     } catch (e) {
-      update(EMPTY)
+      unloaded()
       reportError(`Couldn't load ${recording.fileName}: ${errorText(e)}`)
     }
   },
@@ -172,7 +181,7 @@ export const playback = {
   clear: () => {
     if (current.path) {
       player.unload()
-      update(EMPTY)
+      unloaded()
     }
   },
 

@@ -358,8 +358,6 @@ export const fakeCore = {
   reset: () => {
     Object.assign(state, initialState())
     fakeBurner.reset()
-    recorderEvents.clear()
-    libraryEvents.clear()
     Object.values(native).forEach(fn => {
       fn.mockClear()
     })

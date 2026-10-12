@@ -134,7 +134,6 @@ export const fakeSkins = {
   native,
   reset: () => {
     Object.assign(state, initialState())
-    windowEvents.clear()
     Object.values(native).forEach(fn => {
       fn.mockClear()
     })

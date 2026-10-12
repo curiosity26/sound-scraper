@@ -5,13 +5,15 @@ export type FakeEmitter<T> = {
   readonly on: CodegenTypes.EventEmitter<T>
   /** Sends `event` to every listener, as the native side would. */
   readonly emit: (event: T) => void
+  /** Drops every listener (for a test that reloads the modules listening). */
   readonly clear: () => void
 }
 
 /**
  * A native module's event emitter, faked on React Native's own emitter:
  * listeners subscribe and the test emits. `name` keeps each fake's events
- * apart.
+ * apart. Listeners stay across tests: the app's stores subscribe once for
+ * their lifetime, and components unsubscribe when they unmount.
  */
 export const fakeEmitter = <T>(name: string): FakeEmitter<T> => ({
   on: listener =>

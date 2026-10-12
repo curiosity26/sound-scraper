@@ -1,13 +1,16 @@
 import {
+  act,
   fireEvent,
   render,
   screen,
   userEvent,
+  within,
 } from '@testing-library/react-native'
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { selection } from '@/features/library/selection'
+import { playback } from '@/features/playback/playback'
 import { playlists } from '@/features/playlists/playlists'
 import { fakeCore, recording } from '@test/fakes/NativeSoundScraper'
 
@@ -44,6 +47,9 @@ const showPlaylist = (fileNames: readonly string[]) => {
   playlists.show(id)
   return id
 }
+
+/** Queries within the recordings table. */
+const table = () => within(screen.getByLabelText('Recordings'))
 
 /** The table lays itself out `width` points wide. */
 const layOutTable = (width: number) =>
@@ -295,13 +301,19 @@ describe('the library screen', () => {
     })
   })
 
-  // The recording loaded for playback stays marked ▶ after the test (the
-  // playback store keeps its name when unloaded), so only this test uses it.
-  describe('given a recording no other test loads', () => {
+  describe('given a recording', () => {
+    beforeEach(() => {
+      fakeCore.setRecordings([recording('Delta.mp3')])
+    })
+
+    // The loaded recording is shared app state that outlives a test.
+    afterEach(() => {
+      playback.clear()
+    })
+
     describe('when it is pressed', () => {
       it('shows its details beside the table', async () => {
         const user = userEvent.setup()
-        fakeCore.setRecordings([recording('Delta.mp3')])
         await renderLibrary()
         await user.press(screen.getByText('Delta'))
         expect(
@@ -309,6 +321,44 @@ describe('the library screen', () => {
             name: 'File name: Delta. Click to edit.',
           }),
         ).toBeOnTheScreen()
+      })
+
+      it('marks it as loaded for playback', async () => {
+        const user = userEvent.setup()
+        await renderLibrary()
+        await user.press(screen.getByText('Delta'))
+        expect(await screen.findByText('▶ Delta')).toBeOnTheScreen()
+      })
+    })
+
+    describe('given it is loaded for playback', () => {
+      describe('when the player unloads it', () => {
+        it('no longer marks it as loaded', async () => {
+          const user = userEvent.setup()
+          await renderLibrary()
+          await user.press(screen.getByText('Delta'))
+          await screen.findByText('▶ Delta')
+          await act(() => {
+            fakeCore.native.playerUnload()
+          })
+          expect(await table().findByText('Delta')).toBeOnTheScreen()
+          expect(table().queryByText('▶ Delta')).not.toBeOnTheScreen()
+        })
+      })
+
+      describe('when it is unloaded and pressed again', () => {
+        it('loads it again', async () => {
+          const user = userEvent.setup()
+          await renderLibrary()
+          await user.press(screen.getByText('Delta'))
+          await screen.findByText('▶ Delta')
+          await act(() => {
+            fakeCore.native.playerUnload()
+          })
+          await user.press(await table().findByText('Delta'))
+          expect(await table().findByText('▶ Delta')).toBeOnTheScreen()
+          expect(fakeCore.native.playerLoad).toHaveBeenCalledTimes(2)
+        })
       })
     })
   })
