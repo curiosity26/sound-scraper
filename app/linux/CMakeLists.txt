@@ -108,3 +108,12 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 else()
   install(FILES "${SS_LAME_LIB}" DESTINATION lib/SoundScraper)
 endif()
+# Hermes' build leaves its build directory (and an empty element) in
+# libhermesvm.so's RUNPATH, which rpmbuild rejects; installed, it finds
+# libjsi.so beside it.
+install(CODE [[
+  set(hermes "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/SoundScraper/libhermesvm.so")
+  if(EXISTS "${hermes}")
+    file(RPATH_SET FILE "${hermes}" NEW_RPATH "$ORIGIN")
+  endif()
+]])

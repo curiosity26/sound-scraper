@@ -61,3 +61,7 @@ app/windows/packages/
 # Installers
 dist/
 
+
+# Linux container builds (scripts/package-linux-in-container.sh)
+.cache/
+__pycache__/

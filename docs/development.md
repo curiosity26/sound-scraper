@@ -264,7 +264,7 @@ C++/WinRT module notes (`SoundScraperModule.h`): it must be a `REACT_TURBO_MODUL
 
 ## Linux
 
-Tested on Ubuntu 24.04 (x86_64), headless under Xvfb with PulseAudio; the UI is React Native on GTK4 through [react-native-gtk4](https://github.com/curiosity26/react-native-gtk4) (its 0.83 line, matching our React Native 0.83.10). Requirements (Ubuntu 24.04, Linux Mint 22, Debian 13, or Fedora 40 and later with the matching packages):
+Tested on Ubuntu 24.04 (x86_64), headless under Xvfb with PulseAudio; the UI is React Native on GTK4 through [react-native-gtk4](https://github.com/curiosity26/react-native-gtk4) (its 0.83 line, matching our React Native 0.83.10). Requirements (Ubuntu 24.04, Linux Mint 22, Debian 13, Fedora 40, EL 10 or later; `scripts/linux-build-deps.sh` installs them on any of these, Node and Rust included):
 
 ```sh
 sudo apt install -y clang cmake ninja-build pkg-config git python3 \
@@ -285,6 +285,18 @@ npx react-native package-linux --format deb   # or dir, rpm, flatpak (linux/buil
 ```
 
 The first `run-linux` fetches React Native's sources and builds Hermes and the host library into `~/.cache/react-native-gtk4` (about 7 minutes on 4 cores; prebuilt on Ubuntu 24.04 with the published package); after that the app builds in seconds. `linux/CMakeLists.txt` runs `cargo build -p sound_scraper_core` (`--features simulator` in Debug, `--release` in Release), links `libsound_scraper_core.a` with libpulse and ALSA, and copies LAME's `libmp3lame.so.0` next to the executable (`$ORIGIN` RPATH; installed in `lib/SoundScraper/`). Packaging reads the app's identity from `app.json`'s `linux` block.
+
+Packages link the libraries of the distribution they're built on, so each is built on its own (the release workflow builds all of them; see [release.md](release.md)):
+
+```sh
+npx react-native package-linux --format deb                     # this machine's (Ubuntu 24.04, Mint 22)
+scripts/package-linux-in-container.sh debian:13 deb debian13    # Debian 13, in podman or docker
+scripts/package-linux-in-container.sh fedora:44 rpm fc44        # Fedora 44
+scripts/package-linux-in-container.sh almalinux:10 rpm el10     # RHEL, CentOS Stream, AlmaLinux, Rocky 10
+scripts/package-flatpak.sh --smoke                              # Flatpak, any distribution
+```
+
+The container builds install, build, then install the package and start it there (`--smoke`), into `dist/`; their caches live in `.cache/linux-<tag>`. The Flatpak builds everything from source in the GNOME SDK, offline: `package-linux --format flatpak --manifest-only` writes react-native-gtk4's manifest, and `scripts/flatpak_manifest.py` adds the Rust core (the SDK's rust-stable extension, the crates as offline sources) and the whole repository as the app's source. It needs `flatpak`, `flatpak-builder`, and flatpak-builder-tools' node and cargo generators (`FLATPAK_NODE_GENERATOR`, `FLATPAK_CARGO_GENERATOR`; the release workflow shows how to install them). Its permissions (`app.json`'s `linux.flatpak.finishArgs`): PulseAudio (recording and playback), `~/Music` (the default library), and the file manager (Show in Folder). Known gap: in the Flatpak, Move to Trash goes to the sandbox's own trash (`XDG_DATA_HOME` is `~/.var/app/<appId>/data` there), not the desktop's.
 
 How the Linux app differs:
 
