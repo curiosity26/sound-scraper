@@ -143,9 +143,30 @@ void PanelChrome::endGesture() {
 }
 
 void PanelChrome::setInputRegion(const std::vector<double> &rects) {
+  inputRects_ = rects;
+  applyInputRegion();
+}
+
+void PanelChrome::applyInputRegion() {
   GtkWindow *window = stageWindow();
   GdkSurface *surface = window ? gtk_native_get_surface(GTK_NATIVE(window)) : nullptr;
   if (!surface) return;
+  // GtkWindow resets the input region to the whole window whenever it lays
+  // itself out (client-side decorations): set it again after each layout.
+  if (GdkFrameClock *clock = gdk_surface_get_frame_clock(surface); clock != inputClock_) {
+    if (inputClock_) {
+      g_signal_handlers_disconnect_by_data(inputClock_, this);
+      g_object_remove_weak_pointer(G_OBJECT(inputClock_), (gpointer *)&inputClock_);
+    }
+    inputClock_ = clock;
+    if (inputClock_) {
+      g_object_add_weak_pointer(G_OBJECT(inputClock_), (gpointer *)&inputClock_);
+      g_signal_connect_after(inputClock_, "layout", G_CALLBACK(+[](GdkFrameClock *, gpointer self) {
+                               static_cast<PanelChrome *>(self)->applyInputRegion();
+                             }),
+                             this);
+    }
+  }
   // Points from the React root (the window's child) to surface coordinates.
   graphene_point_t origin{0, 0}, at{0, 0};
   if (GtkWidget *child = gtk_window_get_child(window)) {
@@ -154,11 +175,11 @@ void PanelChrome::setInputRegion(const std::vector<double> &rects) {
   double nx = 0, ny = 0;
   gtk_native_get_surface_transform(GTK_NATIVE(window), &nx, &ny);
   cairo_region_t *region = cairo_region_create();
-  for (size_t i = 0; i + 3 < rects.size(); i += 4) {
-    double x = rects[i] + at.x + nx, y = rects[i + 1] + at.y + ny;
+  for (size_t i = 0; i + 3 < inputRects_.size(); i += 4) {
+    double x = inputRects_[i] + at.x + nx, y = inputRects_[i + 1] + at.y + ny;
     cairo_rectangle_int_t r{int(std::floor(x)), int(std::floor(y)),
-                            int(std::ceil(x + rects[i + 2]) - std::floor(x)),
-                            int(std::ceil(y + rects[i + 3]) - std::floor(y))};
+                            int(std::ceil(x + inputRects_[i + 2]) - std::floor(x)),
+                            int(std::ceil(y + inputRects_[i + 3]) - std::floor(y))};
     if (r.width > 0 && r.height > 0) cairo_region_union_rectangle(region, &r);
   }
   gdk_surface_set_input_region(surface, region);

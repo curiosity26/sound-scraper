@@ -35,7 +35,7 @@ class PanelChrome {
   void beginStageGesture(SsLayoutGesture *gesture);
 
   /// The stage window's input region: flat [x, y, w, h, ...] in points
-  /// from its top left.
+  /// from its top left. Kept through GTK's own updates of it.
   void setInputRegion(const std::vector<double> &rects);
 
   /// Moves the stage window to the next monitor (maximized there).
@@ -53,6 +53,7 @@ class PanelChrome {
  private:
   bool onPointer(const rngtk::PointerInput &input);
   void startGesture();
+  void applyInputRegion();
   void endGesture();
   GtkWindow *pressWindow() const;
   /// The stage (the main window), or null before it exists.
@@ -69,6 +70,9 @@ class PanelChrome {
   bool gestureRunning_ = false;
   // The stage window (weak).
   GtkWidget *stage_ = nullptr;
+  // Its input region (setInputRegion), and the frame clock that reapplies it.
+  std::vector<double> inputRects_;
+  GdkFrameClock *inputClock_ = nullptr;
   // The root of the latest press, for menus (kept after the release).
   GtkWidget *menuRoot_ = nullptr;
 };
