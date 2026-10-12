@@ -1,8 +1,9 @@
 # Code-quality checks for every pull request and push to main: ESLint
 # (React Native config + Prettier), TypeScript, Jest, cargo fmt, clippy with
-# warnings denied, the Rust tests, and that the generated bridge types
-# (app/src/bridge/generated) match the Rust definitions. Clippy runs on each OS
-# because the capture backends are platform-specific code.
+# warnings denied, the Rust tests, that the generated bridge types
+# (app/src/bridge/generated) match the Rust definitions, and that the Linux app
+# (app/linux, GTK4) builds. Clippy runs on each OS because the capture
+# backends are platform-specific code.
 name: Lint
 
 on:
@@ -53,7 +54,7 @@ jobs:
         run: git config --system core.longpaths true
       - uses: actions/checkout@v4
       - if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev libpulse-dev pkg-config
       - run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
         with:
@@ -68,7 +69,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+      - run: sudo apt-get update && sudo apt-get install -y libasound2-dev libpulse-dev pkg-config
       - run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
         with:
@@ -91,3 +92,20 @@ jobs:
             echo "::error::app/src/bridge/generated doesn't match the Rust bridge types. Run \`npm run bridge:types\` in app/ and commit the result."
             exit 1
           fi
+
+  # The Linux app: the GTK4 native modules (app/linux) against
+  # @curiosity26/react-native-gtk4 (an optional dependency, from GitHub).
+  linux-app:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-linux
+        with:
+          cache-key: lint-linux
+      - name: Build the app (Release) and check it starts without JS errors
+        working-directory: app
+        run: |
+          npx react-native run-linux --release --build-only
+          xvfb-run -a env GDK_BACKEND=x11 linux/build/Release/SoundScraper --smoke

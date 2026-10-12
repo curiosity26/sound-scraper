@@ -23,7 +23,7 @@ export const useMainMenuCommands = (): void => {
         return
       }
       if (e.event === 'toggleDoubleSize') {
-        // Window › Double Size (⌘D), Ctrl+D on Windows.
+        // Window › Double Size (⌘D), Ctrl+D on Windows and Linux.
         doubleSizeStore.set(!doubleSizeStore.get())
       } else if (e.event === 'skinFilesOpened') {
         takeSkins()

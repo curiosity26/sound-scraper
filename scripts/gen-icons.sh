@@ -1,5 +1,6 @@
 #!/bin/bash
-# Generates the macOS AppIcon set and the Windows MSIX/.ico assets from
+# Generates the macOS AppIcon set, the Windows MSIX/.ico assets and the
+# Linux app icon from
 # assets/icon-source.png (1024x1024). Small sizes (<= 50 px) use a tight crop
 # on the head and headphones, which stays readable where the full scene
 # doesn't. Needs ImageMagick (convert).
@@ -69,4 +70,8 @@ for s in 16 32 48; do fit "$SMALL" $s 1.0 "$TMP/ico-$s.png"; done
 for s in 64 128 256; do fit "$SRC" $s 1.0 "$TMP/ico-$s.png"; done
 convert "$TMP"/ico-{16,32,48,64,128,256}.png "$EXE/SoundScraper.ico"
 convert "$TMP"/ico-{16,32}.png "$EXE/small.ico"
+# Linux: the full artwork at 512 px (app.json's linux.icon); package-linux
+# scales it for the other hicolor sizes, and the Flatpak, whose SDK can't
+# scale, installs it as is.
+fit "$SRC" 512 1.0 "$ROOT/app/linux/icon.png"
 echo "Icons generated from $SRC"

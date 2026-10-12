@@ -77,7 +77,8 @@ def lame():
             'texts': [text],
             'note': ('Sound Scraper uses LAME, the MP3 encoder, as a separately loaded library '
                      '(libmp3lame.0.dylib in the macOS app bundle\'s Frameworks folder; libmp3lame.dll '
-                     'next to SoundScraper.exe on Windows). You may replace it with your own build of '
+                     'next to SoundScraper.exe on Windows; libmp3lame.so.0 in /usr/lib/SoundScraper on '
+                     'Linux). You may replace it with your own build of '
                      'LAME 3.100 or later. Its source is in core/vendor/mp3lame-sys/lame-3.100 of the '
                      'Sound Scraper source code.')}
 

@@ -1,16 +1,14 @@
-import { Platform } from 'react-native'
+import { platformText } from '@/shared/platformText'
 
 import type { Sort, SortKey } from './types'
 
 export const DEFAULT_SORT: Sort = { key: 'date', ascending: false }
 
-const isWindows = Platform.OS === 'windows'
+export const REVEAL_LABEL = platformText.revealLabel
 
-export const REVEAL_LABEL = isWindows ? 'Show in Explorer' : 'Show in Finder'
+export const TRASH_LABEL = platformText.trashLabel
 
-export const TRASH_LABEL = isWindows ? 'Move to Recycle Bin' : 'Move to Trash'
-
-export const TRASH_NAME = isWindows ? 'the Recycle Bin' : 'the Trash'
+export const TRASH_NAME = platformText.trashName
 
 export const COLUMNS = [
   { key: 'name', label: 'Name', flex: 4 },

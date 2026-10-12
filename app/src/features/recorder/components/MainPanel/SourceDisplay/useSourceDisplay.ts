@@ -44,11 +44,12 @@ export const useSourceDisplay = (
     const index = apps.findIndex(a => a.pid === r.selectedPid)
     const checked = r.selectedPid === 0 || index < 0 ? 0 : index + 2
     const [x, y, , h] = element.rect
+    const [ox, oy] = windows.origin('main')
     const chosen = await windows.showMenu(
       items,
       checked,
-      x * s,
-      (y + h + 2) * s,
+      ox + x * s,
+      oy + (y + h + 2) * s,
     )
     if (chosen === 0) {
       r.setSelectedPid(0)

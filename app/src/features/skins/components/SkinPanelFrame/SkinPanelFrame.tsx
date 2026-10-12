@@ -22,7 +22,7 @@ export type SkinPanelFrameProps = {
   readonly title: string
   readonly children: React.ReactNode
   /** The title bar's menu button (when the skin has one) was clicked; (x, y)
-   * is the point under it, in the window. */
+   * is the point under it, in the window (windows.showMenu's). */
   readonly onMenu?: (x: number, y: number) => void
 }
 
@@ -80,7 +80,10 @@ export const SkinPanelFrame: FC<SkinPanelFrameProps> = props => {
           label={`${props.title} actions`}
           button={menu}
           rect={menuRect}
-          onPress={() => props.onMenu?.(menuRect[0], menuRect[1] + menuRect[3])}
+          onPress={() => {
+            const [ox, oy] = windows.origin(props.panel)
+            props.onMenu?.(ox + menuRect[0], oy + menuRect[1] + menuRect[3])
+          }}
         />
       )}
       <PanelThemeProvider value={theme}>

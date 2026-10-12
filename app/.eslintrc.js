@@ -81,6 +81,8 @@ const TS_RULES = {
 
 module.exports = {
   root: true,
+  // The Linux build (run-linux): the JS bundle and CMake output.
+  ignorePatterns: ['linux/build/'],
   extends: ['@react-native', 'plugin:import/typescript'],
   plugins: ['prettier', 'import', 'react-refresh', 'sound-scraper'],
   settings: {

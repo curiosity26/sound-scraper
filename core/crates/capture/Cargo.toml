@@ -18,6 +18,9 @@ block2 = "0.6"
 libc = "0.2"
 objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "libc", "NSRunningApplication"] }
 
+[target.'cfg(target_os = "linux")'.dependencies]
+libpulse-binding = "2.30"
+
 [target.'cfg(target_os = "windows")'.dependencies]
 wasapi = "0.25"
 windows = { version = "0.62", features = [

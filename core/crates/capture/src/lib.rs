@@ -2,10 +2,13 @@
 //!
 //! - Windows: WASAPI loopback, process loopback for single apps ([`windows`]).
 //! - macOS: Core Audio process taps, ScreenCaptureKit fallback ([`macos`]).
-//! - Linux: PipeWire (later).
+//! - Linux: PulseAudio client API (also served by PipeWire), sink monitors
+//!   for system audio, per-sink-input monitor streams for single apps ([`linux`]).
 
 use std::{fmt, sync::mpsc::SyncSender};
 
+#[cfg(target_os = "linux")]
+pub mod linux;
 #[cfg(target_os = "macos")]
 pub mod macos;
 #[cfg(target_os = "windows")]
@@ -102,14 +105,16 @@ pub fn default_backend() -> Box<dyn CaptureBackend> {
     return Box::new(macos::MacCapture::new());
     #[cfg(target_os = "windows")]
     return Box::new(windows::WasapiCapture::new());
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    #[cfg(target_os = "linux")]
+    return Box::new(linux::PulseCapture::new());
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
     return Box::new(Unsupported);
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+#[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
 struct Unsupported;
 
-#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+#[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
 impl CaptureBackend for Unsupported {
     fn list_outputs(&self) -> Vec<OutputDevice> {
         Vec::new()

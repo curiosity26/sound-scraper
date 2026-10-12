@@ -1,7 +1,8 @@
 import { type FC, useRef } from 'react'
-import { Platform, ScrollView, StyleSheet, Text } from 'react-native'
+import { ScrollView, StyleSheet, Text } from 'react-native'
 
 import { useBurnTheme } from '@/features/burn/components/BurnPanel/useBurnTheme'
+import { platformText } from '@/shared/platformText'
 
 import { useBurnProgress } from './useBurnProgress'
 
@@ -38,7 +39,7 @@ const styles = StyleSheet.create({
   log: { flex: 2, borderWidth: 1, borderRadius: 4, padding: 6, minHeight: 60 },
   logLine: {
     fontSize: 11,
-    fontFamily: Platform.OS === 'windows' ? 'Consolas' : 'Menlo',
+    fontFamily: platformText.monoFont,
     lineHeight: 15,
   },
 })

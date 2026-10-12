@@ -12,9 +12,16 @@ It builds, on GitHub-hosted runners:
 
 - `SoundScraper-0.2.0.dmg`: Apple silicon, signed with Developer ID, notarized and stapled (macos-26, `scripts/package-macos.sh`).
 - `SoundScraper-0.2.0.0-ARM64.msix` and `SoundScraper-0.2.0.0-x64.msix`: signed with Azure Artifact Signing (windows-2025, cross-compiled, `scripts/package-windows.ps1 -ArtifactSigning`).
+- The GTK4 app for Linux, x86_64 and aarch64, unsigned. Each package links its distribution's libraries, so each is built on that release:
+  - `sound-scraper_0.2.0-1_ubuntu24.04_<amd64|arm64>.deb` for Ubuntu 24.04, Mint 22 and newer, plus `SoundScraper-0.2.0-linux-<x86_64|aarch64>.tar.gz` from the same build (`TARBALL=1`).
+  - `sound-scraper_0.2.0-1_debian13_<amd64|arm64>.deb`, `sound-scraper-0.2.0-1.fc44.<x86_64|aarch64>.rpm` and `sound-scraper-0.2.0-1.el10.<x86_64|aarch64>.rpm` (RHEL, CentOS Stream, AlmaLinux and Rocky 10).
+  - One `linux` job matrix builds all of these, each built, installed and started in a container of its distribution (`scripts/package-linux-in-container.sh`; locally with podman or docker). Debian 13 and EL 10 are the oldest releases with GTK 4.14, which react-native-gtk4 needs. Fedora's package is for one release: move `fc44` to the next one in the workflow when it ships.
+  - `SoundScraper-0.2.0-<x86_64|aarch64>.flatpak`: built from source in the GNOME SDK with no network, as Flathub requires (`scripts/package-flatpak.sh`), then installed and started. It isn't on Flathub; submitting it means a Flathub pull request with the manifest (`app/linux/build/package/flatpak/`) and the release's source archive.
 - `HiFi74.sskin` and any other skin in `skins/` except the built-in Default, packaged by the `package_skin` example.
 
 and publishes them, with a `SHA256SUMS.txt`, as a GitHub Release with generated notes. A tag with a `-label` becomes a pre-release.
+
+**Dry run:** add the label `release-dry-run` to a pull request (each later push to it runs again), or use *Run workflow* on the Release workflow. Every package is built for `package.json`'s version without the `release` environment's secrets, so the Mac app is ad-hoc signed and not notarized and the `.msix` is unsigned. The packages are the run's artifacts, and nothing is published. The jobs use an environment named `release-dry-run`, which has no secrets; GitHub creates it on the first run.
 
 The tag must match the version in every project file, or the run stops before building: `app/package.json` (and its lock) and the Cargo workspace (and `Cargo.lock`) hold the full version, e.g. `0.2.0-beta.1`; Xcode's `MARKETING_VERSION` and the MSIX manifest only take numbers, so they hold `0.2.0` and `0.2.0.0`. `scripts/version.py set` writes all of them, and `scripts/version.py` with no arguments lists them. The run number becomes the Mac build number (`CFBundleVersion`).
 
@@ -68,4 +75,5 @@ The account name, profile (`SoundScraperPublic`) and East US endpoint are in the
 
 - Each run checks the signatures: the Mac script runs `codesign --verify`, `stapler` and `spctl`; the Windows script checks that the signer's subject equals the manifest's Publisher and that the signature is Valid.
 - On a private repository, releases are visible only to people with access to the repo, and macOS runner minutes count ten times against the plan's included minutes.
+- The Linux packages aren't signed: apt and dnf don't check package signatures for local files (only repositories are signed), and a Flatpak bundle carries none.
 - A failed run can be retried from the Actions tab (Re-run failed jobs). To redo a release from scratch, delete the GitHub Release and the tag, then push the tag again.

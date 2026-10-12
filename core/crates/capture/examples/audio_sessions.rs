@@ -1,4 +1,6 @@
-//! Windows diagnostic: every active output device and its audio sessions.
+//! Diagnostic: every output device and the apps with audio.
+//! Windows lists each device's audio sessions; Linux lists the sound
+//! server's sinks and the apps with sink inputs.
 //!   cargo run -p sound_scraper_capture --example audio_sessions
 
 #[cfg(target_os = "windows")]
@@ -42,7 +44,30 @@ fn main() {
     }
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_os = "linux")]
 fn main() {
-    eprintln!("Windows only");
+    use sound_scraper_capture::default_backend;
+    let backend = default_backend();
+    for device in backend.list_outputs() {
+        println!(
+            "device: {} ({}){}",
+            device.name,
+            device.id.0,
+            if device.is_default { "  [default]" } else { "" }
+        );
+    }
+    for app in backend.list_audio_apps() {
+        println!(
+            "  pid {:>6}  {}  {}  {}",
+            app.pid,
+            if app.is_playing { "playing" } else { "idle   " },
+            app.name,
+            app.bundle_id.unwrap_or_default()
+        );
+    }
+}
+
+#[cfg(not(any(target_os = "windows", target_os = "linux")))]
+fn main() {
+    eprintln!("Windows and Linux only");
 }

@@ -1,4 +1,43 @@
 {
   "name": "SoundScraper",
-  "displayName": "SoundScraper"
+  "displayName": "SoundScraper",
+  "linux": {
+    "appId": "com.alexboyce.soundscraper",
+    "displayName": "Sound Scraper",
+    "summary": "Record what your computer plays, straight to MP3",
+    "description": "Sound Scraper records the audio your computer plays, from every app or just one, straight to MP3.\n\n- Record, pause and stop, with a live visualizer\n- A library of your recordings, with tag editing and cover art\n- Split recordings into tracks, make playlists and burn CDs\n- Skins for the WinAMP-style player",
+    "icon": "linux/icon.png",
+    "categories": [
+      "AudioVideo",
+      "Audio",
+      "Recorder"
+    ],
+    "keywords": [
+      "record",
+      "recorder",
+      "mp3",
+      "audio",
+      "capture"
+    ],
+    "license": "LicenseRef-proprietary",
+    "developer": {
+      "id": "com.alexboyce",
+      "name": "Alex Boyce"
+    },
+    "maintainer": "Alex Boyce <4050934+curiosity26@users.noreply.github.com>",
+    "deb": {
+      "package": "sound-scraper",
+      "section": "sound"
+    },
+    "rpm": {
+      "name": "sound-scraper"
+    },
+    "flatpak": {
+      "finishArgs": [
+        "--socket=pulseaudio",
+        "--filesystem=xdg-music",
+        "--talk-name=org.freedesktop.FileManager1"
+      ]
+    }
+  }
 }
