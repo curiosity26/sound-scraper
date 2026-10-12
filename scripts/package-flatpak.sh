@@ -29,7 +29,8 @@ flatpak_dir=$out/flatpak
 
 flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
-npx react-native package-linux --format flatpak --manifest-only --output "$out"
+# The host needs no GTK: the build happens in the Flatpak SDK.
+npx react-native package-linux --format flatpak --manifest-only --no-checks --output "$out"
 
 # The repository as the app module's source (the app builds ../core).
 mkdir -p "$flatpak_dir/sources"
