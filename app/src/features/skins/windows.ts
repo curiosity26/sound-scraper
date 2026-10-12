@@ -63,7 +63,12 @@ export const windows = {
     native().setPanelVisible(panel, visible)
   },
   isPanelVisible: (panel: PanelName): boolean => native().isPanelVisible(panel),
-  /** Native pop-up menu at (x, y) in a panel; '-' is a separator. */
+  /** Where a panel sits in its window: its top left (each panel is a window here). */
+  origin: (_panel: WindowName): readonly [number, number] => [0, 0],
+  /**
+   * Native pop-up menu at (x, y) in a panel's window (pageX,
+   * measureInWindow; a skin rect plus `origin`); '-' is a separator.
+   */
   showMenu: (
     items: string[],
     checked: number,

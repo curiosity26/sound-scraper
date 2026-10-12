@@ -69,17 +69,19 @@ export const windows = {
     stage.setVisible(panel, visible)
   },
   isPanelVisible: (panel: PanelName): boolean => stage.isVisible(panel),
-  /** Native pop-up menu at (x, y) in a panel; '-' is a separator. */
+  /** Where a panel sits on the stage, the window all panels share. */
+  origin: (panel: WindowName): readonly [number, number] => stage.origin(panel),
+  /**
+   * Native pop-up menu at (x, y) on the stage (pageX, measureInWindow; a
+   * skin rect plus `origin`); '-' is a separator.
+   */
   showMenu: (
     items: string[],
     checked: number,
     x: number,
     y: number,
     panel: WindowName = 'main',
-  ) => {
-    const [px, py] = stage.origin(panel)
-    return native().showMenu(panel, items, checked, px + x, py + y)
-  },
+  ) => native().showMenu(panel, items, checked, x, y),
   /** Window events: the stage's (shown, hidden) and the native side's. */
   onEvent: (
     listener: (e: SkinWindowEvent) => void,

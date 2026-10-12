@@ -10,6 +10,7 @@ import { useLibraryScreen } from '@/features/library/components/LibraryScreen/us
 import type { Row } from '@/features/library/types'
 import { playlists } from '@/features/playlists/playlists'
 
+import { auxClickPoint } from './auxClickPoint'
 import type { AuxClick, MouseLike } from './types'
 import { useRecordingMenu } from './useRecordingMenu'
 
@@ -73,12 +74,11 @@ export const useRowClicks = (props: UseRowClicksProps): UseRowClicksResult => {
     auxClick: (row, index, e) => {
       rightClick(row, {
         button: e.button ?? 2,
-        pageX: boxAt.current.x + (e.clientX ?? 0),
-        pageY:
-          boxAt.current.y +
-          index * rowHeight.current -
-          scrollOffset +
-          (e.clientY ?? 0),
+        ...auxClickPoint(
+          e,
+          boxAt.current,
+          index * rowHeight.current - scrollOffset,
+        ),
       })
     },
   }
