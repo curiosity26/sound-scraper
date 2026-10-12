@@ -65,8 +65,15 @@ add_dependencies(sound_scraper_core sound_scraper_core_build)
 # What the Rust standard library and the core's crates need from the system
 # (cargo rustc -- --print native-static-libs): LAME, PulseAudio (capture),
 # ALSA (cpal's playback).
+# An imported target links LAME by its full path: a bare
+# libmp3lame.so.0 path would become -lmp3lame, which needs libmp3lame-dev.
+add_library(sound_scraper_lame SHARED IMPORTED)
+set_target_properties(sound_scraper_lame PROPERTIES
+  IMPORTED_LOCATION "${SS_LAME_LIB}"
+  IMPORTED_SONAME libmp3lame.so.0)
+add_dependencies(sound_scraper_lame sound_scraper_core_build)
 target_link_libraries(sound_scraper_core INTERFACE
-  "${SS_LAME_LIB}" PkgConfig::LIBPULSE PkgConfig::ALSA dl pthread m rt util)
+  sound_scraper_lame PkgConfig::LIBPULSE PkgConfig::ALSA dl pthread m rt util)
 
 # ---- The app's native modules and views ----
 add_library(sound_scraper_native STATIC
