@@ -213,9 +213,10 @@ The app's tests run on Vitest (`cd app && npm test`; Node 22.15+, see
   Library, act through `userEvent`, find elements by role and accessible
   name, and assert only what a user can see. A component that can't be
   found by role or name needs an accessibility label, not a `testID`.
-- Tests go through the public edge of a unit: a component, or a shared
-  function's own API. Helpers used by one component are tested through
-  that component.
+- A feature (`src/features/*`) is tested only through its components,
+  by what a user does and sees; its models, helpers, stores and native
+  clients are never called directly from a test. Only `src/shared` code
+  (used across features) is tested at its own API.
 - Nothing the app owns is mocked. The native modules are the boundary:
   `app/vitest/fakes/` has in-memory fakes of them (recordings, tags,
   settings, recorder and player, playlists, skinned windows, the editor's
