@@ -22,12 +22,9 @@ export type IconProps = {
 export const Icon: FC<IconProps> = props => {
   const s = props.size ?? 12
   const c = props.color
-  // Windows draws a triangle only when the clear colors come after the
-  // border widths, so the order here matters.
   const tri = (dir: 'left' | 'right', h: number) => [
     styles.tri,
     { borderTopWidth: h / 2, borderBottomWidth: h / 2 },
-    styles.triClear,
     dir === 'right'
       ? { borderLeftWidth: h * 0.85, borderLeftColor: c }
       : { borderRightWidth: h * 0.85, borderRightColor: c },
@@ -117,8 +114,9 @@ export const Icon: FC<IconProps> = props => {
 const styles = StyleSheet.create({
   box: { alignItems: 'center', justifyContent: 'center' },
   row: { flexDirection: 'row' },
-  tri: { width: 0, height: 0 },
-  triClear: {
+  tri: {
+    width: 0,
+    height: 0,
     borderTopColor: 'transparent',
     borderBottomColor: 'transparent',
   },
