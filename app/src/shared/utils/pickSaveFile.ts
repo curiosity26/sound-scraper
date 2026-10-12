@@ -1,4 +1,4 @@
-import NativeSoundScraper from '@/bridge/NativeSoundScraper'
+import { NativeSoundScraper } from '@/bridge/NativeSoundScraper'
 
 /** Native Save dialog for one file type; null if cancelled. */
 export const pickSaveFile = (

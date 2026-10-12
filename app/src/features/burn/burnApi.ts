@@ -2,7 +2,7 @@
 // core's burn API (ss_burn), and the pure rules for what can be burned
 // where, unit-tested.
 import type { BurnOptions, BurnRequest, SimSettings } from '@/bridge/generated'
-import NativeSoundScraper from '@/bridge/NativeSoundScraper'
+import { NativeSoundScraper } from '@/bridge/NativeSoundScraper'
 import { requestReply } from '@/bridge/requestReply'
 import { type Guard, isNumber, isOneOf } from '@/shared/utils/guards'
 

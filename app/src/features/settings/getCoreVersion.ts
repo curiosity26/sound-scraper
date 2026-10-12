@@ -1,4 +1,4 @@
-import NativeSoundScraper from '@/bridge/NativeSoundScraper'
+import { NativeSoundScraper } from '@/bridge/NativeSoundScraper'
 
 /** Version string reported by the Rust core through the native bridge. */
 export const getCoreVersion = (): string => {

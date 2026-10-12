@@ -97,4 +97,4 @@ export interface Spec extends TurboModule {
   ): Promise<number>
 }
 
-export default TurboModuleRegistry.get<Spec>('SoundScraperSkins')
+export const NativeSkins = TurboModuleRegistry.get<Spec>('SoundScraperSkins')

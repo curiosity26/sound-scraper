@@ -121,7 +121,7 @@ const native = {
   ),
 } satisfies Spec
 
-export default native
+export const NativeEditor = native
 
 /** The test's handle on the fake editor module. */
 export const fakeEditor = {

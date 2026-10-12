@@ -175,4 +175,5 @@ export interface Spec extends TurboModule {
   ): Promise<string | null>
 }
 
-export default TurboModuleRegistry.getEnforcing<Spec>('SoundScraper')
+export const NativeSoundScraper =
+  TurboModuleRegistry.getEnforcing<Spec>('SoundScraper')

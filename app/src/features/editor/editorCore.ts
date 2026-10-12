@@ -8,7 +8,7 @@ import type {
   SavedTracks,
   WaveformStatus,
 } from '@/bridge/generated'
-import NativeEditor from '@/bridge/NativeEditor'
+import { NativeEditor } from '@/bridge/NativeEditor'
 import { parseNative } from '@/bridge/parseNative'
 import { type Guard, isArrayOf, isNullable } from '@/shared/utils/guards'
 

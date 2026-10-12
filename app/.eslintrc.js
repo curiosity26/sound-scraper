@@ -199,16 +199,21 @@ module.exports = {
       },
     },
     {
-      // React Native codegen reads these specs literally: it requires an
-      // `interface Spec extends TurboModule` (or props interface) and a
-      // default export of the registry lookup.
-      // Their test fakes (vitest/fakes) stand in for them, default export
-      // and all.
-      files: [
-        'src/bridge/Native*.ts',
-        'src/**/*NativeComponent.ts',
-        'vitest/fakes/Native*.ts',
-      ],
+      // Codegen only finds a Turbo Module through an `interface Spec
+      // extends TurboModule`; a type alias fails with "No TypeScript
+      // interfaces extending TurboModule". The module itself is a named
+      // export like everything else.
+      files: ['src/bridge/Native*.ts'],
+      rules: {
+        '@typescript-eslint/consistent-type-definitions': 'off',
+      },
+    },
+    {
+      // Native components also need their props as an interface extending
+      // ViewProps, and @react-native/babel-plugin-codegen only generates the
+      // static view config (which Windows' Fabric needs) for
+      // `export default codegenNativeComponent(...)`.
+      files: ['src/**/*NativeComponent.ts'],
       rules: {
         '@typescript-eslint/consistent-type-definitions': 'off',
         'import/no-default-export': 'off',

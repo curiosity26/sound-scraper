@@ -31,4 +31,4 @@ export interface Spec extends TurboModule {
   ): Promise<string>
 }
 
-export default TurboModuleRegistry.get<Spec>('SoundScraperEditor')
+export const NativeEditor = TurboModuleRegistry.get<Spec>('SoundScraperEditor')
