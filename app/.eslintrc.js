@@ -39,6 +39,27 @@ const STYLE_SYNTAX = [
   },
 ]
 
+// Module-level mutable state: a top-level `let`, or a top-level Map/Set,
+// outlives the component tree and changes without React knowing. UI state
+// goes in a component or provider; state shared by windows belongs in the
+// core. Applies to every source file, so moving state into a plain `.ts`
+// file doesn't get around it; the allowed exceptions are listed below.
+const MUTABLE_COLLECTION =
+  'NewExpression[callee.name=/^(Map|Set|WeakMap|WeakSet)$/]'
+const MODULE_STATE_SYNTAX = [
+  {
+    selector:
+      "Program > VariableDeclaration[kind='let'], Program > ExportNamedDeclaration > VariableDeclaration[kind='let']",
+    message:
+      'No module-level `let`: keep state in a component, a provider or the core.',
+  },
+  {
+    selector: `Program > VariableDeclaration > VariableDeclarator > ${MUTABLE_COLLECTION}, Program > ExportNamedDeclaration > VariableDeclaration > VariableDeclarator > ${MUTABLE_COLLECTION}`,
+    message:
+      'No module-level Map or Set: keep state in a component, a provider or the core.',
+  },
+]
+
 const COMPONENT_SYNTAX = [
   {
     selector:
@@ -69,7 +90,7 @@ const TS_RULES = {
   ],
   '@typescript-eslint/switch-exhaustiveness-check': [
     'error',
-    { considerDefaultExhaustiveForUnions: true },
+    { considerDefaultExhaustiveForUnions: false },
   ],
   // The project service already checks unused vars via tsc; keep ESLint's
   // version so `_`-prefixed parameters stay allowed.
@@ -146,7 +167,11 @@ module.exports = {
         // Data from the core has generated types (src/bridge/generated);
         // `unknown` is only for a type guard's input and caught errors.
         'sound-scraper/no-unknown-shape': 'error',
-        'no-restricted-syntax': ['error', ...STYLE_SYNTAX],
+        'no-restricted-syntax': [
+          'error',
+          ...STYLE_SYNTAX,
+          ...MODULE_STATE_SYNTAX,
+        ],
       },
     },
     {
@@ -162,7 +187,12 @@ module.exports = {
           'error',
           { state: 2, effects: 1 },
         ],
-        'no-restricted-syntax': ['error', ...STYLE_SYNTAX, ...COMPONENT_SYNTAX],
+        'no-restricted-syntax': [
+          'error',
+          ...STYLE_SYNTAX,
+          ...MODULE_STATE_SYNTAX,
+          ...COMPONENT_SYNTAX,
+        ],
       },
     },
     {
@@ -195,8 +225,49 @@ module.exports = {
       },
     },
     {
+      // Module state that's still allowed. Keep this list short, and say
+      // why each file is on it.
+      files: [
+        // Shared by every window on the one JS runtime. These move into the
+        // core, with each window mirroring them through events, as
+        // playlists.ts already does.
+        'src/features/library/selection.ts',
+        'src/features/library/refreshers.ts',
+        'src/features/playback/playback.ts',
+        'src/features/playlists/playlists.ts',
+        'src/features/skins/skinStore.ts',
+        'src/features/skins/doubleSizeStore.ts',
+        'src/features/skins/imageRevision.ts',
+        'src/features/skins/stage/stage.ts',
+        'src/features/skins/windows.linux.ts',
+        // Not UI state: a native module looked up once, an id counter, the
+        // reads that failed (keyed weakly by their promise), and the
+        // dev-build debugger console.
+        'src/features/skins/stage/stageNative.ts',
+        'src/features/editor/components/EditorPanel/model/newId.ts',
+        'src/features/library/components/LibraryScreen/useRecordingList.ts',
+        'src/roots/devConsole/addToDevConsole.ts',
+      ],
+      rules: {
+        'no-restricted-syntax': ['error', ...STYLE_SYNTAX],
+      },
+    },
+    {
       files: ['__tests__/**', '*.test.ts', '*.test.tsx'],
       env: { jest: true },
+    },
+    {
+      // Tests keep their fakes and what they record at module level.
+      files: ['__tests__/**/*.ts', '*.test.ts'],
+      rules: {
+        'no-restricted-syntax': ['error', ...STYLE_SYNTAX],
+      },
+    },
+    {
+      files: ['__tests__/**/*.tsx', '*.test.tsx'],
+      rules: {
+        'no-restricted-syntax': ['error', ...STYLE_SYNTAX, ...COMPONENT_SYNTAX],
+      },
     },
     {
       // Tooling configs are CommonJS modules read by Node.
