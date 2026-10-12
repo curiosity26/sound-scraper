@@ -2,9 +2,18 @@
 // React Native Windows, which mis-centres a single-line box's text (it lands
 // in the bottom half and is clipped) but top-aligns a multiline one. There,
 // single-line fields are multiline boxes limited to one line that still
-// submit (and blur) on Enter. Use this instead of TextInput everywhere.
+// submit (and blur) on Enter. Its placeholder there is drawn near-black
+// whatever the text color, so it gets the text color, faded, as on macOS.
+// Use this instead of TextInput everywhere.
 import type { FC, Ref } from 'react'
-import { Platform, TextInput, type TextInputProps } from 'react-native'
+import {
+  Platform,
+  StyleSheet,
+  TextInput,
+  type TextInputProps,
+} from 'react-native'
+
+import { withAlpha } from '@/shared/utils/withAlpha'
 
 const windowsSingleLine: Partial<TextInputProps> = {
   multiline: true,
@@ -18,7 +27,19 @@ export type TextFieldProps = TextInputProps & {
 
 // React 19 passes `ref` as a regular prop, so no forwardRef.
 export const TextField: FC<TextFieldProps> = props => {
-  const fix =
-    Platform.OS === 'windows' && !props.multiline ? windowsSingleLine : null
-  return <TextInput {...fix} {...props} {...(fix && { multiline: true })} />
+  const windows = Platform.OS === 'windows'
+  const fix = windows && !props.multiline ? windowsSingleLine : null
+  const color = StyleSheet.flatten(props.style).color
+  const placeholderTextColor =
+    windows && typeof color === 'string' && color.startsWith('#')
+      ? withAlpha(color, 0.45 * 255)
+      : undefined
+  return (
+    <TextInput
+      placeholderTextColor={placeholderTextColor}
+      {...fix}
+      {...props}
+      {...(fix && { multiline: true })}
+    />
+  )
 }

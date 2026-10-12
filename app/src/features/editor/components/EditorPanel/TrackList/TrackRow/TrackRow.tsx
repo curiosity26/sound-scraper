@@ -6,7 +6,7 @@ import { trackColor } from '@/features/editor/components/EditorPanel/trackColor'
 import { listStyles } from '@/features/editor/components/EditorPanel/TrackList/styles'
 import type { TrackRow as Track } from '@/features/editor/components/EditorPanel/types'
 import { useEditor } from '@/features/editor/components/EditorPanel/useEditor'
-import { withAlpha } from '@/features/editor/components/EditorPanel/withAlpha'
+import { withAlpha } from '@/shared/utils/withAlpha'
 
 import { TrackName } from './TrackName'
 

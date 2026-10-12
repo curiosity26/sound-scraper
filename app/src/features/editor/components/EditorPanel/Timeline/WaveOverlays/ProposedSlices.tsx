@@ -2,7 +2,7 @@ import React, { type FC } from 'react'
 import { StyleSheet, View } from 'react-native'
 
 import { useEditor } from '@/features/editor/components/EditorPanel/useEditor'
-import { withAlpha } from '@/features/editor/components/EditorPanel/withAlpha'
+import { withAlpha } from '@/shared/utils/withAlpha'
 
 import { overlayStyles } from './styles'
 

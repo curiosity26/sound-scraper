@@ -3,9 +3,9 @@
 import { useMemo } from 'react'
 
 import { usePanelTheme } from '@/shared/hooks/usePanelTheme'
+import { withAlpha } from '@/shared/utils/withAlpha'
 
 import type { EditorTheme } from './types'
-import { withAlpha } from './withAlpha'
 
 export const useEditorTheme = (
   waveform: Record<string, string>,
