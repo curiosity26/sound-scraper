@@ -45,8 +45,12 @@ export type Spec = TurboModule & {
   moveToNextMonitor(): void
 }
 
+// Looked up once: each lookup makes a new module, and the one JS listens
+// to (onStageEvent) has to be the one that stays.
+let module: Spec | null | undefined
+
 export const stageNative = (): Spec => {
-  const module = TurboModuleRegistry.get<Spec>('SoundScraperStage')
+  module ??= TurboModuleRegistry.get<Spec>('SoundScraperStage')
   if (!module) {
     throw new Error('The stage is only on Linux')
   }

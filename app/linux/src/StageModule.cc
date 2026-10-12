@@ -1,5 +1,7 @@
 #include "StageModule.h"
 
+#include <react/bridging/Dynamic.h>
+
 #include <mutex>
 #include <utility>
 #include <vector>
