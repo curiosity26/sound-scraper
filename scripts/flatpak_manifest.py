@@ -10,6 +10,10 @@ build also compiles the Rust core (../core) with cargo, so its module gets:
 - Rust from the SDK's rust-stable extension, and the core's crates as
   offline sources (cargo-sources.json, from flatpak-cargo-generator).
 
+Every module also compiles with `-include cstdint`: Hermes and React
+Native's headers expect <cstdint> to come in through other headers, which
+the SDK's newer libstdc++ no longer does (as for Fedora 44's packages).
+
     flatpak_manifest.py MANIFEST SOURCE_ARCHIVE CARGO_SOURCES
 """
 
@@ -25,6 +29,12 @@ def main(manifest_file: str, archive: str, cargo_sources: str) -> None:
     here = os.path.dirname(os.path.abspath(manifest_file))
     app = manifest["modules"][-1]
     name = app["name"]
+
+    # Appended to the SDK's own CXXFLAGS, for every module.
+    common = manifest.setdefault("build-options", {})
+    flags = common.get("cxxflags", "")
+    if "-include cstdint" not in flags:
+        common["cxxflags"] = f"{flags} -include cstdint".strip()
 
     rust = "org.freedesktop.Sdk.Extension.rust-stable"
     if rust not in manifest["sdk-extensions"]:
