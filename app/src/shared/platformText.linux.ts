@@ -6,4 +6,6 @@ export const platformText = {
   /** Prefix for a shortcut's key: "Ctrl+D". */
   shortcutModifier: 'Ctrl+',
   monoFont: 'monospace',
+  /** The bundled Material Icons font (assets/fonts), registered at startup. */
+  iconFont: 'Material Icons',
 }

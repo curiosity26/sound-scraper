@@ -1,7 +1,7 @@
 import React, { type FC } from 'react'
 import { StyleSheet, View } from 'react-native'
 
-import { Triangle } from './Triangle'
+import { Glyph } from './Glyph'
 
 export type IconName =
   | 'play'
@@ -20,51 +20,18 @@ export type IconProps = {
   readonly size?: number
 }
 
-/** Simple shapes, sized `size` points, in `color`. */
+/** The transport's glyphs (Material Icons) and simple drawn shapes, sized
+ * `size` points, in `color`. */
 export const Icon: FC<IconProps> = props => {
   const s = props.size ?? 12
   const c = props.color
   const box = [styles.box, { width: s, height: s }]
   switch (props.name) {
     case 'play':
-      return (
-        <View style={box}>
-          <View style={{ marginLeft: s * 0.15 }}>
-            <Triangle pointing="right" height={s} color={c} />
-          </View>
-        </View>
-      )
     case 'pause':
-      return (
-        <View style={[box, styles.row, { gap: s * 0.22 }]}>
-          <View
-            style={{ width: s * 0.28, height: s * 0.9, backgroundColor: c }}
-          />
-          <View
-            style={{ width: s * 0.28, height: s * 0.9, backgroundColor: c }}
-          />
-        </View>
-      )
     case 'stop':
-      return (
-        <View style={box}>
-          <View
-            style={[
-              { width: s * 0.78, height: s * 0.78, backgroundColor: c },
-              styles.stop,
-            ]}
-          />
-        </View>
-      )
     case 'toStart':
-      return (
-        <View style={[box, styles.row]}>
-          <View
-            style={{ width: s * 0.16, height: s * 0.85, backgroundColor: c }}
-          />
-          <Triangle pointing="left" height={s * 0.85} color={c} />
-        </View>
-      )
+      return <Glyph name={props.name} color={c} size={s} />
     case 'magnet':
       return (
         <View style={box}>
@@ -110,8 +77,6 @@ export const Icon: FC<IconProps> = props => {
 
 const styles = StyleSheet.create({
   box: { alignItems: 'center', justifyContent: 'center' },
-  row: { flexDirection: 'row' },
-  stop: { borderRadius: 1 },
   magnet: { borderTopWidth: 0 },
   zoom: { borderWidth: 1.5, borderRadius: 1.5 },
 })

@@ -8,12 +8,30 @@
 // rngtk/App.h for the command-line options (--smoke, --bundle, ...).
 // Skins (.sskin files or skin folders) on the command line are offered for
 // installing, as when opened from the file manager on the other platforms.
+#include <fontconfig/fontconfig.h>
 #include <rngtk/App.h>
 #include <rngtk/Autolinking.h>
 
+#include <filesystem>
+
 #include "src/SoundScraperPackage.h"
 
+namespace {
+
+// The icon font the editor's transport uses (assets/fonts), installed next
+// to the executable, added to fontconfig before GTK sets up its fonts.
+void registerIconFont() {
+  std::error_code error;
+  auto dir = std::filesystem::read_symlink("/proc/self/exe", error).parent_path();
+  auto font = (dir / "MaterialIcons-Regular.ttf").string();
+  FcConfigAppFontAddFile(FcConfigGetCurrent(),
+                         reinterpret_cast<const FcChar8 *>(font.c_str()));
+}
+
+} // namespace
+
 int main(int argc, char **argv) {
+  registerIconFont();
   rngtk::AppOptions options;
   options.appId = "com.alexboyce.soundscraper";
   options.title = "Sound Scraper";

@@ -10,4 +10,9 @@ export const platformText = {
   /** Prefix for a shortcut's key: "Ctrl+D", "⌘D". */
   shortcutModifier: isWindows ? 'Ctrl+' : '⌘',
   monoFont: isWindows ? 'Consolas' : 'Menlo',
+  /** The bundled Material Icons font (assets/fonts): Windows loads it from
+   * the package by path. */
+  iconFont: isWindows
+    ? 'ms-appx:///Assets/Fonts/MaterialIcons-Regular.ttf#Material Icons'
+    : 'Material Icons',
 }

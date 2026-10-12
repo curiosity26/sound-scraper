@@ -27,6 +27,7 @@ find_package(ReactNativeGtk REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBPULSE REQUIRED IMPORTED_TARGET libpulse)
 pkg_check_modules(ALSA REQUIRED IMPORTED_TARGET alsa)
+pkg_check_modules(FONTCONFIG REQUIRED IMPORTED_TARGET fontconfig)
 
 # ---- The Rust core ----
 get_filename_component(SS_CORE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../core" ABSOLUTE)
@@ -92,21 +93,25 @@ target_link_libraries(sound_scraper_native PRIVATE ReactNativeGtk::sdk)
 target_link_libraries(sound_scraper_native PUBLIC sound_scraper_core)
 
 add_executable(SoundScraper main.cc)
-target_link_libraries(SoundScraper PRIVATE ReactNativeGtk::host sound_scraper_native)
+target_link_libraries(SoundScraper PRIVATE ReactNativeGtk::host sound_scraper_native
+  PkgConfig::FONTCONFIG)
 # Copies the host libraries next to the executable. Release builds also get
 # index.bundle.js and the assets there (run-linux --release bundles them).
 rngtk_app(SoundScraper)
 
 # LAME next to the executable (it's found through $ORIGIN), and installed
 # with the host libraries.
+# The icon font next to it too (main.cc registers it with fontconfig).
+set(SS_ICON_FONT "${CMAKE_CURRENT_SOURCE_DIR}/../assets/fonts/MaterialIcons-Regular.ttf")
 add_custom_command(TARGET SoundScraper POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy "${SS_LAME_LIB}" $<TARGET_FILE_DIR:SoundScraper>
+  COMMAND ${CMAKE_COMMAND} -E copy "${SS_ICON_FONT}" $<TARGET_FILE_DIR:SoundScraper>
   VERBATIM)
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   get_target_property(SS_RPATH SoundScraper BUILD_RPATH)
   set_target_properties(SoundScraper PROPERTIES BUILD_RPATH "${SS_RPATH};$ORIGIN")
 else()
-  install(FILES "${SS_LAME_LIB}" DESTINATION lib/SoundScraper)
+  install(FILES "${SS_LAME_LIB}" "${SS_ICON_FONT}" DESTINATION lib/SoundScraper)
 endif()
 # Hermes' build leaves its build directory (and an empty element) in
 # libhermesvm.so's RUNPATH, which rpmbuild rejects; installed, it finds
