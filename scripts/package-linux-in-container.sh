@@ -29,6 +29,12 @@ mkdir -p "$cache" "$root/dist"
 out=$(mktemp -d "$root/dist/.$tag.XXXXXX")
 trap 'rm -rf "$out"' EXIT
 
+# docker runs the container as root, so its files in /out are handed back
+# to the caller; rootless podman's root already is the caller (and chowning
+# to the caller's uid there would map it to a subordinate one).
+owner=
+[[ $(basename "$engine") == docker ]] && owner="$(id -u):$(id -g)"
+
 echo "== $tag: packaging the app as a .$format in $image"
 # CXXFLAGS: Hermes and React Native's headers expect <cstdint> to come in
 # through other headers, which newer libstdc++ (Fedora 44's GCC 16) no
@@ -41,13 +47,13 @@ git -C "$root" ls-files -co --exclude-standard -z |
     -v "$cache:/cache" -v "$out:/out" \
     -e CARGO_HOME=/cache/cargo -e RUSTUP_HOME=/cache/rustup \
     -e npm_config_cache=/cache/npm -e RNGTK_CACHE_DIR=/cache/rngtk \
-    -e FORMAT="$format" -e TARBALL="${TARBALL:-}" -e OWNER="$(id -u):$(id -g)" \
+    -e FORMAT="$format" -e TARBALL="${TARBALL:-}" -e OWNER="$owner" \
     -e CXXFLAGS="-include cstdint" \
     "$image" bash -c '
       set -euo pipefail
       # Under docker the container runs as root: hand /out back to the
       # caller, so the work trees in it can be removed.
-      trap "chown -R $OWNER /out" EXIT
+      [[ -z $OWNER ]] || trap "chown -R $OWNER /out" EXIT
       mkdir -p /work && tar -C /work -xf -
       /work/scripts/linux-build-deps.sh
       export PATH=/cache/cargo/bin:$PATH
