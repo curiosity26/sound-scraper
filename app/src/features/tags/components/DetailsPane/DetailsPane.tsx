@@ -1,11 +1,14 @@
 import type { FC } from 'react'
-import { ActivityIndicator, StyleSheet } from 'react-native'
+import { ScrollView, StyleSheet } from 'react-native'
 
 import type { ShowMenu } from '@/features/library/types'
-import { AsyncBoundary } from '@/shared/components/AsyncBoundary'
 
-import { DetailsPaneBody } from './DetailsPaneBody'
-import { useDetailsRead } from './useDetailsRead'
+import { CoverArt } from './CoverArt'
+import { DetailsFields } from './DetailsFields'
+import { DetailsPaneContext } from './DetailsPaneContext'
+import { DetailsStatus } from './DetailsStatus'
+import { useCoverSize } from './useCoverSize'
+import { useRecordingDetails } from './useRecordingDetails'
 
 export type DetailsPaneProps = {
   /** One recording, or several for a bulk edit. */
@@ -29,34 +32,43 @@ export type DetailsPaneProps = {
  * image to replace it), the file name and tags edited in place (Enter or
  * leaving a field saves it, Esc cancels), file info, and a gear menu with
  * Show in Finder, cover and trash actions. Several recordings: a bulk edit
- * of their shared tags. A spinner while they're read, and Retry when that
- * fails (DetailsPaneBody shows the rest).
+ * of their shared tags. The recording(s) (useRecordingDetails) are shared
+ * with the parts through DetailsPaneContext.
  */
 export const DetailsPane: FC<DetailsPaneProps> = props => {
-  const { key, details, refresh, retry } = useDetailsRead(props.fileNames)
+  const details = useRecordingDetails({
+    fileNames: props.fileNames,
+    onChanged: props.onChanged,
+    onRenamed: props.onRenamed,
+    onTrashed: props.onClose,
+    showMenu: props.showMenu,
+  })
+  const cover = useCoverSize()
+
+  if (props.menuRef) {
+    props.menuRef.current = details.openMenu
+  }
+
   return (
-    <AsyncBoundary
-      what="read the tags"
-      resetKeys={[key, details]}
-      onReset={retry}
-      fallback={
-        <ActivityIndicator
-          accessibilityLabel="Reading the tags"
-          style={styles.loading}
-        />
-      }
+    <DetailsPaneContext
+      value={{
+        ...details,
+        fileNames: props.fileNames,
+        onClose: props.onClose,
+        linkActions: !props.showMenu,
+        textStyle: props.textStyle,
+        isDark: props.isDark,
+      }}
     >
-      {/* Keyed by the selection: its messages start afresh with each one. */}
-      <DetailsPaneBody
-        key={key}
-        {...props}
-        details={details}
-        refresh={refresh}
-      />
-    </AsyncBoundary>
+      <ScrollView style={styles.root} onLayout={cover.onLayout}>
+        <CoverArt size={cover.size} />
+        <DetailsStatus />
+        <DetailsFields />
+      </ScrollView>
+    </DetailsPaneContext>
   )
 }
 
 const styles = StyleSheet.create({
-  loading: { marginTop: 10 },
+  root: { flex: 1 },
 })

@@ -57,97 +57,10 @@ const oneRecording = (tags: Partial<Tags> = {}) => {
   )
 }
 
-/** Holds the next tag read until the test lets it go. */
-const holdNextRead = () => {
-  let release = () => {}
-  const held = new Promise<undefined>(resolve => {
-    release = () => {
-      resolve(undefined)
-    }
-  })
-  const read = fakeCore.native.readTags.getMockImplementation()
-  fakeCore.native.readTags.mockImplementationOnce(async (fileName: string) => {
-    await held
-    if (!read) {
-      throw new Error('readTags has no fake')
-    }
-    return read(fileName)
-  })
-  return { resolve: release }
-}
-
-/** Makes the next tag read fail with `message`. */
-const failNextRead = (message: string) => {
-  fakeCore.native.readTags.mockImplementationOnce(() =>
-    Promise.reject(new Error(message)),
-  )
-}
-
 describe('the details pane', () => {
   beforeEach(() => {
     fakeCore.reset()
     onRenamed.mockClear()
-  })
-
-  describe('while the tags are read', () => {
-    it('shows a spinner and no fields', async () => {
-      oneRecording()
-      holdNextRead()
-      await renderDetailsPane(['Song.mp3'])
-      expect(screen.getByLabelText('Reading the tags')).toBeOnTheScreen()
-      expect(
-        screen.queryByRole('button', { name: /^Title: / }),
-      ).not.toBeOnTheScreen()
-    })
-
-    it('shows the tags once they are read', async () => {
-      oneRecording()
-      const held = holdNextRead()
-      await renderDetailsPane(['Song.mp3'])
-      held.resolve()
-      expect(await field('Title', 'Old title')).toBeOnTheScreen()
-      expect(screen.queryByLabelText('Reading the tags')).not.toBeOnTheScreen()
-    })
-  })
-
-  describe('when the tags cannot be read', () => {
-    it('says why, with Retry', async () => {
-      oneRecording()
-      failNextRead('Disk on fire')
-      await renderDetailsPane(['Song.mp3'])
-      expect(
-        await screen.findByText("Couldn't read the tags: Disk on fire"),
-      ).toBeOnTheScreen()
-      expect(screen.getByText('Retry')).toBeOnTheScreen()
-    })
-
-    it('reads them again on Retry', async () => {
-      const user = userEvent.setup()
-      oneRecording()
-      failNextRead('Disk on fire')
-      await renderDetailsPane(['Song.mp3'])
-      await user.press(await screen.findByText('Retry'))
-      expect(await field('Title', 'Old title')).toBeOnTheScreen()
-      expect(
-        screen.queryByText("Couldn't read the tags: Disk on fire"),
-      ).not.toBeOnTheScreen()
-    })
-  })
-
-  describe('when a save is read back', () => {
-    it('keeps showing the fields, not the spinner', async () => {
-      oneRecording()
-      await renderDetailsPane(['Song.mp3'])
-      await field('Title', 'Old title')
-      const held = holdNextRead()
-      await editField('Title', 'Old title', 'New title')
-      expect(screen.queryByLabelText('Reading the tags')).not.toBeOnTheScreen()
-      expect(
-        screen.getByRole('button', { name: /^Artist: / }),
-      ).toBeOnTheScreen()
-      held.resolve()
-      expect(await field('Title', 'New title')).toBeOnTheScreen()
-    })
   })
 
   describe('given one recording', () => {

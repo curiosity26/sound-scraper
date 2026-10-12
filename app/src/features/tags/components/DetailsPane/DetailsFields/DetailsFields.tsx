@@ -1,5 +1,5 @@
 import type { FC } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { ActivityIndicator, StyleSheet, View } from 'react-native'
 
 import { useDetailsPane } from '@/features/tags/components/DetailsPane/useDetailsPane'
 
@@ -9,9 +9,12 @@ import { FileInfo } from './FileInfo'
 import { TagFields } from './TagFields'
 
 /** Under the cover: the name and tags, file info and (without native
- * menus) the action links. */
+ * menus) the action links; a spinner while the tags load. */
 export const DetailsFields: FC = () => {
-  const { merged, linkActions } = useDetailsPane()
+  const { merged, error, linkActions } = useDetailsPane()
+  if (!merged) {
+    return error ? null : <ActivityIndicator />
+  }
   return (
     <View style={styles.fields}>
       <DetailsHeading />

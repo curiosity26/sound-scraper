@@ -1,6 +1,6 @@
-import { use, useMemo, useState, useTransition } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import type { Recording } from '@/bridge/types'
+import type { Recording, Tags } from '@/bridge/types'
 import { chooseCover as chooseCoverFor } from '@/features/library/chooseCover'
 import { displayName } from '@/features/library/displayName'
 import { library } from '@/features/library/library'
@@ -24,16 +24,11 @@ import { onRejected } from '@/shared/utils/onRejected'
 
 import { mergeCovers } from './mergeCovers'
 import { mergeTags } from './mergeTags'
-import type { RecordingDetails } from './types'
 import { validateTag } from './validateTag'
 
 export type UseRecordingDetailsOptions = {
   /** One recording, or several for a bulk edit. */
   readonly fileNames: readonly string[]
-  /** Their tags and library entries (useDetailsRead), read with use(). */
-  readonly details: Promise<RecordingDetails>
-  /** Reads them again (in a transition, keeping what's shown). */
-  readonly refresh: () => void
   /** Something changed on disk (tags, name, trash). */
   readonly onChanged: () => void
   /** A rename gave the recording a new file name. */
@@ -45,12 +40,12 @@ export type UseRecordingDetailsOptions = {
 }
 
 export type UseRecordingDetailsResult = {
-  /** Shared tag values. */
-  readonly merged: Record<Field, Merged>
+  /** Shared tag values; undefined while loading (or after a read error). */
+  readonly merged: Record<Field, Merged> | undefined
   readonly cover: CoverState
   /** The library entry, when one recording is shown. */
   readonly recording: Recording | undefined
-  /** A write, or the read after it, is in progress. */
+  /** A write is in progress. */
   readonly busy: boolean
   readonly error: string | undefined
   readonly notice: string | undefined
@@ -69,32 +64,54 @@ export type UseRecordingDetailsResult = {
 }
 
 /**
- * The selected recording(s)' tags and library entries (suspends until
- * they're read), with the edits the details pane makes: tags, cover, rename
- * and the actions menu. Each write reads them again.
+ * The selected recording(s)' tags and library entries, reloaded whenever
+ * the selection changes or a write lands, with the edits the details pane
+ * makes: tags, cover, rename and the actions menu.
  */
 export const useRecordingDetails = (
   options: UseRecordingDetailsOptions,
 ): UseRecordingDetailsResult => {
   const { fileNames, onChanged } = options
-  const { tags, recordings } = use(options.details)
+  const [tags, setTags] = useState<Tags[]>()
+  const [recordings, setRecordings] = useState<Recording[]>([])
   const [error, setError] = useState<string>()
   const [notice, setNotice] = useState<string>()
   const [busy, setBusy] = useState(false)
-  const [reloading, startReload] = useTransition()
-  const reload = () => {
-    startReload(options.refresh)
+  const readFailed = (message: string) => {
+    setError(`Couldn't read the tags: ${message}`)
   }
+  const key = fileNames.join('\u0000')
 
-  const merged = useMemo(() => mergeTags(tags), [tags])
-  const cover: CoverState = useMemo(() => mergeCovers(tags), [tags])
+  /** Reads the tags and library entries (rejects when they can't be read). */
+  const load = useCallback(async () => {
+    const names = key.split('\u0000').filter(Boolean)
+    const [loaded, all] = await Promise.all([
+      Promise.all(names.map(n => library.readTags(n))),
+      library.list(),
+    ])
+    setTags(loaded)
+    setRecordings(all.filter(r => names.includes(r.fileName)))
+  }, [key])
+
+  useEffect(() => {
+    setTags(undefined)
+    setError(undefined)
+    setNotice(undefined)
+    load().catch(onRejected(readFailed))
+  }, [load])
+
+  const merged = useMemo(() => (tags ? mergeTags(tags) : undefined), [tags])
+  const cover: CoverState = useMemo(
+    () => (tags ? mergeCovers(tags) : { kind: 'none' }),
+    [tags],
+  )
 
   const saveFailed = (message: string) => {
     setError(`Couldn't save: ${message}`)
   }
 
-  /** Writes one change to every selected recording, then reads them again
-   * (rejects when the write fails). */
+  /** Writes one change to every selected recording, then reloads (rejects
+   * when the write fails). */
   const write = async (
     edits: Partial<Record<Field, string>>,
     coverChange: CoverChange,
@@ -108,7 +125,7 @@ export const useRecordingDetails = (
         buildEdit(edits, coverChange, v23),
       )
       onChanged()
-      reload()
+      await load().catch(onRejected(readFailed))
     } finally {
       setBusy(false)
     }
@@ -164,7 +181,7 @@ export const useRecordingDetails = (
     showMenu: options.showMenu,
     onChanged: () => {
       onChanged()
-      reload()
+      load().catch(onRejected(readFailed))
     },
     onTrashed: options.onTrashed,
     report: m => {
@@ -177,7 +194,7 @@ export const useRecordingDetails = (
     merged,
     cover,
     recording: fileNames.length === 1 ? recordings[0] : undefined,
-    busy: busy || reloading,
+    busy,
     error,
     notice,
     saveField,
