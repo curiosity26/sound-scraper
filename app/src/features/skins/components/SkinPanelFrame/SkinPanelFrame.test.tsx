@@ -12,6 +12,8 @@ import { SkinProvider } from '@/features/skins/components/Skinned/SkinProvider'
 import { skinStore } from '@/features/skins/skinStore'
 import { usePanelStyles } from '@/shared/hooks/usePanelStyles'
 import { fakeSkins } from '@test/fakes/NativeSkins'
+import { holdDown } from '@test/fixtures/holdDown'
+import { imagesIn } from '@test/fixtures/imagesIn'
 import { sheet } from '@test/fixtures/sheet'
 import { testSkin } from '@test/fixtures/testSkin'
 
@@ -29,7 +31,7 @@ const framedSkin = () => {
     close: {
       offset: [6, 4],
       size: [10, 8],
-      sprite: { image: sheet, states: { normal: [0, 0] } },
+      sprite: { image: sheet, states: { normal: [0, 0], pressed: [20, 0] } },
     },
     controls: { text: '#eeeeee', accent: '#00ff00', background: '#111111' },
   }
@@ -72,6 +74,24 @@ describe('a skinned panel frame', () => {
         minWidth: 300,
         minHeight: 200,
         scale: 1,
+      })
+    })
+
+    it('shows the close button in its normal look', () => {
+      const [image] = imagesIn(
+        screen.getByRole('button', { name: 'Close Library' }),
+      )
+      // The sprite's "normal" cell, at [0, 0].
+      expect(image).toHaveStyle({ left: -0, top: -0 })
+    })
+
+    describe('when Close is held down', () => {
+      it('shows its pressed look', async () => {
+        const close = screen.getByRole('button', { name: 'Close Library' })
+        await holdDown(close)
+        const [image] = imagesIn(close)
+        // The sprite's "pressed" cell, at [20, 0].
+        expect(image).toHaveStyle({ left: -20, top: -0 })
       })
     })
 

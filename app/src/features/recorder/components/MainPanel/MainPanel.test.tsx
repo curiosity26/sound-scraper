@@ -7,6 +7,7 @@ import type { ResolvedAnimation, ResolvedSkin } from '@/bridge/generated'
 import { isArrayOf, isNumber, isShape, isString } from '@/shared/utils/guards'
 import { fakeSkins } from '@test/fakes/NativeSkins'
 import { fakeCore, recording } from '@test/fakes/NativeSoundScraper'
+import { holdDown } from '@test/fixtures/holdDown'
 import { imagesIn } from '@test/fixtures/imagesIn'
 import { sheet } from '@test/fixtures/sheet'
 import { skinElement } from '@test/fixtures/skinElement'
@@ -105,6 +106,56 @@ const isRotated = isShape<{ transform: { rotate: string }[] }>({
   transform: isArrayOf(isShape<{ rotate: string }>({ rotate: isString })),
 })
 const isPlaced = isShape<{ left: number }>({ left: isNumber })
+const isAt = isShape<{ left: number; top: number }>({
+  left: isNumber,
+  top: isNumber,
+})
+
+/** Where each look of a button sits in the sprite sheet. */
+const LOOKS = {
+  normal: [0, 0],
+  pressed: [20, 0],
+  active: [40, 0],
+  activePressed: [60, 0],
+  disabled: [80, 0],
+  recording: [0, 10],
+} satisfies Record<string, [number, number]>
+
+type Look = keyof typeof LOOKS
+
+/** A button's sprite with these looks. */
+const spriteWith = (...looks: Look[]) => ({
+  image: sheet,
+  states: Object.fromEntries(looks.map(look => [look, LOOKS[look]])),
+})
+
+/**
+ * The look the button named `name` shows, from the sprite cell drawn: its
+ * image is offset by minus the cell's place in the sheet.
+ */
+const lookOf = (name: string) => {
+  const [style] = imagesIn(screen.getByRole('button', { name }))
+    .map(styleOf)
+    .filter(isAt)
+  return Object.entries(LOOKS).find(
+    ([, [x, y]]) => style && -style.left === x && -style.top === y,
+  )?.[0]
+}
+
+/** Whether the button named `name` is drawn faded. */
+const isDimmed = (name: string) =>
+  screen
+    .getByRole('button', { name })
+    .queryAll(node => styleOf(node).opacity === 0.5).length > 0
+
+/** The test skin with a Library button that has these looks. */
+const libraryButtonSkin = (...looks: Look[]) => {
+  const skin = testSkin()
+  skin.panels.main.elements.toggleLibrary = skinElement([60, 30, 20, 10], {
+    sprite: spriteWith(...looks),
+  })
+  return skin
+}
 
 /** The plain boxes painted `color` inside `element`. */
 const paintedIn = (element: HostElement, color: string) =>
@@ -365,6 +416,166 @@ describe('the main panel', () => {
         const thumb = seekPiece('#ffffff')
         expect(thumb).toHaveStyle({ width: 6, height: 12 })
         expect(thumb.parent).toHaveStyle({ top: -3 })
+      })
+    })
+  })
+
+  describe('the look of its buttons', () => {
+    describe('given a Library button with every look', () => {
+      beforeEach(async () => {
+        await showMainPanel(
+          app,
+          libraryButtonSkin(
+            'normal',
+            'pressed',
+            'active',
+            'activePressed',
+            'disabled',
+          ),
+        )
+      })
+
+      it('shows its normal look at rest', () => {
+        expect(lookOf('Library')).toBe('normal')
+      })
+
+      describe('when it is held down', () => {
+        it('shows its pressed look', async () => {
+          await holdDown(screen.getByRole('button', { name: 'Library' }))
+          expect(lookOf('Library')).toBe('pressed')
+        })
+      })
+
+      describe('when it opens the library', () => {
+        it('shows its active look', async () => {
+          await press('Library')
+          expect(lookOf('Library')).toBe('active')
+        })
+      })
+
+      describe('when it is held down while the library is open', () => {
+        it('shows its active pressed look', async () => {
+          await press('Library')
+          await holdDown(screen.getByRole('button', { name: 'Library' }))
+          expect(lookOf('Library')).toBe('activePressed')
+        })
+      })
+    })
+
+    describe('given a Library button with only normal and pressed looks', () => {
+      describe('when it is held down while the library is open', () => {
+        it('shows its pressed look', async () => {
+          await showMainPanel(app, libraryButtonSkin('normal', 'pressed'))
+          await press('Library')
+          await holdDown(screen.getByRole('button', { name: 'Library' }))
+          expect(lookOf('Library')).toBe('pressed')
+        })
+      })
+    })
+
+    describe('given a Library button with only a normal look', () => {
+      describe('when it opens the library', () => {
+        it('keeps its normal look', async () => {
+          await showMainPanel(app, libraryButtonSkin('normal'))
+          await press('Library')
+          expect(lookOf('Library')).toBe('normal')
+        })
+      })
+    })
+
+    describe('given a Play button with a disabled look', () => {
+      describe('given nothing is loaded', () => {
+        beforeEach(async () => {
+          const skin = playbackSkin()
+          skin.panels.main.elements.play = skinElement([56, 30, 20, 10], {
+            sprite: spriteWith('normal', 'disabled'),
+          })
+          await showMainPanel(app, skin)
+        })
+
+        it('shows its disabled look', () => {
+          expect(lookOf('Play')).toBe('disabled')
+        })
+
+        it('draws it unfaded', () => {
+          expect(isDimmed('Play')).toBe(false)
+        })
+      })
+    })
+
+    describe('given a Play button with only a normal look', () => {
+      describe('given nothing is loaded', () => {
+        beforeEach(async () => {
+          const skin = playbackSkin()
+          skin.panels.main.elements.play = skinElement([56, 30, 20, 10], {
+            sprite: spriteWith('normal'),
+          })
+          await showMainPanel(app, skin)
+        })
+
+        it('shows its normal look', () => {
+          expect(lookOf('Play')).toBe('normal')
+        })
+
+        it('fades it', () => {
+          expect(isDimmed('Play')).toBe(true)
+        })
+      })
+    })
+
+    describe('given a record button with a recording look and no pause button', () => {
+      beforeEach(async () => {
+        const skin = testSkin()
+        skin.panels.main.elements.record = skinElement([4, 30, 20, 10], {
+          sprite: spriteWith('normal', 'pressed', 'recording'),
+        })
+        await showMainPanel(app, skin)
+        await press('Record')
+      })
+
+      describe('when recording', () => {
+        it('shows its recording look', () => {
+          expect(lookOf('Pause')).toBe('recording')
+        })
+      })
+
+      describe('when it is held down while recording', () => {
+        it('shows its pressed look', async () => {
+          await holdDown(screen.getByRole('button', { name: 'Pause' }))
+          expect(lookOf('Pause')).toBe('pressed')
+        })
+      })
+
+      describe('when it pauses the recording', () => {
+        it('shows its normal look, having no paused look', async () => {
+          await press('Pause')
+          expect(lookOf('Resume')).toBe('normal')
+        })
+      })
+    })
+
+    describe('given a record button with recording and disabled looks, and a Play button', () => {
+      beforeEach(async () => {
+        const skin = playbackSkin()
+        skin.panels.main.elements.record = skinElement([4, 30, 20, 10], {
+          sprite: spriteWith('normal', 'pressed', 'recording', 'disabled'),
+        })
+        await showMainPanel(app, skin)
+        await press('Record')
+      })
+
+      describe('when recording', () => {
+        it('keeps its recording look while disabled', () => {
+          expect(lookOf('Record')).toBe('recording')
+        })
+      })
+
+      describe('when Pause is pressed while recording', () => {
+        it('shows its disabled look, having no paused look', async () => {
+          // Play pauses a recording.
+          await press('Pause')
+          expect(lookOf('Record')).toBe('disabled')
+        })
       })
     })
   })

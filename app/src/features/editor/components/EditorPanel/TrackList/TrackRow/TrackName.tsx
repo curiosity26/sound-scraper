@@ -5,6 +5,8 @@ import { useEditor } from '@/features/editor/components/EditorPanel/useEditor'
 import { TextField } from '@/shared/components/TextField'
 
 export type TrackNameProps = {
+  /** Its accessible name: which track's name it is. */
+  readonly label: string
   readonly value: string
   readonly onCommit: (name: string) => void
 }
@@ -26,6 +28,7 @@ export const TrackName: FC<TrackNameProps> = props => {
   }
   return (
     <TextField
+      accessibilityLabel={props.label}
       style={[styles.name, { color: th.text }]}
       value={text}
       onChangeText={setText}

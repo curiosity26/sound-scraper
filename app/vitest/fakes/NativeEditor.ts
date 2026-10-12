@@ -1,7 +1,7 @@
 // The track editor's native module (src/bridge/NativeEditor.ts), faked: the
 // drafts it keeps per recording, and the recordings it can open (read at
 // once, from a lossless master), working out the tracks an edit list makes
-// as the core does. Tests replace the module with this one:
+// as the core does, and the slices Find Tracks proposes (as a test sets). Tests replace the module with this one:
 //
 //   vi.mock('@/bridge/NativeEditor', () => import('@test/fakes/NativeEditor'))
 //
@@ -9,7 +9,12 @@
 // in a beforeEach.
 import { vi } from 'vitest'
 
-import type { EditList, EditorTrack, WaveformStatus } from '@/bridge/generated'
+import type {
+  EditList,
+  EditorTrack,
+  Proposal,
+  WaveformStatus,
+} from '@/bridge/generated'
 import type { Spec } from '@/bridge/NativeEditor'
 import { parseNative } from '@/bridge/parseNative'
 import { isEditList } from '@/features/editor/guards/isEditList'
@@ -20,6 +25,8 @@ type State = {
   recordings: Record<string, number>
   /** The recording each open editor is on, by editor id. */
   open: Record<number, string>
+  /** What Find Tracks proposes, whatever its settings. */
+  proposals: readonly Proposal[]
   nextId: number
 }
 
@@ -27,14 +34,11 @@ const initialState = (): State => ({
   drafts: {},
   recordings: {},
   open: {},
+  proposals: [],
   nextId: 1,
 })
 
 const state: State = initialState()
-
-const notInTests = () => {
-  throw new Error('Not faked')
-}
 
 const durationOf = (id: number) => {
   const path = state.open[id]
@@ -99,7 +103,9 @@ const native = {
       tracksOf(durationOf(id), parseNative(editsJson, isEditList, 'edits')),
     ),
   ),
-  detect: vi.fn((_id: number, _optionsJson: string): string => notInTests()),
+  detect: vi.fn((_id: number, _optionsJson: string): string =>
+    JSON.stringify(state.proposals),
+  ),
   loadDraft: vi.fn((fileName: string) => state.drafts[fileName] ?? 'null'),
   saveDraft: vi.fn((fileName: string, editsJson: string) => {
     state.drafts = { ...state.drafts, [fileName]: editsJson }
@@ -132,6 +138,10 @@ export const fakeEditor = {
   },
   /** The raw draft JSON kept for `fileName`, if any. */
   draft: (fileName: string): string | undefined => state.drafts[fileName],
+  /** What Find Tracks proposes from now on. */
+  setProposals: (proposals: readonly Proposal[]) => {
+    state.proposals = [...proposals]
+  },
   /** Lets the editor open the recording at `path`, `durationMs` long. */
   addRecording: (path: string, durationMs: number) => {
     state.recordings = { ...state.recordings, [path]: durationMs }

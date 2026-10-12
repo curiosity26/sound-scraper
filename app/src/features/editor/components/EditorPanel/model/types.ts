@@ -1,6 +1,6 @@
 // The track editor's model (docs/track-editor-design.md §4): the edit list
-// and its changes, undo, and the ruler/zoom/snap arithmetic. Pure, so it's
-// unit-tested without the native side.
+// and its changes, undo, and the ruler/zoom/snap arithmetic. Pure: no
+// native side.
 
 export type Splice = { id: number; atMs: number; name: string }
 export type Region = { id: number; startMs: number; endMs: number }

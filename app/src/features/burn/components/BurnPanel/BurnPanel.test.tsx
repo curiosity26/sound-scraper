@@ -51,23 +51,28 @@ const hasDevices = (...devices: Device[]) => {
   fakeBurner.setDevices({ devices, simulator: false })
 }
 
-/** Burn CD… on a playlist of one recording `minutes` long. */
-const chooseBurnCd = (minutes: number) => {
-  const side = recording('Side A.mp3', { durationMs: minutes * 60_000 })
-  fakeCore.setRecordings([side])
-  const playlistId = fakeCore.addPlaylist('Mixtape', [side.fileName])
+/** Burn CD… on a playlist of recordings these many minutes long. */
+const chooseBurnCd = (...minutes: number[]) => {
+  const sides = minutes.map((m, i) =>
+    recording(`Side ${String.fromCharCode(65 + i)}.mp3`, {
+      durationMs: m * 60_000,
+    }),
+  )
+  fakeCore.setRecordings(sides)
+  const playlistId = fakeCore.addPlaylist(
+    'Mixtape',
+    sides.map(side => side.fileName),
+  )
   openBurnPanel(
     {
       playlistId,
       name: 'Mixtape',
-      tracks: [
-        {
-          path: side.path,
-          title: side.title,
-          performer: side.artist,
-          durationMs: side.durationMs,
-        },
-      ],
+      tracks: sides.map(side => ({
+        path: side.path,
+        title: side.title,
+        performer: side.artist,
+        durationMs: side.durationMs,
+      })),
     },
     () => {},
   )
@@ -125,6 +130,31 @@ describe('the burn panel', () => {
             tracks: [expect.objectContaining({ title: 'Side A' })],
           }),
         ])
+      })
+    })
+  })
+
+  describe('given two half-hour recordings and a blank 74-minute CD-R', () => {
+    beforeEach(() => {
+      hasDevices(drive())
+      chooseBurnCd(30, 30)
+    })
+
+    it('counts the pregap and the 2-second gap between the tracks', async () => {
+      await render(<BurnPanel />)
+      expect(
+        screen.getByText('60:04 with gaps · fits (13:56 free)'),
+      ).toBeOnTheScreen()
+    })
+
+    describe('when no gaps are chosen', () => {
+      it('counts only the pregap', async () => {
+        const user = userEvent.setup()
+        await render(<BurnPanel />)
+        await user.press(screen.getByRole('radio', { name: 'None (gapless)' }))
+        expect(
+          screen.getByText('60:02 with gaps · fits (13:58 free)'),
+        ).toBeOnTheScreen()
       })
     })
   })

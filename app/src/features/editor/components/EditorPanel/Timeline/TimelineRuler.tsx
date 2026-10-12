@@ -16,6 +16,7 @@ export const TimelineRuler: FC = () => {
   const c = th.wave
   return (
     <View
+      accessibilityLabel="Ruler"
       style={[
         styles.ruler,
         {

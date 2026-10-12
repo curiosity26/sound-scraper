@@ -26,6 +26,7 @@ export const NameField: FC = () => {
   return (
     <View style={[styles.nameField, { left, top: RULER + 1 }]}>
       <TextField
+        accessibilityLabel="Track name"
         autoFocus
         selectTextOnFocus
         value={naming.nameDraft}

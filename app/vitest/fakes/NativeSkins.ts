@@ -8,7 +8,11 @@
 // a beforeEach.
 import { vi } from 'vitest'
 
-import type { ResolvedSkin, SkinInspection } from '@/bridge/generated'
+import type {
+  ResolvedSkin,
+  SkinInspection,
+  SkinSummary,
+} from '@/bridge/generated'
 import type { Spec, WindowEvent } from '@/bridge/NativeSkins'
 
 import { fakeEmitter } from './emitter'
@@ -31,6 +35,7 @@ type State = {
   /** The menu item the next menu answers (-1 = dismissed). */
   menuChoice: number
   inspections: Record<string, SkinInspection | Error>
+  installed: SkinSummary[]
   opened: string[]
   /** What loading the skin chosen in the settings answers. */
   current: ResolvedSkin | null
@@ -41,6 +46,7 @@ const initialState = (): State => ({
   layouts: {},
   menuChoice: -1,
   inspections: {},
+  installed: [],
   opened: [],
   current: null,
 })
@@ -58,7 +64,7 @@ const native = {
       ? notInTests()
       : Promise.resolve(JSON.stringify(state.current)),
   ),
-  listSkins: vi.fn(() => Promise.resolve('[]')),
+  listSkins: vi.fn(() => Promise.resolve(JSON.stringify(state.installed))),
   installSkin: vi.fn((_archivePath: string) => notInTests()),
   removeSkin: vi.fn((_id: string) => Promise.resolve()),
   pickSkinArchive: vi.fn(() => Promise.resolve(null)),
@@ -152,6 +158,21 @@ export const fakeSkins = {
   /** What inspecting the .sskin at `path` answers (an Error rejects). */
   setInspection: (path: string, answer: SkinInspection | Error) => {
     state.inspections = { ...state.inspections, [path]: answer }
+  },
+  /** The skins listed as installed. */
+  setInstalledSkins: (installed: SkinSummary[]) => {
+    state.installed = installed
+  },
+  /**
+   * Skins opened from the file manager (or dropped on a panel). With
+   * `{ atLaunch: true }` they were opened before the app's JS started;
+   * otherwise the main window is told, as the native side does.
+   */
+  openFiles: (paths: string[], options: { atLaunch?: boolean } = {}) => {
+    state.opened = [...state.opened, ...paths]
+    if (options.atLaunch !== true) {
+      windowEvents.emit({ window: 'main', event: 'skinFilesOpened' })
+    }
   },
   /** The skin that loading the one chosen in the settings answers. */
   setCurrentSkin: (skin: ResolvedSkin) => {

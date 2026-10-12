@@ -21,6 +21,8 @@ export const Choice = <T extends string>(props: ChoiceProps<T>): ReactNode => {
           return (
             <Pressable
               key={value}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: on }}
               onPress={() => {
                 props.onChange(value)
               }}

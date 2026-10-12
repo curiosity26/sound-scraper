@@ -79,6 +79,8 @@ export const LibraryRow: FC<LibraryRowProps> = props => {
         },
       }}
       onPress={props.onPress}
+      // The red edge on rows past the end of the CD, for screen readers.
+      accessibilityHint={isOver ? "Won't fit on an 80-minute CD" : undefined}
       style={[
         rowStyles.row,
         t.row,

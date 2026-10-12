@@ -13,7 +13,6 @@ export const InstalledSkins: FC = () => {
   return list.map(s => (
     <SkinCard
       key={s.id}
-      testName={`skin-${s.id}`}
       name={s.name + (s.version ? ` ${s.version}` : '')}
       detail={s.author ?? (s.builtin ? 'Built in' : '')}
       preview={s.error ? null : s.builtin ? '' : s.id}

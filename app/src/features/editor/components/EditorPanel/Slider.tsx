@@ -45,6 +45,7 @@ export const Slider: FC<SliderProps> = props => {
   const v = Math.min(1, Math.max(0, props.value))
   const end = (which: 'low' | 'high') => (
     <Pressable
+      accessibilityRole="button"
       accessibilityLabel={`${props.label}: ${
         which === 'low' ? 'less' : 'more'
       }`}

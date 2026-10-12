@@ -22,8 +22,14 @@ export const TrackRow: FC<TrackRowProps> = props => {
   const { th, selection, core, commands, naming } = useEditor()
   const selected = selection.selectedTrack === i
   const { owner } = tr
+  const start = formatTime(tr.startMs, 100)
+  const length = formatTime(tr.durationMs, 100)
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Track ${i + 1}: ${
+        tr.name
+      }, starts ${start}, ${length} long`}
       onPress={() => {
         commands.openTrack(i)
       }}
@@ -42,6 +48,7 @@ export const TrackRow: FC<TrackRowProps> = props => {
         </Text>
       ) : (
         <TrackName
+          label={`Track ${i + 1} name`}
           value={tr.name}
           onCommit={name => {
             naming.rename(owner, name)
@@ -49,7 +56,7 @@ export const TrackRow: FC<TrackRowProps> = props => {
         />
       )}
       <Text style={[listStyles.colTime, styles.cell, { color: th.dim }]}>
-        {formatTime(tr.startMs, 100)}
+        {start}
       </Text>
       <View style={[listStyles.colTime, styles.lengthCell]}>
         {tr.reencode && !core.hasMaster && (
@@ -59,9 +66,7 @@ export const TrackRow: FC<TrackRowProps> = props => {
             re-encodes
           </Text>
         )}
-        <Text style={[styles.cell, { color: th.dim }]}>
-          {formatTime(tr.durationMs, 100)}
-        </Text>
+        <Text style={[styles.cell, { color: th.dim }]}>{length}</Text>
       </View>
     </Pressable>
   )

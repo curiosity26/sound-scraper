@@ -16,9 +16,6 @@ export type SkinCardProps = {
   readonly chosen: boolean
   readonly error?: string | null
   readonly onPress?: () => void
-  /** The card's testID. Not a `testID` prop here, so a test finds the
-   * pressable itself rather than this wrapper. */
-  readonly testName?: string
   readonly children?: React.ReactNode
 }
 
@@ -29,7 +26,6 @@ export const SkinCard: FC<SkinCardProps> = props => {
   const accent = t.link.color ?? colors.accent
   return (
     <Pressable
-      testID={props.testName}
       onPress={props.onPress}
       disabled={!props.onPress}
       style={[

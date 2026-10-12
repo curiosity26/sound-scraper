@@ -20,10 +20,11 @@ export const SettingsTabs: FC = () => {
       {(['settings', 'skin', 'about'] as const).map(t => (
         <Pressable
           key={t}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: tab === t }}
           onPress={() => {
             settingsTab.set(t)
           }}
-          testID={`tab-${t}`}
         >
           <Text
             style={[

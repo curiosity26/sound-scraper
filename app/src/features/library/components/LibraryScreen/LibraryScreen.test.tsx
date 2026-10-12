@@ -301,6 +301,128 @@ describe('the library screen', () => {
     })
   })
 
+  describe('given recordings with titles, artists and albums', () => {
+    beforeEach(() => {
+      fakeCore.setRecordings([
+        recording('Morning.mp3', {
+          recordedAtMs: 3,
+          title: 'Sunrise set',
+          artist: 'Zed',
+        }),
+        recording('Evening.mp3', { recordedAtMs: 2, album: 'Live at Home' }),
+        recording('Night.mp3', { recordedAtMs: 1 }),
+      ])
+    })
+
+    /** Types `query` in the search box. */
+    const search = async (query: string) => {
+      const user = userEvent.setup()
+      await renderLibrary()
+      await user.type(screen.getByPlaceholderText('Search'), query)
+    }
+
+    describe('when searching for a file name', () => {
+      it('shows only that recording', async () => {
+        await search('night')
+        expectRows(['Night'])
+      })
+    })
+
+    describe('when searching for a title', () => {
+      it('shows only the recording with that title', async () => {
+        await search('sunrise')
+        expectRows(['Morning'])
+      })
+    })
+
+    describe('when searching for an album', () => {
+      it('shows only the recordings on it', async () => {
+        await search('live')
+        expectRows(['Evening'])
+      })
+    })
+
+    describe('when searching in capitals', () => {
+      it('ignores case', async () => {
+        await search('LIVE AT')
+        expectRows(['Evening'])
+      })
+    })
+
+    describe('when searching with spaces around the words', () => {
+      it('ignores the spaces', async () => {
+        await search('  zed  ')
+        expectRows(['Morning'])
+      })
+    })
+
+    describe('when searching for only spaces', () => {
+      it('shows every recording', async () => {
+        await search('   ')
+        expectRows(['Morning', 'Evening', 'Night'])
+      })
+    })
+  })
+
+  describe('given a recording a minute and five seconds long', () => {
+    it('shows its duration in minutes and seconds', async () => {
+      fakeCore.setRecordings([recording('a.mp3', { durationMs: 65_000 })])
+      await renderLibrary()
+      expect(table().getByText('1:05')).toBeOnTheScreen()
+    })
+  })
+
+  describe('given a recording a minute and 5.4 seconds long', () => {
+    it('shows its duration to the nearest second', async () => {
+      fakeCore.setRecordings([recording('a.mp3', { durationMs: 65_400 })])
+      await renderLibrary()
+      expect(table().getByText('1:05')).toBeOnTheScreen()
+    })
+  })
+
+  describe('given a recording over an hour long', () => {
+    it('shows its duration in hours, minutes and seconds', async () => {
+      fakeCore.setRecordings([recording('a.mp3', { durationMs: 3_725_000 })])
+      await renderLibrary()
+      expect(table().getByText('1:02:05')).toBeOnTheScreen()
+    })
+  })
+
+  describe('given a recording with nothing in it', () => {
+    it('shows its duration as 0:00', async () => {
+      fakeCore.setRecordings([recording('a.mp3', { durationMs: 0 })])
+      await renderLibrary()
+      expect(table().getByText('0:00')).toBeOnTheScreen()
+    })
+  })
+
+  describe('given a recording of 2,500,000 bytes', () => {
+    it('shows its size in megabytes to one decimal place', async () => {
+      fakeCore.setRecordings([recording('a.mp3', { sizeBytes: 2_500_000 })])
+      await renderLibrary()
+      await layOutTable(700)
+      expect(table().getByText('2.4 MB')).toBeOnTheScreen()
+    })
+  })
+
+  describe('given a recording under a megabyte', () => {
+    it('shows its size in kilobytes', async () => {
+      fakeCore.setRecordings([recording('a.mp3', { sizeBytes: 512_000 })])
+      await renderLibrary()
+      await layOutTable(700)
+      expect(table().getByText('500 KB')).toBeOnTheScreen()
+    })
+  })
+
+  describe('given a recording of a few bytes', () => {
+    it('shows its size as 1 KB', async () => {
+      fakeCore.setRecordings([recording('a.mp3', { sizeBytes: 300 })])
+      await renderLibrary()
+      await layOutTable(700)
+      expect(table().getByText('1 KB')).toBeOnTheScreen()
+    })
+  })
+
   describe('given a recording', () => {
     beforeEach(() => {
       fakeCore.setRecordings([recording('Delta.mp3')])
@@ -663,6 +785,67 @@ describe('the library screen', () => {
       expect(
         screen.getByRole('button', { name: 'Save CD Image…' }),
       ).toBeDisabled()
+    })
+  })
+
+  describe('given a playlist of a one-second recording is showing', () => {
+    it('counts it as the 4 seconds a CD track takes at least', async () => {
+      fakeCore.setRecordings([recording('a.mp3', { durationMs: 1000 })])
+      showPlaylist(['a.mp3'])
+      await renderLibrary(true)
+      expect(screen.getByText('1 track · 0:04 (+0:02 gaps)')).toBeOnTheScreen()
+    })
+  })
+
+  describe('given a playlist exactly as long as a 74-minute CD holds is showing', () => {
+    it('says it fits a 74-minute CD with nothing to spare', async () => {
+      // 73:58 of music and the 2-second pregap before the first track.
+      fakeCore.setRecordings([recording('a.mp3', { durationMs: 4_438_000 })])
+      showPlaylist(['a.mp3'])
+      await renderLibrary(true)
+      expect(
+        screen.getByText('Fits a 74-minute CD with 0:00 to spare'),
+      ).toBeOnTheScreen()
+    })
+  })
+
+  describe('given a playlist a millisecond longer than a 74-minute CD holds is showing', () => {
+    it('says it needs an 80-minute CD, as the millisecond takes a whole sector', async () => {
+      fakeCore.setRecordings([recording('a.mp3', { durationMs: 4_438_001 })])
+      showPlaylist(['a.mp3'])
+      await renderLibrary(true)
+      expect(
+        screen.getByText('Needs an 80-minute CD (5:57 to spare)'),
+      ).toBeOnTheScreen()
+    })
+  })
+
+  describe('given a playlist exactly as long as an 80-minute CD holds is showing', () => {
+    it('says it needs an 80-minute CD with nothing to spare', async () => {
+      // An 80-minute blank holds 79:57; 79:55 of music and the pregap.
+      fakeCore.setRecordings([recording('a.mp3', { durationMs: 4_795_000 })])
+      showPlaylist(['a.mp3'])
+      await renderLibrary(true)
+      expect(
+        screen.getByText('Needs an 80-minute CD (0:00 to spare)'),
+      ).toBeOnTheScreen()
+    })
+  })
+
+  describe('given a playlist that runs past 80 minutes after a missing recording is showing', () => {
+    it('marks the tracks past the end of an 80-minute CD', async () => {
+      fakeCore.setRecordings([
+        recording('a.mp3', { durationMs: minutes(40) }),
+        recording('c.mp3', { durationMs: minutes(39) }),
+        recording('d.mp3', { durationMs: minutes(5) }),
+      ])
+      showPlaylist(['a.mp3', 'gone.mp3', 'c.mp3', 'd.mp3'])
+      await renderLibrary(true)
+      // Only the last row, d: the missing row doesn't count toward the CD.
+      const marked = screen.getAllByHintText("Won't fit on an 80-minute CD")
+      expect(marked.map(row => within(row).queryByText('d') !== null)).toEqual([
+        true,
+      ])
     })
   })
 
