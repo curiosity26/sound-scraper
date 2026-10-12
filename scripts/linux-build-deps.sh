@@ -49,6 +49,13 @@ case $family in
       pulseaudio-libs-devel alsa-lib-devel \
       rpm-build desktop-file-utils appstream python3-gobject gdk-pixbuf2 \
       "${xvfb[@]}" libglvnd-gles mesa-dri-drivers findutils tar gzip xz curl which file
+    # EL's clang links with the newest GCC Toolset it finds (which it pulls
+    # in), so that toolset's libatomic has to be there too.
+    for toolset in /opt/rh/gcc-toolset-*; do
+      if [[ -d $toolset ]]; then
+        dnf install -y "$(basename "$toolset")-libatomic-devel"
+      fi
+    done
     ;;
   *)
     echo "linux-build-deps.sh: no package list for $PRETTY_NAME" >&2
