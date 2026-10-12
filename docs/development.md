@@ -217,6 +217,8 @@ The app's tests run on Vitest (`cd app && npm test`; Node 22.15+, see
   by what a user does and sees; its models, helpers, stores and native
   clients are never called directly from a test. Only `src/shared` code
   (used across features) is tested at its own API.
+  Hooks are tested with Testing Library's `renderHook` (with a `wrapper`
+  for the providers they read), not through a probe component.
 - Nothing the app owns is mocked. The native modules are the boundary:
   `app/vitest/fakes/` has in-memory fakes of them (recordings, tags,
   settings, recorder and player, playlists, skinned windows, the editor's
