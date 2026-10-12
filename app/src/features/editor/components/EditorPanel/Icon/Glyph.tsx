@@ -1,5 +1,5 @@
 import type { FC } from 'react'
-import { StyleSheet, Text } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 
 import { platformText } from '@/shared/platformText'
 
@@ -21,30 +21,28 @@ export type GlyphProps = {
   readonly size: number
 }
 
-/** A Material Icons glyph, centered in a `size` box. */
-export const Glyph: FC<GlyphProps> = props => {
-  const fontSize = Math.round(props.size * 1.5)
-  return (
+/**
+ * A Material Icons glyph, centered in a `size` box. The font's line is
+ * exactly one em (ascent 512, descent 0, no gap) with each glyph centered
+ * in it, so the text's natural height centers it; a set lineHeight shifts
+ * the baseline differently on each platform.
+ */
+export const Glyph: FC<GlyphProps> = props => (
+  <View style={[styles.box, { width: props.size, height: props.size }]}>
     <Text
       accessible={false}
       style={[
         styles.glyph,
-        {
-          color: props.color,
-          fontSize,
-          lineHeight: fontSize,
-          width: fontSize,
-          height: fontSize,
-          margin: (props.size - fontSize) / 2,
-        },
+        { color: props.color, fontSize: Math.round(props.size * 1.5) },
       ]}
     >
       {String.fromCodePoint(CODE_POINTS[props.name])}
     </Text>
-  )
-}
+  </View>
+)
 
 const styles = StyleSheet.create({
+  box: { alignItems: 'center', justifyContent: 'center', overflow: 'visible' },
   glyph: {
     fontFamily: platformText.iconFont,
     textAlign: 'center',
