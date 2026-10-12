@@ -10,6 +10,11 @@ build also compiles the Rust core (../core) with cargo, so its module gets:
 - Rust from the SDK's rust-stable extension, and the core's crates as
   offline sources (cargo-sources.json, from flatpak-cargo-generator).
 
+The react-native-gtk4 module also installs the headers the app's own native
+code builds against (React Native's, Hermes'...) into /app/rngtk and points
+its SDK file there. react-native-gtk4 does this only for apps with
+autolinked native libraries, but Sound Scraper's app/linux uses the SDK too.
+
 Every module also compiles with `-include cstdint`: Hermes and React
 Native's headers expect <cstdint> to come in through other headers, which
 the SDK's newer libstdc++ no longer does (as for Fedora 44's packages).
@@ -21,6 +26,13 @@ import hashlib
 import json
 import os
 import sys
+
+
+SDK_HEADER_COMMANDS = [
+    "mkdir -p /app/rngtk/deps && cp -a deps/react-native deps/third-party-ndk deps/fantom-third-party"
+    " deps/codegen deps/hermes-headers /app/rngtk/deps/",
+    'sed -i "s|$PWD/deps|/app/rngtk/deps|g" /app/rngtk/lib/cmake/ReactNativeGtk/ReactNativeGtkSdk.cmake',
+]
 
 
 def main(manifest_file: str, archive: str, cargo_sources: str) -> None:
@@ -35,6 +47,12 @@ def main(manifest_file: str, archive: str, cargo_sources: str) -> None:
     flags = common.get("cxxflags", "")
     if "-include cstdint" not in flags:
         common["cxxflags"] = f"{flags} -include cstdint".strip()
+
+    # As react-native-gtk4's lib/cli/flatpak.js SDK_HEADER_COMMANDS.
+    host = next(m for m in manifest["modules"] if m.get("name") == "react-native-gtk4")
+    for command in SDK_HEADER_COMMANDS:
+        if command not in host["build-commands"]:
+            host["build-commands"].append(command)
 
     rust = "org.freedesktop.Sdk.Extension.rust-stable"
     if rust not in manifest["sdk-extensions"]:
