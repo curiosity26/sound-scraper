@@ -211,67 +211,22 @@ jobs:
           path: dist/*.msix
           if-no-files-found: error
 
-  # Linux (GTK4, react-native-gtk4): a .deb for Ubuntu 24.04 and Linux Mint
-  # 22 (and newer), and the same app as a tree to unpack anywhere
-  # (install.sh puts it in ~/.local). Built on Ubuntu 24.04, so the .deb's
-  # Depends name that release's libraries. The other distributions' packages
-  # are built in their own containers (linux-distros), and the Flatpak in
-  # the GNOME SDK (flatpak).
+  # Linux (GTK4, react-native-gtk4): a .deb or .rpm per distribution, each
+  # built, installed and started in a container of it
+  # (scripts/package-linux-in-container.sh), since packages link their
+  # distribution's libraries. Ubuntu 24.04's .deb also covers Linux Mint 22
+  # and newer, and its build adds the app as a tree to unpack anywhere
+  # (.tar.gz; install.sh puts it in ~/.local). react-native-gtk4 needs GTK
+  # 4.14 or newer, so Debian 13 and EL 10 are the oldest; Fedora's package
+  # is for one release (its library versions change with each). The
+  # Flatpak is built in the GNOME SDK (flatpak).
   linux:
     needs: version
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - runner: ubuntu-24.04
-            arch: x86_64
-          - runner: ubuntu-24.04-arm
-            arch: aarch64
-    runs-on: ${{ matrix.runner }}
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-linux
-        with:
-          cache-key: linux-${{ matrix.arch }}
-      - name: Build the .deb and the .tar.gz
-        working-directory: app
-        run: |
-          npx react-native package-linux --format deb --output ../dist
-          # sound-scraper_0.2.0-1_amd64.deb -> sound-scraper_0.2.0-1_ubuntu24.04_amd64.deb,
-          # beside Debian's.
-          for f in ../dist/*.deb; do
-            mv "$f" "$(sed -E 's/^(.*\/[^_]+_[^_]+)_/\1_ubuntu24.04_/' <<<"$f")"
-          done
-          npx react-native package-linux --format dir --output linux/build/package
-          version=$(node -p "require('./package.json').version")
-          tar -C linux/build/package -czf "../dist/SoundScraper-$version-linux-${{ matrix.arch }}.tar.gz" \
-            "SoundScraper-$version-${{ matrix.arch }}"
-          ls -la ../dist
-      - name: Check the packaged app starts
-        run: |
-          sudo apt-get install -y ./dist/*.deb
-          xvfb-run -a env GDK_BACKEND=x11 /usr/bin/SoundScraper --smoke
-      - uses: actions/upload-artifact@v4
-        with:
-          name: linux-${{ matrix.arch }}
-          path: |
-            dist/*.deb
-            dist/*.tar.gz
-          if-no-files-found: error
-
-  # .deb and .rpm for the distributions whose libraries differ from Ubuntu
-  # 24.04's, each built, installed and started in a container of it
-  # (scripts/package-linux-in-container.sh). react-native-gtk4 needs GTK
-  # 4.14 or newer, so Debian 13 and EL 10 are the oldest; Fedora's package
-  # is for one release (its library versions change with each).
-  linux-distros:
-    needs: version
-    strategy:
-      fail-fast: false
-      matrix:
         distro:
+          - {tag: ubuntu24.04, image: "docker.io/library/ubuntu:24.04", format: deb, tarball: "1"}
           - {tag: debian13, image: "docker.io/library/debian:13", format: deb}
           - {tag: fc44, image: "registry.fedoraproject.org/fedora:44", format: rpm}
           - {tag: el10, image: "docker.io/library/almalinux:10", format: rpm}
@@ -290,6 +245,7 @@ jobs:
       - name: Build, install and start the package
         env:
           CONTAINER_ENGINE: docker
+          TARBALL: ${{ matrix.distro.tarball }}
         run: |
           scripts/package-linux-in-container.sh "${{ matrix.distro.image }}" ${{ matrix.distro.format }} ${{ matrix.distro.tag }}
           ls -la dist
@@ -299,7 +255,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: linux-${{ matrix.distro.tag }}-${{ matrix.arch }}
-          path: dist/*.${{ matrix.distro.format }}
+          path: |
+            dist/*.${{ matrix.distro.format }}
+            dist/*.tar.gz
           if-no-files-found: error
 
   # A Flatpak bundle (any distribution with Flatpak), built from source in
@@ -357,7 +315,7 @@ jobs:
           if-no-files-found: error
 
   release:
-    needs: [version, macos, windows, linux, linux-distros, flatpak]
+    needs: [version, macos, windows, linux, flatpak]
     # Not for dry runs.
     if: github.event_name == 'push'
     runs-on: ubuntu-latest

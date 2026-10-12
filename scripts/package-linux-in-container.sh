@@ -11,6 +11,8 @@
 #
 # The package lands in dist/ with TAG in its name
 # (sound-scraper_0.2.0-1_debian13_amd64.deb, sound-scraper-0.2.0-1.fc44.x86_64.rpm).
+# With TARBALL=1 the self-contained app folder also lands there as
+# SoundScraper-0.2.0-linux-<arch>.tar.gz (the release builds it on Ubuntu 24.04).
 # The build cache (Rust, npm, react-native-gtk4's Hermes and host build)
 # lives in .cache/linux-TAG, so the next run is quick.
 set -euo pipefail
@@ -39,7 +41,7 @@ git -C "$root" ls-files -co --exclude-standard -z |
     -v "$cache:/cache" -v "$out:/out" \
     -e CARGO_HOME=/cache/cargo -e RUSTUP_HOME=/cache/rustup \
     -e npm_config_cache=/cache/npm -e RNGTK_CACHE_DIR=/cache/rngtk \
-    -e FORMAT="$format" \
+    -e FORMAT="$format" -e TARBALL="${TARBALL:-}" \
     -e CXXFLAGS="-include cstdint" \
     "$image" bash -c '
       set -euo pipefail
@@ -50,6 +52,12 @@ git -C "$root" ls-files -co --exclude-standard -z |
       cd /work/app
       npm ci --no-audit --no-fund
       npx react-native package-linux --format "$FORMAT" --output /out
+      if [[ $TARBALL == 1 ]]; then
+        npx react-native package-linux --format dir --output /tmp/dir
+        version=$(node -p "require(\"./package.json\").version")
+        tar -C /tmp/dir -czf "/out/SoundScraper-$version-linux-$(uname -m).tar.gz" \
+          "SoundScraper-$version-$(uname -m)"
+      fi
       # Installed with the distribution'"'"'s package manager, so its
       # dependencies have to resolve there; then it has to start.
       if [[ $FORMAT == deb ]]; then
@@ -79,4 +87,8 @@ for f in "$out"/*."$format"; do
   esac
   mv "$f" "$root/dist/$name"
   echo "== dist/$name"
+done
+for f in "$out"/*.tar.gz; do
+  [[ -e $f ]] || continue
+  mv "$f" "$root/dist/" && echo "== dist/$(basename "$f")"
 done
