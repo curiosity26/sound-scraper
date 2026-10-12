@@ -12,7 +12,7 @@ Requests ("name" is the element's accessible name; "match" is "exact"
 - {"op": "press", "app": PID, "name": ..., "match": ..., "role": ...}
   Performs the element's activate action (what Enter or a click does).
 - {"op": "doubleClick", "app": PID, "name": ..., "match": ..., "role": ...}
-  Double-clicks the middle of the element with the (synthesized) mouse.
+  Activates the element twice, a moment apart (a double-click).
 - {"op": "type", "app": PID, "text": ...}
   Replaces the text of the focused text field (an RN TextInput has no
   accessible name of its own, so it's found by focus) with "text".
@@ -178,15 +178,12 @@ def press(node):
 
 
 def double_click(node):
-    component = node.get_component_iface()
-    if component is None:
-        raise RuntimeError(f"{name_of(node)!r} has no position to click")
-    box = Atspi.Component.get_extents(component, Atspi.CoordType.SCREEN)
-    if box.width <= 0 or box.height <= 0:
-        raise RuntimeError(f"{name_of(node)!r} has no size to click")
-    x, y = box.x + box.width // 2, box.y + box.height // 2
-    # "b1d": button 1, double-clicked.
-    Atspi.generate_mouse_event(x, y, "b1d")
+    # Synthesized (XTest) mouse clicks at the element's extents don't reach
+    # the app's rows in the test session, so activate it twice, a moment
+    # apart, as a hand double-clicks.
+    press(node)
+    time.sleep(0.12)
+    press(node)
 
 
 def handle(request):
