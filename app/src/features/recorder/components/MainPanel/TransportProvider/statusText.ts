@@ -1,4 +1,5 @@
 import type { RecorderState } from '@/bridge/types'
+import { assertNever } from '@/shared/utils/assertNever'
 
 export const statusText = (state: RecorderState, starting: boolean): string => {
   if (starting) {
@@ -11,7 +12,9 @@ export const statusText = (state: RecorderState, starting: boolean): string => {
       return '⏸ PAUSED'
     case 'finalizing':
       return 'SAVING'
-    default:
+    case 'idle':
       return 'READY'
+    default:
+      return assertNever(state)
   }
 }
