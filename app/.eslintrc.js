@@ -195,10 +195,6 @@ module.exports = {
       },
     },
     {
-      files: ['__tests__/**', '*.test.ts', '*.test.tsx'],
-      env: { jest: true },
-    },
-    {
       // Tooling configs are CommonJS modules read by Node.
       files: [
         '*.config.js',
@@ -209,6 +205,19 @@ module.exports = {
       ],
       rules: {
         'import/no-default-export': 'off',
+      },
+    },
+    {
+      // Vitest reads its config's default export.
+      files: ['vitest.config.ts'],
+      rules: {
+        'import/no-default-export': 'off',
+        'no-restricted-syntax': [
+          'error',
+          ...STYLE_SYNTAX.filter(
+            s => s.selector !== 'ExportDefaultDeclaration',
+          ),
+        ],
       },
     },
   ],

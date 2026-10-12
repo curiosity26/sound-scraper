@@ -1,3 +1,5 @@
+import { expect, test, vi } from 'vitest'
+
 import { addSplice } from '@/features/editor/components/EditorPanel/model/addSplice'
 import { adjacentSplice } from '@/features/editor/components/EditorPanel/model/adjacentSplice'
 import { applyProposals } from '@/features/editor/components/EditorPanel/model/applyProposals'
@@ -52,7 +54,7 @@ test('deleted regions merge and restore', () => {
 
 // The draft the core keeps (what NativeEditor.loadDraft answers).
 const mockDraft = { json: 'null' }
-jest.mock('@/bridge/NativeEditor', () => ({
+vi.mock('@/bridge/NativeEditor', () => ({
   __esModule: true,
   default: { loadDraft: () => mockDraft.json },
 }))

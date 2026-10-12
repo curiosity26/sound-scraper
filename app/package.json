@@ -11,8 +11,7 @@
     "bridge:types": "node scripts/gen-bridge-types.js",
     "codegen:windows": "react-native codegen-windows",
     "lint": "eslint .",
-    "test": "jest",
-    "test:windows": "jest --config jest.config.windows.js",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "format": "eslint . --fix",
     "linux": "react-native run-linux"
@@ -36,8 +35,6 @@
     "@react-native/eslint-config": "0.83.10",
     "@react-native/metro-config": "0.83.10",
     "@react-native/typescript-config": "0.83.10",
-    "@rnx-kit/jest-preset": "^0.3.1",
-    "@types/jest": "^29.5.13",
     "@types/react": "^19.2.0",
     "@types/react-test-renderer": "^19.1.0",
     "babel-plugin-module-resolver": "^5.0.3",
@@ -46,16 +43,16 @@
     "eslint-plugin-prettier": "4.2.1",
     "eslint-plugin-react-refresh": "^0.4.26",
     "eslint-plugin-sound-scraper": "file:eslint-rules",
-    "jest": "^29.6.3",
     "prettier": "2.8.8",
     "react-test-renderer": "19.2.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^5.0.4"
   },
   "optionalDependencies": {
     "@curiosity26/react-native-gtk4": "github:curiosity26/react-native-gtk4#v0.83.1"
   },
   "engines": {
-    "node": ">=20.19.4"
+    "node": "^22.15.0 || >=24.0.0"
   },
   "react-native-windows": {
     "init-windows": {
