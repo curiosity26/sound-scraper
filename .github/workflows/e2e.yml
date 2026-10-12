@@ -1,0 +1,57 @@
+# End-to-end tests: the app built and packaged as a release is, installed,
+# launched and driven through the platform's accessibility API while a test
+# tone plays, then the recordings it made are decoded and checked for the
+# tone (app/e2e, core/crates/probe).
+#
+# Linux runs on every pull request and push to main, in a private desktop
+# session with a PipeWire null sink as the sound card
+# (scripts/e2e-linux-session.sh). macOS and Windows come later.
+name: E2E
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-linux
+        with:
+          cache-key: e2e-linux
+      - name: Install the test session's packages
+        run: |
+          sudo apt-get install -y pipewire pipewire-pulse wireplumber pulseaudio-utils \
+            at-spi2-core gir1.2-atspi-2.0 python3-gi dbus-daemon
+      - name: Package the app as a .deb and install it
+        working-directory: app
+        run: |
+          npx react-native package-linux --format deb --output ../dist
+          sudo apt-get install -y ../dist/*.deb
+      - name: Build the audio probe
+        run: cargo build --release --manifest-path core/Cargo.toml -p sound_scraper_probe
+      - name: Run the end-to-end tests
+        env:
+          E2E_SESSION_LOG: ${{ runner.temp }}/e2e-session.log
+        run: scripts/e2e-linux-session.sh npm --prefix app run e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-linux
+          path: |
+            ${{ runner.temp }}/e2e-session.log
+            ${{ runner.temp }}/e2e-artifacts/
+          if-no-files-found: ignore

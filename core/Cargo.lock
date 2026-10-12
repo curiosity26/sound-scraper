@@ -1993,6 +1993,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "sound_scraper_probe"
+version = "0.3.0-beta.1"
+dependencies = [
+ "hound",
+ "serde_json",
+ "symphonia",
+]
+
+[[package]]
 name = "sound_scraper_skin"
 version = "0.3.0-beta.1"
 dependencies = [
