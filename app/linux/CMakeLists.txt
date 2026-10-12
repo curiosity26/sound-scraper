@@ -83,6 +83,7 @@ add_library(sound_scraper_native STATIC
   src/SkinsModule.cc
   src/SoundScraperModule.cc
   src/SoundScraperPackage.cc
+  src/StageModule.cc
   src/Views.cc)
 set_target_properties(sound_scraper_native PROPERTIES POSITION_INDEPENDENT_CODE ON)
 # PRIVATE: React Native's headers and the host's flags (NDEBUG as the

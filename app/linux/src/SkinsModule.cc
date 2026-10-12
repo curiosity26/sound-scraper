@@ -171,24 +171,24 @@ void SkinsModule::openSkinFiles(std::vector<std::string> paths) {
 
 void SkinsModule::setPanelLayout(jsi::Runtime &, std::string, double, double, folly::dynamic,
                                  folly::dynamic, folly::dynamic, double, double, double) {
-  // Linux: the JS side sizes the panel windows (windows.linux.ts), and the
-  // drag regions and grip are React views (DragSurface).
+  // Linux: the panels are views the stage places (src/features/skins/stage),
+  // and the drag regions and grip are React views (DragSurface).
 }
 
 void SkinsModule::windowAction(jsi::Runtime &, std::string action) {
   runOnMain([action = std::move(action)]() { PanelChrome::get().perform(action); });
 }
 
-void SkinsModule::beginGesture(jsi::Runtime &, std::string, std::string kind) {
-  runOnMain([kind = std::move(kind)]() { PanelChrome::get().beginGesture(kind); });
+void SkinsModule::beginGesture(jsi::Runtime &, std::string, std::string) {
+  // Linux: the stage runs panel gestures (StageModule::beginGesture).
 }
 
 void SkinsModule::setPanelVisible(jsi::Runtime &, std::string, bool) {
-  // Linux: windows.linux.ts opens and closes the panels.
+  // Linux: the stage shows and hides the panels.
 }
 
 bool SkinsModule::isPanelVisible(jsi::Runtime &, std::string) {
-  return false;  // Linux: windows.linux.ts knows.
+  return false;  // Linux: the stage knows.
 }
 
 AsyncPromise<double> SkinsModule::showMenu(jsi::Runtime &rt, std::string, std::vector<std::string> items,

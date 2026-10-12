@@ -1,8 +1,10 @@
 #include "PanelChrome.h"
 
+#include <cmath>
 #include <memory>
 
 #include "SkinsModule.h"
+#include "StageModule.h"
 
 namespace soundscraper {
 
@@ -35,8 +37,29 @@ void PanelChrome::setUp(rngtk::Host &host) {
     g_object_unref(action);
     const char *accels[] = {"<Control>d", nullptr};
     gtk_application_set_accels_for_action(app, "app.double-size", accels);
+
+    // Ctrl+Shift+M moves the stage to the next monitor.
+    GSimpleAction *next = g_simple_action_new("next-monitor", nullptr);
+    g_signal_connect(next, "activate", G_CALLBACK(+[](GSimpleAction *, GVariant *, gpointer) {
+                       PanelChrome::get().moveToNextMonitor();
+                     }),
+                     nullptr);
+    g_action_map_add_action(G_ACTION_MAP(app), G_ACTION(next));
+    g_object_unref(next);
+    const char *nextAccels[] = {"<Control><Shift>m", nullptr};
+    gtk_application_set_accels_for_action(app, "app.next-monitor", nextAccels);
+
+    // The main window (the host made it before setting up packages) is the
+    // stage: maximized, so it covers the monitor's work area.
+    if (GList *windows = gtk_application_get_windows(app)) {
+      stage_ = GTK_WIDGET(g_list_last(windows)->data);
+      g_object_add_weak_pointer(G_OBJECT(stage_), (gpointer *)&stage_);
+      gtk_window_maximize(GTK_WINDOW(stage_));
+    }
   }
 }
+
+GtkWindow *PanelChrome::stageWindow() const { return stage_ ? GTK_WINDOW(stage_) : nullptr; }
 
 bool PanelChrome::onPointer(const rngtk::PointerInput &input) {
   using Phase = rngtk::PointerInput::Phase;
@@ -50,65 +73,132 @@ bool PanelChrome::onPointer(const rngtk::PointerInput &input) {
         g_object_add_weak_pointer(G_OBJECT(menuRoot_), (gpointer *)&menuRoot_);
       }
       if (!primary || !input.root) break;
+      endGesture();
       if (pressRoot_) g_object_remove_weak_pointer(G_OBJECT(pressRoot_), (gpointer *)&pressRoot_);
       pressRoot_ = input.root;
       g_object_add_weak_pointer(G_OBJECT(pressRoot_), (gpointer *)&pressRoot_);
       pressX_ = input.x;
       pressY_ = input.y;
-      pressButton_ = input.device == rngtk::PointerInput::Device::Touch ? 0 : input.button;
-      pressTime_ = input.timeMs;
       pressed_ = true;
       movedPastThreshold_ = false;
-      pending_.clear();
       break;
     case Phase::Move:
-      if (pressed_ && pressRoot_ && input.root == pressRoot_ && !movedPastThreshold_ &&
+      if (!pressed_ || !pressRoot_ || input.root != pressRoot_) break;
+      if (!movedPastThreshold_ &&
           gtk_drag_check_threshold(pressRoot_, int(pressX_), int(pressY_), int(input.x),
                                    int(input.y))) {
         movedPastThreshold_ = true;
-        if (!pending_.empty()) start();
+        if (gesture_) startGesture();
+      }
+      if (gestureRunning_) {
+        // Alt (like Option on the Mac) turns snapping off.
+        bool snap = !(input.modifiers & GDK_ALT_MASK);
+        if (char *frames = ss_layout_gesture_update(gesture_, input.x - pressX_,
+                                                    input.y - pressY_, snap)) {
+          StageModule::emit(folly::dynamic::object("frames", std::string(frames)));
+          ss_string_free(frames);
+        }
+        return true;
       }
       break;
     case Phase::Up:
-    case Phase::Cancel:
+    case Phase::Cancel: {
+      bool running = gestureRunning_;
       pressed_ = false;
-      pending_.clear();
+      endGesture();
+      if (running) return true;
       break;
+    }
     default:
       break;
   }
   return false;
 }
 
-void PanelChrome::beginGesture(const std::string &kind) {
-  if (!pressed_ || !pressRoot_) return;
-  pending_ = kind;
+void PanelChrome::beginStageGesture(SsLayoutGesture *gesture) {
+  endGesture();
+  if (!pressed_ || !pressRoot_) {
+    ss_layout_gesture_end(gesture);
+    return;
+  }
+  gesture_ = gesture;
   // The pointer may have moved on before JS asked.
-  if (movedPastThreshold_) start();
+  if (movedPastThreshold_) startGesture();
 }
 
-void PanelChrome::start() {
-  std::string kind = std::move(pending_);
-  pending_.clear();
-  pressed_ = false;
-  GtkWidget *root = pressRoot_;
-  GtkNative *native = root ? gtk_widget_get_native(root) : nullptr;
-  GdkSurface *surface = native ? gtk_native_get_surface(native) : nullptr;
-  if (!surface || !GDK_IS_TOPLEVEL(surface)) return;
-  // The desktop takes the press from here (the release goes to it).
-  if (host_) host_->cancelTouches(root);
-  graphene_point_t p{float(pressX_), float(pressY_)}, inNative;
-  if (!gtk_widget_compute_point(root, GTK_WIDGET(native), &p, &inNative)) return;
-  double nx = 0, ny = 0;
-  gtk_native_get_surface_transform(native, &nx, &ny);
-  GdkDevice *pointer = gdk_seat_get_pointer(gdk_display_get_default_seat(gdk_surface_get_display(surface)));
-  if (kind == "resize") {
-    gdk_toplevel_begin_resize(GDK_TOPLEVEL(surface), GDK_SURFACE_EDGE_SOUTH_EAST, pointer,
-                              pressButton_, inNative.x + nx, inNative.y + ny, pressTime_);
-  } else {
-    gdk_toplevel_begin_move(GDK_TOPLEVEL(surface), pointer, pressButton_, inNative.x + nx,
-                            inNative.y + ny, pressTime_);
+void PanelChrome::startGesture() {
+  gestureRunning_ = true;
+  // The gesture takes the press from here: the JS responder lets go.
+  if (host_ && pressRoot_) host_->cancelTouches(pressRoot_);
+}
+
+void PanelChrome::endGesture() {
+  if (!gesture_) return;
+  ss_layout_gesture_end(gesture_);
+  gesture_ = nullptr;
+  if (gestureRunning_) {
+    gestureRunning_ = false;
+    StageModule::emit(folly::dynamic::object("end", true));
   }
+}
+
+void PanelChrome::setInputRegion(const std::vector<double> &rects) {
+  GtkWindow *window = stageWindow();
+  GdkSurface *surface = window ? gtk_native_get_surface(GTK_NATIVE(window)) : nullptr;
+  if (!surface) return;
+  // Points from the React root (the window's child) to surface coordinates.
+  graphene_point_t origin{0, 0}, at{0, 0};
+  if (GtkWidget *child = gtk_window_get_child(window)) {
+    if (!gtk_widget_compute_point(child, GTK_WIDGET(window), &origin, &at)) at = {0, 0};
+  }
+  double nx = 0, ny = 0;
+  gtk_native_get_surface_transform(GTK_NATIVE(window), &nx, &ny);
+  cairo_region_t *region = cairo_region_create();
+  for (size_t i = 0; i + 3 < rects.size(); i += 4) {
+    double x = rects[i] + at.x + nx, y = rects[i + 1] + at.y + ny;
+    cairo_rectangle_int_t r{int(std::floor(x)), int(std::floor(y)),
+                            int(std::ceil(x + rects[i + 2]) - std::floor(x)),
+                            int(std::ceil(y + rects[i + 3]) - std::floor(y))};
+    if (r.width > 0 && r.height > 0) cairo_region_union_rectangle(region, &r);
+  }
+  gdk_surface_set_input_region(surface, region);
+  cairo_region_destroy(region);
+}
+
+namespace {
+
+// Back to maximized once full screen on the new monitor (moveToNextMonitor).
+void maximizeWhenFullscreen(GtkWindow *window, GParamSpec *, gpointer) {
+  if (!gtk_window_is_fullscreen(window)) return;
+  g_signal_handlers_disconnect_by_func(window, (gpointer)maximizeWhenFullscreen, nullptr);
+  gtk_window_unfullscreen(window);
+  gtk_window_maximize(window);
+}
+
+}  // namespace
+
+void PanelChrome::moveToNextMonitor() {
+  GtkWindow *window = stageWindow();
+  GdkSurface *surface = window ? gtk_native_get_surface(GTK_NATIVE(window)) : nullptr;
+  if (!surface) return;
+  GdkDisplay *display = gdk_surface_get_display(surface);
+  GListModel *monitors = gdk_display_get_monitors(display);
+  guint n = g_list_model_get_n_items(monitors);
+  if (n < 2) return;
+  GdkMonitor *current = gdk_display_get_monitor_at_surface(display, surface);
+  guint index = 0;
+  for (guint i = 0; i < n; i++) {
+    auto *m = GDK_MONITOR(g_list_model_get_item(monitors, i));
+    if (m == current) index = i;
+    g_object_unref(m);
+  }
+  auto *next = GDK_MONITOR(g_list_model_get_item(monitors, (index + 1) % n));
+  // A window can't place itself on Wayland, but it can go full screen on a
+  // monitor; maximized again from there, it stays on it.
+  g_signal_handlers_disconnect_by_func(window, (gpointer)maximizeWhenFullscreen, nullptr);
+  g_signal_connect(window, "notify::fullscreened", G_CALLBACK(maximizeWhenFullscreen), nullptr);
+  gtk_window_fullscreen_on_monitor(window, next);
+  g_object_unref(next);
 }
 
 GtkWindow *PanelChrome::pressWindow() const {

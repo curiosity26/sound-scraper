@@ -8,6 +8,7 @@
 #include "PanelChrome.h"
 #include "SkinsModule.h"
 #include "SoundScraperModule.h"
+#include "StageModule.h"
 #include "Views.h"
 
 using namespace facebook::react;
@@ -22,6 +23,7 @@ std::shared_ptr<const rngtk::Package> soundScraperPackage() {
         if (name == SoundScraperModule::kName) return std::make_shared<SoundScraperModule>(js);
         if (name == SkinsModule::kName) return std::make_shared<SkinsModule>(js);
         if (name == EditorModule::kName) return std::make_shared<EditorModule>(js);
+        if (name == StageModule::kName) return std::make_shared<StageModule>(js);
         return nullptr;
       });
   package->components.push_back(visualizerViewComponent());

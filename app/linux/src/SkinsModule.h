@@ -2,10 +2,10 @@
 // chrome on Linux: the "SoundScraperSkins" TurboModule (spec:
 // src/bridge/NativeSkins.ts). Mirrors app/windows/SoundScraper/SkinsModule.h.
 //
-// The panel windows themselves are opened, sized and closed by the JS side
-// on Linux (src/features/skins/windows.linux.ts, with react-native-gtk4's
-// Windows), so setPanelLayout, setPanelVisible and isPanelVisible are
-// no-ops here; moves, resizes, menus and window actions are PanelChrome's.
+// The panels are views in one window on Linux, placed by the JS side
+// (src/features/skins/stage, with StageModule), so setPanelLayout,
+// beginGesture, setPanelVisible and isPanelVisible are no-ops here; menus
+// and window actions are PanelChrome's.
 #pragma once
 
 #include <folly/dynamic.h>

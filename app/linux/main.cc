@@ -1,6 +1,7 @@
-// Sound Scraper's Linux entry point: the skinned main panel ("SoundScraper"),
-// a borderless, transparent GTK4 window; the library, settings and other
-// panels open as windows of their own from JS (windows.linux.ts).
+// Sound Scraper's Linux entry point: the stage ("SoundScraper"), one
+// borderless, transparent GTK4 window, maximized (PanelChrome), holding the
+// main panel, library, settings and other panels as views
+// (src/features/skins/stage).
 //
 // Debug builds load the JS from Metro (npx react-native start); Release
 // builds load index.bundle.js next to the executable. See
@@ -17,9 +18,9 @@ int main(int argc, char **argv) {
   options.appId = "com.alexboyce.soundscraper";
   options.title = "Sound Scraper";
   options.moduleName = "SoundScraper";
-  // The skin sets the real size (setMainLayout).
-  options.width = 420;
-  options.height = 150;
+  // Before it's maximized.
+  options.width = 960;
+  options.height = 640;
   // The skin draws the whole panel, its title bar and buttons included.
   options.titleBar = rngtk::TitleBar::None;
   options.transparent = true;

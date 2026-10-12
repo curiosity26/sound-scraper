@@ -1,11 +1,11 @@
-// The skinned panels' window chrome on Linux: moving and resizing a
-// borderless panel from its skin's drag regions and grip, the pop-up menus,
-// minimize and quit. The panels themselves are windows the JS side opens
-// (src/features/skins/windows.linux.ts, with react-native-gtk4's Windows).
-//
-// Moves and resizes go through the desktop (gdk_toplevel_begin_move /
-// begin_resize), so they work on Wayland too, where a window can't place
-// itself; panels don't dock or snap to each other on Linux.
+// The stage's window on Linux: the main window, borderless, transparent and
+// maximized, holds every panel as a view (src/features/skins/stage), so
+// panels dock and snap as on the other platforms, Wayland included (where
+// separate windows can't place themselves). This keeps it maximized, sets
+// its input region to the panels (clicks elsewhere go to the windows
+// below), runs panel drags and resizes from the skin's drag regions and
+// grip (the Rust core's ss_layout gestures, see StageModule), and shows the
+// pop-up menus, minimize and quit.
 //
 // Main thread only, except where noted.
 #pragma once
@@ -17,6 +17,8 @@
 #include <string>
 #include <vector>
 
+#include "sound_scraper.h"
+
 namespace soundscraper {
 
 class PanelChrome {
@@ -26,10 +28,18 @@ class PanelChrome {
   /// Watches the host's pointer events (rngtk::Package::setUp).
   void setUp(rngtk::Host &host);
 
-  /// Moves ("move") or resizes ("resize", from the bottom right corner) the
-  /// window of the press in progress, once the pointer moves: what the JS
-  /// side asks for on a press in a drag region or the grip (DragSurface).
-  void beginGesture(const std::string &kind);
+  /// Runs `gesture` (owned from here) with the press in progress once the
+  /// pointer moves, sending its frames to JS (StageModule::emit): what the
+  /// JS side asks for on a press in a drag region or the grip
+  /// (DragSurface). Ended at once if there's no press.
+  void beginStageGesture(SsLayoutGesture *gesture);
+
+  /// The stage window's input region: flat [x, y, w, h, ...] in points
+  /// from its top left.
+  void setInputRegion(const std::vector<double> &rects);
+
+  /// Moves the stage window to the next monitor (maximized there).
+  void moveToNextMonitor();
 
   /// A pop-up menu at (x, y) in the window of the latest press (or the
   /// active one); '-' is a separator, `checked` gets a check mark. Calls
@@ -42,19 +52,23 @@ class PanelChrome {
 
  private:
   bool onPointer(const rngtk::PointerInput &input);
-  void start();
+  void startGesture();
+  void endGesture();
   GtkWindow *pressWindow() const;
+  /// The stage (the main window), or null before it exists.
+  GtkWindow *stageWindow() const;
 
   rngtk::Host *host_ = nullptr;
   // The latest primary press, while the button is down.
   GtkWidget *pressRoot_ = nullptr;
   double pressX_ = 0, pressY_ = 0;
-  int pressButton_ = 1;
-  uint32_t pressTime_ = 0;
   bool pressed_ = false;
   bool movedPastThreshold_ = false;
-  // A gesture JS asked for, waiting for the pointer to move.
-  std::string pending_;
+  // A gesture JS asked for: waiting for the pointer to move, then running.
+  SsLayoutGesture *gesture_ = nullptr;
+  bool gestureRunning_ = false;
+  // The stage window (weak).
+  GtkWidget *stage_ = nullptr;
   // The root of the latest press, for menus (kept after the release).
   GtkWidget *menuRoot_ = nullptr;
 };
