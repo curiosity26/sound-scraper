@@ -224,6 +224,13 @@ The app's tests run on Vitest (`cd app && npm test`; Node 22.15+, see
   `vi.mock('@/bridge/NativeSoundScraper', () => import('@test/fakes/NativeSoundScraper'))`
   and resets in a `beforeEach`. `@test/` points at `app/vitest/`.
 
+Linux-only code (the stage, `src/roots/Stage`) is tested in a second
+Vitest project, `linux`: it runs the `*.linux.test.tsx` files with imports
+resolving `Foo.linux.ts` before `Foo.ts`, as Metro does for Linux, and is
+included wherever `@curiosity26/react-native-gtk4` is installed (Linux and
+CI). React Native's own files still load as on iOS there. The stage's
+native module is faked in `app/vitest/fakes/NativeStage.ts`.
+
 Vitest runs on Node, so it can't catch a built-in Hermes lacks; check those
 on a device.
 

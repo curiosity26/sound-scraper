@@ -25,7 +25,6 @@ export const Stage: FC = () => {
   const { started, panels, order } = useStage()
   return (
     <View
-      testID="stage"
       style={{ flex: 1, backgroundColor: 'transparent' }}
       onLayout={e => {
         stage.setSize(e.nativeEvent.layout.width, e.nativeEvent.layout.height)

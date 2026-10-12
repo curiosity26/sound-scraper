@@ -55,6 +55,25 @@ const reactNativeEsm = (): Plugin => {
   }
 }
 
+// Linux-only tests: the code Metro bundles for Linux (Foo.linux.ts),
+// rendered as the Linux app renders it (src/roots/Stage).
+const LINUX_TESTS = 'src/**/*.linux.test.{ts,tsx}'
+
+// @curiosity26/react-native-gtk4 (an optional dependency) installs on Linux
+// only, as metro.config.js and react-native.config.js expect, so the Linux
+// tests run where it is (Linux, and CI).
+const hasLinux = (() => {
+  try {
+    require.resolve('@curiosity26/react-native-gtk4/package.json')
+    return true
+  } catch {
+    return false
+  }
+})()
+
+// Vite's own extensions (resolve.extensions' default).
+const EXTENSIONS = ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json']
+
 export default defineConfig({
   plugins: [reactNativeEsm()],
   resolve: {
@@ -64,11 +83,41 @@ export default defineConfig({
     },
   },
   test: {
-    include: ['src/**/*.test.{ts,tsx}'],
     setupFiles: ['./vitest/setup.ts'],
     // Testing Library registers its matchers and cleanup on the globals.
     // Tests still import describe, it and expect from vitest.
     globals: true,
     server: { deps: { external: [/node_modules/] } },
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'app',
+          include: ['src/**/*.test.{ts,tsx}'],
+          exclude: [LINUX_TESTS],
+        },
+      },
+      // The app's imports resolve as Metro resolves them for the `linux`
+      // platform (react-native-gtk4's metro-config): Foo.linux.ts, then
+      // Foo.native.ts, then Foo.ts. React Native's own files still load
+      // through vitest/reactNativeHooks.cjs (its iOS files), not
+      // react-native-gtk4's overrides.
+      ...(hasLinux
+        ? [
+            {
+              extends: true,
+              resolve: {
+                extensions: [
+                  ...['.linux', '.native'].flatMap(platform =>
+                    ['.ts', '.tsx', '.js', '.jsx'].map(ext => platform + ext),
+                  ),
+                  ...EXTENSIONS,
+                ],
+              },
+              test: { name: 'linux', include: [LINUX_TESTS] },
+            },
+          ]
+        : []),
+    ],
   },
 })
