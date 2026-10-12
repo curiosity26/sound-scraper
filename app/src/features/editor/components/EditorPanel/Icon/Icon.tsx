@@ -1,6 +1,8 @@
 import React, { type FC } from 'react'
 import { StyleSheet, View } from 'react-native'
 
+import { Triangle } from './Triangle'
+
 export type IconName =
   | 'play'
   | 'pause'
@@ -22,19 +24,14 @@ export type IconProps = {
 export const Icon: FC<IconProps> = props => {
   const s = props.size ?? 12
   const c = props.color
-  const tri = (dir: 'left' | 'right', h: number) => [
-    styles.tri,
-    { borderTopWidth: h / 2, borderBottomWidth: h / 2 },
-    dir === 'right'
-      ? { borderLeftWidth: h * 0.85, borderLeftColor: c }
-      : { borderRightWidth: h * 0.85, borderRightColor: c },
-  ]
   const box = [styles.box, { width: s, height: s }]
   switch (props.name) {
     case 'play':
       return (
         <View style={box}>
-          <View style={[tri('right', s), { marginLeft: s * 0.15 }]} />
+          <View style={{ marginLeft: s * 0.15 }}>
+            <Triangle pointing="right" height={s} color={c} />
+          </View>
         </View>
       )
     case 'pause':
@@ -65,7 +62,7 @@ export const Icon: FC<IconProps> = props => {
           <View
             style={{ width: s * 0.16, height: s * 0.85, backgroundColor: c }}
           />
-          <View style={tri('left', s * 0.85)} />
+          <Triangle pointing="left" height={s * 0.85} color={c} />
         </View>
       )
     case 'magnet':
@@ -114,12 +111,6 @@ export const Icon: FC<IconProps> = props => {
 const styles = StyleSheet.create({
   box: { alignItems: 'center', justifyContent: 'center' },
   row: { flexDirection: 'row' },
-  tri: {
-    width: 0,
-    height: 0,
-    borderTopColor: 'transparent',
-    borderBottomColor: 'transparent',
-  },
   stop: { borderRadius: 1 },
   magnet: { borderTopWidth: 0 },
   zoom: { borderWidth: 1.5, borderRadius: 1.5 },
