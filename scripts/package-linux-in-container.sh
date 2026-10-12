@@ -41,10 +41,13 @@ git -C "$root" ls-files -co --exclude-standard -z |
     -v "$cache:/cache" -v "$out:/out" \
     -e CARGO_HOME=/cache/cargo -e RUSTUP_HOME=/cache/rustup \
     -e npm_config_cache=/cache/npm -e RNGTK_CACHE_DIR=/cache/rngtk \
-    -e FORMAT="$format" -e TARBALL="${TARBALL:-}" \
+    -e FORMAT="$format" -e TARBALL="${TARBALL:-}" -e OWNER="$(id -u):$(id -g)" \
     -e CXXFLAGS="-include cstdint" \
     "$image" bash -c '
       set -euo pipefail
+      # Under docker the container runs as root: hand /out back to the
+      # caller, so the work trees in it can be removed.
+      trap "chown -R $OWNER /out" EXIT
       mkdir -p /work && tar -C /work -xf -
       /work/scripts/linux-build-deps.sh
       export PATH=/cache/cargo/bin:$PATH
@@ -83,7 +86,8 @@ for f in "$out"/*."$format"; do
     # sound-scraper_0.2.0-1_amd64.deb -> sound-scraper_0.2.0-1_debian13_amd64.deb
     deb) name=$(sed -E "s/^([^_]+_[^_]+)_/\1_${tag}_/" <<<"$name") ;;
     # sound-scraper-0.2.0-1.x86_64.rpm -> sound-scraper-0.2.0-1.fc44.x86_64.rpm
-    rpm) name=$(sed -E "s/\.([^.]+)\.rpm$/.$tag.\1.rpm/" <<<"$name") ;;
+    # (rpmbuild already adds the distribution's own tag, .fc44 or .el10)
+    rpm) [[ $name == *".$tag."* ]] || name=$(sed -E "s/\.([^.]+)\.rpm$/.$tag.\1.rpm/" <<<"$name") ;;
   esac
   mv "$f" "$root/dist/$name"
   echo "== dist/$name"
