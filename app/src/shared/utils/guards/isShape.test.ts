@@ -1,17 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  isArrayOf,
-  isBoolean,
-  isEither,
-  isNullable,
-  isNumber,
-  isOneOf,
-  isOptional,
-  isRecordOf,
-  isShape,
-  isString,
-} from '@/shared/utils/guards'
+import { isArrayOf } from './isArrayOf'
+import { isNullable } from './isNullable'
+import { isNumber } from './isNumber'
+import { isOneOf } from './isOneOf'
+import { isOptional } from './isOptional'
+import { isShape } from './isShape'
+import { isString } from './isString'
 
 type Track = {
   title: string
@@ -31,7 +26,7 @@ const isTrack = isShape<Track>({
 
 const track = { title: 'a', artist: null, durationMs: 1, kind: 'mp3' }
 
-describe('the data-boundary guards', () => {
+describe('a shape guard', () => {
   describe('given a shape guard for a track', () => {
     describe('when every field is right and the optional one is absent', () => {
       it('accepts the value', () => {
@@ -80,44 +75,6 @@ describe('the data-boundary guards', () => {
     describe('when the value is null', () => {
       it('rejects it', () => {
         expect(isTrack(null)).toBe(false)
-      })
-    })
-  })
-
-  describe('given a guard for either a string or a number', () => {
-    const isStringOrNumber = isEither(isString, isNumber)
-
-    describe('when the value is a number', () => {
-      it('accepts it', () => {
-        expect(isStringOrNumber(2)).toBe(true)
-      })
-    })
-
-    describe('when the value is neither', () => {
-      it('rejects it', () => {
-        expect(isStringOrNumber(true)).toBe(false)
-      })
-    })
-  })
-
-  describe('given a guard for a map of booleans', () => {
-    const isFlags = isRecordOf(isBoolean)
-
-    describe('when every value is a boolean', () => {
-      it('accepts the map', () => {
-        expect(isFlags({ a: true, b: false })).toBe(true)
-      })
-    })
-
-    describe('when a value is not a boolean', () => {
-      it('rejects the map', () => {
-        expect(isFlags({ a: true, b: 'no' })).toBe(false)
-      })
-    })
-
-    describe('when the value is a list', () => {
-      it('rejects it', () => {
-        expect(isFlags([true])).toBe(false)
       })
     })
   })
