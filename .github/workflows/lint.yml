@@ -1,4 +1,5 @@
-# Code-quality checks for every pull request and push to main: ESLint
+# Code-quality checks for every pull request (main takes changes only
+# through pull requests, so pushes to it aren't checked again): ESLint
 # (React Native config + Prettier), TypeScript, Vitest, cargo fmt, clippy with
 # warnings denied, the Rust tests, that the generated bridge types
 # (app/src/bridge/generated) match the Rust definitions, and that the Linux app
@@ -8,8 +9,6 @@ name: Lint
 
 on:
   pull_request:
-  push:
-    branches: [main]
 
 permissions:
   contents: read

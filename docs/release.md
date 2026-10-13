@@ -1,11 +1,13 @@
 # Releasing
 
-Pushing a version tag runs [.github/workflows/release.yml](../.github/workflows/release.yml):
+Pushing a version tag runs [.github/workflows/release.yml](../.github/workflows/release.yml). `main` takes changes only through pull requests, so the version change goes through one too, and the tag goes on its merge:
 
 ```sh
+git switch -c version-0.2.0 origin/main
 scripts/version.py set 0.2.0            # or 0.2.0-beta.1 for a pre-release
-git commit -am "Version 0.2.0"
-git tag v0.2.0 && git push origin HEAD v0.2.0
+git commit -am "Version 0.2.0" && git push -u origin HEAD
+# open the pull request and merge it, then tag the merge:
+git fetch origin && git tag v0.2.0 origin/main && git push origin v0.2.0
 ```
 
 It builds, on GitHub-hosted runners:
