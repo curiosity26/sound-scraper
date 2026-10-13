@@ -14,12 +14,14 @@
 # are the run's artifacts; nothing is published.
 #
 # Cache warm-up: a tag's run can restore only caches saved on main, so main
-# keeps the Linux and Flatpak jobs' react-native-gtk4 build caches (React
-# Native, Hermes, the host library: most of their time) for it. A push to
-# main that touches what they're built from, and a run every few days (a
-# cache unused for 7 days is evicted), run those jobs: each checks for its
-# cache and builds, then saves it, only when it's missing. macOS and Windows
-# skip. Run workflow on main (a full dry run) saves missing caches too.
+# keeps each build job's caches for it: react-native-gtk4's build (React
+# Native, Hermes, the host library) for Linux and Flatpak, ccache's store of
+# React Native's pods for macOS, the NuGet packages for Windows, and the Rust
+# core's build for both of those. A push to main that touches what they're
+# built from, and a run every few days (a cache unused for 7 days is
+# evicted), run the build jobs: each checks for its cache and builds
+# (unsigned), then saves it, only when it's missing. Run workflow on main (a
+# full dry run) saves missing caches too.
 name: Release
 
 on:
@@ -29,6 +31,9 @@ on:
     branches: [main]
     paths:
       - app/package-lock.json
+      - app/macos/Podfile.lock
+      - app/windows/**/*.vcxproj
+      - app/windows/**/*.props
       - scripts/flatpak_manifest.py
       - scripts/linux-build-deps.sh
       - scripts/package-flatpak.sh
@@ -77,37 +82,73 @@ jobs:
 
   macos:
     needs: version
-    if: needs.version.outputs.warm-up != 'true'
     runs-on: macos-26
-    # Skips warm-ups, so a push here is a tag's.
-    # The release environment's secrets reach only v* tags; a dry run uses
-    # an environment without any (GitHub creates it on first use).
-    environment: ${{ github.event_name == 'push' && 'release' || 'release-dry-run' }}
+    # The release environment's secrets reach only v* tags; a dry run or a
+    # warm-up uses an environment without any (GitHub creates it on first use).
+    environment: ${{ github.event_name == 'push' && github.ref_type == 'tag' && 'release' || 'release-dry-run' }}
     steps:
       - uses: actions/checkout@v4
+      # ccache's store for the C, C++ and Objective-C compile: React Native's
+      # pods, most of the build. They change with Podfile.lock or Xcode, so
+      # that's the key; an older store (restore-keys) still covers most of a
+      # changed build. Saved on main (below), the only place a tag's run can
+      # restore it from.
+      - id: ccache
+        run: echo "key=macos-ccache-xcode$(xcodebuild -version | shasum | cut -c1-8)-${{ hashFiles('app/macos/Podfile.lock') }}" >> "$GITHUB_OUTPUT"
+      # A warm-up only needs to know whether it's there.
+      - uses: actions/cache/restore@v4
+        id: lookup
+        if: needs.version.outputs.warm-up == 'true'
+        with:
+          path: ~/Library/Caches/ccache
+          key: ${{ steps.ccache.outputs.key }}
+          lookup-only: true
+      # false: a warm-up whose cache is there, with nothing to do.
+      - id: build
+        run: echo "build=${{ steps.lookup.outputs.cache-hit != 'true' }}" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache/restore@v4
+        id: restore
+        if: steps.build.outputs.build == 'true'
+        with:
+          path: ~/Library/Caches/ccache
+          key: ${{ steps.ccache.outputs.key }}
+          restore-keys: macos-ccache-xcode
+      - name: Install ccache
+        if: steps.build.outputs.build == 'true'
+        run: brew install ccache
       - uses: actions/setup-node@v4
+        if: steps.build.outputs.build == 'true'
         with:
           node-version-file: app/.nvmrc
           cache: npm
           cache-dependency-path: app/package-lock.json
       - uses: ruby/setup-ruby@v1
+        if: steps.build.outputs.build == 'true'
         with:
           ruby-version: "3.3"
           working-directory: app
           bundler-cache: true
       # Installs the toolchain pinned in rust-toolchain.toml, with its targets.
       - run: rustup toolchain install
+        if: steps.build.outputs.build == 'true'
       - uses: Swatinem/rust-cache@v2
+        if: steps.build.outputs.build == 'true'
         with:
           workspaces: core
           key: macos-arm64
+          # Tags and pull requests restore from main.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Install JS dependencies and pods
+        if: steps.build.outputs.build == 'true'
+        env:
+          USE_CCACHE: "1"   # pod install points the projects' compilers at ccache
         run: |
           npm ci --prefix app
           cd app/macos && BUNDLE_GEMFILE=../Gemfile bundle exec pod install
+          ccache --zero-stats
 
       - name: Import the Developer ID certificate
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && github.ref_type == 'tag'
         env:
           P12: ${{ secrets.MACOS_DEVELOPER_ID_P12 }}
           P12_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_P12_PASSWORD }}
@@ -125,10 +166,11 @@ jobs:
           security find-identity -v -p codesigning "$KEYCHAIN"
 
       - name: Build, sign and notarize the .dmg
+        if: steps.build.outputs.build == 'true'
         env:
-          # Dry run: ad-hoc signed ("-"), not notarized.
-          SIGN_IDENTITY: "${{ github.event_name == 'push' && 'Developer ID Application: Alex Boyce (B53W8TX3Q9)' || '-' }}"
-          NOTARIZE: ${{ github.event_name == 'push' && '1' || '0' }}
+          # Dry run and warm-up: ad-hoc signed ("-"), not notarized.
+          SIGN_IDENTITY: "${{ github.event_name == 'push' && github.ref_type == 'tag' && 'Developer ID Application: Alex Boyce (B53W8TX3Q9)' || '-' }}"
+          NOTARIZE: ${{ github.event_name == 'push' && github.ref_type == 'tag' && '1' || '0' }}
           APP_BUILD: ${{ github.run_number }}
           NOTARY_KEY_P8: ${{ secrets.APPLE_NOTARY_KEY_P8 }}
           NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
@@ -139,8 +181,17 @@ jobs:
             printf '%s\n' "$NOTARY_KEY_P8" > "$NOTARY_KEY"
           fi
           scripts/package-macos.sh
+          ccache --show-stats
+
+      # Saved on main only: tags and pull requests restore from main.
+      - uses: actions/cache/save@v4
+        if: github.ref == 'refs/heads/main' && steps.build.outputs.build == 'true' && steps.restore.outputs.cache-hit != 'true'
+        with:
+          path: ~/Library/Caches/ccache
+          key: ${{ steps.ccache.outputs.key }}
 
       - uses: actions/upload-artifact@v4
+        if: needs.version.outputs.warm-up != 'true'
         with:
           name: macos
           path: dist/*.dmg
@@ -151,12 +202,10 @@ jobs:
         run: |
           security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2>/dev/null || true
           rm -f "$RUNNER_TEMP/AuthKey.p8"
-
   windows:
     needs: version
-    if: needs.version.outputs.warm-up != 'true'
     runs-on: windows-2025
-    environment: ${{ github.event_name == 'push' && 'release' || 'release-dry-run' }}
+    environment: ${{ github.event_name == 'push' && github.ref_type == 'tag' && 'release' || 'release-dry-run' }}
     permissions:
       contents: read
       id-token: write   # Azure sign-in through OIDC
@@ -171,21 +220,56 @@ jobs:
     steps:
       - run: git config --system core.longpaths true
       - uses: actions/checkout@v4
+      # The NuGet packages the build restores (react-native-windows' prebuilt
+      # Microsoft.ReactNative, Hermes and the rest), a 3-minute download. They
+      # change with react-native-windows and the projects, so that's the key.
+      # Saved on main (below), the only place a tag's run can restore it from.
+      - id: nuget
+        shell: bash
+        run: |
+          rnw=$(jq -er '.packages["node_modules/react-native-windows"].version' app/package-lock.json)
+          echo "key=windows-nuget-${{ matrix.platform }}-rnw$rnw-${{ hashFiles('app/windows/**/*.vcxproj', 'app/windows/**/*.props') }}" >> "$GITHUB_OUTPUT"
+      # A warm-up only needs to know whether it's there.
+      - uses: actions/cache/restore@v4
+        id: lookup
+        if: needs.version.outputs.warm-up == 'true'
+        with:
+          path: ~/.nuget/packages
+          key: ${{ steps.nuget.outputs.key }}
+          lookup-only: true
+      # false: a warm-up whose cache is there, with nothing to do.
+      - id: build
+        shell: bash
+        run: echo "build=${{ steps.lookup.outputs.cache-hit != 'true' }}" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache/restore@v4
+        id: restore
+        if: steps.build.outputs.build == 'true'
+        with:
+          path: ~/.nuget/packages
+          key: ${{ steps.nuget.outputs.key }}
+          restore-keys: windows-nuget-${{ matrix.platform }}-
       - uses: actions/setup-node@v4
+        if: steps.build.outputs.build == 'true'
         with:
           node-version-file: app/.nvmrc
           cache: npm
           cache-dependency-path: app/package-lock.json
       # Installs the toolchain pinned in rust-toolchain.toml, with its targets.
       - run: rustup toolchain install
+        if: steps.build.outputs.build == 'true'
       - uses: Swatinem/rust-cache@v2
+        if: steps.build.outputs.build == 'true'
         with:
           workspaces: core
           key: windows-${{ matrix.platform }}
+          # Tags and pull requests restore from main.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: npm ci --prefix app
+        if: steps.build.outputs.build == 'true'
       # react-native-windows defaults to SDK 10.0.22621.0, which the runner
       # doesn't have; build against the newest one it does.
       - name: Pick the Windows SDK
+        if: steps.build.outputs.build == 'true'
         shell: pwsh
         run: |
           $sdk = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\Include" -Directory |
@@ -195,7 +279,7 @@ jobs:
           "WINDOWS_SDK=$($sdk.Name)" >> $env:GITHUB_ENV
 
       - name: Install the Artifact Signing plugin
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && github.ref_type == 'tag'
         shell: pwsh
         run: |
           nuget install Microsoft.ArtifactSigning.Client -x -NonInteractive -OutputDirectory "$env:RUNNER_TEMP\asc"
@@ -213,25 +297,33 @@ jobs:
               "AzureDeveloperCliCredential", "InteractiveBrowserCredential", "EnvironmentCredential")
           } | ConvertTo-Json | Set-Content "$env:RUNNER_TEMP\metadata.json"
 
-      # Build first, then sign in to Azure and run the script again (an
-      # incremental build) to sign: the Azure sign-in is short-lived and a cold
-      # build can outlast it.
+      # Build first, then sign in to Azure and sign: the Azure sign-in is
+      # short-lived and a cold build can outlast it.
       - name: Build the .msix
+        if: steps.build.outputs.build == 'true'
         shell: powershell
         run: .\scripts\package-windows.ps1 -Platform ${{ matrix.platform }} -WindowsSdk $env:WINDOWS_SDK
       # Dry run: the .msix stays unsigned.
       - uses: azure/login@v2
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && github.ref_type == 'tag'
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           allow-no-subscriptions: true   # signing needs only the role on the signing account
       - name: Sign the .msix
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && github.ref_type == 'tag'
         shell: powershell
-        run: .\scripts\package-windows.ps1 -Platform ${{ matrix.platform }} -WindowsSdk $env:WINDOWS_SDK -ArtifactSigning -Metadata "$env:RUNNER_TEMP\metadata.json"
+        run: .\scripts\package-windows.ps1 -Platform ${{ matrix.platform }} -WindowsSdk $env:WINDOWS_SDK -ArtifactSigning -SignOnly -Metadata "$env:RUNNER_TEMP\metadata.json"
+
+      # Saved on main only: tags and pull requests restore from main.
+      - uses: actions/cache/save@v4
+        if: github.ref == 'refs/heads/main' && steps.build.outputs.build == 'true' && steps.restore.outputs.cache-hit != 'true'
+        with:
+          path: ~/.nuget/packages
+          key: ${{ steps.nuget.outputs.key }}
 
       - uses: actions/upload-artifact@v4
+        if: needs.version.outputs.warm-up != 'true'
         with:
           name: windows-${{ matrix.platform }}
           path: dist/*.msix
