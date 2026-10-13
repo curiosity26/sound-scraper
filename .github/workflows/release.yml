@@ -137,7 +137,7 @@ jobs:
           workspaces: core
           key: macos-arm64
           # Tags and pull requests restore from main.
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          save-if: ${{ github.ref == 'refs/heads/main' || github.event_name == 'pull_request' }}
       - name: Install JS dependencies and pods
         if: steps.build.outputs.build == 'true'
         env:
@@ -185,7 +185,7 @@ jobs:
 
       # Saved on main only: tags and pull requests restore from main.
       - uses: actions/cache/save@v4
-        if: github.ref == 'refs/heads/main' && steps.build.outputs.build == 'true' && steps.restore.outputs.cache-hit != 'true'
+        if: (github.ref == 'refs/heads/main' || github.event_name == 'pull_request') && steps.build.outputs.build == 'true' && steps.restore.outputs.cache-hit != 'true'
         with:
           path: ~/Library/Caches/ccache
           key: ${{ steps.ccache.outputs.key }}
@@ -263,7 +263,7 @@ jobs:
           workspaces: core
           key: windows-${{ matrix.platform }}
           # Tags and pull requests restore from main.
-          save-if: ${{ github.ref == 'refs/heads/main' }}
+          save-if: ${{ github.ref == 'refs/heads/main' || github.event_name == 'pull_request' }}
       - run: npm ci --prefix app
         if: steps.build.outputs.build == 'true'
       # react-native-windows defaults to SDK 10.0.22621.0, which the runner
@@ -317,7 +317,7 @@ jobs:
 
       # Saved on main only: tags and pull requests restore from main.
       - uses: actions/cache/save@v4
-        if: github.ref == 'refs/heads/main' && steps.build.outputs.build == 'true' && steps.restore.outputs.cache-hit != 'true'
+        if: (github.ref == 'refs/heads/main' || github.event_name == 'pull_request') && steps.build.outputs.build == 'true' && steps.restore.outputs.cache-hit != 'true'
         with:
           path: ~/.nuget/packages
           key: ${{ steps.nuget.outputs.key }}
