@@ -9,19 +9,6 @@ inputs:
   cache-key:
     description: Rust cache key
     required: true
-  host:
-    description: >-
-      The React Native host library the job builds: debug (run-linux) or
-      release (package-linux). It names the job's react-native-gtk4 build cache.
-    required: true
-
-outputs:
-  rngtk-cache-key:
-    description: The react-native-gtk4 build cache's key
-    value: ${{ steps.rngtk.outputs.key }}
-  rngtk-cache-hit:
-    description: true when that cache was restored, so there's nothing new to save
-    value: ${{ steps.rngtk-restore.outputs.cache-hit }}
 
 runs:
   using: composite
@@ -49,20 +36,3 @@ runs:
       with:
         workspaces: core
         key: ${{ inputs.cache-key }}
-    # react-native-gtk4's build cache: React Native's sources, Hermes and the
-    # host library, the long part of a build. They change only with
-    # react-native-gtk4 (scripts/rngtk-cache-key.sh) or the compiler, so
-    # that's the key. Restored here; the job
-    # saves it after its build (scripts/trim-rngtk-cache.sh, then
-    # actions/cache/save with rngtk-cache-key), so a later failing test
-    # doesn't lose it.
-    - id: rngtk
-      shell: bash
-      run: |
-        cc=$(clang --version | head -1 | sha256sum | cut -c1-8)
-        echo "key=$(scripts/rngtk-cache-key.sh "$ImageOS-$RUNNER_ARCH-clang$cc-${{ inputs.host }}")" >> "$GITHUB_OUTPUT"
-    - id: rngtk-restore
-      uses: actions/cache/restore@v4
-      with:
-        path: ~/.cache/react-native-gtk4
-        key: ${{ steps.rngtk.outputs.key }}
