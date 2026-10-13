@@ -1,7 +1,7 @@
 # Sets up a Linux runner (Ubuntu 24.04) to build the GTK4 app: the system
 # packages react-native-gtk4 and the Rust core need, Node with the app's
 # dependencies (including @curiosity26/react-native-gtk4, an optional
-# dependency installed from its public GitHub repository), and Rust.
+# dependency installed from npm), and Rust.
 name: Set up the Linux build
 description: System packages, Node + react-native-gtk4, Rust
 
