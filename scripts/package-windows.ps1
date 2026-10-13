@@ -1,6 +1,7 @@
 # Builds a Release MSIX for Windows and copies it to dist\.
 #   .\scripts\package-windows.ps1 [-Platform ARM64|x64] [-Thumbprint <cert SHA1>]
 #   .\scripts\package-windows.ps1 [-Platform ARM64|x64] -ArtifactSigning [-Metadata <metadata.json>] [-Publisher <subject>]
+#   .\scripts\package-windows.ps1 [-Platform ARM64|x64] -ArtifactSigning -SignOnly   # sign the .msix already in dist\
 #
 # Signing, pick one (without either the package is unsigned):
 # - Thumbprint: a certificate in Cert:\CurrentUser\My whose Subject equals the
@@ -21,16 +22,21 @@
 # e.g. "CN=Jane Doe, O=Jane Doe, L=Springfield, S=Illinois, C=US".
 # -WindowsSdk builds against that Windows SDK (e.g. 10.0.26100.0) instead of
 # react-native-windows' default, 10.0.22621.0 (CI runners only have newer ones).
+# -SignOnly skips the build and signs dist\'s .msix from an earlier unsigned
+# build of the same version and -Publisher (CI signs after building, since its
+# Azure sign-in is short-lived).
 param(
   [ValidateSet("ARM64", "x64")] [string]$Platform = "ARM64",
   [string]$Thumbprint = "",
   [switch]$ArtifactSigning,
   [string]$Metadata = $(if ($env:SS_SIGNING_METADATA) { $env:SS_SIGNING_METADATA } else { "$env:LOCALAPPDATA\SoundScraper\signing\metadata.json" }),
   [string]$Publisher = "",
-  [string]$WindowsSdk = ""
+  [string]$WindowsSdk = "",
+  [switch]$SignOnly
 )
 $ErrorActionPreference = "Stop"
 if ($Thumbprint -and $ArtifactSigning) { throw "Use -Thumbprint or -ArtifactSigning, not both" }
+if ($SignOnly -and -not $ArtifactSigning) { throw "-SignOnly needs -ArtifactSigning" }
 $root = Split-Path -Parent $PSScriptRoot
 $env:NODE_OPTIONS = "-r $root\app\scripts\rnw-cli-shim.js"   # RNW 0.83.2 CLI needs it without PowerShell 7
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
@@ -74,28 +80,32 @@ $manifest = [xml]$manifestText
 $version = $manifest.Package.Identity.Version
 if (-not $Publisher) { $Publisher = $manifest.Package.Identity.Publisher }
 
-$patched = $Publisher -ne $manifest.Package.Identity.Publisher
-try {
-  if ($patched) {
-    $manifest.Package.Identity.Publisher = $Publisher
-    $manifest.Save($manifestPath)
-  }
-  # Artifact Signing signs after the build: MSBuild can only sign with a local certificate.
-  # @() keeps a one-item result an array; splatting a bare string passes it character by character.
-  $signing = @(if ($Thumbprint) { "/p:AppxPackageSigningEnabled=true", "/p:PackageCertificateThumbprint=$Thumbprint" } else { "/p:AppxPackageSigningEnabled=false" })
-  $sdk = @(if ($WindowsSdk) { "/p:WindowsTargetPlatformVersion=$WindowsSdk", "/p:TargetPlatformVersion=$WindowsSdk" })
-  & $msbuild "$root\app\windows\SoundScraper.sln" /restore /m /nologo /v:minimal /p:Configuration=Release "/p:Platform=$Platform" `
-    /p:AppxBundle=Never /p:UapAppxPackageBuildMode=SideloadOnly @signing @sdk
-  if ($LASTEXITCODE -ne 0) { throw "MSBuild failed" }
-} finally {
-  if ($patched) { [IO.File]::WriteAllText($manifestPath, $manifestText, [Text.UTF8Encoding]::new($true)) }
-}
-
-$msix = Get-ChildItem -Recurse -Filter "SoundScraper.Package_*_$Platform.msix" "$root\app\windows\SoundScraper.Package\AppPackages" |
-  Sort-Object LastWriteTime -Descending | Select-Object -First 1
-New-Item -ItemType Directory -Force "$root\dist" | Out-Null
 $out = "$root\dist\SoundScraper-$version-$Platform.msix"
-Copy-Item $msix.FullName $out -Force
+if ($SignOnly) {
+  if (-not (Test-Path $out)) { throw "$out not found: build it first (without -SignOnly)" }
+} else {
+  $patched = $Publisher -ne $manifest.Package.Identity.Publisher
+  try {
+    if ($patched) {
+      $manifest.Package.Identity.Publisher = $Publisher
+      $manifest.Save($manifestPath)
+    }
+    # Artifact Signing signs after the build: MSBuild can only sign with a local certificate.
+    # @() keeps a one-item result an array; splatting a bare string passes it character by character.
+    $signing = @(if ($Thumbprint) { "/p:AppxPackageSigningEnabled=true", "/p:PackageCertificateThumbprint=$Thumbprint" } else { "/p:AppxPackageSigningEnabled=false" })
+    $sdk = @(if ($WindowsSdk) { "/p:WindowsTargetPlatformVersion=$WindowsSdk", "/p:TargetPlatformVersion=$WindowsSdk" })
+    & $msbuild "$root\app\windows\SoundScraper.sln" /restore /m /nologo /v:minimal /p:Configuration=Release "/p:Platform=$Platform" `
+      /p:AppxBundle=Never /p:UapAppxPackageBuildMode=SideloadOnly @signing @sdk
+    if ($LASTEXITCODE -ne 0) { throw "MSBuild failed" }
+  } finally {
+    if ($patched) { [IO.File]::WriteAllText($manifestPath, $manifestText, [Text.UTF8Encoding]::new($true)) }
+  }
+
+  $msix = Get-ChildItem -Recurse -Filter "SoundScraper.Package_*_$Platform.msix" "$root\app\windows\SoundScraper.Package\AppPackages" |
+    Sort-Object LastWriteTime -Descending | Select-Object -First 1
+  New-Item -ItemType Directory -Force "$root\dist" | Out-Null
+  Copy-Item $msix.FullName $out -Force
+}
 
 if ($ArtifactSigning) {
   # The certificates live three days, so the timestamp is what keeps the signature valid.

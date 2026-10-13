@@ -9,6 +9,8 @@
 # when NOTARY_KEY (path to the .p8), NOTARY_KEY_ID and NOTARY_ISSUER are set
 # (CI). NOTARIZE=0 skips notarization. APP_BUILD overrides the project's
 # CURRENT_PROJECT_VERSION (the build number); scripts/version.py sets the version.
+# COMPILATION_CACHE_CAS_PATH turns on Xcode's compilation cache, kept in that
+# directory (CI keeps it between builds).
 # Self-signed builds aren't notarizable; Gatekeeper asks the user to confirm the first launch.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -28,6 +30,8 @@ SIGN_FLAGS=(--force --sign "$IDENTITY")
 # release build names its identity explicitly instead.
 BUILD_FLAGS=(CODE_SIGN_STYLE=Manual)
 [ -n "${APP_BUILD:-}" ] && BUILD_FLAGS+=(CURRENT_PROJECT_VERSION="$APP_BUILD")
+[ -n "${COMPILATION_CACHE_CAS_PATH:-}" ] &&
+  BUILD_FLAGS+=(COMPILATION_CACHE_ENABLE_CACHING=YES COMPILATION_CACHE_CAS_PATH="$COMPILATION_CACHE_CAS_PATH")
 if [[ "$IDENTITY" == "Developer ID Application"* ]]; then
   DISTRIBUTION=1
   # Hardened runtime needs a certificate with a Team ID: its library validation
