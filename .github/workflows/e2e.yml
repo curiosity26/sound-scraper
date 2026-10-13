@@ -3,15 +3,15 @@
 # tone plays, then the recordings it made are decoded and checked for the
 # tone (app/e2e, core/crates/probe).
 #
-# Linux runs on every pull request and push to main, in a private desktop
-# session with a PipeWire null sink as the sound card
-# (scripts/e2e-linux-session.sh). macOS and Windows come later.
+# Linux runs on every pull request, in a private desktop session with a
+# PipeWire null sink as the sound card (scripts/e2e-linux-session.sh).
+# macOS and Windows come later. The nightly run is on main: it also saves
+# the react-native-gtk4 build cache there when it's missing (after an
+# upgrade), since a pull request's run can only restore caches from main.
 name: E2E
 
 on:
   pull_request:
-  push:
-    branches: [main]
   schedule:
     - cron: '0 6 * * *'
   workflow_dispatch:
