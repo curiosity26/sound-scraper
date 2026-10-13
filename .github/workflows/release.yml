@@ -12,11 +12,32 @@
 # package.json's version without the release environment's secrets: the
 # Mac app ad-hoc signed and not notarized, the .msix unsigned. The packages
 # are the run's artifacts; nothing is published.
+#
+# Cache warm-up: a tag's run can restore only caches saved on main, so main
+# keeps the Linux and Flatpak jobs' react-native-gtk4 build caches (React
+# Native, Hermes, the host library: most of their time) for it. A push to
+# main that touches what they're built from, and a run every few days (a
+# cache unused for 7 days is evicted), run those jobs: each checks for its
+# cache and builds, then saves it, only when it's missing. macOS and Windows
+# skip. Run workflow on main (a full dry run) saves missing caches too.
 name: Release
 
 on:
   push:
     tags: ["v*"]
+    # Warm-up (path filters don't apply to tags).
+    branches: [main]
+    paths:
+      - app/package-lock.json
+      - scripts/flatpak_manifest.py
+      - scripts/linux-build-deps.sh
+      - scripts/package-flatpak.sh
+      - scripts/package-linux-in-container.sh
+      - scripts/rngtk-cache-key.sh
+      - scripts/trim-rngtk-cache.sh
+      - .github/workflows/release.yml
+  schedule:
+    - cron: '0 5 */5 * *'
   pull_request:
     types: [labeled, synchronize]
   workflow_dispatch:
@@ -40,11 +61,13 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       prerelease: ${{ steps.v.outputs.prerelease }}
+      # true: a cache warm-up run (a push to main or the schedule).
+      warm-up: ${{ github.event_name == 'schedule' || (github.event_name == 'push' && github.ref_type == 'branch') }}
     steps:
       - uses: actions/checkout@v4
       - id: v
         env:
-          TAG: ${{ github.event_name == 'push' && github.ref_name || '' }}
+          TAG: ${{ github.event_name == 'push' && github.ref_type == 'tag' && github.ref_name || '' }}
         run: |
           # A dry run checks package.json's version instead of a tag.
           [ -n "$TAG" ] || TAG=v$(jq -r .version app/package.json)
@@ -54,7 +77,9 @@ jobs:
 
   macos:
     needs: version
+    if: needs.version.outputs.warm-up != 'true'
     runs-on: macos-26
+    # Skips warm-ups, so a push here is a tag's.
     # The release environment's secrets reach only v* tags; a dry run uses
     # an environment without any (GitHub creates it on first use).
     environment: ${{ github.event_name == 'push' && 'release' || 'release-dry-run' }}
@@ -129,6 +154,7 @@ jobs:
 
   windows:
     needs: version
+    if: needs.version.outputs.warm-up != 'true'
     runs-on: windows-2025
     environment: ${{ github.event_name == 'push' && 'release' || 'release-dry-run' }}
     permissions:
@@ -236,13 +262,20 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
-      # Rust, npm and react-native-gtk4's Hermes and host builds.
-      - uses: actions/cache@v4
+      # react-native-gtk4's build of React Native, Hermes and the host
+      # library, the long part. Saved on main (below), the only place a
+      # tag's run can restore it from.
+      - id: rngtk
+        run: echo "key=$(scripts/rngtk-cache-key.sh linux-${{ matrix.distro.tag }}-${{ matrix.arch }})" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache/restore@v4
+        id: restore
         with:
-          path: .cache/linux-${{ matrix.distro.tag }}
-          key: linux-${{ matrix.distro.tag }}-${{ matrix.arch }}-${{ hashFiles('app/package-lock.json', 'core/Cargo.lock') }}
-          restore-keys: linux-${{ matrix.distro.tag }}-${{ matrix.arch }}-
+          path: .cache/linux-${{ matrix.distro.tag }}/rngtk
+          key: ${{ steps.rngtk.outputs.key }}
+          # A warm-up only needs to know whether it's there.
+          lookup-only: ${{ needs.version.outputs.warm-up == 'true' }}
       - name: Build, install and start the package
+        if: needs.version.outputs.warm-up != 'true' || steps.restore.outputs.cache-hit != 'true'
         env:
           CONTAINER_ENGINE: docker
           TARBALL: ${{ matrix.distro.tarball }}
@@ -250,9 +283,19 @@ jobs:
           scripts/package-linux-in-container.sh "${{ matrix.distro.image }}" ${{ matrix.distro.format }} ${{ matrix.distro.tag }}
           ls -la dist
       # The container wrote the cache as root.
-      - run: sudo chown -R "$(id -u):$(id -g)" .cache
+      - run: '[ ! -d .cache ] || sudo chown -R "$(id -u):$(id -g)" .cache'
         if: always()
+      # Saved on main only: tags and pull requests restore from main.
+      - name: Trim the react-native-gtk4 build cache
+        if: github.ref == 'refs/heads/main' && steps.restore.outputs.cache-hit != 'true'
+        run: scripts/trim-rngtk-cache.sh .cache/linux-${{ matrix.distro.tag }}/rngtk
+      - uses: actions/cache/save@v4
+        if: github.ref == 'refs/heads/main' && steps.restore.outputs.cache-hit != 'true'
+        with:
+          path: .cache/linux-${{ matrix.distro.tag }}/rngtk
+          key: ${{ steps.rngtk.outputs.key }}
       - uses: actions/upload-artifact@v4
+        if: needs.version.outputs.warm-up != 'true'
         with:
           name: linux-${{ matrix.distro.tag }}-${{ matrix.arch }}
           path: |
@@ -281,7 +324,23 @@ jobs:
       BUILDER_TOOLS: 74697c75b630d7330e77250fc13cb5ea688d9479
     steps:
       - uses: actions/checkout@v4
+      # flatpak-builder's state: the SDK build of React Native, Hermes and
+      # the host (the long part), and downloads. Saved on main (below), the
+      # only place a tag's run can restore it from.
+      - id: rngtk
+        run: echo "key=$(scripts/rngtk-cache-key.sh flatpak-${{ matrix.arch }}-${{ hashFiles('scripts/flatpak_manifest.py') }})" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache/restore@v4
+        id: restore
+        with:
+          path: ~/.cache/react-native-gtk4/flatpak/state
+          key: ${{ steps.rngtk.outputs.key }}
+          # A warm-up only needs to know whether it's there.
+          lookup-only: ${{ needs.version.outputs.warm-up == 'true' }}
+      # false: a warm-up whose cache is there, with nothing to do.
+      - id: build
+        run: echo "build=${{ needs.version.outputs.warm-up != 'true' || steps.restore.outputs.cache-hit != 'true' }}" >> "$GITHUB_OUTPUT"
       - name: Install flatpak-builder and the source generators
+        if: steps.build.outputs.build == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y flatpak flatpak-builder xvfb dbus-x11
@@ -292,23 +351,32 @@ jobs:
           echo "FLATPAK_NODE_GENERATOR=$RUNNER_TEMP/venv/bin/flatpak-node-generator" >> "$GITHUB_ENV"
           echo "FLATPAK_CARGO_GENERATOR=$RUNNER_TEMP/venv/bin/python3 $RUNNER_TEMP/tools/cargo/flatpak-cargo-generator.py" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v4
+        if: steps.build.outputs.build == 'true'
         with:
           node-version-file: app/.nvmrc
           cache: npm
           cache-dependency-path: app/package-lock.json
       - name: Install JS dependencies
+        if: steps.build.outputs.build == 'true'
         working-directory: app
         run: npm ci
-      # flatpak-builder's state: the SDK build of React Native, Hermes and
-      # the host (the long part), and downloads.
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/react-native-gtk4/flatpak
-          key: flatpak-${{ matrix.arch }}-${{ hashFiles('app/package-lock.json', 'core/Cargo.lock') }}
-          restore-keys: flatpak-${{ matrix.arch }}-
       - name: Build, install and start the Flatpak
+        if: steps.build.outputs.build == 'true'
         run: xvfb-run -a dbus-run-session -- scripts/package-flatpak.sh --smoke
+      # Saved on main only (tags and pull requests restore from main),
+      # without the build directories flatpak-builder keeps.
+      - name: Trim flatpak-builder's state
+        if: github.ref == 'refs/heads/main' && steps.restore.outputs.cache-hit != 'true'
+        run: |
+          rm -rf ~/.cache/react-native-gtk4/flatpak/state/build
+          du -sh ~/.cache/react-native-gtk4/flatpak/state
+      - uses: actions/cache/save@v4
+        if: github.ref == 'refs/heads/main' && steps.restore.outputs.cache-hit != 'true'
+        with:
+          path: ~/.cache/react-native-gtk4/flatpak/state
+          key: ${{ steps.rngtk.outputs.key }}
       - uses: actions/upload-artifact@v4
+        if: needs.version.outputs.warm-up != 'true'
         with:
           name: linux-flatpak-${{ matrix.arch }}
           path: dist/*.flatpak
@@ -316,8 +384,8 @@ jobs:
 
   release:
     needs: [version, macos, windows, linux, flatpak]
-    # Not for dry runs.
-    if: github.event_name == 'push'
+    # Not for dry runs or warm-ups.
+    if: github.event_name == 'push' && github.ref_type == 'tag'
     runs-on: ubuntu-latest
     permissions:
       contents: write
