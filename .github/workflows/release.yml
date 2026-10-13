@@ -145,6 +145,9 @@ jobs:
         run: |
           npm ci --prefix app
           cd app/macos && BUNDLE_GEMFILE=../Gemfile bundle exec pod install
+          # Pods only: in the app's project the settings reach the Build Rust
+          # core phase, where the core's C build scripts fail with them.
+          git checkout SoundScraper.xcodeproj
           ccache --zero-stats
 
       - name: Import the Developer ID certificate

@@ -11,10 +11,6 @@ CONFIGURATION="${CONFIGURATION:-Debug}"
 OUT_DIR="$CORE_DIR/target/apple/$CONFIGURATION"
 LIB=libsound_scraper_core.a
 
-# Xcode exports the project's compiler settings to scripts; with ccache on
-# (USE_CCACHE=1 pod install, as in CI) they name React Native's ccache
-# wrappers, which the C build scripts of the core's crates can't use.
-unset CC CXX LD LDPLUSPLUS
 # Xcode runs scripts with a minimal PATH.
 [ -f "$HOME/.cargo/env" ] && source "$HOME/.cargo/env"
 command -v cargo >/dev/null || { echo "error: cargo not found; install Rust via rustup" >&2; exit 1; }
