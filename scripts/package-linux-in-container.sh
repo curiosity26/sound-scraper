@@ -13,8 +13,8 @@
 # (sound-scraper_0.2.0-1_debian13_amd64.deb, sound-scraper-0.2.0-1.fc44.x86_64.rpm).
 # With TARBALL=1 the self-contained app folder also lands there as
 # SoundScraper-0.2.0-linux-<arch>.tar.gz (the release builds it on Ubuntu 24.04).
-# The build cache (Rust, npm, react-native-gtk4's Hermes and host build)
-# lives in .cache/linux-TAG, so the next run is quick.
+# The build cache (Rust, npm, react-native-gtk4's prebuilt host and React
+# Native's headers) lives in .cache/linux-TAG, so the next run is quick.
 set -euo pipefail
 
 image=${1:?usage: package-linux-in-container.sh IMAGE deb|rpm TAG}

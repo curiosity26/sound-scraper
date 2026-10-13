@@ -15,7 +15,7 @@
 #
 # Cache warm-up: a tag's run can restore only caches saved on main, so main
 # keeps each build job's caches for it: react-native-gtk4's build (React
-# Native, Hermes, the host library) for Linux and Flatpak, Xcode's compilation
+# Native, Hermes, the host library) for Flatpak, Xcode's compilation
 # cache (React Native's pods) for macOS, the NuGet packages for Windows, and the Rust
 # core's build for both of those. A push to main that touches what they're
 # built from, and a run every few days (a cache unused for 7 days is
@@ -37,9 +37,7 @@ on:
       - scripts/flatpak_manifest.py
       - scripts/linux-build-deps.sh
       - scripts/package-flatpak.sh
-      - scripts/package-linux-in-container.sh
       - scripts/rngtk-cache-key.sh
-      - scripts/trim-rngtk-cache.sh
       - .github/workflows/release.yml
   schedule:
     - cron: '0 5 */5 * *'
@@ -332,9 +330,12 @@ jobs:
   # (.tar.gz; install.sh puts it in ~/.local). react-native-gtk4 needs GTK
   # 4.14 or newer, so Debian 13 and EL 10 are the oldest; Fedora's package
   # is for one release (its library versions change with each). The
-  # Flatpak is built in the GNOME SDK (flatpak).
+  # Flatpak is built in the GNOME SDK (flatpak). react-native-gtk4's host
+  # library is prebuilt for each of these, so there's no React Native or
+  # Hermes build to cache, and nothing for a warm-up to do.
   linux:
     needs: version
+    if: needs.version.outputs.warm-up != 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -349,40 +350,14 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
-      # react-native-gtk4's build of React Native, Hermes and the host
-      # library, the long part. Saved on main (below), the only place a
-      # tag's run can restore it from.
-      - id: rngtk
-        run: echo "key=$(scripts/rngtk-cache-key.sh linux-${{ matrix.distro.tag }}-${{ matrix.arch }})" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache/restore@v4
-        id: restore
-        with:
-          path: .cache/linux-${{ matrix.distro.tag }}/rngtk
-          key: ${{ steps.rngtk.outputs.key }}
-          # A warm-up only needs to know whether it's there.
-          lookup-only: ${{ needs.version.outputs.warm-up == 'true' }}
       - name: Build, install and start the package
-        if: needs.version.outputs.warm-up != 'true' || steps.restore.outputs.cache-hit != 'true'
         env:
           CONTAINER_ENGINE: docker
           TARBALL: ${{ matrix.distro.tarball }}
         run: |
           scripts/package-linux-in-container.sh "${{ matrix.distro.image }}" ${{ matrix.distro.format }} ${{ matrix.distro.tag }}
           ls -la dist
-      # The container wrote the cache as root.
-      - run: '[ ! -d .cache ] || sudo chown -R "$(id -u):$(id -g)" .cache'
-        if: always()
-      # Saved on main only: tags and pull requests restore from main.
-      - name: Trim the react-native-gtk4 build cache
-        if: github.ref == 'refs/heads/main' && steps.restore.outputs.cache-hit != 'true'
-        run: scripts/trim-rngtk-cache.sh .cache/linux-${{ matrix.distro.tag }}/rngtk
-      - uses: actions/cache/save@v4
-        if: github.ref == 'refs/heads/main' && steps.restore.outputs.cache-hit != 'true'
-        with:
-          path: .cache/linux-${{ matrix.distro.tag }}/rngtk
-          key: ${{ steps.rngtk.outputs.key }}
       - uses: actions/upload-artifact@v4
-        if: needs.version.outputs.warm-up != 'true'
         with:
           name: linux-${{ matrix.distro.tag }}-${{ matrix.arch }}
           path: |

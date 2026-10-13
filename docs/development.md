@@ -359,7 +359,7 @@ sudo apt install -y clang cmake ninja-build pkg-config git python3 \
 
 plus Node 22 (not Ubuntu's packaged 18) and Rust via rustup.
 
-`@curiosity26/react-native-gtk4` is an **optional dependency**, installed from its public GitHub repository (no token): `npm ci` installs it on Linux and skips it on macOS and Windows (it's Linux-only).
+`@curiosity26/react-native-gtk4` is an **optional dependency**, installed from public npm (no token): `npm ci` installs it on Linux and skips it on macOS and Windows (it's Linux-only).
 
 `app/react-native.config.js` and `metro.config.js` add the package's `linux` platform and commands only when it's installed (the CLI reads them only from regular dependencies).
 
@@ -369,7 +369,7 @@ npx react-native run-linux --release   # self-contained, in linux/build/Release
 npx react-native package-linux --format deb   # or dir, rpm, flatpak (linux/build/package)
 ```
 
-The first `run-linux` fetches React Native's sources and builds Hermes and the host library into `~/.cache/react-native-gtk4` (about 7 minutes on 4 cores; prebuilt on Ubuntu 24.04 with the published package); after that the app builds in seconds. `linux/CMakeLists.txt` runs `cargo build -p sound_scraper_core` (`--features simulator` in Debug, `--release` in Release), links `libsound_scraper_core.a` with libpulse and ALSA, and copies LAME's `libmp3lame.so.0` next to the executable (`$ORIGIN` RPATH; installed in `lib/SoundScraper/`). Packaging reads the app's identity from `app.json`'s `linux` block.
+The first `run-linux` fetches React Native's sources and builds Hermes and the host library into `~/.cache/react-native-gtk4` (about 7 minutes on 4 cores), unless react-native-gtk4 has a prebuilt host for the system (Ubuntu 24.04, Debian 13, Fedora 44/45, EL 10); after that the app builds in seconds. `linux/CMakeLists.txt` runs `cargo build -p sound_scraper_core` (`--features simulator` in Debug, `--release` in Release), links `libsound_scraper_core.a` with libpulse and ALSA, and copies LAME's `libmp3lame.so.0` next to the executable (`$ORIGIN` RPATH; installed in `lib/SoundScraper/`). Packaging reads the app's identity from `app.json`'s `linux` block.
 
 Packages link the libraries of the distribution they're built on, so each is built on its own (the release workflow builds all of them; see [release.md](release.md)):
 
