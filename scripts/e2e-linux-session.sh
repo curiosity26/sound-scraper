@@ -37,7 +37,14 @@ done
 pactl info >/dev/null || { echo "the sound server didn't start:" >&2; cat "$log" >&2; exit 1; }
 pactl load-module module-null-sink sink_name=e2e \
   sink_properties=device.description=E2E-Output >/dev/null
-pactl set-default-sink e2e
+# pipewire-pulse answers before WirePlumber has created the "default"
+# metadata, and until it has, setting the default sink fails with "Not
+# supported", so keep trying.
+for _ in $(seq 50); do
+  pactl set-default-sink e2e 2>/dev/null && break
+  sleep 0.2
+done
+pactl set-default-sink e2e || { echo "couldn't make e2e the default sink:" >&2; cat "$log" >&2; exit 1; }
 
 /usr/libexec/at-spi-bus-launcher --launch-immediately >>"$log" 2>&1 & pids+=($!)
 export GDK_BACKEND=x11 GTK_A11Y=atspi
