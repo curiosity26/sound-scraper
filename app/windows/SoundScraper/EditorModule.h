@@ -134,8 +134,8 @@ struct EditorModule {
   }
 
   REACT_SYNC_METHOD(editCoverPath)
-  std::string editCoverPath(std::string fileName, std::string id) noexcept {
-    return Take(ss_edits_cover_path(fileName.c_str(), id.c_str()), "");
+  std::string editCoverPath(std::string fileName, std::string coverId) noexcept {
+    return Take(ss_edits_cover_path(fileName.c_str(), coverId.c_str()), "");
   }
 
   REACT_SYNC_METHOD(editMarkers)

@@ -35,7 +35,7 @@ class EditorModule : public rngtk::CxxModule<EditorModule> {
   facebook::react::AsyncPromise<std::string> storeEditCover(facebook::jsi::Runtime &rt,
                                                             std::string fileName,
                                                             std::string imagePath);
-  std::string editCoverPath(facebook::jsi::Runtime &rt, std::string fileName, std::string id);
+  std::string editCoverPath(facebook::jsi::Runtime &rt, std::string fileName, std::string coverId);
   std::string editMarkers(facebook::jsi::Runtime &rt, std::string fileName);
 
  private:

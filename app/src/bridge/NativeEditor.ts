@@ -35,7 +35,7 @@ export interface Spec extends TurboModule {
    */
   storeEditCover(fileName: string, imagePath: string): Promise<string>
   /** Where a track cover stored for the recording is, or "" (ss_edits_cover_path). */
-  editCoverPath(fileName: string, id: string): string
+  editCoverPath(fileName: string, coverId: string): string
   /** The now-playing markers kept for the recording, as JSON (ss_edits_markers). */
   editMarkers(fileName: string): string
 }

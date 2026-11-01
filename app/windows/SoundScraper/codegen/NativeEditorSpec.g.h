@@ -100,8 +100,8 @@ struct EditorSpec : winrt::Microsoft::ReactNative::TurboModuleSpec {
     REACT_SHOW_METHOD_SPEC_ERRORS(
           12,
           "editCoverPath",
-          "    REACT_SYNC_METHOD(editCoverPath) std::string editCoverPath(std::string fileName, std::string id) noexcept { /* implementation */ }\n"
-          "    REACT_SYNC_METHOD(editCoverPath) static std::string editCoverPath(std::string fileName, std::string id) noexcept { /* implementation */ }\n");
+          "    REACT_SYNC_METHOD(editCoverPath) std::string editCoverPath(std::string fileName, std::string coverId) noexcept { /* implementation */ }\n"
+          "    REACT_SYNC_METHOD(editCoverPath) static std::string editCoverPath(std::string fileName, std::string coverId) noexcept { /* implementation */ }\n");
     REACT_SHOW_METHOD_SPEC_ERRORS(
           13,
           "editMarkers",

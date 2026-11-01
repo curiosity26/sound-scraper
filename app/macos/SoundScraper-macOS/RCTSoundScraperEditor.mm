@@ -135,9 +135,9 @@ RCT_EXPORT_MODULE(SoundScraperEditor)
   });
 }
 
-- (NSString *)editCoverPath:(NSString *)fileName id:(NSString *)id
+- (NSString *)editCoverPath:(NSString *)fileName coverId:(NSString *)coverId
 {
-  return SSTakeEditorString(ss_edits_cover_path(fileName.UTF8String, id.UTF8String)) ?: @"";
+  return SSTakeEditorString(ss_edits_cover_path(fileName.UTF8String, coverId.UTF8String)) ?: @"";
 }
 
 - (NSString *)editMarkers:(NSString *)fileName

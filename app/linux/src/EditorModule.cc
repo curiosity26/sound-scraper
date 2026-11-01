@@ -121,8 +121,8 @@ AsyncPromise<std::string> EditorModule::storeEditCover(jsi::Runtime &rt, std::st
   return promise;
 }
 
-std::string EditorModule::editCoverPath(jsi::Runtime &, std::string fileName, std::string id) {
-  return take(ss_edits_cover_path(fileName.c_str(), id.c_str()), "");
+std::string EditorModule::editCoverPath(jsi::Runtime &, std::string fileName, std::string coverId) {
+  return take(ss_edits_cover_path(fileName.c_str(), coverId.c_str()), "");
 }
 
 std::string EditorModule::editMarkers(jsi::Runtime &, std::string fileName) {
