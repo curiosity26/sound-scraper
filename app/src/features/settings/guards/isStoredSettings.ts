@@ -25,4 +25,6 @@ export const isStoredSettings = isShape<StoredSettings>({
   masterMinMinutes: isNumber,
   masterBudgetGb: isNumber,
   masterMaxAgeDays: isNumber,
+  nowPlayingTags: isBoolean,
+  splitAtTrackChanges: isBoolean,
 })

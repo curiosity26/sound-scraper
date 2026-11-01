@@ -64,6 +64,8 @@ export type Recording = {
   sizeBytes: number
   /** Unix time in milliseconds. */
   recordedAtMs: number
+  /** The track editor keeps unsaved edits (a draft) for it. */
+  hasDraft: boolean
 }
 
 /** Mirrors SsTags in sound_scraper.h. */

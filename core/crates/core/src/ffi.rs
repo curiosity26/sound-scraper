@@ -757,6 +757,8 @@ pub struct SsRecording {
     pub size_bytes: u64,
     /// Unix time in milliseconds.
     pub recorded_at_ms: i64,
+    /// The track editor keeps unsaved edits (a draft) for it.
+    pub has_draft: bool,
 }
 
 /// Opaque list from `ss_library_list`.
@@ -863,6 +865,7 @@ pub unsafe extern "C" fn ss_library_list(library: *mut SsLibrary) -> *mut SsReco
             duration_ms: r.duration_ms,
             size_bytes: r.size_bytes,
             recorded_at_ms: r.recorded_at_ms,
+            has_draft: r.has_draft,
         })
         .collect();
     Box::into_raw(Box::new(SsRecordingList {
@@ -2006,6 +2009,21 @@ pub unsafe extern "C" fn ss_edits_cover_path(
     }))
 }
 
+/// The now-playing markers the recorder kept for a recording (JSON array of
+/// `Marker`, empty when there are none). Free with `ss_string_free`;
+/// NULL only on bad arguments.
+///
+/// # Safety
+/// `file_name` must be NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_edits_markers(file_name: *const c_char) -> *mut c_char {
+    json_or_null(catch("loading markers", || {
+        Ok(crate::nowplaying::load_markers(unsafe {
+            arg_str(file_name, "file_name")?
+        }))
+    }))
+}
+
 /// Saves an edit of the recording `file_name`: writes its tracks next to it
 /// (tagged like it, except title, track number and each track's own tags),
 /// then, unless
@@ -2201,6 +2219,52 @@ mod tests {
             SsStatus::Ok
         );
         assert!(!crate::edit::edits::draft_dir("FFI cover test.mp3").exists());
+    }
+
+    #[test]
+    fn edits_markers_as_json() {
+        let name = c"FFI markers test.mp3";
+        let take = |p: *mut c_char| {
+            assert!(!p.is_null(), "{:?}", unsafe {
+                CStr::from_ptr(ss_last_error_message())
+            });
+            let s = unsafe { CStr::from_ptr(p) }.to_str().unwrap().to_string();
+            unsafe { ss_string_free(p) };
+            s
+        };
+        // None kept: an empty list.
+        assert_eq!(take(unsafe { ss_edits_markers(name.as_ptr()) }), "[]");
+
+        let dir = crate::edit::edits::draft_dir("FFI markers test.mp3");
+        std::fs::create_dir_all(&dir).unwrap();
+        let marker = crate::nowplaying::Marker {
+            at_ms: 61_250.0,
+            title: "Second Song".into(),
+            tags: crate::edit::edits::TrackTags {
+                artist: Some("Band".into()),
+                ..Default::default()
+            },
+            partial: false,
+            ad: false,
+            unsnapped: true,
+        };
+        std::fs::write(
+            dir.join(crate::nowplaying::MARKERS_FILE),
+            serde_json::to_string(&[&marker]).unwrap(),
+        )
+        .unwrap();
+        let json = take(unsafe { ss_edits_markers(name.as_ptr()) });
+        let back: Vec<crate::nowplaying::Marker> = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, vec![marker]);
+        // Tags left unset are left out, as the TS type says.
+        assert!(!json.contains("null"), "{json}");
+        assert!(
+            json.contains("\"atMs\":61250.0") && json.contains("\"unsnapped\":true"),
+            "{json}"
+        );
+
+        assert!(unsafe { ss_edits_markers(std::ptr::null()) }.is_null());
+        unsafe { ss_edits_discard_draft(name.as_ptr()) };
     }
 
     #[test]

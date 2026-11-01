@@ -47,6 +47,11 @@ export const useEditorTracks = (
           ...tr,
           owner: slice ? slice.id : tr.startMs < 1 ? 'first' : null,
           name: slice ? slice.name : tr.startMs < 1 ? shown.firstName : tr.name,
+          tags: slice
+            ? slice.tags
+            : tr.startMs < 1
+            ? shown.firstTags
+            : undefined,
         }
       }),
     [tracks, shown],

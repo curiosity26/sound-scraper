@@ -54,6 +54,7 @@ const rowsOf = (target: Target): PlaylistRow[] =>
       durationMs: t.durationMs,
       sizeBytes: 0,
       recordedAtMs: 0,
+      hasDraft: false,
     },
   }))
 

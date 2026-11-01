@@ -19,7 +19,7 @@ export const TrackRegion: FC<TrackRegionProps> = props => {
   const { scale } = view
   const left = tr.startMs / scale
   const width = Math.max(2, (tracks.trackEnd(i) - tr.startMs) / scale)
-  const selected = selection.selectedTrack === i
+  const selected = selection.selectedTracks.includes(i)
   const color = trackColor(i)
   return (
     <View

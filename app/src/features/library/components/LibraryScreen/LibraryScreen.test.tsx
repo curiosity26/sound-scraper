@@ -93,6 +93,27 @@ describe('the library screen', () => {
     onBurn.mockClear()
   })
 
+  describe('given a recording the track editor keeps a draft for', () => {
+    beforeEach(() => {
+      fakeCore.setRecordings([
+        recording('Mixtape.mp3', { recordedAtMs: 2, hasDraft: true }),
+        recording('Single.mp3', { recordedAtMs: 1 }),
+      ])
+    })
+
+    it('marks it to review its tracks', async () => {
+      await renderLibrary()
+      expect(
+        within(table().getByLabelText('Mixtape')).getByText('Review tracks'),
+      ).toBeOnTheScreen()
+    })
+
+    it('marks only that one', async () => {
+      await renderLibrary()
+      expect(table().getAllByText('Review tracks')).toHaveLength(1)
+    })
+  })
+
   describe('given no recordings', () => {
     it('says to press Record to make one', async () => {
       await renderLibrary()

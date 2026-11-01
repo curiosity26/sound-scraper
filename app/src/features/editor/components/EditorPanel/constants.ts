@@ -17,3 +17,6 @@ export const MONO = 'Menlo'
 
 /** The vertical zoom beside the waveform. */
 export const VSTRIP = 26
+
+/** Flags a cut placed from now-playing info without a gap to line up with. */
+export const CHECK_CUT_COLOR = '#e0a040'

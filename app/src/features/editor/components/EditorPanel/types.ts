@@ -1,6 +1,6 @@
 import type { ViewProps } from 'react-native'
 
-import type { EditorTrack } from '@/bridge/generated'
+import type { EditorTrack, TrackTags } from '@/bridge/generated'
 
 export type EditorTheme = {
   background: string
@@ -44,6 +44,8 @@ export type TrackRow = EditorTrack & {
   /** Who names it: a slice id, or the first track. */
   owner: Naming | null
   name: string
+  /** Its own tags (over the recording's), if it has any. */
+  tags: TrackTags | undefined
 }
 
 /** What Delete would act on. */

@@ -258,6 +258,10 @@ typedef struct SsRecording {
    Unix time in milliseconds.
    */
   int64_t recorded_at_ms;
+  /*
+   The track editor keeps unsaved edits (a draft) for it.
+   */
+  bool has_draft;
 } SsRecording;
 
 /*
@@ -1108,6 +1112,16 @@ char *ss_edits_store_cover(const char *file_name, const char *image_path);
  `file_name` and `id` must be NUL-terminated UTF-8.
  */
 char *ss_edits_cover_path(const char *file_name, const char *id);
+
+/*
+ The now-playing markers the recorder kept for a recording (JSON array of
+ `Marker`, empty when there are none). Free with `ss_string_free`;
+ NULL only on bad arguments.
+
+ # Safety
+ `file_name` must be NUL-terminated UTF-8.
+ */
+char *ss_edits_markers(const char *file_name);
 
 /*
  Saves an edit of the recording `file_name`: writes its tracks next to it

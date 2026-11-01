@@ -23,6 +23,8 @@ export const settings = {
         masterMinMinutes: value.masterMinMinutes,
         masterBudgetGb: value.masterBudgetGb,
         masterMaxAgeDays: value.masterMaxAgeDays,
+        nowPlayingTags: value.nowPlayingTags,
+        splitAtTrackChanges: value.splitAtTrackChanges,
       } satisfies Settings),
     ),
   pickFolder: (): Promise<string | null> => NativeSoundScraper.pickFolder(),

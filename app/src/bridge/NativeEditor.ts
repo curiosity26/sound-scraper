@@ -1,6 +1,6 @@
 // Turbo Module spec for the track editor (the Rust core's ss_editor_* and
-// ss_edits_* functions). macOS for now; elsewhere TurboModuleRegistry.get
-// returns null and the editor isn't offered.
+// ss_edits_* functions), on macOS, Windows and Linux; where it's missing,
+// TurboModuleRegistry.get returns null and the editor isn't offered.
 import { type TurboModule, TurboModuleRegistry } from 'react-native'
 
 export interface Spec extends TurboModule {
@@ -29,6 +29,15 @@ export interface Spec extends TurboModule {
     editsJson: string,
     keepOriginal: boolean,
   ): Promise<string>
+  /**
+   * Copies a JPEG or PNG into the recording's draft folder for a track's
+   * cover; resolves with its id (ss_edits_store_cover).
+   */
+  storeEditCover(fileName: string, imagePath: string): Promise<string>
+  /** Where a track cover stored for the recording is, or "" (ss_edits_cover_path). */
+  editCoverPath(fileName: string, coverId: string): string
+  /** The now-playing markers kept for the recording, as JSON (ss_edits_markers). */
+  editMarkers(fileName: string): string
 }
 
 export const NativeEditor = TurboModuleRegistry.get<Spec>('SoundScraperEditor')

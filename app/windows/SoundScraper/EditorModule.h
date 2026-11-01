@@ -116,6 +116,33 @@ struct EditorModule {
     }).detach();
   }
 
+  /// Copies an image into the recording's draft folder for a track's cover
+  /// (reads the image, so off the JS thread); resolves with its id.
+  REACT_METHOD(storeEditCover)
+  void storeEditCover(std::string fileName, std::string imagePath,
+                      ::React::ReactPromise<std::string> &&result) noexcept {
+    std::thread([js = m_js, fileName, imagePath, result]() {
+      char *id = ss_edits_store_cover(fileName.c_str(), imagePath.c_str());
+      if (!id) {
+        js.Post([result, message = std::string(ss_last_error_message())]() { result.Reject(message.c_str()); });
+        return;
+      }
+      std::string out = id;
+      ss_string_free(id);
+      js.Post([result, out]() { result.Resolve(out); });
+    }).detach();
+  }
+
+  REACT_SYNC_METHOD(editCoverPath)
+  std::string editCoverPath(std::string fileName, std::string coverId) noexcept {
+    return Take(ss_edits_cover_path(fileName.c_str(), coverId.c_str()), "");
+  }
+
+  REACT_SYNC_METHOD(editMarkers)
+  std::string editMarkers(std::string fileName) noexcept {
+    return Take(ss_edits_markers(fileName.c_str()), "[]");
+  }
+
  private:
   static std::string Take(char *s, const char *fallback) noexcept {
     std::string out = s ? s : fallback;
