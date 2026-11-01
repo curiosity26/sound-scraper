@@ -63,21 +63,29 @@ const overlap = (start: number, end: number, edits: EditList) =>
     0,
   )
 
-/** The tracks an edit list makes: one per splice, after the first. */
+/**
+ * The tracks an edit list makes: one per splice, after the first, leaving
+ * out (as the core does) those whose audio is wholly deleted.
+ */
 const tracksOf = (durationMs: number, edits: EditList): EditorTrack[] => {
   const starts = [
     { atMs: 0, name: edits.firstName },
     ...edits.splices.toSorted((a, b) => a.atMs - b.atMs),
   ]
-  return starts.map((s, i) => {
+  return starts.flatMap((s, i) => {
     const end = starts[i + 1]?.atMs ?? durationMs
     const cut = overlap(s.atMs, end, edits)
-    return {
-      name: s.name,
-      startMs: s.atMs,
-      durationMs: end - s.atMs - cut,
-      reencode: cut > 0,
-    }
+    const length = end - s.atMs - cut
+    return length > 0 || end === s.atMs
+      ? [
+          {
+            name: s.name,
+            startMs: s.atMs,
+            durationMs: length,
+            reencode: cut > 0,
+          },
+        ]
+      : []
   })
 }
 

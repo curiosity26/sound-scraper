@@ -63,6 +63,12 @@ const proposal = (
 /** The recording the editor is open on. */
 let shown: Recording = sideA
 
+/** The window's context menu: answers with the item `menuChoice` names. */
+let menuChoice = ''
+const showMenu = vi.fn((items: string[], _x: number, _y: number) =>
+  Promise.resolve(items.indexOf(menuChoice)),
+)
+
 const Editor: FC = () => (
   <SkinProvider>
     <EditorPreferencesProvider>
@@ -74,6 +80,7 @@ const Editor: FC = () => (
           durationMs: shown.durationMs,
         }}
         onSaved={() => {}}
+        showMenu={showMenu}
       />
     </EditorPreferencesProvider>
   </SkinProvider>
@@ -195,6 +202,8 @@ describe('the track editor', () => {
     // Nothing loaded in the player.
     fakeCore.emit({ kind: 'playerState' })
     skinStore.set(testSkin())
+    showMenu.mockClear()
+    menuChoice = ''
   })
 
   describe('given a recording with no draft', () => {
@@ -937,6 +946,130 @@ describe('the track editor', () => {
         expect(
           screen.getByRole('adjustable', { name: 'Horizontal zoom' }),
         ).toHaveAccessibilityValue({ now: 10 })
+      })
+    })
+  })
+
+  describe('the track menu', () => {
+    beforeEach(() => {
+      fakeEditor.setDraft(sideA.fileName, draftWithSideB)
+    })
+
+    /** Side B's row in the track list. */
+    const sideBRow = () =>
+      screen.getByRole('button', {
+        name: 'Track 2: Side B, starts 0:30.0, 0:30.0 long',
+      })
+
+    /** The deleted track's row. */
+    const deletedRow = () =>
+      screen.findByRole('button', { name: /^Deleted track: Side B, / })
+
+    /** Right-clicks a row (as Windows reports it), answering with `item`. */
+    const rightClickRow = async (
+      row: ReturnType<typeof screen.getByRole>,
+      item: string,
+    ) => {
+      menuChoice = item
+      await fireEvent(row, 'pressIn', {
+        nativeEvent: { button: 2, pageX: 40, pageY: 300 },
+      })
+    }
+
+    /** One click's press and pointer events open one menu: let it pass. */
+    const nextClick = () => new Promise(resolve => setTimeout(resolve, 650))
+
+    describe('when a track is right-clicked', () => {
+      it('offers Edit Metadata… and Delete Track where it was clicked', async () => {
+        await openEditor()
+        await rightClickRow(sideBRow(), '')
+        expect(showMenu).toHaveBeenCalledWith(
+          ['Edit Metadata…', '-', 'Delete Track'],
+          40,
+          300,
+        )
+      })
+    })
+
+    describe('when Edit Metadata… is chosen', () => {
+      it('opens the tag form on the track', async () => {
+        await openEditor()
+        await rightClickRow(sideBRow(), 'Edit Metadata…')
+        expect(
+          await within(screen.getByLabelText('Track tags')).findByRole(
+            'header',
+            { name: 'Track 2' },
+          ),
+        ).toBeOnTheScreen()
+      })
+    })
+
+    describe('when Delete Track is chosen', () => {
+      const deleteSideB = async () => {
+        await openEditor()
+        await rightClickRow(sideBRow(), 'Delete Track')
+        return deletedRow()
+      }
+
+      it('shows the track as deleted', async () => {
+        expect(await deleteSideB()).toHaveAccessibleName(
+          'Deleted track: Side B, starts 0:30.0, 0:00.0 long',
+        )
+      })
+
+      it('leaves one track to save', async () => {
+        await deleteSideB()
+        expect(anyTrackRow(2)).not.toBeOnTheScreen()
+      })
+
+      describe('and then Undo is pressed', () => {
+        it('lists the track again', async () => {
+          const user = userEvent.setup()
+          await deleteSideB()
+          await press(user, 'Undo')
+          expect(sideBRow()).toBeOnTheScreen()
+        })
+      })
+
+      describe('and the deleted track is right-clicked', () => {
+        it('offers Restore Track instead', async () => {
+          const row = await deleteSideB()
+          await nextClick()
+          showMenu.mockClear()
+          await rightClickRow(row, '')
+          expect(showMenu).toHaveBeenCalledWith(
+            ['Edit Metadata…', '-', 'Restore Track'],
+            40,
+            300,
+          )
+        })
+
+        it('restores it when that is chosen', async () => {
+          const row = await deleteSideB()
+          await nextClick()
+          await rightClickRow(row, 'Restore Track')
+          expect(
+            await screen.findByRole('button', {
+              name: 'Track 2: Side B, starts 0:30.0, 0:30.0 long',
+            }),
+          ).toBeOnTheScreen()
+        })
+      })
+    })
+
+    describe("when a track's region in the lane is right-clicked", () => {
+      it('offers the same menu', async () => {
+        await openEditor()
+        await fireEvent(
+          screen.getByLabelText('Track 2: Side B'),
+          'responderGrant',
+          { nativeEvent: { button: 2, pageX: 500, pageY: 30 } },
+        )
+        expect(showMenu).toHaveBeenCalledWith(
+          ['Edit Metadata…', '-', 'Delete Track'],
+          500,
+          30,
+        )
       })
     })
   })

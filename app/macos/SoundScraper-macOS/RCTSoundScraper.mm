@@ -395,7 +395,6 @@ RCT_EXPORT_MODULE(SoundScraper)
         @"durationMs" : @(r->duration_ms),
         @"sizeBytes" : @(r->size_bytes),
         @"recordedAtMs" : @(r->recorded_at_ms),
-        @"hasDraft" : @(r->has_draft),
       }];
     }
     ss_recording_list_free(list);

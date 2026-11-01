@@ -1,6 +1,7 @@
 import React, { type FC } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 
+import { trackLabel } from '@/features/editor/components/EditorPanel/trackLabel'
 import { listStyles } from '@/features/editor/components/EditorPanel/TrackList/styles'
 import type { TrackRow } from '@/features/editor/components/EditorPanel/types'
 import { useEditor } from '@/features/editor/components/EditorPanel/useEditor'
@@ -20,19 +21,16 @@ export const TrackTitle: FC<TrackTitleProps> = props => {
   const { th, naming, trackTags } = useEditor()
   const tags = trackTags.effective[i]
   const { owner } = tr
-  const number = String(i + 1)
+  const label = trackLabel(tr)
   return (
     <View style={[listStyles.colName, styles.title]}>
-      <TrackCover
-        path={tags?.coverPath ?? null}
-        label={`Track ${number} cover`}
-      />
+      <TrackCover path={tags?.coverPath ?? null} label={`${label} cover`} />
       <View style={styles.text}>
         {owner === null ? (
           <Text style={[styles.name, { color: th.text }]}>{tr.name}</Text>
         ) : (
           <TrackName
-            label={`Track ${number} name`}
+            label={`${label} name`}
             value={tr.name}
             onCommit={name => {
               naming.rename(owner, name)
@@ -42,7 +40,7 @@ export const TrackTitle: FC<TrackTitleProps> = props => {
         {tags?.artist ? (
           <Text
             numberOfLines={1}
-            accessibilityLabel={`Track ${number} artist: ${tags.artist}`}
+            accessibilityLabel={`${label} artist: ${tags.artist}`}
             style={[styles.artist, { color: th.dim }]}
           >
             {tags.artist}

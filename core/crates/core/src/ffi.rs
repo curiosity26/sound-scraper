@@ -757,8 +757,6 @@ pub struct SsRecording {
     pub size_bytes: u64,
     /// Unix time in milliseconds.
     pub recorded_at_ms: i64,
-    /// The track editor keeps unsaved edits (a draft) for it.
-    pub has_draft: bool,
 }
 
 /// Opaque list from `ss_library_list`.
@@ -865,7 +863,6 @@ pub unsafe extern "C" fn ss_library_list(library: *mut SsLibrary) -> *mut SsReco
             duration_ms: r.duration_ms,
             size_bytes: r.size_bytes,
             recorded_at_ms: r.recorded_at_ms,
-            has_draft: r.has_draft,
         })
         .collect();
     Box::into_raw(Box::new(SsRecordingList {

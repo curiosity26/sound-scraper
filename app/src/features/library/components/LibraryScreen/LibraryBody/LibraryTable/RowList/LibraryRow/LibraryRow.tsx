@@ -25,7 +25,6 @@ import { usePanelStyles } from '@/shared/hooks/usePanelStyles'
 import { usePanelTheme } from '@/shared/hooks/usePanelTheme'
 import { colors } from '@/shared/theme/colors'
 
-import { ReviewBadge } from './ReviewBadge'
 import { RowCell } from './RowCell'
 import { useRowMarks } from './useRowMarks'
 
@@ -123,7 +122,6 @@ export const LibraryRow: FC<LibraryRowProps> = props => {
       <RowCell textStyle={cellText} flex={COLUMNS[0].flex}>
         {isLoaded ? '▶ ' : ''}
         {row.name}
-        {r?.hasDraft ? <ReviewBadge /> : null}
       </RowCell>
       <RowCell textStyle={cellText} flex={COLUMNS[1].flex}>
         {r ? formatDuration(r.durationMs) : 'missing'}

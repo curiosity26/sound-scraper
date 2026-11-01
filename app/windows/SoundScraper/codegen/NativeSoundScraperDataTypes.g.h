@@ -57,7 +57,6 @@ struct SoundScraperSpec_Recording {
     double durationMs;
     double sizeBytes;
     double recordedAtMs;
-    bool hasDraft;
 };
 
 struct SoundScraperSpec_TagEdit {

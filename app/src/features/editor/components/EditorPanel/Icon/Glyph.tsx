@@ -9,6 +9,8 @@ const CODE_POINTS = {
   pause: 0xe034,
   stop: 0xe047,
   toStart: 0xe045,
+  // A pencil.
+  edit: 0xe3c9,
 } as const
 
 export type GlyphName = keyof typeof CODE_POINTS

@@ -15,6 +15,8 @@
 import React, { type FC } from 'react'
 import { StyleSheet, View } from 'react-native'
 
+import type { ShowMenu } from '@/features/library/types'
+
 import { AutoSliceBar } from './AutoSliceBar'
 import { EditorContext } from './EditorContext'
 import { EditorHint } from './EditorHint'
@@ -32,10 +34,12 @@ export type EditorPanelProps = {
   readonly target: EditorTarget
   /** Saved: the new tracks' file names (the editor should close). */
   readonly onSaved: (files: string[], keptOriginal: boolean) => void
+  /** The window's native context menu (a track's right-click menu); none, no menu. */
+  readonly showMenu?: ShowMenu
 }
 
 export const EditorPanel: FC<EditorPanelProps> = props => {
-  const editor = useEditorState(props.target, props.onSaved)
+  const editor = useEditorState(props.target, props.onSaved, props.showMenu)
   return (
     <EditorContext value={editor}>
       <View

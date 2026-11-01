@@ -280,12 +280,6 @@ pub fn save_draft(file_name: &str, edits: &EditList) -> Result<(), String> {
     save_draft_in(&drafts_dir(), file_name, edits)
 }
 
-/// Whether a recording has unsaved edits (an edit list in its draft
-/// folder, or an old single-file draft). Cheap: no file is read.
-pub fn has_draft(file_name: &str) -> bool {
-    has_draft_in(&drafts_dir(), file_name)
-}
-
 /// Forgets everything the editor kept for a recording.
 pub fn discard_draft(file_name: &str) {
     discard_draft_in(&drafts_dir(), file_name);
@@ -340,10 +334,6 @@ fn migrate_in(dir: &Path, file_name: &str) {
     } else if std::fs::create_dir_all(&folder).is_ok() {
         let _ = std::fs::rename(old, new);
     }
-}
-
-fn has_draft_in(dir: &Path, file_name: &str) -> bool {
-    folder_in(dir, file_name).join(EDITS_FILE).is_file() || old_draft_path(dir, file_name).is_file()
 }
 
 fn load_draft_in(dir: &Path, file_name: &str) -> Option<EditList> {
@@ -457,23 +447,6 @@ mod tests {
     use super::*;
 
     const RATE: u32 = 1000; // 1 frame = 1 ms
-
-    #[test]
-    fn has_draft_follows_the_edit_list() {
-        let dir = crate::paths::tempdir();
-        assert!(!has_draft_in(&dir, "a.mp3"));
-        let e = EditList {
-            first_name: "A".into(),
-            splices: vec![splice(1000.0, "B")],
-            ..Default::default()
-        };
-        save_draft_in(&dir, "a.mp3", &e).unwrap();
-        assert!(has_draft_in(&dir, "a.mp3"));
-        save_draft_in(&dir, "a.mp3", &EditList::default()).unwrap();
-        assert!(!has_draft_in(&dir, "a.mp3"));
-        std::fs::write(old_draft_path(&dir, "b.mp3"), "{}").unwrap();
-        assert!(has_draft_in(&dir, "b.mp3"), "an old single-file draft");
-    }
 
     fn splice(at: f64, name: &str) -> Splice {
         Splice {

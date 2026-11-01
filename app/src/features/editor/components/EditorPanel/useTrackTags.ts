@@ -53,10 +53,8 @@ export const useTrackTags = (
 
   const effective = useMemo(
     () =>
-      rows.map((row, i) =>
-        effectiveTags(recording, row, i, id =>
-          editorCore.coverPath(fileName, id),
-        ),
+      rows.map(row =>
+        effectiveTags(recording, row, id => editorCore.coverPath(fileName, id)),
       ),
     [rows, recording, fileName],
   )
@@ -173,7 +171,7 @@ export const useTrackTags = (
           openMenu: () => {},
         }
 
-  const first = indices[0]
+  const first = indices[0] === undefined ? undefined : rows[indices[0]]
   return {
     effective,
     open: picked => {
@@ -187,8 +185,10 @@ export const useTrackTags = (
     },
     details,
     heading:
-      indices.length === 1 && first !== undefined
-        ? `Track ${String(first + 1)}`
+      indices.length === 1 && first
+        ? first.number === null
+          ? `Deleted track: ${first.name}`
+          : `Track ${String(first.number)}`
         : `${String(indices.length)} tracks`,
     keys: indices.map(i => String(rows[i]?.owner ?? i)),
   }

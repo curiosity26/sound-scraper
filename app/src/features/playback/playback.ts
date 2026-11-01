@@ -191,7 +191,6 @@ export const playback = {
         durationMs: 0,
         sizeBytes: 0,
         recordedAtMs: Date.now(),
-        hasDraft: false,
       },
     )
   },

@@ -8,6 +8,7 @@ export type IconName =
   | 'pause'
   | 'stop'
   | 'toStart'
+  | 'edit'
   | 'magnet'
   | 'zoomOutH'
   | 'zoomInH'
@@ -20,7 +21,7 @@ export type IconProps = {
   readonly size?: number
 }
 
-/** The transport's glyphs (Material Icons) and simple drawn shapes, sized
+/** The transport and edit glyphs (Material Icons) and simple drawn shapes, sized
  * `size` points, in `color`. */
 export const Icon: FC<IconProps> = props => {
   const s = props.size ?? 12
@@ -31,6 +32,7 @@ export const Icon: FC<IconProps> = props => {
     case 'pause':
     case 'stop':
     case 'toStart':
+    case 'edit':
       return <Glyph name={props.name} color={c} size={s} />
     case 'magnet':
       return (
