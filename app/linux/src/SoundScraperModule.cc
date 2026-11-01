@@ -306,7 +306,7 @@ AsyncPromise<folly::dynamic> SoundScraperModule::listRecordings(jsi::Runtime &rt
       items.push_back(folly::dynamic::object("fileName", r->file_name)("path", r->path)(
           "title", r->title)("artist", orNull(r->artist))("album", orNull(r->album))(
           "durationMs", double(r->duration_ms))("sizeBytes", double(r->size_bytes))(
-          "recordedAtMs", double(r->recorded_at_ms))("hasDraft", r->has_draft));
+          "recordedAtMs", double(r->recorded_at_ms)));
     }
     ss_recording_list_free(list);
     promise.resolve(std::move(items));

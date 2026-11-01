@@ -74,7 +74,6 @@ export const recording = (
   durationMs: 60_000,
   sizeBytes: 1_000_000,
   recordedAtMs: 0,
-  hasDraft: false,
   ...extra,
 })
 

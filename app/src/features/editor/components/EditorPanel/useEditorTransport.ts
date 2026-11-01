@@ -50,7 +50,6 @@ export const useEditorTransport = (
         durationMs,
         sizeBytes: 0,
         recordedAtMs: 0,
-        hasDraft: false,
       })
     }
   }

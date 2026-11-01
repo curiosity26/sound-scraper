@@ -258,10 +258,6 @@ typedef struct SsRecording {
    Unix time in milliseconds.
    */
   int64_t recorded_at_ms;
-  /*
-   The track editor keeps unsaved edits (a draft) for it.
-   */
-  bool has_draft;
 } SsRecording;
 
 /*
