@@ -14,6 +14,10 @@ use crate::paths;
 pub struct EditList {
     /// The name of the first track (the one starting at 0).
     pub first_name: String,
+    /// The first track's own tags, over the recording's.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub first_tags: Option<TrackTags>,
     /// Where later tracks start, with their names.
     pub splices: Vec<Splice>,
     /// Stretches to leave out.
@@ -26,6 +30,38 @@ pub struct EditList {
 pub struct Splice {
     pub at_ms: f64,
     pub name: String,
+    /// This track's own tags, over the recording's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub tags: Option<TrackTags>,
+}
+
+/// One track's tags in the editor, applied over the recording's own when the
+/// track is saved. The name (title and file name) lives on the track itself.
+/// `None` keeps the recording's value; `Some("")` clears it.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
+pub struct TrackTags {
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub artist: Option<String>,
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub album: Option<String>,
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub album_artist: Option<String>,
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub date: Option<String>,
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub genre: Option<String>,
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub comment: Option<String>,
+    /// Overrides the 1, 2, 3 numbering.
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub track: Option<u32>,
+    /// A cover stored in the draft's folder (its id from `store_cover`), or
+    /// "" to save the track with no cover.
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub cover: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -139,6 +175,41 @@ fn draft_path(dir: &Path, file_name: &str) -> PathBuf {
     dir.join(format!("{}.json", paths::sanitize(file_name)))
 }
 
+/// The folder holding everything the editor keeps for one recording: the
+/// edit list, now-playing markers and cover images.
+/// TODO(drafts agent): move `<name>.json` drafts into it; discard/rename
+/// the whole folder.
+pub fn draft_dir(file_name: &str) -> PathBuf {
+    drafts_dir().join(paths::sanitize(file_name))
+}
+
+/// Stores a cover image in the recording's draft folder; returns its id for
+/// `TrackTags::cover`. Images are named by content, so one album's cover is
+/// stored once.
+pub fn store_cover(file_name: &str, mime: &str, data: &[u8]) -> Result<String, String> {
+    let dir = draft_dir(file_name).join("covers");
+    std::fs::create_dir_all(&dir).map_err(|e| format!("creating {}: {e}", dir.display()))?;
+    let id = format!(
+        "{:016x}.{}",
+        crate::library::fnv1a(data),
+        crate::tags::cover_extension(mime)
+    );
+    let path = dir.join(&id);
+    if !path.exists() {
+        std::fs::write(&path, data).map_err(|e| format!("writing {}: {e}", path.display()))?;
+    }
+    Ok(id)
+}
+
+/// Where a cover stored with `store_cover` lives, if it does.
+pub fn cover_path(file_name: &str, id: &str) -> Option<PathBuf> {
+    if id.is_empty() || id.contains(['/', '\\']) || id.starts_with('.') {
+        return None;
+    }
+    let path = draft_dir(file_name).join("covers").join(id);
+    path.exists().then_some(path)
+}
+
 /// The unsaved edits for a recording, if any.
 pub fn load_draft(file_name: &str) -> Option<EditList> {
     load_draft_in(&drafts_dir(), file_name)
@@ -189,6 +260,7 @@ mod tests {
         Splice {
             at_ms: at,
             name: name.into(),
+            tags: None,
         }
     }
 
@@ -205,6 +277,7 @@ mod tests {
             first_name: "Intro".into(),
             splices: vec![splice(6000.0, "Two"), splice(3000.0, "One")],
             deleted: vec![],
+            ..Default::default()
         };
         let t = e.plan(RATE, 10_000);
         assert_eq!(
@@ -231,6 +304,7 @@ mod tests {
                 region(4000.0, 5500.0),
                 region(8000.0, 7000.0),
             ],
+            ..Default::default()
         };
         let t = e.plan(RATE, 10_000);
         assert_eq!(t[0].segments, vec![(1000, 4000)]);
@@ -248,6 +322,7 @@ mod tests {
                 splice(20_000.0, "Past the end"),
             ],
             deleted: vec![region(2000.0, 4000.0)],
+            ..Default::default()
         };
         let t = e.plan(RATE, 10_000);
         assert_eq!(
@@ -263,6 +338,7 @@ mod tests {
             first_name: "x".into(),
             splices: vec![splice(1.5, "y")],
             deleted: vec![region(1.0, 2.0)],
+            ..Default::default()
         };
         save_draft_in(&dir, "a.mp3", &e).unwrap();
         assert_eq!(load_draft_in(&dir, "a.mp3"), Some(e));

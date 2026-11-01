@@ -1,0 +1,13 @@
+[package]
+name = "sound_scraper_nowplaying"
+description = "Sound Scraper: what the OS says is playing (SMTC, MPRIS, MediaRemote)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+
+[target.'cfg(target_os = "linux")'.dependencies]
+
+[target.'cfg(target_os = "windows")'.dependencies]

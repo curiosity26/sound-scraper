@@ -1970,6 +1970,7 @@ dependencies = [
  "sound_scraper_capture",
  "sound_scraper_disc",
  "sound_scraper_layout",
+ "sound_scraper_nowplaying",
  "sound_scraper_skin",
  "sound_scraper_vis",
  "symphonia",
@@ -1997,6 +1998,10 @@ dependencies = [
  "serde",
  "serde_json",
 ]
+
+[[package]]
+name = "sound_scraper_nowplaying"
+version = "0.3.0"
 
 [[package]]
 name = "sound_scraper_probe"

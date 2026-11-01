@@ -220,16 +220,19 @@ mod tests {
                 Splice {
                     at_ms: 2000.0,
                     name: "Middle/Part".into(),
+                    tags: None,
                 },
                 Splice {
                     at_ms: 4000.0,
                     name: "Album".into(),
+                    tags: None,
                 },
             ],
             deleted: vec![Region {
                 start_ms: 2500.0,
                 end_ms: 3000.0,
             }],
+            ..Default::default()
         };
         let saved = save(&original, &edits, TagVersion::V24, None, &|_| {}).unwrap();
         let names: Vec<String> = saved
@@ -291,11 +294,13 @@ mod tests {
             splices: vec![Splice {
                 at_ms: 2500.0,
                 name: "Two".into(),
+                tags: None,
             }],
             deleted: vec![Region {
                 start_ms: 4000.0,
                 end_ms: 4500.0,
             }],
+            ..Default::default()
         };
         let saved = save(&original, &edits, TagVersion::V24, Some(&master), &|_| {}).unwrap();
         assert!(saved.from_master && saved.reencoded == 0);

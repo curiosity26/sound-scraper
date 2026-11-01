@@ -452,7 +452,7 @@ fn update_title_if_default(path: &Path, old_stem: &str, new_stem: &str) -> Resul
 }
 
 /// Stable 64-bit FNV-1a, for content-addressed cover file names.
-fn fnv1a(data: &[u8]) -> u64 {
+pub(crate) fn fnv1a(data: &[u8]) -> u64 {
     data.iter().fold(0xcbf2_9ce4_8422_2325, |h, &b| {
         (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3)
     })
