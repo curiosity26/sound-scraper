@@ -20,6 +20,9 @@ pub mod watcher;
 mod linux;
 #[cfg(target_os = "macos")]
 mod macos;
+// The SMTC backend's OS-independent rules; built in tests everywhere.
+#[cfg(any(target_os = "windows", test))]
+mod smtc_logic;
 #[cfg(target_os = "windows")]
 mod windows;
 
