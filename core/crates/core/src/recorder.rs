@@ -17,12 +17,12 @@ use std::{
     io::{BufWriter, Write},
     path::{Path, PathBuf},
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicBool, AtomicU8, AtomicU32, AtomicU64, Ordering},
         mpsc::{self, Receiver, RecvTimeoutError},
     },
     thread::JoinHandle,
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime},
 };
 
 use sound_scraper_capture::{AudioChunk, CaptureBackend, CaptureSource, Session, default_backend};
@@ -31,7 +31,9 @@ use sound_scraper_vis::{Analyzer, Tap, VisHub};
 
 use crate::{
     masters::{self, MasterWriter},
-    mp3, paths,
+    mp3,
+    nowplaying::{self, NowPlayingFactory, SilenceMap, Timeline},
+    paths,
     settings::Quality,
     sources,
     tags::TagVersion,
@@ -101,6 +103,8 @@ pub struct RecorderOptions {
     pub trim_silence: bool,
     /// Write a lossless master (in `masters_dir`) under this policy.
     pub master: Option<(PathBuf, masters::Policy)>,
+    /// Tag or split from what the OS says is playing.
+    pub now_playing: nowplaying::Options,
 }
 
 impl Default for RecorderOptions {
@@ -111,6 +115,10 @@ impl Default for RecorderOptions {
             tag_version: TagVersion::V24,
             trim_silence: true,
             master: None,
+            now_playing: nowplaying::Options {
+                tag: true,
+                split: true,
+            },
         }
     }
 }
@@ -149,6 +157,7 @@ impl Status {
 pub struct Recorder {
     options: RecorderOptions,
     backend_factory: BackendFactory,
+    now_playing_factory: Option<NowPlayingFactory>,
     events: Option<EventSink>,
     status: Arc<Status>,
     active: Option<Active>,
@@ -159,21 +168,31 @@ struct Active {
     session: Session,
     paused: Arc<AtomicBool>,
     worker: JoinHandle<Result<PathBuf, String>>,
+    now_playing: Option<nowplaying::Session>,
+    silences: Arc<Mutex<SilenceMap>>,
 }
 
 impl Recorder {
     pub fn new() -> Self {
         Self::with_backend(RecorderOptions::default(), Box::new(default_backend))
+            .with_now_playing(Box::new(sound_scraper_nowplaying::default_backend))
     }
 
     pub fn with_backend(options: RecorderOptions, backend_factory: BackendFactory) -> Self {
         Self {
             options,
             backend_factory,
+            now_playing_factory: None,
             events: None,
             status: Arc::default(),
             active: None,
         }
+    }
+
+    /// Where now-playing info comes from (none without this).
+    pub fn with_now_playing(mut self, factory: NowPlayingFactory) -> Self {
+        self.now_playing_factory = Some(factory);
+        self
     }
 
     /// Folder and quality for the next recording (ignored while one runs).
@@ -219,6 +238,14 @@ impl Recorder {
         self.status.frames.store(0, Ordering::Release);
         self.status.sample_rate.store(0, Ordering::Release);
         let paused = Arc::new(AtomicBool::new(false));
+        let timeline = Arc::new(Mutex::new(Timeline::default()));
+        let silences = Arc::new(Mutex::new(SilenceMap::default()));
+        let now_playing = match &self.now_playing_factory {
+            Some(factory) if self.options.now_playing.any() => {
+                nowplaying::Session::start(factory(), &source, timeline.clone())
+            }
+            _ => None,
+        };
         let job = EncodeJob {
             rx,
             file: BufWriter::new(file),
@@ -236,6 +263,8 @@ impl Recorder {
             paused: paused.clone(),
             status: self.status.clone(),
             events: self.events.clone(),
+            timeline,
+            silences: silences.clone(),
         };
         let worker = std::thread::Builder::new()
             .name("sound-scraper-encoder".into())
@@ -247,6 +276,8 @@ impl Recorder {
             session,
             paused,
             worker,
+            now_playing,
+            silences,
         });
         self.set_state(RecorderState::Recording);
         Ok(())
@@ -285,14 +316,29 @@ impl Recorder {
             session,
             paused,
             worker,
+            now_playing,
+            silences,
         } = self.active.take().expect("active session");
         paused.store(true, Ordering::Release);
         self.set_state(RecorderState::Finalizing);
+        let seen = now_playing.map(nowplaying::Session::finish);
         // Dropping the capture's sender ends the encoder loop once it drains.
         backend.stop(session);
         let result = worker
             .join()
             .unwrap_or_else(|_| Err("encoder thread panicked".into()));
+        if let (Ok(path), Some(seen)) = (&result, seen) {
+            // Now-playing info never fails the recording.
+            let _ = nowplaying::apply(
+                path,
+                &seen,
+                &silences.lock().unwrap().runs(),
+                self.status.frames.load(Ordering::Acquire),
+                self.status.sample_rate.load(Ordering::Acquire),
+                self.options.now_playing,
+                self.options.tag_version,
+            );
+        }
         match &result {
             Ok(path) => self.emit(&RecorderEvent::Finished { path: path.clone() }),
             Err(message) => self.emit(&RecorderEvent::Error {
@@ -345,6 +391,10 @@ struct EncodeJob {
     paused: Arc<AtomicBool>,
     status: Arc<Status>,
     events: Option<EventSink>,
+    /// When audio reached the file, for placing now-playing changes.
+    timeline: Arc<Mutex<Timeline>>,
+    /// The file's quiet runs, for snapping them to the gaps between songs.
+    silences: Arc<Mutex<SilenceMap>>,
 }
 
 impl EncodeJob {
@@ -436,11 +486,17 @@ impl EncodeJob {
                         &stereo
                     };
                     encoded_frames += self.encode(&mut encoder, chunk.sample_rate, audio)?;
+                    self.silences.lock().unwrap().push(audio, chunk.sample_rate);
                     // Held-back silence counts: it's kept if audio resumes.
                     let held = trimmer.as_ref().map_or(0, SilenceTrimmer::held_frames);
                     self.status
                         .frames
                         .store(encoded_frames + held, Ordering::Release);
+                    self.timeline.lock().unwrap().record(
+                        SystemTime::now(),
+                        encoded_frames + held,
+                        chunk.sample_rate,
+                    );
                 }
                 Ok(_paused_chunk) => {}
                 Err(RecvTimeoutError::Timeout) => {}
@@ -453,6 +509,7 @@ impl EncodeJob {
                         trimmer.finish(&mut kept);
                         let rate = self.status.sample_rate.load(Ordering::Acquire);
                         encoded_frames += self.encode(&mut encoder, rate, &kept)?;
+                        self.silences.lock().unwrap().push(&kept, rate);
                         self.status.frames.store(encoded_frames, Ordering::Release);
                     }
                     return Ok(encoder);
@@ -809,6 +866,7 @@ mod tests {
                 tag_version: TagVersion::V24,
                 trim_silence: false,
                 master: None,
+                now_playing: Default::default(),
             },
             ToneBackend::factory(48000, 2),
         );
@@ -926,6 +984,7 @@ mod tests {
             tag_version: TagVersion::V24,
             trim_silence,
             master: None,
+            now_playing: Default::default(),
         };
         // 0.5 s of silence, then 0.6 s of tone, then silence.
         let audible: fn(u32) -> bool = |n| (51..=110).contains(&n);
@@ -961,6 +1020,7 @@ mod tests {
                     ..Default::default()
                 },
             )),
+            now_playing: Default::default(),
         };
         let audible: fn(u32) -> bool = |n| (21..=80).contains(&n);
         let record = |min_secs| {
@@ -1004,6 +1064,7 @@ mod tests {
             tag_version: TagVersion::V24,
             trim_silence: true,
             master: None,
+            now_playing: Default::default(),
         };
         let mut r = Recorder::with_backend(options, ToneBackend::pattern(48000, 2, |_| false));
         r.start(system()).unwrap();
@@ -1038,6 +1099,7 @@ mod tests {
                 tag_version: TagVersion::V24,
                 trim_silence: false,
                 master: None,
+                now_playing: Default::default(),
             },
             ToneBackend::gated(48000, 2, gate.clone()),
         );
@@ -1060,6 +1122,7 @@ mod tests {
                 tag_version: TagVersion::V24,
                 trim_silence: false,
                 master: None,
+                now_playing: Default::default(),
             },
             Box::new(|| Box::new(SilentBackend) as Box<dyn CaptureBackend>),
         );

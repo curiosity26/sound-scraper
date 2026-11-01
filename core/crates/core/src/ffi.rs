@@ -362,6 +362,10 @@ pub unsafe extern "C" fn ss_recorder_start(recorder: *mut SsRecorder, app_pid: u
             tag_version: s.tag_version(),
             trim_silence: s.trim_silence,
             master: Some((crate::masters::dir(), s.master_policy())),
+            now_playing: crate::nowplaying::Options {
+                tag: s.now_playing_tags,
+                split: s.split_at_track_changes,
+            },
         });
         r.start(sources::source_for_pid((app_pid != 0).then_some(app_pid)))
     })
