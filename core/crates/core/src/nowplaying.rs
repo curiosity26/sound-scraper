@@ -442,8 +442,9 @@ pub fn apply(
     })
 }
 
-/// The editor draft for the markers: a track per song, ads and partial
-/// songs marked for deletion (the user can keep them).
+/// The editor draft for the markers: a track per song, ads marked for
+/// deletion (the user can keep them). Partial songs stay; the editor flags
+/// them from the markers.
 pub fn draft(markers: &[Marker], total: u64, rate: u32) -> EditList {
     let total_ms = total as f64 * 1000.0 / f64::from(rate);
     let mut list = EditList::default();
@@ -459,7 +460,7 @@ pub fn draft(markers: &[Marker], total: u64, rate: u32) -> EditList {
                 tags,
             });
         }
-        if m.ad || m.partial {
+        if m.ad {
             let end = markers.get(i + 1).map_or(total_ms, |n| n.at_ms);
             list.deleted.push(Region {
                 start_ms: m.at_ms,
@@ -686,7 +687,7 @@ mod tests {
     }
 
     #[test]
-    fn given_markers_when_drafting_then_tracks_are_named_and_ads_deleted() {
+    fn given_markers_when_drafting_then_tracks_are_named_and_only_ads_deleted() {
         let m = vec![
             Marker {
                 at_ms: 0.0,
@@ -695,7 +696,7 @@ mod tests {
                     artist: Some("A".into()),
                     ..TrackTags::default()
                 },
-                partial: false,
+                partial: true, // kept: only ads are deleted
                 ad: false,
                 unsnapped: false,
             },
