@@ -6,11 +6,15 @@ import type { EditorTrack } from '@/bridge/generated'
 import { editorCore } from '@/features/editor/editorCore'
 
 import { type Edits, editsToJson } from './model'
+import { trackRows } from './trackRows'
 import type { TrackRow } from './types'
 
 export type UseEditorTracksResult = {
   readonly tracks: readonly EditorTrack[]
-  /** Each track with who names it (its slice, or the first track). */
+  /**
+   * Each track with who names it (its slice, or the first track), and the
+   * tracks whose audio is wholly deleted, between them.
+   */
   readonly rows: readonly TrackRow[]
   /** How many tracks saving re-encodes (none from a master). */
   readonly reencoded: number
@@ -35,26 +39,11 @@ export const useEditorTracks = (
     () => (ready ? editorCore.tracks(editorId, editsToJson(shown)) : []),
     [ready, editorId, shown],
   )
-  /** Each track with who names it (its slice, or the first track). */
+  const { durationMs } = options
+  /** Each track with who names it, and the wholly deleted ones between. */
   const rows: TrackRow[] = useMemo(
-    () =>
-      tracks.map(tr => {
-        const slice =
-          tr.startMs < 1
-            ? undefined
-            : shown.splices.find(s => Math.abs(s.atMs - tr.startMs) < 1)
-        return {
-          ...tr,
-          owner: slice ? slice.id : tr.startMs < 1 ? 'first' : null,
-          name: slice ? slice.name : tr.startMs < 1 ? shown.firstName : tr.name,
-          tags: slice
-            ? slice.tags
-            : tr.startMs < 1
-            ? shown.firstTags
-            : undefined,
-        }
-      }),
-    [tracks, shown],
+    () => trackRows(tracks, shown, durationMs),
+    [tracks, shown, durationMs],
   )
   return {
     tracks,

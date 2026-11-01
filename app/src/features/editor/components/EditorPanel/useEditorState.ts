@@ -5,6 +5,7 @@
 import { type RefObject, useRef } from 'react'
 import type { View } from 'react-native'
 
+import type { ShowMenu } from '@/features/library/types'
 import { useSkin } from '@/features/skins/hooks/useSkin'
 
 import type { EditorTarget, EditorTheme } from './types'
@@ -33,6 +34,7 @@ import { type UseSaveFlowResult, useSaveFlow } from './useSaveFlow'
 import { type UseSnapResult, useSnap } from './useSnap'
 import { type UseTimelineDragResult, useTimelineDrag } from './useTimelineDrag'
 import { type UseTimelineViewResult, useTimelineView } from './useTimelineView'
+import { type UseTrackMenuResult, useTrackMenu } from './useTrackMenu'
 import { type UseTrackNamingResult, useTrackNaming } from './useTrackNaming'
 import { type UseTrackTagsResult, useTrackTags } from './useTrackTags'
 
@@ -56,6 +58,8 @@ export type UseEditorStateResult = {
   readonly autoSlice: UseAutoSliceResult
   readonly scrub: UseRulerScrubResult
   readonly commands: UseEditorCommandsResult
+  /** The context menu on a track. */
+  readonly trackMenu: UseTrackMenuResult
   /** Presses in the timeline start drags only once it's read and no dialog is up. */
   readonly enabled: boolean
   /** Where the playhead (or the scrub) is, if it's shown. */
@@ -67,6 +71,7 @@ export type UseEditorStateResult = {
 export const useEditorState = (
   target: EditorTarget,
   onSaved: (files: string[], keptOriginal: boolean) => void,
+  showMenu?: ShowMenu,
 ): UseEditorStateResult => {
   // The skin's waveform colors.
   const colors = useSkin().panels.editor.waveform
@@ -166,6 +171,13 @@ export const useEditorState = (
     trackTags,
     takeKeys,
   })
+  const trackMenu = useTrackMenu({
+    showMenu,
+    history,
+    tracks,
+    selection,
+    editTrackTags: commands.editTrackTags,
+  })
 
   return {
     target,
@@ -185,6 +197,7 @@ export const useEditorState = (
     autoSlice,
     scrub,
     commands,
+    trackMenu,
     enabled,
     headMs:
       transport.loaded || scrub.scrubMs !== null

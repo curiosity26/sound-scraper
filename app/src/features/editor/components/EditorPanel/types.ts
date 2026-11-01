@@ -46,7 +46,20 @@ export type TrackRow = EditorTrack & {
   name: string
   /** Its own tags (over the recording's), if it has any. */
   tags: TrackTags | undefined
+  /** All its audio is deleted: it won't be saved (it can be restored). */
+  removed: boolean
+  /** Its number as saved (1, 2, 3…), or null when it's removed. */
+  number: number | null
 }
+
+/** What a right-click needs from a press or pointer event. */
+export type MouseLike = { button?: number; pageX?: number; pageY?: number }
+
+/**
+ * An aux (right) click: the point in the clicked view (macOS, Windows) or
+ * in the window (Linux).
+ */
+export type AuxClick = { button?: number; clientX?: number; clientY?: number }
 
 /** What Delete would act on. */
 export type DeleteTarget = 'selection' | 'slice' | 'region' | null

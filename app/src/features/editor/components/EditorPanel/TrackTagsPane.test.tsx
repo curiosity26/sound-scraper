@@ -275,12 +275,12 @@ describe('track tags in the editor', () => {
       fakeEditor.setDraft(sideA.fileName, taggedDraft)
     })
 
-    describe("when track 2's ⚙ is pressed", () => {
+    describe("when track 2's pencil is pressed", () => {
       const openForm = async () => {
         const user = userEvent.setup()
         await openEditor()
         await user.press(
-          screen.getByRole('button', { name: 'Edit tags of track 2' }),
+          screen.getByRole('button', { name: 'Edit metadata of track 2' }),
         )
         return user
       }
@@ -325,7 +325,7 @@ describe('track tags in the editor', () => {
       const changeArtist = async (user: ReturnType<typeof userEvent.setup>) => {
         await openEditor()
         await user.press(
-          screen.getByRole('button', { name: 'Edit tags of track 2' }),
+          screen.getByRole('button', { name: 'Edit metadata of track 2' }),
         )
         await editField(user, 'Artist', 'Guest', 'Someone')
       }
@@ -373,7 +373,7 @@ describe('track tags in the editor', () => {
         const user = fakeTime()
         await openEditor()
         await user.press(
-          screen.getByRole('button', { name: 'Edit tags of track 1' }),
+          screen.getByRole('button', { name: 'Edit metadata of track 1' }),
         )
         await editField(user, 'Album', 'Live', 'Other')
         await editField(user, 'Album', 'Other', 'Live')
@@ -387,7 +387,7 @@ describe('track tags in the editor', () => {
         const user = userEvent.setup()
         await openEditor()
         await user.press(
-          screen.getByRole('button', { name: 'Edit tags of track 2' }),
+          screen.getByRole('button', { name: 'Edit metadata of track 2' }),
         )
         await editField(user, 'Title', 'Side B', 'Encore')
         expect(
@@ -401,7 +401,7 @@ describe('track tags in the editor', () => {
         const user = fakeTime()
         await openEditor()
         await user.press(
-          screen.getByRole('button', { name: 'Edit tags of track 1' }),
+          screen.getByRole('button', { name: 'Edit metadata of track 1' }),
         )
         fakeCore.setPick('/Pictures/front.png')
         await user.press(form().getByRole('button', { name: /^Cover art\. / }))
@@ -433,7 +433,7 @@ describe('track tags in the editor', () => {
         const user = userEvent.setup()
         await openEditor()
         await user.press(
-          screen.getByRole('button', { name: 'Edit tags of track 2' }),
+          screen.getByRole('button', { name: 'Edit metadata of track 2' }),
         )
         await user.press(form().getByRole('button', { name: 'Close' }))
         expect(screen.queryByLabelText('Track tags')).not.toBeOnTheScreen()
@@ -460,11 +460,11 @@ describe('track tags in the editor', () => {
       expect(trackRow(2)).toBeSelected()
     })
 
-    describe('when ⚙ is pressed on one of them', () => {
+    describe('when the pencil is pressed on one of them', () => {
       const openBulk = async () => {
         const user = await selectBoth()
         await user.press(
-          screen.getByRole('button', { name: 'Edit tags of track 2' }),
+          screen.getByRole('button', { name: 'Edit metadata of track 2' }),
         )
         return user
       }
