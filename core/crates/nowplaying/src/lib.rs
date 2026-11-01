@@ -4,8 +4,8 @@
 //! Capture APIs carry no metadata; each OS's "now playing" service does:
 //! SMTC on Windows, MPRIS on Linux, MediaRemote on macOS. A
 //! [`NowPlayingBackend`] reports raw [`Snapshot`]s from that service; the
-//! [`watcher`] turns them into clean [`TrackChange`]s for one capture
-//! [`Target`].
+//! [`watcher`] turns them into clean [`WatchEvent`]s (track changes, late
+//! details, pauses) for one capture [`Target`].
 
 use std::{
     fmt,
@@ -23,7 +23,7 @@ mod macos;
 #[cfg(target_os = "windows")]
 mod windows;
 
-pub use watcher::{TrackChange, Watcher};
+pub use watcher::{TrackChange, WatchEvent, Watcher, WatcherConfig};
 
 /// Cover art as the player gave it.
 #[derive(Clone, PartialEq, Eq)]
