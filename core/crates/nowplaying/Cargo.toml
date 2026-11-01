@@ -9,5 +9,8 @@ publish.workspace = true
 [dependencies]
 
 [target.'cfg(target_os = "linux")'.dependencies]
+# Blocking API only; the default async-io feature is zbus's own internal
+# executor (no tokio).
+zbus = "5.19"
 
 [target.'cfg(target_os = "windows")'.dependencies]
