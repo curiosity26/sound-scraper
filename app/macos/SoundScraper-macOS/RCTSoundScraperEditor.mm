@@ -119,6 +119,32 @@ RCT_EXPORT_MODULE(SoundScraperEditor)
   });
 }
 
+- (void)storeEditCover:(NSString *)fileName
+             imagePath:(NSString *)imagePath
+               resolve:(RCTPromiseResolveBlock)resolve
+                reject:(RCTPromiseRejectBlock)reject
+{
+  dispatch_async(_queue, ^{
+    char *cover = ss_edits_store_cover(fileName.UTF8String, imagePath.UTF8String);
+    if (!cover) {
+      NSString *message = SSEditorError();
+      reject(@"cover_failed", message, [NSError errorWithDomain:@"SoundScraper" code:1 userInfo:@{NSLocalizedDescriptionKey : message}]);
+      return;
+    }
+    resolve(SSTakeEditorString(cover));
+  });
+}
+
+- (NSString *)editCoverPath:(NSString *)fileName id:(NSString *)id
+{
+  return SSTakeEditorString(ss_edits_cover_path(fileName.UTF8String, id.UTF8String)) ?: @"";
+}
+
+- (NSString *)editMarkers:(NSString *)fileName
+{
+  return SSTakeEditorString(ss_edits_markers(fileName.UTF8String)) ?: @"[]";
+}
+
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:(const facebook::react::ObjCTurboModule::InitParams &)params
 {
   return std::make_shared<facebook::react::NativeEditorSpecJSI>(params);

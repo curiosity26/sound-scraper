@@ -28,6 +28,9 @@ struct EditorSpec : winrt::Microsoft::ReactNative::TurboModuleSpec {
       SyncMethod<std::string() noexcept>{8, L"mastersUsage"},
       Method<void(Promise<void>) noexcept>{9, L"deleteAllMasters"},
       Method<void(std::string, std::string, bool, Promise<std::string>) noexcept>{10, L"save"},
+      Method<void(std::string, std::string, Promise<std::string>) noexcept>{11, L"storeEditCover"},
+      SyncMethod<std::string(std::string, std::string) noexcept>{12, L"editCoverPath"},
+      SyncMethod<std::string(std::string) noexcept>{13, L"editMarkers"},
   };
 
   template <class TModule>
@@ -89,6 +92,21 @@ struct EditorSpec : winrt::Microsoft::ReactNative::TurboModuleSpec {
           "save",
           "    REACT_METHOD(save) void save(std::string fileName, std::string editsJson, bool keepOriginal, ::React::ReactPromise<std::string> &&result) noexcept { /* implementation */ }\n"
           "    REACT_METHOD(save) static void save(std::string fileName, std::string editsJson, bool keepOriginal, ::React::ReactPromise<std::string> &&result) noexcept { /* implementation */ }\n");
+    REACT_SHOW_METHOD_SPEC_ERRORS(
+          11,
+          "storeEditCover",
+          "    REACT_METHOD(storeEditCover) void storeEditCover(std::string fileName, std::string imagePath, ::React::ReactPromise<std::string> &&result) noexcept { /* implementation */ }\n"
+          "    REACT_METHOD(storeEditCover) static void storeEditCover(std::string fileName, std::string imagePath, ::React::ReactPromise<std::string> &&result) noexcept { /* implementation */ }\n");
+    REACT_SHOW_METHOD_SPEC_ERRORS(
+          12,
+          "editCoverPath",
+          "    REACT_SYNC_METHOD(editCoverPath) std::string editCoverPath(std::string fileName, std::string id) noexcept { /* implementation */ }\n"
+          "    REACT_SYNC_METHOD(editCoverPath) static std::string editCoverPath(std::string fileName, std::string id) noexcept { /* implementation */ }\n");
+    REACT_SHOW_METHOD_SPEC_ERRORS(
+          13,
+          "editMarkers",
+          "    REACT_SYNC_METHOD(editMarkers) std::string editMarkers(std::string fileName) noexcept { /* implementation */ }\n"
+          "    REACT_SYNC_METHOD(editMarkers) static std::string editMarkers(std::string fileName) noexcept { /* implementation */ }\n");
   }
 };
 

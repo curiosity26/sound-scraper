@@ -274,6 +274,7 @@ struct SoundScraperModule {
         out.durationMs = static_cast<double>(r->duration_ms);
         out.sizeBytes = static_cast<double>(r->size_bytes);
         out.recordedAtMs = static_cast<double>(r->recorded_at_ms);
+        out.hasDraft = r->has_draft;
         items.push_back(std::move(out));
       }
       ss_recording_list_free(list);

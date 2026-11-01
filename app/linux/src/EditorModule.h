@@ -32,6 +32,11 @@ class EditorModule : public rngtk::CxxModule<EditorModule> {
   facebook::react::AsyncPromise<> deleteAllMasters(facebook::jsi::Runtime &rt);
   facebook::react::AsyncPromise<std::string> save(facebook::jsi::Runtime &rt, std::string fileName,
                                                   std::string editsJson, bool keepOriginal);
+  facebook::react::AsyncPromise<std::string> storeEditCover(facebook::jsi::Runtime &rt,
+                                                            std::string fileName,
+                                                            std::string imagePath);
+  std::string editCoverPath(facebook::jsi::Runtime &rt, std::string fileName, std::string id);
+  std::string editMarkers(facebook::jsi::Runtime &rt, std::string fileName);
 
  private:
   // Its own library handle, for saving.

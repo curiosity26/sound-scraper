@@ -66,6 +66,7 @@ inline winrt::Microsoft::ReactNative::FieldMap GetStructInfo(SoundScraperSpec_Re
         {L"durationMs", &SoundScraperSpec_Recording::durationMs},
         {L"sizeBytes", &SoundScraperSpec_Recording::sizeBytes},
         {L"recordedAtMs", &SoundScraperSpec_Recording::recordedAtMs},
+        {L"hasDraft", &SoundScraperSpec_Recording::hasDraft},
     };
     return fieldMap;
 }

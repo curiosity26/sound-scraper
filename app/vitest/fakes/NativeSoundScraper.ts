@@ -57,6 +57,8 @@ export const defaultSettings: StoredSettings = {
   masterMinMinutes: 20,
   masterBudgetGb: 10,
   masterMaxAgeDays: 30,
+  nowPlayingTags: true,
+  splitAtTrackChanges: true,
 }
 
 /** A recording in the fake folder; `title` defaults to the file's name. */
@@ -72,6 +74,7 @@ export const recording = (
   durationMs: 60_000,
   sizeBytes: 1_000_000,
   recordedAtMs: 0,
+  hasDraft: false,
   ...extra,
 })
 
