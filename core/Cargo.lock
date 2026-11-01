@@ -2002,6 +2002,9 @@ dependencies = [
 [[package]]
 name = "sound_scraper_nowplaying"
 version = "0.3.0"
+dependencies = [
+ "windows",
+]
 
 [[package]]
 name = "sound_scraper_probe"
