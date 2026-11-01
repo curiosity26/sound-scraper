@@ -5,6 +5,7 @@ import { editorAvailable } from '@/features/editor/editorAvailable'
 import { PanelHeader } from '@/shared/components/PanelHeader'
 
 import { Masters } from './Masters'
+import { NowPlayingSection } from './NowPlayingSection'
 import { QualitySection } from './QualitySection'
 import { RecordingsFolder } from './RecordingsFolder'
 import { SettingsFooter } from './SettingsFooter'
@@ -40,6 +41,7 @@ export const SettingsPanel: FC<SettingsPanelProps> = props => {
           <RecordingsFolder />
           <QualitySection />
           <SilenceSection />
+          <NowPlayingSection />
           {editorAvailable && <Masters />}
           <TagsSection />
           <SettingsFooter />
