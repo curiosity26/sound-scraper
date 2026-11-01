@@ -356,9 +356,13 @@ fn snap(at: u64, silences: &[(u64, u64)], window: u64, lead_in: u64) -> (u64, bo
         })
 }
 
+/// As the watcher's: different ids mean different songs, equal ids prove
+/// nothing (Firefox uses one for every video).
 fn same_song(a: &Track, b: &Track) -> bool {
-    if let (Some(x), Some(y)) = (&a.id, &b.id) {
-        return x == y;
+    if let (Some(x), Some(y)) = (&a.id, &b.id)
+        && x != y
+    {
+        return false;
     }
     let norm = |s: &Option<String>| s.as_deref().unwrap_or("").trim().to_lowercase();
     norm(&a.title) == norm(&b.title)
@@ -366,11 +370,14 @@ fn same_song(a: &Track, b: &Track) -> bool {
         && norm(&a.album) == norm(&b.album)
 }
 
-/// Spotify Free reports its ads as tracks.
+/// Spotify Free and YouTube (in a browser) report their ads as tracks.
 fn is_ad(track: &Track) -> bool {
-    let title = track.title.as_deref().unwrap_or("").trim().to_lowercase();
+    let lower = |s: &Option<String>| s.as_deref().unwrap_or("").trim().to_lowercase();
+    let (title, artist) = (lower(&track.title), lower(&track.artist));
     title == "advertisement"
-        || (track.artist.is_none() && track.album.is_none() && title == "spotify")
+        || title == "video ad"
+        || artist.starts_with("youtube ads")
+        || (artist.is_empty() && track.album.is_none() && title == "spotify")
 }
 
 // ------------------------------------------------------------- outcome
@@ -663,6 +670,19 @@ mod tests {
         assert!(m[1].partial);
         assert!(m[2].ad);
         assert!(!m[3].partial && !m[3].ad);
+    }
+
+    #[test]
+    fn given_youtube_ads_and_a_shared_track_id_when_placing_then_songs_split_and_ads_flagged() {
+        let mut song_one = song("Choosin' Texas", 0);
+        song_one.track.id = Some("/org/mpris/MediaPlayer2/firefox".into());
+        let mut ad = song("Video Ad", 10_000);
+        ad.track.artist = Some("YouTube Ads 310".into());
+        ad.track.id = song_one.track.id.clone();
+        let m = markers(&[song_one, ad], &[], 20_000, RATE);
+        assert_eq!(m.len(), 2);
+        assert!(!m[0].ad);
+        assert!(m[1].ad);
     }
 
     #[test]

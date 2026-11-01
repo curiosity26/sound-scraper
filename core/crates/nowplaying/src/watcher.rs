@@ -616,11 +616,15 @@ fn compatible(a: Option<&String>, b: Option<&String>) -> bool {
     }
 }
 
-/// Track identity: the player's id when both have one, else title, artist
-/// and album (trimmed, case-insensitive; missing fields don't count).
+/// Track identity: title, artist and album (trimmed, case-insensitive;
+/// missing fields don't count). Different player ids always mean different
+/// tracks, but equal ids prove nothing: Firefox reports one id for every
+/// video it plays.
 fn same_track(a: &Track, b: &Track) -> bool {
-    if let (Some(a), Some(b)) = (&a.id, &b.id) {
-        return a == b;
+    if let (Some(a), Some(b)) = (&a.id, &b.id)
+        && a != b
+    {
+        return false;
     }
     normalized(a.title.as_ref()) == normalized(b.title.as_ref())
         && compatible(a.artist.as_ref(), b.artist.as_ref())

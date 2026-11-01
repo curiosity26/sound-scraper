@@ -248,6 +248,21 @@ fn given_different_track_ids_when_metadata_identical_then_new_track() {
 }
 
 #[test]
+fn given_one_track_id_for_every_video_when_title_changes_then_new_track() {
+    // Firefox reports "/org/mpris/MediaPlayer2/firefox" for every video.
+    let mut tracker = system_tracker();
+    let mut first = track("Choosin' Texas", Some("Ella Langley"));
+    first.id = Some("/org/mpris/MediaPlayer2/firefox".into());
+    let mut second = track("Video Ad", Some("YouTube Ads 310"));
+    second.id = first.id.clone();
+    let mut out = tracker.on_event(updated(playing(chrome(), first)), t(0));
+    out.extend(tracker.on_tick(t(300)));
+    out.extend(tracker.on_event(updated(playing(chrome(), second)), t(1000)));
+    out.extend(tracker.on_tick(t(1300)));
+    assert_eq!(titles(&out), ["Choosin' Texas", "Video Ad"]);
+}
+
+#[test]
 fn given_position_when_song_changes_then_started_at_is_position_at_minus_position() {
     let mut tracker = system_tracker();
     let mut out = play_settled(&mut tracker, spotify(), "First", 0);
