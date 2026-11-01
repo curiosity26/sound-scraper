@@ -57,6 +57,10 @@ pub struct Library {
     watcher: Option<Debouncer<RecommendedWatcher>>,
     /// When `list` last swept orphaned editor drafts.
     last_sweep: Option<Instant>,
+    /// Tests share one drafts folder and run in parallel, so only the test
+    /// of the sweep turns it on; otherwise each library's sweep would remove
+    /// another test's drafts.
+    sweep_drafts: bool,
 }
 
 /// How often `list` looks for orphaned editor drafts.
@@ -90,6 +94,7 @@ impl Library {
             trasher,
             watcher: None,
             last_sweep: None,
+            sweep_drafts: !cfg!(test),
         })
     }
 
@@ -225,9 +230,10 @@ impl Library {
 
         // The folder was read in full, so drafts of recordings not in it
         // are orphans (after a grace period, in case the folder changes back).
-        if self
-            .last_sweep
-            .is_none_or(|at| at.elapsed() >= DRAFT_SWEEP_INTERVAL)
+        if self.sweep_drafts
+            && self
+                .last_sweep
+                .is_none_or(|at| at.elapsed() >= DRAFT_SWEEP_INTERVAL)
         {
             self.last_sweep = Some(Instant::now());
             let existing: HashSet<String> = on_disk
@@ -824,6 +830,7 @@ mod tests {
     fn listing_sweeps_old_drafts_of_recordings_that_are_gone() {
         use crate::edit::edits;
         let mut f = fixture();
+        f.library.sweep_drafts = true;
         add(&f.dir, "Sweep kept", 0.3, None);
         std::fs::write(f.dir.join("Sweep live.mp3.part"), b"").unwrap();
         let draft = edits::EditList {
