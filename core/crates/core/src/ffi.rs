@@ -1968,8 +1968,47 @@ pub unsafe extern "C" fn ss_edits_discard_draft(file_name: *const c_char) -> SsS
     .map_or_else(fail, |()| SsStatus::Ok)
 }
 
+/// Copies the JPEG or PNG at `image_path` into the recording's draft folder
+/// for a track's cover; returns its id (for `TrackTags.cover`), or NULL on
+/// failure. Free with `ss_string_free`.
+///
+/// # Safety
+/// `file_name` and `image_path` must be NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_edits_store_cover(
+    file_name: *const c_char,
+    image_path: *const c_char,
+) -> *mut c_char {
+    text_or_null(catch("storing the cover", || {
+        let file_name = unsafe { arg_str(file_name, "file_name")? };
+        let image = unsafe { arg_str(image_path, "image_path")? };
+        let (mime, data) = crate::tags::load_image(std::path::Path::new(image))?;
+        crate::edit::edits::store_cover(file_name, &mime, &data)
+    }))
+}
+
+/// The path of a cover stored with `ss_edits_store_cover` (or by the
+/// recorder), or NULL when there is none. Free with `ss_string_free`.
+///
+/// # Safety
+/// `file_name` and `id` must be NUL-terminated UTF-8.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ss_edits_cover_path(
+    file_name: *const c_char,
+    id: *const c_char,
+) -> *mut c_char {
+    text_or_null(catch("finding the cover", || {
+        let file_name = unsafe { arg_str(file_name, "file_name")? };
+        let id = unsafe { arg_str(id, "id")? };
+        crate::edit::edits::cover_path(file_name, id)
+            .map(|p| p.to_string_lossy().into_owned())
+            .ok_or_else(|| format!("no cover {id} for {file_name}"))
+    }))
+}
+
 /// Saves an edit of the recording `file_name`: writes its tracks next to it
-/// (tagged like it, except title and track number), then, unless
+/// (tagged like it, except title, track number and each track's own tags),
+/// then, unless
 /// `keep_original`, moves the original to the trash. Blocks until done.
 /// Returns `{"files":[file names…],"reencoded":n}`, or NULL on failure (the
 /// original untouched, nothing written). Free with `ss_string_free`.
@@ -2129,6 +2168,39 @@ mod tests {
         );
         assert!(dir.join("Second.mp3").exists() && !dir.join("Album (2).mp3").exists());
         unsafe { ss_library_destroy(library) };
+    }
+
+    #[test]
+    fn edits_store_and_find_covers() {
+        let dir = crate::paths::tempdir();
+        let image = dir.join("c.png");
+        std::fs::write(&image, crate::tags::tests::PNG_1X1).unwrap();
+        let image = CString::new(image.to_str().unwrap()).unwrap();
+        let name = c"FFI cover test.mp3";
+        let take = |p: *mut c_char| {
+            assert!(!p.is_null(), "{:?}", unsafe {
+                CStr::from_ptr(ss_last_error_message())
+            });
+            let s = unsafe { CStr::from_ptr(p) }.to_str().unwrap().to_string();
+            unsafe { ss_string_free(p) };
+            s
+        };
+        let id = take(unsafe { ss_edits_store_cover(name.as_ptr(), image.as_ptr()) });
+        assert!(id.ends_with(".png"), "{id}");
+        let id_c = CString::new(id).unwrap();
+        let path = take(unsafe { ss_edits_cover_path(name.as_ptr(), id_c.as_ptr()) });
+        assert_eq!(
+            std::fs::read(path).unwrap(),
+            crate::tags::tests::PNG_1X1.to_vec()
+        );
+        assert!(unsafe { ss_edits_cover_path(name.as_ptr(), c"nope.jpg".as_ptr()) }.is_null());
+        let not_image = CString::new(dir.join("missing.png").to_str().unwrap()).unwrap();
+        assert!(unsafe { ss_edits_store_cover(name.as_ptr(), not_image.as_ptr()) }.is_null());
+        assert_eq!(
+            unsafe { ss_edits_discard_draft(name.as_ptr()) },
+            SsStatus::Ok
+        );
+        assert!(!crate::edit::edits::draft_dir("FFI cover test.mp3").exists());
     }
 
     #[test]

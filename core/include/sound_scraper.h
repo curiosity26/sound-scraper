@@ -1091,8 +1091,28 @@ enum SsStatus ss_edits_save_draft(const char *file_name, const char *edits_json)
 enum SsStatus ss_edits_discard_draft(const char *file_name);
 
 /*
+ Copies the JPEG or PNG at `image_path` into the recording's draft folder
+ for a track's cover; returns its id (for `TrackTags.cover`), or NULL on
+ failure. Free with `ss_string_free`.
+
+ # Safety
+ `file_name` and `image_path` must be NUL-terminated UTF-8.
+ */
+char *ss_edits_store_cover(const char *file_name, const char *image_path);
+
+/*
+ The path of a cover stored with `ss_edits_store_cover` (or by the
+ recorder), or NULL when there is none. Free with `ss_string_free`.
+
+ # Safety
+ `file_name` and `id` must be NUL-terminated UTF-8.
+ */
+char *ss_edits_cover_path(const char *file_name, const char *id);
+
+/*
  Saves an edit of the recording `file_name`: writes its tracks next to it
- (tagged like it, except title and track number), then, unless
+ (tagged like it, except title, track number and each track's own tags),
+ then, unless
  `keep_original`, moves the original to the trash. Blocks until done.
  Returns `{"files":[file names…],"reencoded":n}`, or NULL on failure (the
  original untouched, nothing written). Free with `ss_string_free`.
