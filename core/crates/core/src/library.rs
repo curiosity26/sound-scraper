@@ -39,6 +39,9 @@ pub struct Recording {
     pub size_bytes: u64,
     /// Recording date: the ID3 date if present, else the file's mtime.
     pub recorded_at_ms: i64,
+    /// The track editor keeps unsaved edits for it (e.g. the splits the
+    /// recorder proposed from now-playing info).
+    pub has_draft: bool,
 }
 
 pub type Trasher = Box<dyn Fn(&Path) -> Result<(), String> + Send>;
@@ -197,6 +200,7 @@ impl Library {
                 duration_ms,
                 size_bytes: *size,
                 recorded_at_ms,
+                has_draft: crate::edit::edits::has_draft(name),
             });
         }
 
