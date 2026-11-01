@@ -370,7 +370,13 @@ fn same_song(a: &Track, b: &Track) -> bool {
         && norm(&a.album) == norm(&b.album)
 }
 
-/// Spotify Free and YouTube (in a browser) report their ads as tracks.
+/// Ads are 30 s or shorter (YouTube's run 6, 15 or 30 s); songs that short
+/// are rare, and a wrongly deleted one is restored in the editor.
+const AD_MAX_LENGTH: Duration = Duration::from_millis(31_500);
+
+/// Spotify Free and browsers report ads as tracks. Spotify's say so, as do
+/// YouTube's on some pages; elsewhere YouTube gives the ad's own title and
+/// advertiser, so the length is the tell.
 fn is_ad(track: &Track) -> bool {
     let lower = |s: &Option<String>| s.as_deref().unwrap_or("").trim().to_lowercase();
     let (title, artist) = (lower(&track.title), lower(&track.artist));
@@ -378,6 +384,9 @@ fn is_ad(track: &Track) -> bool {
         || title == "video ad"
         || artist.starts_with("youtube ads")
         || (artist.is_empty() && track.album.is_none() && title == "spotify")
+        || track
+            .duration
+            .is_some_and(|d| !d.is_zero() && d <= AD_MAX_LENGTH)
 }
 
 // ------------------------------------------------------------- outcome
@@ -684,6 +693,22 @@ mod tests {
         assert_eq!(m.len(), 2);
         assert!(!m[0].ad);
         assert!(m[1].ad);
+    }
+
+    #[test]
+    fn given_youtube_ads_with_real_titles_when_placing_then_short_ones_are_ads() {
+        let mut ad = song(
+            "Venture X Card - Globe Hopping 3.0 :15 | Capital One",
+            10_000,
+        );
+        ad.track.artist = Some("Capital One".into());
+        ad.track.duration = Some(Duration::from_secs(15));
+        let mut song_two = song("Be Her", 30_000);
+        song_two.track.duration = Some(Duration::from_secs(200));
+        let m = markers(&[song("One", 0), ad, song_two], &[], 60_000, RATE);
+        assert!(!m[0].ad);
+        assert!(m[1].ad);
+        assert!(!m[2].ad);
     }
 
     #[test]
