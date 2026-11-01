@@ -1004,6 +1004,112 @@ mod tests {
         assert!(full >= 1.5, "untrimmed duration {full:.2}s");
     }
 
+    fn now_playing_snapshot(
+        title: &str,
+        position: Duration,
+    ) -> Box<sound_scraper_nowplaying::Snapshot> {
+        use sound_scraper_nowplaying::{PlaybackState, PlayerId, Snapshot, Track};
+        Box::new(Snapshot {
+            player: PlayerId {
+                app_id: "player".into(),
+                pid: Some(1),
+                parent_app_id: None,
+            },
+            track: Some(Track {
+                title: Some(title.into()),
+                artist: Some("The Band".into()),
+                album: Some("The Album".into()),
+                ..Track::default()
+            }),
+            state: PlaybackState::Playing,
+            position: Some(position),
+            position_at: Some(std::time::SystemTime::now()),
+            is_current: true,
+        })
+    }
+
+    /// Records ~1 s of tone, 0.5 s of silence and ~1.3 s of tone while a
+    /// fake player reports `songs` (title, sent this long after start).
+    fn record_with_now_playing(songs: &'static [(&'static str, u64)]) -> PathBuf {
+        use sound_scraper_nowplaying::{BackendEvent, fake::FakeBackend};
+        let dir = crate::paths::tempdir();
+        let backend = FakeBackend::new();
+        let handle = backend.handle();
+        let backend = Mutex::new(Some(backend));
+        let audible: fn(u32) -> bool = |n| !(100..150).contains(&n);
+        let mut r = Recorder::with_backend(
+            RecorderOptions {
+                dir,
+                quality: Quality::Cbr192,
+                tag_version: TagVersion::V24,
+                trim_silence: true,
+                master: None,
+                now_playing: nowplaying::Options {
+                    tag: true,
+                    split: true,
+                },
+            },
+            ToneBackend::pattern(48000, 2, audible),
+        )
+        .with_now_playing(Box::new(move || {
+            Box::new(backend.lock().unwrap().take().expect("one recording"))
+        }));
+        r.start(system()).unwrap();
+        let started = Instant::now();
+        for &(title, after_ms) in songs {
+            let at = Duration::from_millis(after_ms);
+            std::thread::sleep(at.saturating_sub(started.elapsed()));
+            // The player is 100 ms into each song when it says so.
+            handle.send(BackendEvent::Updated(now_playing_snapshot(
+                title,
+                Duration::from_millis(if after_ms == 0 { 0 } else { 100 }),
+            )));
+        }
+        std::thread::sleep(Duration::from_millis(2800).saturating_sub(started.elapsed()));
+        r.stop().unwrap()
+    }
+
+    #[test]
+    fn given_one_song_when_recording_stops_then_the_file_gets_its_tags() {
+        let path = record_with_now_playing(&[("Only Song", 0)]);
+        let tags = crate::tags::read(&path).unwrap();
+        assert_eq!(tags.title.as_deref(), Some("Only Song"));
+        assert_eq!(tags.artist.as_deref(), Some("The Band"));
+        assert_eq!(tags.album.as_deref(), Some("The Album"));
+        let name = path.file_name().unwrap().to_string_lossy().to_string();
+        assert!(
+            !name.contains("Only Song"),
+            "file name stays as today: {name}"
+        );
+        assert!(crate::edit::edits::load_draft(&name).is_none());
+    }
+
+    #[test]
+    fn given_two_songs_when_recording_stops_then_a_split_is_proposed_in_the_gap() {
+        // The second song starts after the gap, at ~1.5 s.
+        let path = record_with_now_playing(&[("First", 0), ("Second", 1600)]);
+        let name = path.file_name().unwrap().to_string_lossy().to_string();
+        let draft = crate::edit::edits::load_draft(&name).expect("draft");
+        assert_eq!(draft.first_name, "First");
+        assert_eq!(draft.splices.len(), 1);
+        let splice = &draft.splices[0];
+        assert_eq!(splice.name, "Second");
+        assert_eq!(
+            splice.tags.as_ref().and_then(|t| t.artist.as_deref()),
+            Some("The Band")
+        );
+        // Snapped to just before the tone resumes (the gap is 1.0-1.5 s).
+        assert!(
+            (1150.0..=1500.0).contains(&splice.at_ms),
+            "split at {} ms",
+            splice.at_ms
+        );
+        let markers = nowplaying::load_markers(&name);
+        assert_eq!(markers.len(), 2);
+        assert!(!markers[1].unsnapped);
+        crate::edit::edits::discard_draft(&name);
+    }
+
     #[test]
     fn long_recordings_keep_a_lossless_master_matching_the_mp3() {
         let dir = crate::paths::tempdir();

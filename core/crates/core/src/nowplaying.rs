@@ -298,7 +298,8 @@ fn place(seen: &[Seen], silences: &[(u64, u64)], total: u64, rate: u32) -> Vec<(
         {
             continue;
         }
-        let (at, snapped) = if placed.is_empty() && s.frames == 0 {
+        // The first song starts the file, wherever it was first seen.
+        let (at, snapped) = if placed.is_empty() {
             (0, true)
         } else {
             snap(
