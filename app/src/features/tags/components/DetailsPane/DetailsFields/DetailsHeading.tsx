@@ -6,13 +6,14 @@ import { useDetailsPane } from '@/features/tags/components/DetailsPane/useDetail
 
 import { InlineField } from './InlineField'
 
-/** One recording's file name, edited in place; or how many are selected. */
+/** One recording's file name, edited in place; or how many are selected;
+ * or the heading the form was given. */
 export const DetailsHeading: FC = () => {
-  const { fileNames, recording, rename, textStyle } = useDetailsPane()
-  if (fileNames.length !== 1) {
+  const { fileNames, heading, recording, rename, textStyle } = useDetailsPane()
+  if (heading !== undefined || fileNames.length !== 1) {
     return (
-      <Text style={[styles.bulk, textStyle]}>
-        {fileNames.length} recordings
+      <Text accessibilityRole="header" style={[styles.bulk, textStyle]}>
+        {heading ?? `${String(fileNames.length)} recordings`}
       </Text>
     )
   }

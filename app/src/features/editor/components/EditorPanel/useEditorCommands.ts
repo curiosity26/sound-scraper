@@ -19,6 +19,7 @@ import type { UseSaveFlowResult } from './useSaveFlow'
 import type { UseSnapResult } from './useSnap'
 import type { UseTimelineViewResult } from './useTimelineView'
 import type { UseTrackNamingResult } from './useTrackNaming'
+import type { UseTrackTagsResult } from './useTrackTags'
 
 const DOUBLE_CLICK_MS = 400
 
@@ -58,6 +59,14 @@ const macKeys = (onKeyDown: (e: KeyDownEvent) => void): object => {
   return { enableFocusRing: false, keyDownEvents: KEYS, onKeyDown }
 }
 
+/** The keys held while a track in the list is clicked. */
+export type TrackPressModifiers = {
+  /** Shift: extend the selection. */
+  readonly extend: boolean
+  /** Ctrl (⌘ on macOS): add to or take from the selection. */
+  readonly toggle: boolean
+}
+
 export type UseEditorCommandsOptions = {
   /** The first track's name after Clear All. */
   readonly title: string
@@ -71,6 +80,7 @@ export type UseEditorCommandsOptions = {
   readonly autoSlice: UseAutoSliceResult
   readonly saveFlow: UseSaveFlowResult
   readonly tracks: UseEditorTracksResult
+  readonly trackTags: UseTrackTagsResult
   /** Gives the editor keyboard focus. */
   readonly takeKeys: () => void
 }
@@ -85,6 +95,14 @@ export type UseEditorCommandsResult = {
   readonly openTrack: (index: number) => void
   /** A track's region: click to select the track, double-click to rename it. */
   readonly pressRegion: (index: number) => void
+  /**
+   * A track in the list: click to pick it (as openTrack), shift-click to
+   * select the tracks up to it, Ctrl/⌘-click to add or remove it,
+   * double-click to edit its tags.
+   */
+  readonly pressTrack: (index: number, modifiers: TrackPressModifiers) => void
+  /** Opens the tag form on the track, or on the selection it's part of. */
+  readonly editTrackTags: (index: number) => void
   /** The macOS key props for the editor's root view. */
   readonly keyProps: object
 }
@@ -172,6 +190,23 @@ export const useEditorCommands = (
   }
   // A track's region: click to select the track, double-click to rename it.
   const lastRegionPress = useRef({ i: -1, at: 0 })
+  // A track in the list: double-click to edit its tags.
+  const lastTrackPress = useRef({ i: -1, at: 0 })
+  const openTrack = (i: number) => {
+    selectTrack(i)
+    const tr = rows[i]
+    if (tr) {
+      view.zoomToRange(tr.startMs, options.tracks.trackEnd(i))
+    }
+  }
+  const editTrackTags = (i: number) => {
+    const { selectedTracks } = selection
+    options.trackTags.open(
+      selectedTracks.length > 1 && selectedTracks.includes(i)
+        ? selectedTracks
+        : [i],
+    )
+  }
 
   const onKeyDown = (e: KeyDownEvent) => {
     if (saveFlow.isOpen || naming.naming !== null) {
@@ -248,13 +283,31 @@ export const useEditorCommands = (
       commit(emptyEdits(options.title))
       selection.clearSelections()
     },
-    openTrack: i => {
-      selectTrack(i)
-      const tr = rows[i]
-      if (tr) {
-        view.zoomToRange(tr.startMs, options.tracks.trackEnd(i))
+    openTrack,
+    pressTrack: (i, modifiers) => {
+      if (modifiers.extend || modifiers.toggle) {
+        naming.finishNaming()
+        lastTrackPress.current = { i: -1, at: 0 }
+        if (modifiers.extend) {
+          selection.extendTracks(i)
+        } else {
+          selection.toggleTrack(i)
+        }
+        return
       }
+      const now = Date.now()
+      if (
+        lastTrackPress.current.i === i &&
+        now - lastTrackPress.current.at < DOUBLE_CLICK_MS
+      ) {
+        lastTrackPress.current = { i: -1, at: 0 }
+        editTrackTags(i)
+        return
+      }
+      lastTrackPress.current = { i, at: now }
+      openTrack(i)
     },
+    editTrackTags,
     pressRegion: i => {
       const now = Date.now()
       const row = rows[i]

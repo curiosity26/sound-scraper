@@ -23,6 +23,7 @@ import { OverviewBar } from './OverviewBar'
 import { SaveModal } from './SaveModal'
 import { Timeline } from './Timeline'
 import { TrackList } from './TrackList'
+import { TrackTagsPane } from './TrackTagsPane'
 import type { EditorTarget } from './types'
 import { useEditorState } from './useEditorState'
 import { ZoomBar } from './ZoomBar'
@@ -44,15 +45,23 @@ export const EditorPanel: FC<EditorPanelProps> = props => {
         focusable
         {...editor.commands.keyProps}
       >
-        <EditorToolbar />
-        <AutoSliceBar />
-        <OverviewBar />
-        <Timeline />
-        <ZoomBar />
-        <View style={styles.trackListBox} {...editor.naming.closeNamingOnPress}>
-          <TrackList />
+        <View style={styles.body}>
+          <View style={styles.main}>
+            <EditorToolbar />
+            <AutoSliceBar />
+            <OverviewBar />
+            <Timeline />
+            <ZoomBar />
+            <View
+              style={styles.trackListBox}
+              {...editor.naming.closeNamingOnPress}
+            >
+              <TrackList />
+            </View>
+            <EditorHint />
+          </View>
+          <TrackTagsPane />
         </View>
-        <EditorHint />
         <SaveModal />
       </View>
     </EditorContext>
@@ -61,5 +70,7 @@ export const EditorPanel: FC<EditorPanelProps> = props => {
 
 const styles = StyleSheet.create({
   root: { flex: 1, overflow: 'hidden' },
+  body: { flex: 1, flexDirection: 'row' },
+  main: { flex: 1 },
   trackListBox: { flexShrink: 1, minHeight: 60 },
 })

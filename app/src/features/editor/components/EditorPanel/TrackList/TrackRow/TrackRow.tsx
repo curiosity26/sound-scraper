@@ -8,7 +8,10 @@ import type { TrackRow as Track } from '@/features/editor/components/EditorPanel
 import { useEditor } from '@/features/editor/components/EditorPanel/useEditor'
 import { withAlpha } from '@/shared/utils/withAlpha'
 
-import { TrackName } from './TrackName'
+import { CutCheck } from './CutCheck'
+import { pressModifiers } from './pressModifiers'
+import { TagsButton } from './TagsButton'
+import { TrackTitle } from './TrackTitle'
 
 export type TrackRowProps = {
   readonly track: Track
@@ -16,12 +19,15 @@ export type TrackRowProps = {
   readonly index: number
 }
 
-/** One track: press to select, play and zoom to it; its name edits in place. */
+/**
+ * One track: press to select, play and zoom to it (shift- or Ctrl/⌘-click
+ * to select several), double-click or ⚙ to edit its tags; its name edits in
+ * place.
+ */
 export const TrackRow: FC<TrackRowProps> = props => {
   const { track: tr, index: i } = props
-  const { th, selection, core, commands, naming } = useEditor()
-  const selected = selection.selectedTrack === i
-  const { owner } = tr
+  const { th, selection, core, commands, cuts } = useEditor()
+  const selected = selection.selectedTracks.includes(i)
   const start = formatTime(tr.startMs, 100)
   const length = formatTime(tr.durationMs, 100)
   return (
@@ -30,8 +36,9 @@ export const TrackRow: FC<TrackRowProps> = props => {
       accessibilityLabel={`Track ${String(i + 1)}: ${
         tr.name
       }, starts ${start}, ${length} long`}
-      onPress={() => {
-        commands.openTrack(i)
+      accessibilityState={{ selected }}
+      onPress={e => {
+        commands.pressTrack(i, pressModifiers(e))
       }}
       style={[
         listStyles.trackRow,
@@ -42,22 +49,14 @@ export const TrackRow: FC<TrackRowProps> = props => {
         <View style={[styles.chip, { backgroundColor: trackColor(i) }]} />
         <Text style={[styles.cell, { color: th.text }]}>{i + 1}</Text>
       </View>
-      {owner === null ? (
-        <Text style={[listStyles.colName, styles.cell, { color: th.text }]}>
-          {tr.name}
-        </Text>
-      ) : (
-        <TrackName
-          label={`Track ${String(i + 1)} name`}
-          value={tr.name}
-          onCommit={name => {
-            naming.rename(owner, name)
-          }}
-        />
-      )}
-      <Text style={[listStyles.colTime, styles.cell, { color: th.dim }]}>
-        {start}
-      </Text>
+      <TrackTitle track={tr} index={i} />
+      <TagsButton index={i} />
+      <View style={[listStyles.colTime, styles.lengthCell]}>
+        {typeof tr.owner === 'number' && cuts.needsCheck(tr.startMs) && (
+          <CutCheck />
+        )}
+        <Text style={[styles.cell, { color: th.dim }]}>{start}</Text>
+      </View>
       <View style={[listStyles.colTime, styles.lengthCell]}>
         {tr.reencode && !core.hasMaster && (
           <Text
