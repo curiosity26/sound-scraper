@@ -255,6 +255,60 @@ return fields as text"#,
     }
 }
 
+/// How long the adapter gets to report a player before the AppleScript
+/// fallback asks one that is making sound. The adapter answers within a
+/// second when it works; asking earlier would show the Automation prompt to
+/// people who never need the fallback.
+pub(crate) const FALLBACK_GRACE: Duration = Duration::from_secs(3);
+
+/// What the adapter is doing, for [`fallback_wanted`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum AdapterHealth {
+    /// It couldn't start, or it exited.
+    Gone,
+    /// It runs and reports a player.
+    Reporting,
+    /// It runs but reports nothing (nothing plays, or a future macOS
+    /// closed the workaround).
+    Silent,
+}
+
+/// Whether the AppleScript fallback should ask a player (Music or Spotify,
+/// already known to be running) what it plays:
+/// - always when the adapter is gone;
+/// - never while the adapter reports a player;
+/// - while it is silent, once the player has been making sound
+///   (`sound_for`, from CoreAudio) for [`FALLBACK_GRACE`] past the first
+///   `FALLBACK_GRACE` after starting; then for as long as it stays silent
+///   (`asking`: the fallback already asks this player), so a pause is seen.
+pub(crate) fn fallback_wanted(
+    adapter: AdapterHealth,
+    since_start: Duration,
+    sound_for: Option<Duration>,
+    asking: bool,
+) -> bool {
+    match adapter {
+        AdapterHealth::Gone => true,
+        AdapterHealth::Reporting => false,
+        AdapterHealth::Silent => {
+            asking
+                || (since_start >= FALLBACK_GRACE && sound_for.is_some_and(|d| d >= FALLBACK_GRACE))
+        }
+    }
+}
+
+/// Whether `bundle_id`, or a helper of it, is in CoreAudio's list of
+/// processes making sound.
+pub(crate) fn makes_sound(bundle_id: &str, playing: &[String]) -> bool {
+    playing.iter().any(|p| {
+        p.eq_ignore_ascii_case(bundle_id)
+            || p.get(..bundle_id.len()).is_some_and(|prefix| {
+                prefix.eq_ignore_ascii_case(bundle_id)
+                    && p.as_bytes().get(bundle_id.len()) == Some(&b'.')
+            })
+    })
+}
+
 /// Separates the status script's fields (ASCII unit separator).
 pub(crate) const FIELD_SEPARATOR: char = '\u{1f}';
 
@@ -617,6 +671,62 @@ mod tests {
 
     fn script_line(fields: &[&str]) -> String {
         fields.join(&FIELD_SEPARATOR.to_string()) + "\n"
+    }
+
+    #[test]
+    fn the_fallback_runs_whenever_the_adapter_is_gone() {
+        for sound_for in [None, Some(secs(0)), Some(secs(10))] {
+            assert!(fallback_wanted(
+                AdapterHealth::Gone,
+                secs(0),
+                sound_for,
+                false
+            ));
+        }
+    }
+
+    #[test]
+    fn the_fallback_never_runs_while_the_adapter_reports() {
+        assert!(!fallback_wanted(
+            AdapterHealth::Reporting,
+            secs(60),
+            Some(secs(60)),
+            false
+        ));
+        assert!(!fallback_wanted(
+            AdapterHealth::Reporting,
+            secs(60),
+            Some(secs(60)),
+            true
+        ));
+    }
+
+    #[test]
+    fn a_silent_adapter_gets_time_to_report_first() {
+        let silent = AdapterHealth::Silent;
+        // Just started: wait even though the player makes sound.
+        assert!(!fallback_wanted(silent, secs(1), Some(secs(10)), false));
+        // Sound only just began: wait.
+        assert!(!fallback_wanted(silent, secs(60), Some(secs(1)), false));
+        // Nothing makes sound (Music open and idle): never ask.
+        assert!(!fallback_wanted(silent, secs(60), None, false));
+        // Making sound for a while with nothing reported: the adapter is
+        // broken, ask.
+        assert!(fallback_wanted(silent, secs(3), Some(secs(3)), false));
+        // Once asking, keep asking while it is silent, sound or not.
+        assert!(fallback_wanted(silent, secs(60), None, true));
+    }
+
+    #[test]
+    fn sound_counts_for_an_app_and_its_helpers() {
+        let playing = [
+            "com.apple.Music".to_owned(),
+            "com.spotify.client.helper".to_owned(),
+        ];
+        assert!(makes_sound("com.apple.Music", &playing));
+        assert!(makes_sound("com.spotify.client", &playing));
+        assert!(!makes_sound("com.spotify", &["com.spotifyx".to_owned()]));
+        assert!(!makes_sound("com.apple.Music", &[]));
     }
 
     #[test]

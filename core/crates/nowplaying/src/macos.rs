@@ -9,9 +9,11 @@
 //! `SOUND_SCRAPER_MEDIAREMOTE_ADAPTER` names a folder holding both instead
 //! (cargo examples, tests).
 //!
-//! Until the adapter has reported a player (a future macOS may close the
-//! workaround, leaving it silent) or when it can't run, Music and Spotify
-//! are polled with AppleScript, never launching them.
+//! When the adapter can't run, Music and Spotify are polled with
+//! AppleScript instead, never launching them. When it runs but stays silent
+//! while one of them makes sound (a future macOS may close the workaround)
+//! that one is polled too; otherwise AppleScript is never used, so people
+//! whose adapter works never see the Automation prompt.
 //!
 //! One worker thread owns the [`Reporter`] and talks to the sink; the
 //! adapter's output is read on threads of its own that only post a [`Msg`].
@@ -30,8 +32,8 @@ use std::{
 use crate::{
     BackendEvent, NowPlayingBackend, NowPlayingError, PlaybackState, PlayerId, Snapshot,
     mediaremote_logic::{
-        AdapterState, Reporter, ScriptPlayer, ScriptStatus, artwork_from_bytes, owns,
-        parse_script_data, parse_script_output, same_track,
+        AdapterHealth, AdapterState, Reporter, ScriptPlayer, ScriptStatus, artwork_from_bytes,
+        fallback_wanted, makes_sound, owns, parse_script_data, parse_script_output, same_track,
     },
 };
 
@@ -216,8 +218,7 @@ fn read_stream(stdout: impl Read, tx: &Sender<Msg>) {
 struct Worker {
     sink: Sender<BackendEvent>,
     adapter: Option<Adapter>,
-    /// The adapter has reported a player, so it works: the fallback stops.
-    adapter_works: bool,
+    started: Instant,
     /// The player the adapter reports now.
     adapter_player: Option<PlayerId>,
     /// When to report `adapter_player` gone, after the adapter last said
@@ -225,6 +226,10 @@ struct Worker {
     removal_due: Option<Instant>,
     reporter: Reporter,
     fallback: Fallback,
+    /// Per [`ScriptPlayer::ALL`]: since when CoreAudio says it makes sound,
+    /// and whether the fallback asks it now.
+    sound_since: [Option<Instant>; 2],
+    asking: [bool; 2],
 }
 
 impl Worker {
@@ -232,18 +237,20 @@ impl Worker {
         Self {
             sink,
             adapter,
-            adapter_works: false,
+            started: Instant::now(),
             adapter_player: None,
             removal_due: None,
             reporter: Reporter::default(),
             fallback: Fallback::default(),
+            sound_since: [None; 2],
+            asking: [false; 2],
         }
     }
 
     fn run(mut self, rx: &Receiver<Msg>) {
         let mut next_poll = Instant::now();
         loop {
-            if !self.adapter_works && Instant::now() >= next_poll {
+            if Instant::now() >= next_poll {
                 self.poll_fallback();
                 next_poll = Instant::now() + POLL_INTERVAL;
             }
@@ -254,8 +261,7 @@ impl Worker {
                     self.emit(gone);
                 }
             }
-            let poll = (!self.adapter_works).then_some(next_poll);
-            let wait = [poll, self.removal_due]
+            let wait = [Some(next_poll), self.removal_due]
                 .into_iter()
                 .flatten()
                 .min()
@@ -268,7 +274,6 @@ impl Worker {
                     eprintln!(
                         "now playing: MediaRemote adapter unavailable ({why}); using AppleScript"
                     );
-                    self.adapter_works = false;
                     self.removal_due = None;
                     if let Some(player) = self.adapter_player.take() {
                         let gone = self.reporter.remove(&player);
@@ -295,11 +300,8 @@ impl Worker {
             return;
         };
         self.removal_due = None;
-        if !self.adapter_works {
-            // The fallback's players hand over to the adapter's.
-            self.adapter_works = true;
-            self.fallback = Fallback::default();
-        }
+        // The fallback's players hand over to the adapter's.
+        self.asking = [false; 2];
         let current = snapshot.player.clone();
         let removed = self.reporter.retain(|id| *id == current);
         self.emit_all(removed);
@@ -308,17 +310,51 @@ impl Worker {
         self.emit_all(events);
     }
 
+    fn health(&self) -> AdapterHealth {
+        match (&self.adapter, &self.adapter_player) {
+            (None, _) => AdapterHealth::Gone,
+            (Some(_), Some(_)) => AdapterHealth::Reporting,
+            (Some(_), None) => AdapterHealth::Silent,
+        }
+    }
+
+    /// Asks the fallback players that [`fallback_wanted`] allows.
     fn poll_fallback(&mut self) {
-        let now = SystemTime::now();
-        let running = running_players();
-        for player in ScriptPlayer::ALL {
-            let snapshot = running
-                .contains(&player)
-                .then(|| self.fallback.poll(player, &self.reporter, now))
+        let health = self.health();
+        if health == AdapterHealth::Reporting {
+            self.sound_since = [None; 2];
+            return;
+        }
+        let now = Instant::now();
+        let playing = match health {
+            AdapterHealth::Silent => sound_scraper_capture::macos::playing_bundle_ids(),
+            _ => Vec::new(),
+        };
+        for (i, player) in ScriptPlayer::ALL.into_iter().enumerate() {
+            let sound = makes_sound(player.bundle_id(), &playing);
+            let since = &mut self.sound_since[i];
+            *since = if sound {
+                Some(since.unwrap_or(now))
+            } else {
+                None
+            };
+            let sound_for = since.map(|t| now.duration_since(t));
+            let wanted = fallback_wanted(
+                health,
+                now.duration_since(self.started),
+                sound_for,
+                self.asking[i],
+            );
+            let snapshot = (wanted && is_running(player))
+                .then(|| {
+                    self.fallback
+                        .poll(player, &self.reporter, SystemTime::now())
+                })
                 .flatten();
+            self.asking[i] = wanted;
             match snapshot {
                 Some(snapshot) => {
-                    let events = self.reporter.update(snapshot, now);
+                    let events = self.reporter.update(snapshot, SystemTime::now());
                     self.emit_all(events);
                 }
                 None => {
@@ -418,19 +454,14 @@ impl Fallback {
     }
 }
 
-/// Which fallback players are running, without launching any.
-fn running_players() -> Vec<ScriptPlayer> {
-    ScriptPlayer::ALL
-        .into_iter()
-        .filter(|player| find_process(player.process_name()).is_some())
-        .filter(|player| {
-            osascript(&format!(
-                r#"application id "{}" is running"#,
-                player.bundle_id()
-            ))
-            .is_some_and(|out| out.trim() == "true")
-        })
-        .collect()
+/// Whether a fallback player is running, without launching it.
+fn is_running(player: ScriptPlayer) -> bool {
+    find_process(player.process_name()).is_some()
+        && osascript(&format!(
+            r#"application id "{}" is running"#,
+            player.bundle_id()
+        ))
+        .is_some_and(|out| out.trim() == "true")
 }
 
 /// Runs an AppleScript; its output, or `None` if it failed (not running,

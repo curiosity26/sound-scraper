@@ -2314,6 +2314,7 @@ dependencies = [
  "base64",
  "libc",
  "serde_json",
+ "sound_scraper_capture",
  "windows",
  "zbus",
 ]

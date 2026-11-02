@@ -18,6 +18,9 @@ zbus = "5.19"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 libc = "0.2"
+# Which apps are making sound (CoreAudio), to know when to ask them over
+# AppleScript.
+sound_scraper_capture = { path = "../capture" }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.62", features = [
