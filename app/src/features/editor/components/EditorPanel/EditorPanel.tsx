@@ -16,6 +16,7 @@ import React, { type FC } from 'react'
 import { StyleSheet, View } from 'react-native'
 
 import type { ShowMenu } from '@/features/library/types'
+import { TextFieldFocusContext } from '@/shared/components/TextFieldFocusContext'
 
 import { AutoSliceBar } from './AutoSliceBar'
 import { EditorContext } from './EditorContext'
@@ -42,32 +43,34 @@ export const EditorPanel: FC<EditorPanelProps> = props => {
   const editor = useEditorState(props.target, props.onSaved, props.showMenu)
   return (
     <EditorContext value={editor}>
-      <View
-        ref={editor.rootRef}
-        accessibilityLabel="Track editor"
-        style={styles.root}
-        focusable
-        {...editor.commands.keyProps}
-      >
-        <View style={styles.body}>
-          <View style={styles.main}>
-            <EditorToolbar />
-            <AutoSliceBar />
-            <OverviewBar />
-            <Timeline />
-            <ZoomBar />
-            <View
-              style={styles.trackListBox}
-              {...editor.naming.closeNamingOnPress}
-            >
-              <TrackList />
+      <TextFieldFocusContext value={editor.fieldFocusChanged}>
+        <View
+          ref={editor.rootRef}
+          accessibilityLabel="Track editor"
+          style={styles.root}
+          focusable
+          {...editor.commands.keyProps}
+        >
+          <View style={styles.body}>
+            <View style={styles.main}>
+              <EditorToolbar />
+              <AutoSliceBar />
+              <OverviewBar />
+              <Timeline />
+              <ZoomBar />
+              <View
+                style={styles.trackListBox}
+                {...editor.naming.closeNamingOnPress}
+              >
+                <TrackList />
+              </View>
+              <EditorHint />
             </View>
-            <EditorHint />
+            <TrackTagsPane />
           </View>
-          <TrackTagsPane />
+          <SaveModal />
         </View>
-        <SaveModal />
-      </View>
+      </TextFieldFocusContext>
     </EditorContext>
   )
 }

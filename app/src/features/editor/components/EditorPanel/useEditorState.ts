@@ -2,7 +2,7 @@
 // edits and their history, playback, the timeline's view, selection,
 // naming, drags, Auto Slice, Save and the commands. EditorPanel provides it
 // to its parts (EditorContext), which read what they need with useEditor.
-import { type RefObject, useRef } from 'react'
+import { type RefObject, useCallback, useRef, useState } from 'react'
 import type { View } from 'react-native'
 
 import type { ShowMenu } from '@/features/library/types'
@@ -66,6 +66,8 @@ export type UseEditorStateResult = {
   readonly headMs: number | null
   /** The editor's root view, which takes the keys. */
   readonly rootRef: RefObject<View | null>
+  /** For TextFieldFocusContext: a field in the editor gained or lost the focus. */
+  readonly fieldFocusChanged: (gained: boolean) => void
 }
 
 export const useEditorState = (
@@ -99,6 +101,12 @@ export const useEditorState = (
   // editor takes it when its timeline is clicked (for Delete, Space, M…).
   const rootRef = useRef<View>(null)
   const takeKeys = () => rootRef.current?.focus()
+  // How many of the editor's text fields have the focus (a moment two, as
+  // it passes from one to the next).
+  const [focusedFields, setFocusedFields] = useState(0)
+  const fieldFocusChanged = useCallback((gained: boolean) => {
+    setFocusedFields(n => Math.max(0, n + (gained ? 1 : -1)))
+  }, [])
   const pressTimeline = () => {
     naming.finishNaming()
     takeKeys()
@@ -171,6 +179,7 @@ export const useEditorState = (
     tracks,
     trackTags,
     takeKeys,
+    typing: focusedFields > 0,
   })
   const trackMenu = useTrackMenu({
     showMenu,
@@ -205,5 +214,6 @@ export const useEditorState = (
         ? scrub.scrubMs ?? transport.playheadMs
         : null,
     rootRef,
+    fieldFocusChanged,
   }
 }

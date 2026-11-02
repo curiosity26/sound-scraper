@@ -395,6 +395,47 @@ describe('track tags in the editor', () => {
       })
     })
 
+    describe('when the artist field is being typed in', () => {
+      const focusArtist = async () => {
+        const user = userEvent.setup()
+        await openEditor()
+        await user.press(
+          screen.getByRole('button', { name: 'Edit metadata of track 2' }),
+        )
+        await user.press(await field('Artist', 'Guest'))
+        const input = form().getByDisplayValue('Guest')
+        await fireEvent(input, 'focus')
+        return input
+      }
+
+      it("leaves the field the editor's shortcut keys", async () => {
+        await focusArtist()
+        expect(screen.getByLabelText('Track editor')).toHaveProp(
+          'keyDownEvents',
+          [],
+        )
+      })
+
+      it("doesn't toggle Snap on S", async () => {
+        const input = await focusArtist()
+        const snap = () => screen.getByRole('button', { name: 'Snap' })
+        expect(snap()).toBeSelected()
+        await fireEvent(input, 'keyDown', { nativeEvent: { key: 's' } })
+        expect(snap()).toBeSelected()
+      })
+
+      describe('and then it loses the focus', () => {
+        it('takes the shortcut keys back', async () => {
+          const input = await focusArtist()
+          await fireEvent(input, 'blur')
+          expect(screen.getByLabelText('Track editor')).toHaveProp(
+            'keyDownEvents',
+            expect.arrayContaining([{ key: 's' }]),
+          )
+        })
+      })
+    })
+
     describe("when the album is set back to the recording's", () => {
       it('leaves the track no override for it', async () => {
         const user = fakeTime()

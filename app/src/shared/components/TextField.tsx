@@ -7,7 +7,7 @@
 // near-black whatever the text color, so it gets the text color, faded, as
 // on macOS.
 // Use this instead of TextInput everywhere.
-import type { FC, Ref } from 'react'
+import { type FC, type Ref, useContext, useEffect, useRef } from 'react'
 import {
   Platform,
   StyleSheet,
@@ -16,6 +16,8 @@ import {
 } from 'react-native'
 
 import { withAlpha } from '@/shared/utils/withAlpha'
+
+import { TextFieldFocusContext } from './TextFieldFocusContext'
 
 /** React Native Windows' (and macOS's) key that submits a multiline box. */
 type SubmitKeyEvent = { readonly key: string }
@@ -42,12 +44,40 @@ export const TextField: FC<TextFieldProps> = props => {
     windows && typeof color === 'string' && color.startsWith('#')
       ? withAlpha(color, 0.45 * 255)
       : undefined
+  // Tells shortcut keys to stand aside while this field is typed in.
+  const focusChanged = useContext(TextFieldFocusContext)
+  const changed = useRef(focusChanged)
+  changed.current = focusChanged
+  const hasFocus = useRef(false)
+  const setFocus = (gained: boolean) => {
+    if (hasFocus.current !== gained) {
+      hasFocus.current = gained
+      focusChanged?.(gained)
+    }
+  }
+  useEffect(
+    () => () => {
+      if (hasFocus.current) {
+        hasFocus.current = false
+        changed.current?.(false)
+      }
+    },
+    [],
+  )
   return (
     <TextInput
       placeholderTextColor={placeholderTextColor}
       {...fix}
       {...props}
       {...(fix && { multiline: true })}
+      onFocus={e => {
+        setFocus(true)
+        props.onFocus?.(e)
+      }}
+      onBlur={e => {
+        setFocus(false)
+        props.onBlur?.(e)
+      }}
     />
   )
 }

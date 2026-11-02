@@ -53,10 +53,18 @@ const KEYS = [
   { key: '0', metaKey: true },
 ]
 
-// macOS-only View props (not in React Native's types): the keys the
-// editor handles, without a focus ring.
-const macKeys = (onKeyDown: (e: KeyDownEvent) => void): object => {
-  return { enableFocusRing: false, keyDownEvents: KEYS, onKeyDown }
+// View props for macOS and Linux (not in React Native's types): the keys
+// the editor handles, without a focus ring. None while a text field is
+// typed in: on Linux, keys an ancestor claims never reach the field.
+const macKeys = (
+  onKeyDown: (e: KeyDownEvent) => void,
+  typing: boolean,
+): object => {
+  return {
+    enableFocusRing: false,
+    keyDownEvents: typing ? [] : KEYS,
+    onKeyDown,
+  }
 }
 
 /** The keys held while a track in the list is clicked. */
@@ -83,6 +91,8 @@ export type UseEditorCommandsOptions = {
   readonly trackTags: UseTrackTagsResult
   /** Gives the editor keyboard focus. */
   readonly takeKeys: () => void
+  /** A text field in the editor has the focus: its keys are the field's. */
+  readonly typing: boolean
 }
 
 export type UseEditorCommandsResult = {
@@ -208,8 +218,10 @@ export const useEditorCommands = (
     )
   }
 
+  const { typing } = options
   const onKeyDown = (e: KeyDownEvent) => {
-    if (saveFlow.isOpen || naming.naming !== null) {
+    // Keys typed in a field (the tag form, a name) bubble up here too.
+    if (saveFlow.isOpen || naming.naming !== null || typing) {
       return
     }
     const { key, metaKey, shiftKey } = e.nativeEvent
@@ -324,6 +336,6 @@ export const useEditorCommands = (
       lastRegionPress.current = { i, at: now }
       selectTrack(i)
     },
-    keyProps: macKeys(onKeyDown),
+    keyProps: macKeys(onKeyDown, typing),
   }
 }
