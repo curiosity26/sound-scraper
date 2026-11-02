@@ -1,6 +1,6 @@
 //! Saving an edit: writes each track as its own MP3 next to the original
 //! (docs/track-editor-design.md §4.7), tagged like the original except for
-//! the title and track number.
+//! the title, the track number and the track's own tags (`TrackTags`).
 //!
 //! A track that is one unbroken stretch of the original is cut losslessly
 //! (`mp3cut`). One with a deleted region inside it (or where the bit
@@ -12,7 +12,7 @@
 use std::path::{Path, PathBuf};
 
 use super::{
-    edits::{EditList, TrackPlan},
+    edits::{self, EditList, TrackPlan},
     mp3cut::Mp3Index,
 };
 use crate::{
@@ -21,7 +21,7 @@ use crate::{
     player::Source,
     recorder::PART_EXT,
     settings::Quality,
-    tags::{self, TagVersion},
+    tags::{self, CoverEdit, TagVersion},
 };
 
 /// What a save made.
@@ -81,7 +81,16 @@ pub fn save(
                     )?
                 }
             };
-            let tag = tags::track_tag_bytes(original, &track.name, i as u32 + 1, total, version)?;
+            let number = track.tags.track.filter(|&n| n > 0).unwrap_or(i as u32 + 1);
+            let tag = tags::track_tag_bytes_with(
+                original,
+                &track.name,
+                number,
+                total,
+                &track.tags,
+                &cover_edit(original, track.tags.cover.as_deref()),
+                version,
+            )?;
             let stem = paths::sanitize(&track.name);
             let path = paths::unique_path(dir, &stem, ".mp3", &[PART_EXT]);
             let part = path.with_file_name(format!(
@@ -112,6 +121,20 @@ pub fn save(
         reencoded,
         from_master: master.is_some(),
     })
+}
+
+/// A track's cover: a cover id stored in the original's draft folder (one
+/// that's gone keeps the original's cover), "" for none, or `None` to keep
+/// the original's.
+fn cover_edit(original: &Path, cover: Option<&str>) -> CoverEdit {
+    match cover.map(str::trim) {
+        None => CoverEdit::Keep,
+        Some("") => CoverEdit::Remove,
+        Some(id) => original
+            .file_name()
+            .and_then(|name| edits::cover_path(&name.to_string_lossy(), id))
+            .map_or(CoverEdit::Keep, CoverEdit::Set),
+    }
 }
 
 /// The encoder setting closest to the original's.
@@ -185,6 +208,10 @@ mod tests {
     }
 
     fn recording(dir: &Path) -> PathBuf {
+        recording_named(dir, "Album.mp3")
+    }
+
+    fn recording_named(dir: &Path, name: &str) -> PathBuf {
         let rate = 48000;
         let samples: Vec<f32> = (0..rate * 6)
             .flat_map(|i| {
@@ -193,7 +220,7 @@ mod tests {
             })
             .collect();
         let audio = crate::mp3::tests::encode_all(&samples, rate, true);
-        let path = dir.join("Album.mp3");
+        let path = dir.join(name);
         std::fs::write(&path, &audio).unwrap();
         tags::write(
             &path,
@@ -220,16 +247,19 @@ mod tests {
                 Splice {
                     at_ms: 2000.0,
                     name: "Middle/Part".into(),
+                    tags: None,
                 },
                 Splice {
                     at_ms: 4000.0,
                     name: "Album".into(),
+                    tags: None,
                 },
             ],
             deleted: vec![Region {
                 start_ms: 2500.0,
                 end_ms: 3000.0,
             }],
+            ..Default::default()
         };
         let saved = save(&original, &edits, TagVersion::V24, None, &|_| {}).unwrap();
         let names: Vec<String> = saved
@@ -291,11 +321,13 @@ mod tests {
             splices: vec![Splice {
                 at_ms: 2500.0,
                 name: "Two".into(),
+                tags: None,
             }],
             deleted: vec![Region {
                 start_ms: 4000.0,
                 end_ms: 4500.0,
             }],
+            ..Default::default()
         };
         let saved = save(&original, &edits, TagVersion::V24, Some(&master), &|_| {}).unwrap();
         assert!(saved.from_master && saved.reencoded == 0);
@@ -305,6 +337,105 @@ mod tests {
             (168_000 - 24_000) * 2,
             "3.5 s less the 0.5 s deleted"
         );
+    }
+
+    #[test]
+    fn each_track_gets_its_own_tags_over_the_originals() {
+        use crate::edit::edits::TrackTags;
+        let dir = paths::tempdir();
+        // A name no other test uses: covers live in its draft folder.
+        let name = "Per-track tags test.mp3";
+        let original = recording_named(&dir, name);
+        let jpeg = [0xFF, 0xD8, 0xFF, 0xE0, 0, 0x10, b'J', b'F', b'I', b'F'];
+        let old_cover = dir.join("old.jpg");
+        std::fs::write(&old_cover, jpeg).unwrap();
+        tags::write(
+            &original,
+            &tags::TagEdit {
+                date: Some(Some("2026-10-03".into())),
+                genre: Some(Some("Jazz".into())),
+                cover: CoverEdit::Set(old_cover),
+                ..Default::default()
+            },
+            TagVersion::V24,
+        )
+        .unwrap();
+        let id = edits::store_cover(name, "image/png", crate::tags::tests::PNG_1X1).unwrap();
+
+        let edits = EditList {
+            first_name: "One".into(),
+            first_tags: Some(TrackTags {
+                artist: Some("Solo".into()),
+                genre: Some(String::new()),
+                track: Some(9),
+                cover: Some(String::new()),
+                date: Some("1999-05-17".into()),
+                ..Default::default()
+            }),
+            splices: vec![
+                Splice {
+                    at_ms: 2000.0,
+                    name: "Two".into(),
+                    tags: None,
+                },
+                Splice {
+                    at_ms: 4000.0,
+                    name: "Three".into(),
+                    tags: Some(TrackTags {
+                        album: Some("Studio".into()),
+                        album_artist: Some("Various".into()),
+                        comment: Some("Remaster".into()),
+                        cover: Some(id),
+                        ..Default::default()
+                    }),
+                },
+            ],
+            ..Default::default()
+        };
+        let saved = save(&original, &edits, TagVersion::V23, None, &|_| {}).unwrap();
+        let read = |i: usize| tags::read(&saved.paths[i]).unwrap();
+
+        let one = read(0);
+        assert_eq!(one.title.as_deref(), Some("One"));
+        assert_eq!(one.artist.as_deref(), Some("Solo"), "set");
+        assert_eq!(one.album.as_deref(), Some("Live"), "kept");
+        assert_eq!(one.genre, None, "cleared");
+        assert_eq!(one.track, Some(9), "numbered by its tags");
+        assert!(!one.has_cover, "cover removed");
+        assert_eq!(one.date.as_deref(), Some("1999"), "ID3v2.3 keeps the year");
+
+        let two = read(1);
+        assert_eq!(
+            (two.artist.as_deref(), two.album.as_deref(), two.track),
+            (Some("Band"), Some("Live"), Some(2)),
+            "no tags: like the original"
+        );
+        assert_eq!(two.genre.as_deref(), Some("Jazz"));
+        assert_eq!(two.date.as_deref(), Some("2026"));
+        assert_eq!(
+            tags::read_cover(&saved.paths[1]).unwrap().1,
+            jpeg.to_vec(),
+            "the original's cover"
+        );
+
+        let three = read(2);
+        assert_eq!(three.album.as_deref(), Some("Studio"));
+        assert_eq!(three.album_artist.as_deref(), Some("Various"));
+        assert_eq!(three.comment.as_deref(), Some("Remaster"));
+        assert_eq!(three.artist.as_deref(), Some("Band"));
+        assert_eq!(three.track, Some(3));
+        assert_eq!(
+            tags::read_cover(&saved.paths[2]).unwrap(),
+            (
+                "image/png".to_string(),
+                crate::tags::tests::PNG_1X1.to_vec()
+            )
+        );
+        use id3::TagLike;
+        let tag = id3::Tag::read_from_path(&saved.paths[2]).unwrap();
+        assert_eq!(tag.pictures().count(), 1, "the cover replaces the old one");
+        assert_eq!(tag.total_tracks(), Some(3));
+        edits::discard_draft(name);
     }
 
     #[test]

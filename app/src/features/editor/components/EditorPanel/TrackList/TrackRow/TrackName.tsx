@@ -48,7 +48,7 @@ const styles = StyleSheet.create({
   // padding: Windows' text box otherwise adds its own and clips the text in
   // these short rows.
   name: {
-    flex: 1,
+    alignSelf: 'stretch',
     height: 20,
     paddingTop: Platform.OS === 'windows' ? 2 : 0,
     paddingBottom: 0,

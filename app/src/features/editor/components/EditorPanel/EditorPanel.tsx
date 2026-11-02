@@ -15,6 +15,9 @@
 import React, { type FC } from 'react'
 import { StyleSheet, View } from 'react-native'
 
+import type { ShowMenu } from '@/features/library/types'
+import { TextFieldFocusContext } from '@/shared/components/TextFieldFocusContext'
+
 import { AutoSliceBar } from './AutoSliceBar'
 import { EditorContext } from './EditorContext'
 import { EditorHint } from './EditorHint'
@@ -23,6 +26,7 @@ import { OverviewBar } from './OverviewBar'
 import { SaveModal } from './SaveModal'
 import { Timeline } from './Timeline'
 import { TrackList } from './TrackList'
+import { TrackTagsPane } from './TrackTagsPane'
 import type { EditorTarget } from './types'
 import { useEditorState } from './useEditorState'
 import { ZoomBar } from './ZoomBar'
@@ -31,35 +35,49 @@ export type EditorPanelProps = {
   readonly target: EditorTarget
   /** Saved: the new tracks' file names (the editor should close). */
   readonly onSaved: (files: string[], keptOriginal: boolean) => void
+  /** The window's native context menu (a track's right-click menu); none, no menu. */
+  readonly showMenu?: ShowMenu
 }
 
 export const EditorPanel: FC<EditorPanelProps> = props => {
-  const editor = useEditorState(props.target, props.onSaved)
+  const editor = useEditorState(props.target, props.onSaved, props.showMenu)
   return (
     <EditorContext value={editor}>
-      <View
-        ref={editor.rootRef}
-        accessibilityLabel="Track editor"
-        style={styles.root}
-        focusable
-        {...editor.commands.keyProps}
-      >
-        <EditorToolbar />
-        <AutoSliceBar />
-        <OverviewBar />
-        <Timeline />
-        <ZoomBar />
-        <View style={styles.trackListBox} {...editor.naming.closeNamingOnPress}>
-          <TrackList />
+      <TextFieldFocusContext value={editor.fieldFocusChanged}>
+        <View
+          ref={editor.rootRef}
+          accessibilityLabel="Track editor"
+          style={styles.root}
+          focusable
+          {...editor.commands.keyProps}
+        >
+          <View style={styles.body}>
+            <View style={styles.main}>
+              <EditorToolbar />
+              <AutoSliceBar />
+              <OverviewBar />
+              <Timeline />
+              <ZoomBar />
+              <View
+                style={styles.trackListBox}
+                {...editor.naming.closeNamingOnPress}
+              >
+                <TrackList />
+              </View>
+              <EditorHint />
+            </View>
+            <TrackTagsPane />
+          </View>
+          <SaveModal />
         </View>
-        <EditorHint />
-        <SaveModal />
-      </View>
+      </TextFieldFocusContext>
     </EditorContext>
   )
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, overflow: 'hidden' },
+  body: { flex: 1, flexDirection: 'row' },
+  main: { flex: 1 },
   trackListBox: { flexShrink: 1, minHeight: 60 },
 })

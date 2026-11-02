@@ -10,6 +10,7 @@ vi.mock(
   '@/bridge/NativeSoundScraper',
   () => import('@test/fakes/NativeSoundScraper'),
 )
+vi.mock('@/bridge/NativeEditor', () => import('@test/fakes/NativeEditor'))
 
 const showSettings = async () => {
   await render(<SettingsPanel textStyle={{}} />)
@@ -36,6 +37,33 @@ describe('the settings panel', () => {
       expect(
         screen.getByRole('checkbox', { name: 'Trim silence', checked: true }),
       ).toBeOnTheScreen()
+    })
+
+    it('offers tagging recordings from now playing, checked', () => {
+      expect(
+        screen.getByRole('checkbox', {
+          name: 'Tag recordings from now playing',
+          checked: true,
+        }),
+      ).toBeOnTheScreen()
+    })
+
+    it('offers splitting at track changes, checked', () => {
+      expect(
+        screen.getByRole('checkbox', {
+          name: 'Split at track changes',
+          checked: true,
+        }),
+      ).toBeOnTheScreen()
+    })
+
+    it('says splitting proposes splits in the editor', () => {
+      expect(
+        screen.getByRole('checkbox', { name: 'Split at track changes' }),
+      ).toHaveProp(
+        'accessibilityHint',
+        expect.stringContaining('Propose splits in the editor'),
+      )
     })
 
     it('describes each choice in its hint', () => {
@@ -77,6 +105,27 @@ describe('the settings panel', () => {
           checked: false,
         }),
       ).toBeOnTheScreen()
+    })
+  })
+
+  describe.each([
+    ['Tag recordings from now playing', 'nowPlayingTags'],
+    ['Split at track changes', 'splitAtTrackChanges'],
+  ] as const)('when I uncheck %s', (name, setting) => {
+    beforeEach(async () => {
+      await showSettings()
+      await userEvent.press(screen.getByRole('checkbox', { name }))
+    })
+
+    it('shows it unchecked', async () => {
+      expect(
+        await screen.findByRole('checkbox', { name, checked: false }),
+      ).toBeOnTheScreen()
+    })
+
+    it('saves the setting off', async () => {
+      await screen.findByRole('checkbox', { name, checked: false })
+      expect(fakeCore.settings()[setting]).toBe(false)
     })
   })
 })

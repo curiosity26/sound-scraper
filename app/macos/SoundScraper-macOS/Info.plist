@@ -56,6 +56,8 @@
 	</dict>
 	<key>NSAudioCaptureUsageDescription</key>
 	<string>Sound Scraper records the audio your Mac is playing.</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Sound Scraper asks Music and Spotify what they are playing, to name and split your recordings.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>NSSupportsAutomaticTermination</key>

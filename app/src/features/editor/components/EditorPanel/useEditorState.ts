@@ -2,13 +2,15 @@
 // edits and their history, playback, the timeline's view, selection,
 // naming, drags, Auto Slice, Save and the commands. EditorPanel provides it
 // to its parts (EditorContext), which read what they need with useEditor.
-import { type RefObject, useRef } from 'react'
+import { type RefObject, useCallback, useRef, useState } from 'react'
 import type { View } from 'react-native'
 
+import type { ShowMenu } from '@/features/library/types'
 import { useSkin } from '@/features/skins/hooks/useSkin'
 
 import type { EditorTarget, EditorTheme } from './types'
 import { type UseAutoSliceResult, useAutoSlice } from './useAutoSlice'
+import { type UseCutChecksResult, useCutChecks } from './useCutChecks'
 import { type UseEditHistoryResult, useEditHistory } from './useEditHistory'
 import {
   type UseEditorCommandsResult,
@@ -26,12 +28,15 @@ import {
   useEditorTransport,
 } from './useEditorTransport'
 import { useFollowPlayhead } from './useFollowPlayhead'
+import { useRecordingTags } from './useRecordingTags'
 import { type UseRulerScrubResult, useRulerScrub } from './useRulerScrub'
 import { type UseSaveFlowResult, useSaveFlow } from './useSaveFlow'
 import { type UseSnapResult, useSnap } from './useSnap'
 import { type UseTimelineDragResult, useTimelineDrag } from './useTimelineDrag'
 import { type UseTimelineViewResult, useTimelineView } from './useTimelineView'
+import { type UseTrackMenuResult, useTrackMenu } from './useTrackMenu'
 import { type UseTrackNamingResult, useTrackNaming } from './useTrackNaming'
+import { type UseTrackTagsResult, useTrackTags } from './useTrackTags'
 
 export type UseEditorStateResult = {
   readonly target: EditorTarget
@@ -46,20 +51,29 @@ export type UseEditorStateResult = {
   readonly saveFlow: UseSaveFlowResult
   readonly drag: UseTimelineDragResult
   readonly tracks: UseEditorTracksResult
+  /** Each track's tags, and the tag form on tracks. */
+  readonly trackTags: UseTrackTagsResult
+  /** Slices placed from now-playing info that couldn't be lined up with a gap. */
+  readonly cuts: UseCutChecksResult
   readonly autoSlice: UseAutoSliceResult
   readonly scrub: UseRulerScrubResult
   readonly commands: UseEditorCommandsResult
+  /** The context menu on a track. */
+  readonly trackMenu: UseTrackMenuResult
   /** Presses in the timeline start drags only once it's read and no dialog is up. */
   readonly enabled: boolean
   /** Where the playhead (or the scrub) is, if it's shown. */
   readonly headMs: number | null
   /** The editor's root view, which takes the keys. */
   readonly rootRef: RefObject<View | null>
+  /** For TextFieldFocusContext: a field in the editor gained or lost the focus. */
+  readonly fieldFocusChanged: (gained: boolean) => void
 }
 
 export const useEditorState = (
   target: EditorTarget,
   onSaved: (files: string[], keptOriginal: boolean) => void,
+  showMenu?: ShowMenu,
 ): UseEditorStateResult => {
   // The skin's waveform colors.
   const colors = useSkin().panels.editor.waveform
@@ -87,6 +101,12 @@ export const useEditorState = (
   // editor takes it when its timeline is clicked (for Delete, Space, M…).
   const rootRef = useRef<View>(null)
   const takeKeys = () => rootRef.current?.focus()
+  // How many of the editor's text fields have the focus (a moment two, as
+  // it passes from one to the next).
+  const [focusedFields, setFocusedFields] = useState(0)
+  const fieldFocusChanged = useCallback((gained: boolean) => {
+    setFocusedFields(n => Math.max(0, n + (gained ? 1 : -1)))
+  }, [])
   const pressTimeline = () => {
     naming.finishNaming()
     takeKeys()
@@ -110,6 +130,15 @@ export const useEditorState = (
     durationMs,
     shown: drag.shown,
   })
+  const recording = useRecordingTags(target.fileName)
+  const trackTags = useTrackTags({
+    fileName: target.fileName,
+    rows: tracks.rows,
+    recording: recording.tags,
+    selected: selection.selectedTracks,
+    history,
+  })
+  const cuts = useCutChecks(target.fileName)
   const autoSlice = useAutoSlice({
     editorId,
     ready,
@@ -148,7 +177,16 @@ export const useEditorState = (
     autoSlice,
     saveFlow,
     tracks,
+    trackTags,
     takeKeys,
+    typing: focusedFields > 0,
+  })
+  const trackMenu = useTrackMenu({
+    showMenu,
+    history,
+    tracks,
+    selection,
+    editTrackTags: commands.editTrackTags,
   })
 
   return {
@@ -164,14 +202,18 @@ export const useEditorState = (
     saveFlow,
     drag,
     tracks,
+    trackTags,
+    cuts,
     autoSlice,
     scrub,
     commands,
+    trackMenu,
     enabled,
     headMs:
       transport.loaded || scrub.scrubMs !== null
         ? scrub.scrubMs ?? transport.playheadMs
         : null,
     rootRef,
+    fieldFocusChanged,
   }
 }

@@ -195,6 +195,7 @@
 				A9293D0BE587DAC38FE9F6CB /* [CP] Embed Pods Frameworks */,
 				47851C3F42AEE1BB41FCCC8D /* [CP] Copy Pods Resources */,
 				F98C37349ECB3B8DB7194940 /* Embed LAME (LGPL) */,
+				5E3D1A7C9B2F4E6A8C0D1B2E /* Embed MediaRemote adapter */,
 			);
 			buildRules = (
 			);
@@ -377,6 +378,25 @@
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-SoundScraper-macOS/Pods-SoundScraper-macOS-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
+		};
+		5E3D1A7C9B2F4E6A8C0D1B2E /* Embed MediaRemote adapter */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Embed MediaRemote adapter";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${SRCROOT}/../../core/scripts/build-mediaremote-adapter.sh\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

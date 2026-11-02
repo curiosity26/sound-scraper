@@ -19,6 +19,7 @@ import type { UseSaveFlowResult } from './useSaveFlow'
 import type { UseSnapResult } from './useSnap'
 import type { UseTimelineViewResult } from './useTimelineView'
 import type { UseTrackNamingResult } from './useTrackNaming'
+import type { UseTrackTagsResult } from './useTrackTags'
 
 const DOUBLE_CLICK_MS = 400
 
@@ -52,10 +53,26 @@ const KEYS = [
   { key: '0', metaKey: true },
 ]
 
-// macOS-only View props (not in React Native's types): the keys the
-// editor handles, without a focus ring.
-const macKeys = (onKeyDown: (e: KeyDownEvent) => void): object => {
-  return { enableFocusRing: false, keyDownEvents: KEYS, onKeyDown }
+// View props for macOS and Linux (not in React Native's types): the keys
+// the editor handles, without a focus ring. None while a text field is
+// typed in: on Linux, keys an ancestor claims never reach the field.
+const macKeys = (
+  onKeyDown: (e: KeyDownEvent) => void,
+  typing: boolean,
+): object => {
+  return {
+    enableFocusRing: false,
+    keyDownEvents: typing ? [] : KEYS,
+    onKeyDown,
+  }
+}
+
+/** The keys held while a track in the list is clicked. */
+export type TrackPressModifiers = {
+  /** Shift: extend the selection. */
+  readonly extend: boolean
+  /** Ctrl (⌘ on macOS): add to or take from the selection. */
+  readonly toggle: boolean
 }
 
 export type UseEditorCommandsOptions = {
@@ -71,8 +88,11 @@ export type UseEditorCommandsOptions = {
   readonly autoSlice: UseAutoSliceResult
   readonly saveFlow: UseSaveFlowResult
   readonly tracks: UseEditorTracksResult
+  readonly trackTags: UseTrackTagsResult
   /** Gives the editor keyboard focus. */
   readonly takeKeys: () => void
+  /** A text field in the editor has the focus: its keys are the field's. */
+  readonly typing: boolean
 }
 
 export type UseEditorCommandsResult = {
@@ -85,6 +105,14 @@ export type UseEditorCommandsResult = {
   readonly openTrack: (index: number) => void
   /** A track's region: click to select the track, double-click to rename it. */
   readonly pressRegion: (index: number) => void
+  /**
+   * A track in the list: click to pick it (as openTrack), shift-click to
+   * select the tracks up to it, Ctrl/⌘-click to add or remove it,
+   * double-click to edit its tags.
+   */
+  readonly pressTrack: (index: number, modifiers: TrackPressModifiers) => void
+  /** Opens the tag form on the track, or on the selection it's part of. */
+  readonly editTrackTags: (index: number) => void
   /** The macOS key props for the editor's root view. */
   readonly keyProps: object
 }
@@ -172,9 +200,28 @@ export const useEditorCommands = (
   }
   // A track's region: click to select the track, double-click to rename it.
   const lastRegionPress = useRef({ i: -1, at: 0 })
+  // A track in the list: double-click to edit its tags.
+  const lastTrackPress = useRef({ i: -1, at: 0 })
+  const openTrack = (i: number) => {
+    selectTrack(i)
+    const tr = rows[i]
+    if (tr) {
+      view.zoomToRange(tr.startMs, options.tracks.trackEnd(i))
+    }
+  }
+  const editTrackTags = (i: number) => {
+    const { selectedTracks } = selection
+    options.trackTags.open(
+      selectedTracks.length > 1 && selectedTracks.includes(i)
+        ? selectedTracks
+        : [i],
+    )
+  }
 
+  const { typing } = options
   const onKeyDown = (e: KeyDownEvent) => {
-    if (saveFlow.isOpen || naming.naming !== null) {
+    // Keys typed in a field (the tag form, a name) bubble up here too.
+    if (saveFlow.isOpen || naming.naming !== null || typing) {
       return
     }
     const { key, metaKey, shiftKey } = e.nativeEvent
@@ -248,13 +295,31 @@ export const useEditorCommands = (
       commit(emptyEdits(options.title))
       selection.clearSelections()
     },
-    openTrack: i => {
-      selectTrack(i)
-      const tr = rows[i]
-      if (tr) {
-        view.zoomToRange(tr.startMs, options.tracks.trackEnd(i))
+    openTrack,
+    pressTrack: (i, modifiers) => {
+      if (modifiers.extend || modifiers.toggle) {
+        naming.finishNaming()
+        lastTrackPress.current = { i: -1, at: 0 }
+        if (modifiers.extend) {
+          selection.extendTracks(i)
+        } else {
+          selection.toggleTrack(i)
+        }
+        return
       }
+      const now = Date.now()
+      if (
+        lastTrackPress.current.i === i &&
+        now - lastTrackPress.current.at < DOUBLE_CLICK_MS
+      ) {
+        lastTrackPress.current = { i: -1, at: 0 }
+        editTrackTags(i)
+        return
+      }
+      lastTrackPress.current = { i, at: now }
+      openTrack(i)
     },
+    editTrackTags,
     pressRegion: i => {
       const now = Date.now()
       const row = rows[i]
@@ -271,6 +336,6 @@ export const useEditorCommands = (
       lastRegionPress.current = { i, at: now }
       selectTrack(i)
     },
-    keyProps: macKeys(onKeyDown),
+    keyProps: macKeys(onKeyDown, typing),
   }
 }

@@ -82,13 +82,22 @@ def lame():
                      'LAME 3.100 or later. Its source is in core/vendor/mp3lame-sys/lame-3.100 of the '
                      'Sound Scraper source code.')}
 
+def mediaremote_adapter():
+    base = os.path.join(ROOT, 'core', 'vendor', 'mediaremote-adapter')
+    return {'name': 'mediaremote-adapter', 'version': '0.7.7', 'license': 'BSD-3-Clause',
+            'repository': 'https://github.com/ungive/mediaremote-adapter',
+            'texts': license_files(base),
+            'note': ('The macOS app runs it to read what is playing (MediaRemoteAdapter.framework in the '
+                     'app bundle\'s Frameworks folder). Its source is in core/vendor/mediaremote-adapter '
+                     'of the Sound Scraper source code.')}
+
 def material_icons():
     base = os.path.join(ROOT, 'app', 'assets', 'fonts')
     return {'name': 'Material Icons (font)', 'version': '4.0.0', 'license': 'Apache-2.0',
             'repository': 'https://github.com/google/material-design-icons',
             'texts': license_files(base)}
 
-data = {'lame': lame(), 'rust': rust(), 'js': sorted(js() + [material_icons()], key=lambda p: (p['name'], p['version']))}
+data = {'lame': lame(), 'mediaRemoteAdapter': mediaremote_adapter(), 'rust': rust(), 'js': sorted(js() + [material_icons()], key=lambda p: (p['name'], p['version']))}
 data['texts'] = texts
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 with open(OUT, 'w') as f:

@@ -1,6 +1,7 @@
 import React, { type FC } from 'react'
 import { StyleSheet, View } from 'react-native'
 
+import { CHECK_CUT_COLOR } from '@/features/editor/components/EditorPanel/constants'
 import {
   formatTime,
   type Splice,
@@ -15,14 +16,21 @@ export type SliceEdgeProps = {
   readonly slice: Splice
 }
 
-/** A slice's edge in the lane: grab to move it. */
+/**
+ * A slice's edge in the lane: grab to move it. A slice placed from
+ * now-playing info without a quiet gap to line up with has an amber grip:
+ * check the cut.
+ */
 export const SliceEdge: FC<SliceEdgeProps> = props => {
   const { slice: s } = props
-  const { th, view, selection, drag } = useEditor()
+  const { th, view, selection, drag, cuts } = useEditor()
   const selected = s.id === selection.selectedSlice
+  const check = cuts.needsCheck(s.atMs)
   return (
     <View
-      accessibilityLabel={`Slice ${s.name} at ${formatTime(s.atMs, 100)}`}
+      accessibilityLabel={`Slice ${s.name} at ${formatTime(s.atMs, 100)}${
+        check ? ', check this cut' : ''
+      }`}
       style={[styles.edge, { left: s.atMs / view.scale - HANDLE / 2 }]}
       {...drag.sliceResponder(s.id, s.atMs)}
     >
@@ -34,6 +42,8 @@ export const SliceEdge: FC<SliceEdgeProps> = props => {
           {
             backgroundColor: selected
               ? th.wave('spliceSelected', '#fff0a0')
+              : check
+              ? CHECK_CUT_COLOR
               : th.text,
           },
         ]}

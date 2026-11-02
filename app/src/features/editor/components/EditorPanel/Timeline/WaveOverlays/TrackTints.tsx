@@ -24,7 +24,7 @@ export const TrackTints: FC = () => {
               width: (tracks.trackEnd(i) - tr.startMs) / scale,
               backgroundColor: withAlpha(
                 trackColor(i),
-                selection.selectedTrack === i ? 0x22 : 0x10,
+                selection.selectedTracks.includes(i) ? 0x22 : 0x10,
               ),
             },
           ]}

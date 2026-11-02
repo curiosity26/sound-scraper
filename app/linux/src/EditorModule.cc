@@ -22,6 +22,9 @@ EditorModule::EditorModule(std::shared_ptr<CallInvoker> jsInvoker)
   method<&EditorModule::mastersUsage>("mastersUsage");
   method<&EditorModule::deleteAllMasters>("deleteAllMasters");
   method<&EditorModule::save>("save");
+  method<&EditorModule::storeEditCover>("storeEditCover");
+  method<&EditorModule::editCoverPath>("editCoverPath");
+  method<&EditorModule::editMarkers>("editMarkers");
 }
 
 // A save in progress keeps the saver (and its library) alive.
@@ -101,6 +104,29 @@ AsyncPromise<std::string> EditorModule::save(jsi::Runtime &rt, std::string fileN
     promise.resolve(take(json, ""));
   });
   return promise;
+}
+
+AsyncPromise<std::string> EditorModule::storeEditCover(jsi::Runtime &rt, std::string fileName,
+                                                       std::string imagePath) {
+  AsyncPromise<std::string> promise(rt, jsInvoker_);
+  // Reads and copies the image, so off the JS thread.
+  runOffThread([fileName = std::move(fileName), imagePath = std::move(imagePath), promise]() mutable {
+    char *id = ss_edits_store_cover(fileName.c_str(), imagePath.c_str());
+    if (!id) {
+      promise.reject(lastError());
+      return;
+    }
+    promise.resolve(take(id, ""));
+  });
+  return promise;
+}
+
+std::string EditorModule::editCoverPath(jsi::Runtime &, std::string fileName, std::string coverId) {
+  return take(ss_edits_cover_path(fileName.c_str(), coverId.c_str()), "");
+}
+
+std::string EditorModule::editMarkers(jsi::Runtime &, std::string fileName) {
+  return take(ss_edits_markers(fileName.c_str()), "[]");
 }
 
 }  // namespace soundscraper

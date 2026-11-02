@@ -23,6 +23,7 @@ export const EditorContent: FC = () => {
       <EditorPanel
         key={target.path}
         target={target}
+        showMenu={(items, x, y) => windows.showMenu(items, -1, x, y, 'editor')}
         onSaved={(files, keptOriginal) => {
           if (!keptOriginal && playback.get().path === target.path) {
             playback.clear()

@@ -65,6 +65,10 @@ pub struct Settings {
     pub master_budget_gb: u32,
     /// Masters not edited for this many days are removed.
     pub master_max_age_days: u32,
+    /// Fill in a one-song recording's tags from what the OS says is playing.
+    pub now_playing_tags: bool,
+    /// Propose splits (an editor draft) where the song changed.
+    pub split_at_track_changes: bool,
 }
 
 /// The settings as `ss_settings_get` returns them: with the folder
@@ -103,6 +107,8 @@ impl Default for Settings {
             master_min_minutes: 20,
             master_budget_gb: 10,
             master_max_age_days: 30,
+            now_playing_tags: true,
+            split_at_track_changes: true,
         }
     }
 }
@@ -238,6 +244,8 @@ mod tests {
             master_min_minutes: 5,
             master_budget_gb: 2,
             master_max_age_days: 7,
+            now_playing_tags: false,
+            split_at_track_changes: false,
         };
         save_to(&path, &s).unwrap();
         assert_eq!(load_from(&path), s);

@@ -9,6 +9,8 @@ import type { LicenseRow } from './types'
 const rows: readonly LicenseRow[] = [
   { kind: 'header', key: 'h-lame', title: 'MP3 encoder' },
   { kind: 'pkg', key: 'lame', pkg: data.lame },
+  { kind: 'header', key: 'h-mediaremote', title: 'Now playing (macOS)' },
+  { kind: 'pkg', key: 'mediaremote', pkg: data.mediaRemoteAdapter },
   {
     kind: 'header',
     key: 'h-rust',

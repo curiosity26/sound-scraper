@@ -21,6 +21,8 @@ export type UseEditHistoryResult = {
   readonly canUndo: boolean
   readonly canRedo: boolean
   readonly commit: (next: Edits) => void
+  /** Commits a change to the edits as they are when it lands (for async work). */
+  readonly commitWith: (change: (current: Edits) => Edits) => void
   readonly undo: () => void
   readonly redo: () => void
 }
@@ -48,6 +50,9 @@ export const useEditHistory = (target: EditorTarget): UseEditHistoryResult => {
     canRedo: hist.future.length > 0,
     commit: next => {
       setHist(h => history.push(h, next))
+    },
+    commitWith: change => {
+      setHist(h => history.push(h, change(h.present)))
     },
     undo: () => {
       setHist(history.undo)

@@ -1,0 +1,36 @@
+[package]
+name = "sound_scraper_nowplaying"
+description = "Sound Scraper: what the OS says is playing (SMTC, MPRIS, MediaRemote)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+# Read by the macOS backend's logic, which is tested on every OS.
+base64 = "0.22"
+serde_json = "1"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# Blocking API only; the default async-io feature is zbus's own internal
+# executor (no tokio).
+zbus = "5.19"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+libc = "0.2"
+# Which apps are making sound (CoreAudio), to know when to ask them over
+# AppleScript.
+sound_scraper_capture = { path = "../capture" }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62", features = [
+    "Foundation",
+    "Foundation_Collections",
+    "Media_Control",
+    "Storage_Streams",
+    "Win32_Foundation",
+    "Win32_Storage_Packaging_Appx",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_Threading",
+    "Win32_System_WinRT",
+] }

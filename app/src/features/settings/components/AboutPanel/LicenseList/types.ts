@@ -9,6 +9,7 @@ export type Pkg = {
 
 export type LicenseData = {
   readonly lame: Pkg
+  readonly mediaRemoteAdapter: Pkg
   readonly rust: readonly Pkg[]
   readonly js: readonly Pkg[]
   readonly texts: Readonly<Record<string, string>>

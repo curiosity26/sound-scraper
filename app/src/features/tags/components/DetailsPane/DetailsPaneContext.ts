@@ -3,8 +3,16 @@ import { createContext } from 'react'
 import type { UseRecordingDetailsResult } from './useRecordingDetails'
 
 export type DetailsPaneState = UseRecordingDetailsResult & {
-  /** One recording, or several for a bulk edit. */
+  /**
+   * One recording, or several for a bulk edit (with a heading, any keys
+   * naming what's edited: the fields start over when they change).
+   */
   readonly fileNames: readonly string[]
+  /**
+   * Shown over the fields instead of the file name (and Rename): what the
+   * form edits when that isn't recordings on disk, e.g. tracks in a draft.
+   */
+  readonly heading?: string
   readonly onClose: () => void
   /** No native menus: the actions show as links under the fields. */
   readonly linkActions: boolean

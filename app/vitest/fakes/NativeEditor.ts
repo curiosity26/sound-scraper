@@ -12,6 +12,7 @@ import { vi } from 'vitest'
 import type {
   EditList,
   EditorTrack,
+  Marker,
   Proposal,
   WaveformStatus,
 } from '@/bridge/generated'
@@ -27,6 +28,10 @@ type State = {
   open: Record<number, string>
   /** What Find Tracks proposes, whatever its settings. */
   proposals: readonly Proposal[]
+  /** The now-playing markers kept per recording. */
+  markers: Record<string, readonly Marker[]>
+  /** Track covers stored per recording: id → path. */
+  covers: Record<string, Record<string, string>>
   nextId: number
 }
 
@@ -35,6 +40,8 @@ const initialState = (): State => ({
   recordings: {},
   open: {},
   proposals: [],
+  markers: {},
+  covers: {},
   nextId: 1,
 })
 
@@ -56,21 +63,29 @@ const overlap = (start: number, end: number, edits: EditList) =>
     0,
   )
 
-/** The tracks an edit list makes: one per splice, after the first. */
+/**
+ * The tracks an edit list makes: one per splice, after the first, leaving
+ * out (as the core does) those whose audio is wholly deleted.
+ */
 const tracksOf = (durationMs: number, edits: EditList): EditorTrack[] => {
   const starts = [
     { atMs: 0, name: edits.firstName },
     ...edits.splices.toSorted((a, b) => a.atMs - b.atMs),
   ]
-  return starts.map((s, i) => {
+  return starts.flatMap((s, i) => {
     const end = starts[i + 1]?.atMs ?? durationMs
     const cut = overlap(s.atMs, end, edits)
-    return {
-      name: s.name,
-      startMs: s.atMs,
-      durationMs: end - s.atMs - cut,
-      reencode: cut > 0,
-    }
+    const length = end - s.atMs - cut
+    return length > 0 || end === s.atMs
+      ? [
+          {
+            name: s.name,
+            startMs: s.atMs,
+            durationMs: length,
+            reencode: cut > 0,
+          },
+        ]
+      : []
   })
 }
 
@@ -119,6 +134,27 @@ const native = {
   save: vi.fn((_fileName: string, _editsJson: string, _keepOriginal: boolean) =>
     Promise.reject(new Error('Not faked')),
   ),
+  storeEditCover: vi.fn((fileName: string, imagePath: string) => {
+    if (!/\.(png|jpe?g)$/i.test(imagePath)) {
+      return Promise.reject(new Error('not a PNG or JPEG image'))
+    }
+    // Named by content in the core; the image's name stands in for it here.
+    const id = imagePath.split('/').at(-1) ?? imagePath
+    state.covers = {
+      ...state.covers,
+      [fileName]: {
+        ...state.covers[fileName],
+        [id]: `/drafts/${fileName}/covers/${id}`,
+      },
+    }
+    return Promise.resolve(id)
+  }),
+  editCoverPath: vi.fn(
+    (fileName: string, id: string) => state.covers[fileName]?.[id] ?? '',
+  ),
+  editMarkers: vi.fn((fileName: string) =>
+    JSON.stringify(state.markers[fileName] ?? []),
+  ),
 } satisfies Spec
 
 export const NativeEditor = native
@@ -142,6 +178,13 @@ export const fakeEditor = {
   setProposals: (proposals: readonly Proposal[]) => {
     state.proposals = [...proposals]
   },
+  /** The now-playing markers the recorder kept for `fileName`. */
+  setMarkers: (fileName: string, markers: readonly Marker[]) => {
+    state.markers = { ...state.markers, [fileName]: [...markers] }
+  },
+  /** Where the track cover `id` stored for `fileName` is, if it's stored. */
+  coverPath: (fileName: string, id: string): string | undefined =>
+    state.covers[fileName]?.[id],
   /** Lets the editor open the recording at `path`, `durationMs` long. */
   addRecording: (path: string, durationMs: number) => {
     state.recordings = { ...state.recordings, [path]: durationMs }

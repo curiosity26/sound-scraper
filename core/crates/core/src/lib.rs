@@ -9,6 +9,7 @@ pub mod ffi;
 pub mod library;
 pub mod masters;
 pub mod mp3;
+pub mod nowplaying;
 pub mod paths;
 pub mod player;
 pub mod playlists;

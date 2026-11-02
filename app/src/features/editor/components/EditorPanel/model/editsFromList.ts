@@ -15,10 +15,12 @@ export const editsFromList = (
   return {
     // The core reads a missing name as "": keep the recording's title then.
     firstName: list.firstName.trim() ? list.firstName : firstName,
+    ...(list.firstTags ? { firstTags: list.firstTags } : {}),
     splices: list.splices.map(s => ({
       id: newId(),
       atMs: s.atMs,
       name: s.name,
+      ...(s.tags ? { tags: s.tags } : {}),
     })),
     deleted: list.deleted.map(r => ({
       id: newId(),

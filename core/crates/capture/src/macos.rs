@@ -208,6 +208,19 @@ fn audio_apps() -> Result<Vec<AppTarget>, CaptureError> {
     Ok(apps)
 }
 
+/// The bundle IDs of the processes sending audio to an output right now
+/// (helpers included under their own IDs). Asks CoreAudio only, so it is
+/// cheap and needs no permission.
+pub fn playing_bundle_ids() -> Vec<String> {
+    // SAFETY: reads CoreAudio properties of the system object only.
+    unsafe { audio_processes() }
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|p| p.running_output)
+        .filter_map(|p| p.bundle_id)
+        .collect()
+}
+
 struct AudioProcess {
     object: AudioObjectID,
     pid: i32,

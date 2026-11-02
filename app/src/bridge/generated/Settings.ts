@@ -46,4 +46,12 @@ export type Settings = {
    * Masters not edited for this many days are removed.
    */
   masterMaxAgeDays: number
+  /**
+   * Fill in a one-song recording's tags from what the OS says is playing.
+   */
+  nowPlayingTags: boolean
+  /**
+   * Propose splits (an editor draft) where the song changed.
+   */
+  splitAtTrackChanges: boolean
 }

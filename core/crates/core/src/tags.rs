@@ -15,6 +15,8 @@ use id3::{
     frame::{Comment, Picture, PictureType},
 };
 
+use crate::edit::edits::TrackTags;
+
 /// The editable fields of one recording. `None` means "not set".
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TagFields {
@@ -97,22 +99,38 @@ pub fn write(path: &Path, edit: &TagEdit, version: TagVersion) -> Result<(), Str
         CoverEdit::Set(image) => Some(load_image(image)?),
         _ => None,
     };
-    let mut tag = match Tag::read_from_path(path) {
-        Ok(tag) => tag,
-        Err(e) if matches!(e.kind, id3::ErrorKind::NoTag) => Tag::new(),
-        Err(e) => return Err(format!("reading tags from {}: {e}", path.display())),
-    };
+    let mut tag = read_tag(path)?;
+    apply_edit(&mut tag, edit, new_cover)?;
+    let version = id3_version(&mut tag, version);
+    write_atomically(path, &tag, version)
+}
 
-    apply_text(&mut tag, &edit.title, Tag::set_title, Tag::remove_title);
-    apply_text(&mut tag, &edit.artist, Tag::set_artist, Tag::remove_artist);
-    apply_text(&mut tag, &edit.album, Tag::set_album, Tag::remove_album);
+/// The file's tag, or an empty one if it has none.
+fn read_tag(path: &Path) -> Result<Tag, String> {
+    match Tag::read_from_path(path) {
+        Ok(tag) => Ok(tag),
+        Err(e) if matches!(e.kind, id3::ErrorKind::NoTag) => Ok(Tag::new()),
+        Err(e) => Err(format!("reading tags from {}: {e}", path.display())),
+    }
+}
+
+/// Applies `edit` to `tag`; `new_cover` is the image `CoverEdit::Set` named,
+/// already loaded.
+fn apply_edit(
+    tag: &mut Tag,
+    edit: &TagEdit,
+    new_cover: Option<(String, Vec<u8>)>,
+) -> Result<(), String> {
+    apply_text(tag, &edit.title, Tag::set_title, Tag::remove_title);
+    apply_text(tag, &edit.artist, Tag::set_artist, Tag::remove_artist);
+    apply_text(tag, &edit.album, Tag::set_album, Tag::remove_album);
     apply_text(
-        &mut tag,
+        tag,
         &edit.album_artist,
         Tag::set_album_artist,
         Tag::remove_album_artist,
     );
-    apply_text(&mut tag, &edit.genre, Tag::set_genre, Tag::remove_genre);
+    apply_text(tag, &edit.genre, Tag::set_genre, Tag::remove_genre);
     if let Some(track) = edit.track {
         match track {
             Some(n) if n > 0 => tag.set_track(n),
@@ -130,7 +148,7 @@ pub fn write(path: &Path, edit: &TagEdit, version: TagVersion) -> Result<(), Str
         }
     }
     if let Some(date) = &edit.date {
-        remove_dates(&mut tag);
+        remove_dates(tag);
         if let Some(text) = date.as_deref().map(str::trim).filter(|t| !t.is_empty()) {
             tag.set_date_recorded(parse_date(text)?);
         }
@@ -148,15 +166,18 @@ pub fn write(path: &Path, edit: &TagEdit, version: TagVersion) -> Result<(), Str
         (CoverEdit::Remove, _) => tag.remove_all_pictures(),
         _ => {}
     }
+    Ok(())
+}
 
-    let version = match version {
+/// The id3 version to write, after adapting `tag` to it.
+fn id3_version(tag: &mut Tag, version: TagVersion) -> Version {
+    match version {
         TagVersion::V24 => Version::Id3v24,
         TagVersion::V23 => {
-            downgrade_dates_for_v23(&mut tag);
+            downgrade_dates_for_v23(tag);
             Version::Id3v23
         }
-    };
-    write_atomically(path, &tag, version)
+    }
 }
 
 /// The original's tag for one track cut from it (track editor): every frame
@@ -169,23 +190,54 @@ pub fn track_tag_bytes(
     total: u32,
     version: TagVersion,
 ) -> Result<Vec<u8>, String> {
-    let mut tag = match Tag::read_from_path(original) {
-        Ok(tag) => tag,
-        Err(e) if matches!(e.kind, id3::ErrorKind::NoTag) => Tag::new(),
-        Err(e) => return Err(format!("reading tags from {}: {e}", original.display())),
+    track_tag_bytes_with(
+        original,
+        title,
+        number,
+        total,
+        &TrackTags::default(),
+        &CoverEdit::Keep,
+        version,
+    )
+}
+
+/// As `track_tag_bytes`, with the track's own tags over the original's:
+/// each `Some` text sets the field (blank clears it), `None` keeps the
+/// original's. `tags.track` and `tags.cover` aren't read here: the caller
+/// picks `number` and resolves the cover id to `cover`.
+pub fn track_tag_bytes_with(
+    original: &Path,
+    title: &str,
+    number: u32,
+    total: u32,
+    tags: &TrackTags,
+    cover: &CoverEdit,
+    version: TagVersion,
+) -> Result<Vec<u8>, String> {
+    let new_cover = match cover {
+        CoverEdit::Set(image) => Some(load_image(image)?),
+        _ => None,
     };
+    let mut tag = read_tag(original)?;
+    let text = |v: &Option<String>| v.clone().map(Some);
+    let edit = TagEdit {
+        title: None,
+        artist: text(&tags.artist),
+        album: text(&tags.album),
+        album_artist: text(&tags.album_artist),
+        date: text(&tags.date),
+        track: None,
+        genre: text(&tags.genre),
+        comment: text(&tags.comment),
+        cover: cover.clone(),
+    };
+    apply_edit(&mut tag, &edit, new_cover)?;
     tag.set_title(title.trim());
     tag.set_track(number);
     tag.set_total_tracks(total);
     // The original's length doesn't describe the track.
     tag.remove("TLEN");
-    let version = match version {
-        TagVersion::V24 => Version::Id3v24,
-        TagVersion::V23 => {
-            downgrade_dates_for_v23(&mut tag);
-            Version::Id3v23
-        }
-    };
+    let version = id3_version(&mut tag, version);
     let mut out = Vec::new();
     tag.write_to(&mut out, version)
         .map_err(|e| format!("writing tags: {e}"))?;
@@ -302,7 +354,7 @@ fn downgrade_dates_for_v23(tag: &mut Tag) {
     }
 }
 
-fn load_image(path: &Path) -> Result<(String, Vec<u8>), String> {
+pub(crate) fn load_image(path: &Path) -> Result<(String, Vec<u8>), String> {
     let data = std::fs::read(path).map_err(|e| format!("reading {}: {e}", path.display()))?;
     let mime = if data.starts_with(&[0xFF, 0xD8, 0xFF]) {
         "image/jpeg"

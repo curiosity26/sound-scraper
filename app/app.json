@@ -36,7 +36,8 @@
       "finishArgs": [
         "--socket=pulseaudio",
         "--filesystem=xdg-music",
-        "--talk-name=org.freedesktop.FileManager1"
+        "--talk-name=org.freedesktop.FileManager1",
+        "--talk-name=org.mpris.MediaPlayer2.*"
       ]
     }
   }

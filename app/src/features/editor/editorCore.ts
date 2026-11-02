@@ -3,6 +3,7 @@ import type {
   DetectOptions,
   EditList,
   EditorTrack,
+  Marker,
   MastersUsage,
   Proposal,
   SavedTracks,
@@ -14,6 +15,7 @@ import { type Guard, isArrayOf, isNullable } from '@/shared/utils/guards'
 
 import { isEditList } from './guards/isEditList'
 import { isEditorTrack } from './guards/isEditorTrack'
+import { isMarker } from './guards/isMarker'
 import { isMastersUsage } from './guards/isMastersUsage'
 import { isProposal } from './guards/isProposal'
 import { isSavedTracks } from './guards/isSavedTracks'
@@ -76,4 +78,13 @@ export const editorCore = {
       isSavedTracks,
       'save result',
     ),
+  /** Copies an image into the recording's draft folder; resolves with its id. */
+  storeCover: (fileName: string, imagePath: string): Promise<string> =>
+    native().storeEditCover(fileName, imagePath),
+  /** Where a cover stored for the recording is, or null when it's gone. */
+  coverPath: (fileName: string, id: string): string | null =>
+    native().editCoverPath(fileName, id) || null,
+  /** The songs the recorder saw while recording (none when it saw none). */
+  markers: (fileName: string): Marker[] =>
+    parseList(native().editMarkers(fileName), isMarker, 'markers'),
 }

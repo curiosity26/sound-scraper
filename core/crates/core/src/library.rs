@@ -6,9 +6,10 @@
 //! folder if it is missing, and a watcher reports outside changes.
 
 use std::{
+    collections::HashSet,
     path::{Path, PathBuf},
     sync::mpsc,
-    time::{Duration, UNIX_EPOCH},
+    time::{Duration, Instant, UNIX_EPOCH},
 };
 
 use notify_debouncer_mini::{
@@ -51,7 +52,16 @@ pub struct Library {
     playlists_db: PathBuf,
     trasher: Trasher,
     watcher: Option<Debouncer<RecommendedWatcher>>,
+    /// When `list` last swept orphaned editor drafts.
+    last_sweep: Option<Instant>,
+    /// Tests share one drafts folder and run in parallel, so only the test
+    /// of the sweep turns it on; otherwise each library's sweep would remove
+    /// another test's drafts.
+    sweep_drafts: bool,
 }
+
+/// How often `list` looks for orphaned editor drafts.
+const DRAFT_SWEEP_INTERVAL: Duration = Duration::from_secs(60 * 60);
 
 impl Library {
     /// The default library: `~/Music/Sound Scraper`, indexed in the app data folder.
@@ -80,6 +90,8 @@ impl Library {
             playlists_db,
             trasher,
             watcher: None,
+            last_sweep: None,
+            sweep_drafts: !cfg!(test),
         })
     }
 
@@ -115,11 +127,17 @@ impl Library {
     pub fn list(&mut self) -> Result<Vec<Recording>, String> {
         let sql_err = |e: rusqlite::Error| format!("library index: {e}");
         let mut on_disk = Vec::new();
+        let mut recording_now = Vec::new();
         for entry in std::fs::read_dir(&self.dir)
             .map_err(|e| format!("reading {}: {e}", self.dir.display()))?
         {
             let Ok(entry) = entry else { continue };
             let name = entry.file_name().to_string_lossy().into_owned();
+            if let Some(stem) = name.strip_suffix(crate::recorder::PART_EXT) {
+                // Still recording (or to be recovered): its draft folder
+                // may already hold now-playing markers.
+                recording_now.push(format!("{stem}.mp3"));
+            }
             if !is_recording(&name) {
                 continue;
             }
@@ -205,6 +223,22 @@ impl Library {
                 .map_err(sql_err)?;
         }
         tx.commit().map_err(sql_err)?;
+
+        // The folder was read in full, so drafts of recordings not in it
+        // are orphans (after a grace period, in case the folder changes back).
+        if self.sweep_drafts
+            && self
+                .last_sweep
+                .is_none_or(|at| at.elapsed() >= DRAFT_SWEEP_INTERVAL)
+        {
+            self.last_sweep = Some(Instant::now());
+            let existing: HashSet<String> = on_disk
+                .into_iter()
+                .map(|(name, ..)| name)
+                .chain(recording_now)
+                .collect();
+            crate::edit::edits::sweep_orphans(&existing, crate::edit::edits::ORPHAN_GRACE);
+        }
 
         recordings.sort_by(|a, b| {
             b.recorded_at_ms
@@ -452,7 +486,7 @@ fn update_title_if_default(path: &Path, old_stem: &str, new_stem: &str) -> Resul
 }
 
 /// Stable 64-bit FNV-1a, for content-addressed cover file names.
-fn fnv1a(data: &[u8]) -> u64 {
+pub(crate) fn fnv1a(data: &[u8]) -> u64 {
     data.iter().fold(0xcbf2_9ce4_8422_2325, |h, &b| {
         (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3)
     })
@@ -786,6 +820,40 @@ mod tests {
         f.library.trash("Old.mp3").unwrap();
         assert_eq!(*f.trashed.lock().unwrap(), [path]);
         assert!(f.library.list().unwrap().is_empty());
+    }
+
+    #[test]
+    fn listing_sweeps_old_drafts_of_recordings_that_are_gone() {
+        use crate::edit::edits;
+        let mut f = fixture();
+        f.library.sweep_drafts = true;
+        add(&f.dir, "Sweep kept", 0.3, None);
+        std::fs::write(f.dir.join("Sweep live.mp3.part"), b"").unwrap();
+        let draft = edits::EditList {
+            first_name: "x".into(),
+            deleted: vec![edits::Region {
+                start_ms: 0.0,
+                end_ms: 1.0,
+            }],
+            ..Default::default()
+        };
+        let names = ["Sweep kept.mp3", "Sweep live.mp3", "Sweep gone.mp3"];
+        for name in names {
+            edits::save_draft(name, &draft).unwrap();
+            std::fs::File::options()
+                .write(true)
+                .open(edits::draft_dir(name).join("edits.json"))
+                .unwrap()
+                .set_modified(std::time::SystemTime::now() - Duration::from_secs(40 * 86_400))
+                .unwrap();
+        }
+        f.library.list().unwrap();
+        assert!(edits::draft_dir("Sweep kept.mp3").exists());
+        assert!(edits::draft_dir("Sweep live.mp3").exists());
+        assert!(!edits::draft_dir("Sweep gone.mp3").exists());
+        for name in names {
+            edits::discard_draft(name);
+        }
     }
 
     #[test]
