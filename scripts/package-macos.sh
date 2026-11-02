@@ -68,9 +68,11 @@ sign() { codesign "${SIGN_FLAGS[@]}" "$@" 2> >(grep -v "replacing existing signa
 for item in "$APP"/Contents/Frameworks/*.dylib "$APP"/Contents/Frameworks/*.framework; do
   [ -e "$item" ] && sign "$item"
 done
-# No entitlements: the app isn't sandboxed (SoundScraper.entitlements is unused;
-# the sandbox would block writing to the recordings folder).
-sign "$APP"
+# Not sandboxed (SoundScraper.entitlements is unused; the sandbox would block
+# writing to the recordings folder). Release.entitlements only lets the
+# hardened runtime send Apple events: the now-playing fallback asks Music and
+# Spotify through osascript.
+sign --entitlements "$ROOT/app/macos/SoundScraper-macOS/Release.entitlements" "$APP"
 codesign --verify --deep --strict "$APP"
 VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist")
 
