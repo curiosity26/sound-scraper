@@ -50,6 +50,8 @@ vendor/bundle/
 *.binlog
 [Bb]in/
 [Oo]bj/
+# ...but not the vendored adapter's Perl script.
+!core/vendor/mediaremote-adapter/bin/
 app/windows/x64/
 app/windows/ARM64/
 app/windows/Debug/
