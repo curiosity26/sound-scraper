@@ -22,6 +22,9 @@ export const TrackCover: FC<TrackCoverProps> = props => {
   }
   return (
     <Image
+      // Keyed by the path: Windows keeps showing the old image when only
+      // the source changes.
+      key={props.path}
       accessible
       accessibilityRole="image"
       accessibilityLabel={props.label}
