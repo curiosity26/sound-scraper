@@ -20,8 +20,12 @@ pub mod watcher;
 mod linux;
 #[cfg(target_os = "macos")]
 mod macos;
-// The SMTC backend's OS-independent rules; built in tests everywhere.
-#[cfg(any(target_os = "windows", test))]
+// The macOS backend's OS-independent rules; built in tests everywhere.
+#[cfg(any(target_os = "macos", test))]
+mod mediaremote_logic;
+// The SMTC backend's OS-independent rules (the macOS backend shares its
+// seek detection and artwork sniffing); built in tests everywhere.
+#[cfg(any(target_os = "windows", target_os = "macos", test))]
 mod smtc_logic;
 #[cfg(target_os = "windows")]
 mod windows;
