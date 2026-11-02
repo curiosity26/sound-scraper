@@ -23,6 +23,8 @@ export type UseTrackTagsOptions = {
   readonly rows: readonly TrackRow[]
   /** The recording's own tags, once read. */
   readonly recording: Tags | undefined
+  /** The selected tracks: while the form is open, it follows them. */
+  readonly selected: readonly number[]
   readonly history: UseEditHistoryResult
 }
 
@@ -45,11 +47,22 @@ const NO_ACTIONS: UseRecordingDetailsResult['actions'] = []
 export const useTrackTags = (
   options: UseTrackTagsOptions,
 ): UseTrackTagsResult => {
-  const { fileName, rows, recording, history } = options
+  const { fileName, rows, recording, selected, history } = options
   const [owners, setOwners] = useState<readonly TrackOwner[] | null>(null)
   const [status, setStatus] = useState<{ busy: boolean; error?: string }>({
     busy: false,
   })
+
+  // Picking other tracks while the form is open aims it at them.
+  const [followed, setFollowed] = useState(selected)
+  if (followed !== selected) {
+    setFollowed(selected)
+    const next = selected.flatMap(i => rows[i]?.owner ?? [])
+    if (owners !== null && next.length > 0) {
+      setOwners(next)
+      setStatus({ busy: false })
+    }
+  }
 
   const effective = useMemo(
     () =>

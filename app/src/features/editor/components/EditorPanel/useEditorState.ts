@@ -127,6 +127,7 @@ export const useEditorState = (
     fileName: target.fileName,
     rows: tracks.rows,
     recording: recording.tags,
+    selected: selection.selectedTracks,
     history,
   })
   const cuts = useCutChecks(target.fileName)

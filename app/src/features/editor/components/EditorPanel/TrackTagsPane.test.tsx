@@ -319,6 +319,33 @@ describe('track tags in the editor', () => {
           guestCover,
         )
       })
+
+      describe('and then track 1 is picked in the list', () => {
+        const pickTrack1 = async () => {
+          const user = await openForm()
+          await user.press(trackRow(1))
+        }
+
+        it('is aimed at track 1', async () => {
+          await pickTrack1()
+          expect(
+            form().getByRole('header', { name: 'Track 1' }),
+          ).toBeOnTheScreen()
+        })
+
+        it("shows track 1's artist", async () => {
+          await pickTrack1()
+          expect(await field('Artist', 'Opener')).toBeOnTheScreen()
+        })
+
+        it("shows track 1's cover", async () => {
+          await pickTrack1()
+          expect(form().getByRole('image', { name: 'Cover' })).toHaveProp(
+            'source',
+            [{ uri: 'file:///covers/recording.jpg' }],
+          )
+        })
+      })
     })
 
     describe('when the artist is changed in the form', () => {

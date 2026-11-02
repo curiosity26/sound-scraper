@@ -40,7 +40,10 @@ export const CoverArt: FC<CoverArtProps> = props => {
         ]}
       >
         {cover.kind === 'image' ? (
+          // Keyed by the path: Windows keeps showing the old image when
+          // only the source changes.
           <Image
+            key={cover.path}
             accessible
             accessibilityRole="image"
             accessibilityLabel="Cover"
