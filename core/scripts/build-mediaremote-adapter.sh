@@ -7,7 +7,7 @@
 # From the app's "Embed MediaRemote adapter" Xcode phase it also copies both
 # into the app (framework in Contents/Frameworks, script in
 # Contents/Resources) and signs the framework like the app. By hand:
-#   ARCHS="arm64 x86_64" core/scripts/build-mediaremote-adapter.sh
+#   core/scripts/build-mediaremote-adapter.sh
 # then SOUND_SCRAPER_MEDIAREMOTE_ADAPTER=core/target/apple/mediaremote-adapter
 # for the nowplaying examples.
 set -euo pipefail
@@ -17,7 +17,10 @@ SRC="$CORE_DIR/vendor/mediaremote-adapter"
 OUT="$CORE_DIR/target/apple/mediaremote-adapter"
 NAME=MediaRemoteAdapter
 FW="$OUT/$NAME.framework"
-ARCHS="${ARCHS:-$(uname -m)}"
+# Both slices whatever the app's ARCHS: /usr/bin/perl runs as whichever
+# architecture its parent does, and an x86_64 parent (Rosetta, an Intel Rust
+# toolchain) gets an x86_64 perl.
+ARCHS="arm64 x86_64"
 MIN_MACOS="${MACOSX_DEPLOYMENT_TARGET:-11.0}"
 
 sources=("$SRC"/src/adapter/*.m "$SRC"/src/private/*.m "$SRC"/src/utility/*.m)
@@ -63,7 +66,7 @@ PLIST
   ln -s A "$FW/Versions/Current"
   ln -s "Versions/Current/$NAME" "$FW/$NAME"
   ln -s Versions/Current/Resources "$FW/Resources"
-  codesign --force --sign - "$FW"
+  codesign --force --sign - "$FW" 2>&1 | { grep -v "replacing existing signature" || true; }
   echo "$ARCHS" > "$stamp"
   echo "Built $FW ($(lipo -archs "$binary"))"
 fi

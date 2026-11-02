@@ -92,7 +92,8 @@ impl AdapterState {
             genre: text(p, "genre"),
             duration: micros(p, "durationMicros").filter(|d| !d.is_zero()),
             artwork: None,
-            id: text(p, "uniqueIdentifier").or_else(|| text(p, "contentItemIdentifier")),
+            id: identifier(p, "uniqueIdentifier")
+                .or_else(|| identifier(p, "contentItemIdentifier")),
         };
         let has_track = track.title.is_some() || track.artist.is_some() || track.album.is_some();
         let player = PlayerId {
@@ -153,6 +154,15 @@ fn decode_artwork(encoded: &str, content_type: &str) -> Option<Artwork> {
 fn text(payload: &Map<String, Value>, key: &str) -> Option<String> {
     let text = payload.get(key)?.as_str()?.trim();
     (!text.is_empty()).then(|| text.to_owned())
+}
+
+/// An id that players give as text or as a number (Music's
+/// `uniqueIdentifier`).
+fn identifier(payload: &Map<String, Value>, key: &str) -> Option<String> {
+    match payload.get(key)? {
+        Value::Number(n) => Some(n.to_string()),
+        _ => text(payload, key),
+    }
 }
 
 /// A positive whole number; players use 0 for "unknown".
@@ -383,7 +393,7 @@ struct Reported {
 }
 
 impl Reporter {
-    pub fn update(&mut self, snapshot: Snapshot, now: SystemTime) -> Vec<BackendEvent> {
+    pub fn update(&mut self, mut snapshot: Snapshot, now: SystemTime) -> Vec<BackendEvent> {
         let at = snapshot.position_at.unwrap_or(now);
         let playing = snapshot.state == PlaybackState::Playing;
         let fresh_mark = snapshot.position.map(|position| Mark {
@@ -403,13 +413,18 @@ impl Reporter {
             return vec![BackendEvent::Updated(Box::new(snapshot))];
         };
         let mut out = Vec::new();
+        // MediaRemote often flips play/pause without a new timeline reading;
+        // the old reading is then stale.
+        let new_reading = snapshot.position != entry.last.position
+            || snapshot.position_at != entry.last.position_at;
         if !same_track(entry.last.track.as_ref(), snapshot.track.as_ref()) {
             entry.track_changed_at = now;
             entry.mark = fresh_mark;
-        } else if let Some(position) = snapshot.position {
-            match &mut entry.mark {
-                Some(mark) => {
-                    mark.set_playing(playing, at);
+        } else if let Some(mark) = &mut entry.mark {
+            // Play/pause happened now, whatever the reading's time says.
+            mark.set_playing(playing, now);
+            match snapshot.position {
+                Some(position) if new_reading => {
                     let jumped = mark.advance(position, at);
                     let settled = now
                         .duration_since(entry.track_changed_at)
@@ -423,8 +438,14 @@ impl Reporter {
                         });
                     }
                 }
-                None => entry.mark = fresh_mark,
+                Some(_) if snapshot.state != entry.last.state => {
+                    snapshot.position = Some(mark.position);
+                    snapshot.position_at = Some(mark.at);
+                }
+                _ => {}
             }
+        } else {
+            entry.mark = fresh_mark;
         }
         if !same_except_position(&entry.last, &snapshot) {
             out.push(BackendEvent::Updated(Box::new(snapshot.clone())));
@@ -488,7 +509,7 @@ mod tests {
     fn full_line() -> String {
         let artwork = base64::engine::general_purpose::STANDARD.encode(PNG);
         format!(
-            r#"{{"type":"data","diff":false,"payload":{{"bundleIdentifier":"com.apple.Music","processIdentifier":812,"playing":true,"title":"So What","artist":"Miles Davis","album":"Kind of Blue","durationMicros":562000000,"elapsedTimeMicros":12500000,"timestampEpochMicros":1700000000000000,"trackNumber":1,"totalTrackCount":5,"genre":"Jazz","uniqueIdentifier":"42","artworkMimeType":"image/png","artworkData":"{artwork}"}}}}"#
+            r#"{{"type":"data","diff":false,"payload":{{"bundleIdentifier":"com.apple.Music","processIdentifier":812,"playing":true,"title":"So What","artist":"Miles Davis","album":"Kind of Blue","durationMicros":562000000,"elapsedTimeMicros":12500000,"timestampEpochMicros":1700000000000000,"trackNumber":1,"totalTrackCount":5,"genre":"Jazz","uniqueIdentifier":6800026501,"artworkMimeType":"image/png","artworkData":"{artwork}"}}}}"#
         )
     }
 
@@ -517,7 +538,7 @@ mod tests {
         assert_eq!(track.track_count, Some(5));
         assert_eq!(track.genre.as_deref(), Some("Jazz"));
         assert_eq!(track.duration, Some(secs(562)));
-        assert_eq!(track.id.as_deref(), Some("42"));
+        assert_eq!(track.id.as_deref(), Some("6800026501"));
         let artwork = track.artwork.unwrap();
         assert_eq!(artwork.mime, "image/png");
         assert_eq!(&*artwork.data, PNG);
@@ -762,6 +783,24 @@ mod tests {
             unreachable!()
         };
         assert_eq!((*position, *when), (secs(60), at(105)));
+    }
+
+    #[test]
+    fn pauses_without_a_new_reading_are_not_seeks() {
+        let mut reporter = Reporter::default();
+        reporter.update(snapshot("A", PlaybackState::Playing, 0, 100), at(100));
+        // Paused at 105 but still reporting 0:00 at 100.
+        let events = reporter.update(snapshot("A", PlaybackState::Paused, 0, 100), at(105));
+        let [BackendEvent::Updated(paused)] = &events[..] else {
+            panic!("{events:?}")
+        };
+        assert_eq!(
+            (paused.position, paused.position_at),
+            (Some(secs(5)), Some(at(105)))
+        );
+        // Resumed at 108 with a fresh reading of 0:05.
+        let events = reporter.update(snapshot("A", PlaybackState::Playing, 5, 108), at(108));
+        assert_eq!(kinds(&events), ["updated"]);
     }
 
     #[test]

@@ -43,6 +43,9 @@ const SCRIPT: &str = "mediaremote-adapter.pl";
 
 /// How often the AppleScript fallback asks Music and Spotify.
 const POLL_INTERVAL: Duration = Duration::from_secs(1);
+/// The adapter briefly reports nothing between tracks; a player gone for
+/// less than this is still there.
+const REMOVAL_GRACE: Duration = Duration::from_millis(1500);
 /// A cover fetch that takes longer is given up (Spotify's covers are on a
 /// CDN and small).
 const ARTWORK_FETCH_TIMEOUT: Duration = Duration::from_secs(5);
@@ -217,6 +220,9 @@ struct Worker {
     adapter_works: bool,
     /// The player the adapter reports now.
     adapter_player: Option<PlayerId>,
+    /// When to report `adapter_player` gone, after the adapter last said
+    /// nothing plays.
+    removal_due: Option<Instant>,
     reporter: Reporter,
     fallback: Fallback,
 }
@@ -228,6 +234,7 @@ impl Worker {
             adapter,
             adapter_works: false,
             adapter_player: None,
+            removal_due: None,
             reporter: Reporter::default(),
             fallback: Fallback::default(),
         }
@@ -240,11 +247,21 @@ impl Worker {
                 self.poll_fallback();
                 next_poll = Instant::now() + POLL_INTERVAL;
             }
-            let wait = if self.adapter_works {
-                Duration::from_secs(3600)
-            } else {
-                next_poll.saturating_duration_since(Instant::now())
-            };
+            if self.removal_due.is_some_and(|due| Instant::now() >= due) {
+                self.removal_due = None;
+                if let Some(player) = self.adapter_player.take() {
+                    let gone = self.reporter.remove(&player);
+                    self.emit(gone);
+                }
+            }
+            let poll = (!self.adapter_works).then_some(next_poll);
+            let wait = [poll, self.removal_due]
+                .into_iter()
+                .flatten()
+                .min()
+                .map_or(Duration::from_secs(3600), |due| {
+                    due.saturating_duration_since(Instant::now())
+                });
             match rx.recv_timeout(wait) {
                 Ok(Msg::Adapter(snapshot)) => self.on_adapter(snapshot.map(|s| *s)),
                 Ok(Msg::AdapterGone(why)) => {
@@ -252,6 +269,7 @@ impl Worker {
                         "now playing: MediaRemote adapter unavailable ({why}); using AppleScript"
                     );
                     self.adapter_works = false;
+                    self.removal_due = None;
                     if let Some(player) = self.adapter_player.take() {
                         let gone = self.reporter.remove(&player);
                         self.emit(gone);
@@ -271,12 +289,12 @@ impl Worker {
 
     fn on_adapter(&mut self, snapshot: Option<Snapshot>) {
         let Some(snapshot) = snapshot else {
-            if let Some(player) = self.adapter_player.take() {
-                let gone = self.reporter.remove(&player);
-                self.emit(gone);
+            if self.adapter_player.is_some() && self.removal_due.is_none() {
+                self.removal_due = Some(Instant::now() + REMOVAL_GRACE);
             }
             return;
         };
+        self.removal_due = None;
         if !self.adapter_works {
             // The fallback's players hand over to the adapter's.
             self.adapter_works = true;
