@@ -12,9 +12,9 @@ base64 = "0.23"
 serde_json = "1"
 
 [target.'cfg(target_os = "linux")'.dependencies]
-# Blocking API only; the default async-io feature is zbus's own internal
-# executor (no tokio).
-zbus = "5.19"
+# Async only since 6; driven from our threads with zbus::block_on (the
+# default runtime is zbus's own, no tokio).
+zbus = "6.2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 libc = "0.2"

@@ -11,11 +11,7 @@ use std::{
 };
 
 use sound_scraper_nowplaying::{BackendEvent, PlaybackState, PlayerId, Snapshot, default_backend};
-use zbus::{
-    blocking::connection,
-    object_server::SignalEmitter,
-    zvariant::{OwnedValue, Value},
-};
+use zbus::{OwnedVariant, Variant, block_on, connection, object_server::SignalEmitter};
 
 const PATH: &str = "/org/mpris/MediaPlayer2";
 const TIMEOUT: Duration = Duration::from_secs(10);
@@ -29,11 +25,11 @@ struct FakePlayer {
 #[zbus::interface(name = "org.mpris.MediaPlayer2.Player")]
 impl FakePlayer {
     #[zbus(property)]
-    fn metadata(&self) -> HashMap<String, OwnedValue> {
+    fn metadata(&self) -> HashMap<String, OwnedVariant> {
         let entries = [
-            ("xesam:title", Value::from(self.title.as_str())),
-            ("xesam:artist", Value::from(self.artists.clone())),
-            ("mpris:length", Value::I64(180_000_000)),
+            ("xesam:title", Variant::from(self.title.as_str())),
+            ("xesam:artist", Variant::from(self.artists.clone())),
+            ("mpris:length", Variant::I64(180_000_000)),
         ];
         entries
             .into_iter()
@@ -99,21 +95,20 @@ fn reports_fake_player_lifecycle() {
         "org.mpris.MediaPlayer2.soundscraper_test_{}",
         std::process::id()
     );
-    let player_conn = connection::Builder::session()
-        .unwrap()
-        .name(name.as_str())
-        .unwrap()
-        .serve_at(
-            PATH,
-            FakePlayer {
-                title: "First".into(),
-                artists: vec!["A".into(), "B".into()],
-                status: "Playing".into(),
-            },
-        )
-        .unwrap()
-        .build()
-        .unwrap();
+    let player_conn = block_on(
+        connection::Builder::session()
+            .name(name.as_str())
+            .serve_at(
+                PATH,
+                FakePlayer {
+                    title: "First".into(),
+                    artists: vec!["A".into(), "B".into()],
+                    status: "Playing".into(),
+                },
+            )
+            .build(),
+    )
+    .unwrap();
 
     let mut backend = default_backend();
     let (tx, rx) = mpsc::channel();
@@ -132,23 +127,20 @@ fn reports_fake_player_lifecycle() {
     assert!(backend.owns(&first.player, std::process::id(), None));
 
     // A metadata change.
-    let iface = player_conn
-        .object_server()
-        .interface::<_, FakePlayer>(PATH)
-        .unwrap();
+    let iface = block_on(player_conn.object_server().interface::<_, FakePlayer>(PATH)).unwrap();
     {
-        let mut player = iface.get_mut();
+        let mut player = block_on(iface.get_mut());
         player.title = "Second".into();
         player.status = "Paused".into();
     }
-    zbus::block_on(iface.get().metadata_changed(iface.signal_emitter())).unwrap();
+    block_on(block_on(iface.get()).metadata_changed(iface.signal_emitter())).unwrap();
     let second = wait_for(&rx, &name, |e| {
         updated(e).filter(|s| s.track.as_ref().and_then(|t| t.title.as_deref()) == Some("Second"))
     });
     assert_eq!(second.state, PlaybackState::Paused);
 
     // A seek.
-    zbus::block_on(FakePlayer::seeked(iface.signal_emitter(), 5_000_000)).unwrap();
+    block_on(FakePlayer::seeked(iface.signal_emitter(), 5_000_000)).unwrap();
     let position = wait_for(&rx, &name, |e| match e {
         BackendEvent::Seeked { position, .. } => Some(position),
         _ => None,
@@ -156,7 +148,7 @@ fn reports_fake_player_lifecycle() {
     assert_eq!(position, Duration::from_secs(5));
 
     // Removal.
-    player_conn.release_name(name.as_str()).unwrap();
+    block_on(player_conn.release_name(name.as_str())).unwrap();
     let removed: PlayerId = wait_for(&rx, &name, |e| match e {
         BackendEvent::Removed(p) => Some(p),
         _ => None,
@@ -164,7 +156,7 @@ fn reports_fake_player_lifecycle() {
     assert_eq!(removed, first.player);
 
     // And a reappearance is picked up as a new player.
-    player_conn.request_name(name.as_str()).unwrap();
+    block_on(player_conn.request_name(name.as_str())).unwrap();
     wait_for(&rx, &name, updated);
 
     let stop_started = Instant::now();
