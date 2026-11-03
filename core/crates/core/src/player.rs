@@ -30,7 +30,7 @@ use std::{
 };
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use rubato::{FftFixedIn, Resampler};
+use rubato::{Fft, FixedSync, Indexing, Resampler, audioadapter_buffers::direct::InterleavedSlice};
 use sound_scraper_vis::{Analyzer, Tap, VisHub};
 use symphonia::core::{
     codecs::audio::{AudioDecoder, AudioDecoderOptions},
@@ -882,63 +882,82 @@ impl Job {
 
 /// A stereo resampler over interleaved samples.
 pub(crate) struct Stereo {
-    inner: FftFixedIn<f32>,
-    input: [Vec<f32>; 2],
+    inner: Fft<f32>,
+    /// Interleaved frames not resampled yet.
+    input: Vec<f32>,
+    /// One block of interleaved output.
+    block: Vec<f32>,
     /// Output frames still to drop to undo the resampler's delay.
     skip: usize,
 }
 
 impl Stereo {
     pub(crate) fn new(from: u32, to: u32) -> Self {
-        let inner = FftFixedIn::new(from as usize, to as usize, RESAMPLE_CHUNK, 2, 2)
-            .expect("valid resampler");
+        let inner = Fft::new(
+            from as usize,
+            to as usize,
+            RESAMPLE_CHUNK,
+            2,
+            FixedSync::Input,
+        )
+        .expect("valid resampler");
         let skip = inner.output_delay();
+        let block = vec![0.0; inner.output_frames_max() * 2];
         Self {
             inner,
-            input: [Vec::new(), Vec::new()],
+            input: Vec::new(),
+            block,
             skip,
         }
     }
 
     fn reset(&mut self) {
         self.inner.reset();
-        self.input = [Vec::new(), Vec::new()];
+        self.input.clear();
         self.skip = self.inner.output_delay();
     }
 
     /// Consumes `input` (interleaved) and appends resampled frames to `out`;
     /// `flush` pushes out the remainder at the end of the file.
     pub(crate) fn process(&mut self, input: &mut Vec<f32>, out: &mut Vec<f32>, flush: bool) {
-        for lr in input.as_chunks::<2>().0 {
-            self.input[0].push(lr[0]);
-            self.input[1].push(lr[1]);
-        }
+        self.input.extend(input.as_chunks::<2>().0.as_flattened());
         input.clear();
+        let mut used = 0;
         loop {
             let need = self.inner.input_frames_next();
-            let result = if self.input[0].len() >= need {
-                let block: Vec<Vec<f32>> = self
-                    .input
-                    .iter_mut()
-                    .map(|c| c.drain(..need).collect())
-                    .collect();
-                self.inner.process(&block, None)
-            } else if flush && !self.input[0].is_empty() {
-                let block: Vec<Vec<f32>> = self.input.iter_mut().map(std::mem::take).collect();
-                self.inner.process_partial(Some(&block), None)
+            let left = self.input.len() / 2 - used;
+            let partial_len = if left >= need {
+                None
+            } else if flush && left > 0 {
+                Some(left)
             } else {
-                return;
+                break;
             };
-            let Ok(frames) = result else { return };
-            for (l, r) in frames[0].iter().zip(&frames[1]) {
-                if self.skip > 0 {
-                    self.skip -= 1;
-                    continue;
-                }
-                out.push(*l);
-                out.push(*r);
-            }
+            let frames = partial_len.unwrap_or(need);
+            let Ok(block_in) = InterleavedSlice::new(&self.input[used * 2..], 2, frames) else {
+                break;
+            };
+            let out_frames = self.block.len() / 2;
+            let Ok(mut block_out) = InterleavedSlice::new_mut(&mut self.block, 2, out_frames)
+            else {
+                break;
+            };
+            let indexing = Indexing {
+                partial_len,
+                ..Indexing::new()
+            };
+            let Ok((_, written)) =
+                self.inner
+                    .process_into_buffer(&block_in, &mut block_out, Some(&indexing))
+            else {
+                break;
+            };
+            used += frames;
+            let skipped = self.skip.min(written);
+            self.skip -= skipped;
+            out.extend_from_slice(&self.block[skipped * 2..written * 2]);
         }
+        self.input.drain(..used * 2);
     }
 }
 
@@ -956,6 +975,22 @@ mod tests {
         r.process(&mut input, &mut out, true);
         let frames = out.len() / 2;
         assert!((47_000..=49_100).contains(&frames), "{frames} frames");
+    }
+
+    #[test]
+    fn resampler_keeps_a_sine_in_time() {
+        let tone = |rate: f64, n: usize| {
+            (2.0 * std::f64::consts::PI * 1000.0 * n as f64 / rate).sin() as f32 * 0.5
+        };
+        let mut r = Stereo::new(44_100, 48_000);
+        let mut input: Vec<f32> = (0..44_100 * 2).map(|i| tone(44_100.0, i / 2)).collect();
+        let mut out = Vec::new();
+        r.process(&mut input, &mut out, true);
+        // Away from the ends, frame n at 48 kHz is the same sine at n / 48000 s.
+        let worst = (4_800..43_200)
+            .map(|n| (out[n * 2] - tone(48_000.0, n)).abs())
+            .fold(0.0, f32::max);
+        assert!(worst < 0.01, "off by {worst}");
     }
 
     #[test]
