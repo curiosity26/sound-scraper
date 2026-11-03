@@ -57,4 +57,8 @@ updates:
     groups:
       cargo-minor-and-patch:
         update-types: [minor, patch]
-
+    ignore:
+      # disc's #[implement] needs the windows-core that its windows uses,
+      # and windows-core 0.100 came out before windows 0.100, so windows-core
+      # alone can't move: bump it by hand in the same PR as windows.
+      - dependency-name: windows-core
