@@ -1,0 +1,137 @@
+# CodeQL code scanning (advanced setup; replaces the repository's default
+# setup, which has to be turned off in Settings > Code security for these
+# uploads to be accepted). Every language is scanned from source without a
+# build except Swift: CodeQL only sees Swift that gets compiled, so the macOS
+# job installs the pods and builds the app (Debug, arm64, unsigned), which
+# default setup's autobuild couldn't do (it ran `pod install` with no
+# node_modules or Bundler). Findings in vendored LAME are filtered out.
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "27 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # The Swift scan takes about 50 minutes (most of it extracting the SDK
+  # and React Native modules the app imports), so a pull request only runs
+  # it when it changes the app's Swift; main, the weekly run and manual
+  # runs always do.
+  languages:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.pick.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: pick
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          langs='{"language":"actions","sarif":"actions","build-mode":"none"},
+            {"language":"c-cpp","sarif":"cpp","build-mode":"none"},
+            {"language":"javascript-typescript","sarif":"javascript","build-mode":"none"},
+            {"language":"python","sarif":"python","build-mode":"none"},
+            {"language":"ruby","sarif":"ruby","build-mode":"none"},
+            {"language":"rust","sarif":"rust","build-mode":"none"}'
+          if [ -z "$BASE" ] || git diff --name-only "$BASE" HEAD | grep -q '^app/macos/.*\.swift$'; then
+            langs="$langs"',{"language":"swift","sarif":"swift","build-mode":"manual"}'
+          fi
+          echo "matrix=[$(echo "$langs" | tr -d '\n ')]" >> "$GITHUB_OUTPUT"
+
+  analyze:
+    needs: languages
+    name: analyze (${{ matrix.language }})
+    runs-on: ${{ matrix.language == 'swift' && 'macos-26' || 'ubuntu-24.04' }}
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      # sarif: the file name CodeQL gives the language's results.
+      matrix:
+        include: ${{ fromJSON(needs.languages.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - if: matrix.language == 'swift'
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: app/.nvmrc
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - if: matrix.language == 'swift'
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          working-directory: app
+          bundler-cache: true
+      # The app's build phases build the Rust core and the now-playing adapter.
+      - if: matrix.language == 'swift'
+        run: rustup toolchain install
+      - if: matrix.language == 'swift'
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core
+          key: codeql-macos-arm64
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      # Outside CodeQL's tracing: the pods, Hermes and the Rust core build
+      # untraced first (a traced cold build takes about an hour), so the
+      # traced build below only recompiles the app's own Swift.
+      - if: matrix.language == 'swift'
+        name: Install dependencies and pre-build the macOS app
+        run: |
+          npm ci --prefix app
+          cd app/macos && BUNDLE_GEMFILE=../Gemfile bundle exec pod install
+          set -o pipefail
+          xcodebuild -workspace SoundScraper.xcworkspace -scheme SoundScraper-macOS \
+            -configuration Debug -derivedDataPath build/CodeQL ARCHS=arm64 \
+            CODE_SIGNING_ALLOWED=NO COMPILER_INDEX_STORE_ENABLE=NO build \
+            | grep -E "error:|BUILD (SUCCEEDED|FAILED)"
+
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      - if: matrix.language == 'swift'
+        name: Rebuild the app's Swift under CodeQL
+        working-directory: app/macos
+        run: |
+          set -o pipefail
+          touch SoundScraper-macOS/*.swift
+          xcodebuild -workspace SoundScraper.xcworkspace -scheme SoundScraper-macOS \
+            -configuration Debug -derivedDataPath build/CodeQL ARCHS=arm64 \
+            CODE_SIGNING_ALLOWED=NO COMPILER_INDEX_STORE_ENABLE=NO build \
+            | grep -E "error:|BUILD (SUCCEEDED|FAILED)"
+
+      # Vendored LAME 3.100 is upstream third-party code (we don't patch it),
+      # so its findings are dropped before upload; everything else is kept.
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:${{ matrix.language }}
+          upload: never
+          output: sarif-results
+      - uses: advanced-security/filter-sarif@v1.1
+        with:
+          patterns: |
+            -core/vendor/mp3lame-sys/lame-3.100/**
+          input: sarif-results/${{ matrix.sarif }}.sarif
+          output: sarif-results/${{ matrix.sarif }}.sarif
+      - uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: sarif-results/${{ matrix.sarif }}.sarif
+          category: /language:${{ matrix.language }}

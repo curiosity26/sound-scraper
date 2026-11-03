@@ -715,7 +715,7 @@ fn packages_a_folder_that_installs() {
     let names: Vec<String> = {
         let mut zip = zip::ZipArchive::new(fs::File::open(&out).unwrap()).unwrap();
         (0..zip.len())
-            .map(|i| zip.by_index(i).unwrap().name().to_string())
+            .map(|i| zip.by_index(i).unwrap().name().unwrap().into_owned())
             .collect()
     };
     assert_eq!(names, ["bg.png", "bg@2x.png", "btn.png", "skin.json"]);
