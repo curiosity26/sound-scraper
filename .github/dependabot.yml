@@ -1,0 +1,56 @@
+# Weekly dependency update pull requests, one grouped PR per ecosystem so
+# Lint and E2E run once per batch. React Native and its platform packages
+# (macOS, Windows, GTK4) move together and a React Native minor is a
+# breaking release, so Dependabot proposes only their patches; bump their
+# minors and majors by hand, together.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directories:
+      - /
+      - /.github/actions/*
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: /app
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      react-native:
+        patterns:
+          - react-native
+          - react-native-*
+          - "@react-native/*"
+          - "@react-native-community/*"
+          - "@react-native-windows/*"
+          - "@curiosity26/react-native-gtk4"
+      npm-minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: react-native
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: react-native-*
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "@react-native/*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "@react-native-community/*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "@react-native-windows/*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "@curiosity26/react-native-gtk4"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+
+  - package-ecosystem: cargo
+    directory: /core
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      cargo-minor-and-patch:
+        update-types: [minor, patch]
+
