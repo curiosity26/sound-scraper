@@ -170,7 +170,7 @@ export const useRecorder = (): UseRecorderResult => {
   const sourceName =
     selectedPid === 0
       ? 'All system audio'
-      : apps.find(a => a.pid === selectedPid)?.name ?? 'All system audio'
+      : (apps.find(a => a.pid === selectedPid)?.name ?? 'All system audio')
 
   return {
     apps,

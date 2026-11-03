@@ -7,8 +7,4 @@ import type { SimSettings } from './SimSettings'
  * What a burning request answers: the `ok` of `ss_burn`.
  */
 export type BurnAnswer =
-  | DevicesAnswer
-  | number
-  | BurnStatus
-  | SimSettings
-  | null
+  DevicesAnswer | number | BurnStatus | SimSettings | null

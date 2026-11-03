@@ -72,7 +72,7 @@ export const useSkinPreview = (
           },
     [key],
   )
-  const shown = key === null ? path ?? null : use(previews.get(key))
+  const shown = key === null ? (path ?? null) : use(previews.get(key))
   useEffect(
     () =>
       shown === null

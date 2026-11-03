@@ -72,11 +72,22 @@ const index = [
 ].join('\n')
 fs.writeFileSync(path.join(bridgeDir, 'index.ts'), index)
 
-for (const file of [...types, 'index.ts']) {
+// Prettier 3's API is async.
+const format = async file => {
   const filepath = path.join(bridgeDir, file)
-  const options = prettier.resolveConfig.sync(filepath) ?? {}
+  const options = (await prettier.resolveConfig(filepath)) ?? {}
   const text = fs.readFileSync(filepath, 'utf8')
-  fs.writeFileSync(filepath, prettier.format(text, { ...options, filepath }))
+  fs.writeFileSync(
+    filepath,
+    await prettier.format(text, { ...options, filepath }),
+  )
 }
 
-console.log(`Wrote ${types.length} bridge types to ${bridgeDir}`)
+Promise.all([...types, 'index.ts'].map(format))
+  .then(() => {
+    console.log(`Wrote ${types.length} bridge types to ${bridgeDir}`)
+  })
+  .catch(error => {
+    console.error(error)
+    process.exit(1)
+  })

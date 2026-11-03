@@ -87,10 +87,10 @@ const addToPlaylist = async (ctx: MenuContext, x: number, y: number) => {
       adding.length === 0
         ? `Already in ${target.name}.`
         : adding.length < ctx.fileNames.length
-        ? `Added to ${target.name} (${String(
-            ctx.fileNames.length - adding.length,
-          )} already there).`
-        : `Added to ${target.name}.`,
+          ? `Added to ${target.name} (${String(
+              ctx.fileNames.length - adding.length,
+            )} already there).`
+          : `Added to ${target.name}.`,
     isError: false,
   })
 }

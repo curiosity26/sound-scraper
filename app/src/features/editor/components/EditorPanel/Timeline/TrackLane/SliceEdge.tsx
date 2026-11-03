@@ -43,8 +43,8 @@ export const SliceEdge: FC<SliceEdgeProps> = props => {
             backgroundColor: selected
               ? th.wave('spliceSelected', '#fff0a0')
               : check
-              ? CHECK_CUT_COLOR
-              : th.text,
+                ? CHECK_CUT_COLOR
+                : th.text,
           },
         ]}
       />

@@ -16,8 +16,7 @@ export type UseRecordingMenuResult = {
   /** Opens the menu for a right-clicked row at (x, y); undefined without
    * the screen's native menus. */
   readonly openRowMenu:
-    | ((target: RowTarget, x: number, y: number) => void)
-    | undefined
+    ((target: RowTarget, x: number, y: number) => void) | undefined
 }
 
 export const useRecordingMenu = (): UseRecordingMenuResult => {

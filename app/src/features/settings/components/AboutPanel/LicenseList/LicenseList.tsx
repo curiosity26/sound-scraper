@@ -16,25 +16,21 @@ const rows: readonly LicenseRow[] = [
     key: 'h-rust',
     title: `Rust crates (${String(data.rust.length)})`,
   },
-  ...data.rust.map(
-    (p): LicenseRow => ({
-      kind: 'pkg',
-      key: `r-${p.name}-${p.version}`,
-      pkg: p,
-    }),
-  ),
+  ...data.rust.map((p): LicenseRow => ({
+    kind: 'pkg',
+    key: `r-${p.name}-${p.version}`,
+    pkg: p,
+  })),
   {
     kind: 'header',
     key: 'h-js',
     title: `JavaScript packages (${String(data.js.length)})`,
   },
-  ...data.js.map(
-    (p): LicenseRow => ({
-      kind: 'pkg',
-      key: `j-${p.name}-${p.version}`,
-      pkg: p,
-    }),
-  ),
+  ...data.js.map((p): LicenseRow => ({
+    kind: 'pkg',
+    key: `j-${p.name}-${p.version}`,
+    pkg: p,
+  })),
 ]
 
 export type LicenseListProps = {

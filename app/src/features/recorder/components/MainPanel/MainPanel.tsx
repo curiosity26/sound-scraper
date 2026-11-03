@@ -39,7 +39,7 @@ export const MainPanel: FC = () => {
               height: height * s,
               backgroundColor: layout.background
                 ? undefined
-                : skin.colors.background ?? '#333333',
+                : (skin.colors.background ?? '#333333'),
             }}
           >
             {layout.background && (

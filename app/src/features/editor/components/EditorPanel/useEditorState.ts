@@ -211,7 +211,7 @@ export const useEditorState = (
     enabled,
     headMs:
       transport.loaded || scrub.scrubMs !== null
-        ? scrub.scrubMs ?? transport.playheadMs
+        ? (scrub.scrubMs ?? transport.playheadMs)
         : null,
     rootRef,
     fieldFocusChanged,

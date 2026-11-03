@@ -27,18 +27,18 @@ export const trackRows = (
       owner: slice
         ? slice.id
         : tr.startMs < SAME_MS
-        ? ('first' as const)
-        : null,
+          ? ('first' as const)
+          : null,
       name: slice
         ? slice.name
         : tr.startMs < SAME_MS
-        ? shown.firstName
-        : tr.name,
+          ? shown.firstName
+          : tr.name,
       tags: slice
         ? slice.tags
         : tr.startMs < SAME_MS
-        ? shown.firstTags
-        : undefined,
+          ? shown.firstTags
+          : undefined,
       removed: false,
     }
   })

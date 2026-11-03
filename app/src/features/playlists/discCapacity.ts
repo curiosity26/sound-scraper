@@ -36,12 +36,12 @@ export const discCapacity = (rows: PlaylistRow[], gapSeconds = 2): Capacity => {
     tracks === 0
       ? 'empty'
       : tracks > MAX_TRACKS
-      ? 'tooMany'
-      : total <= SECTORS_74
-      ? 'fits74'
-      : total <= SECTORS_80
-      ? 'fits80'
-      : 'tooLong'
+        ? 'tooMany'
+        : total <= SECTORS_74
+          ? 'fits74'
+          : total <= SECTORS_80
+            ? 'fits80'
+            : 'tooLong'
   return {
     tracks,
     totalSectors: total,

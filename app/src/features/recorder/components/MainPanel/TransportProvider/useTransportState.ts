@@ -103,34 +103,34 @@ export const useTransportState = (
     r.state === 'paused'
       ? 'paused'
       : r.state === 'recording'
-      ? 'recording'
-      : undefined
+        ? 'recording'
+        : undefined
   const recordLabel = hasPlay
     ? 'Record'
     : r.state === 'paused'
-    ? 'Resume'
-    : r.state === 'recording' && !pauseSeparate
-    ? 'Pause'
-    : 'Record'
+      ? 'Resume'
+      : r.state === 'recording' && !pauseSeparate
+        ? 'Pause'
+        : 'Record'
   const playMode =
     r.state === 'recording' || r.state === 'paused'
       ? r.state
       : playing
-      ? 'playing'
-      : undefined
+        ? 'playing'
+        : undefined
   const playLabel =
     r.state === 'paused'
       ? 'Resume'
       : r.state === 'recording' || playing
-      ? 'Pause'
-      : 'Play'
+        ? 'Pause'
+        : 'Play'
   const paused = r.state === 'paused' || (loaded && p.state === 'paused')
   // Animations follow the tape: recording, or playing back.
   const tapeState: RecorderState = playing
     ? 'recording'
     : loaded && p.state === 'paused'
-    ? 'paused'
-    : r.state
+      ? 'paused'
+      : r.state
 
   return {
     recorder: r,
@@ -172,7 +172,7 @@ export const useTransportState = (
           state: r.starting ? 'recording' : r.state,
         },
     levels: loaded ? p.levels : r.levels,
-    elapsedMs: loaded ? scrubMs ?? p.positionMs : r.elapsedMs,
+    elapsedMs: loaded ? (scrubMs ?? p.positionMs) : r.elapsedMs,
     seek: {
       positionMs: p.positionMs,
       durationMs: p.durationMs,

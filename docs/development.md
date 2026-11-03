@@ -154,7 +154,7 @@ arrow-function components typed with `FC` and readonly `<Name>Props`, named
 exports only, one exported component or function per file named after it,
 and `@/` imports for anything outside the file's folder. Folders keep shared
 types in `types.ts` and shared constants in `constants.ts`. ESLint
-(`app/.eslintrc.js`, typescript-eslint `strict-type-checked` plus the guide's
+(`app/eslint.config.js`, ESLint 10 flat config, typescript-eslint `strict-type-checked` plus the guide's
 rules) enforces most of it. `lib` is ES2023; Hermes lacks some of its built-ins, so
 `app/src/shared/polyfills/es2023.ts` adds them with core-js. Raise `lib` only
 together with that list. The React Native codegen specs keep the `interface`

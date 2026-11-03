@@ -19,12 +19,12 @@ export const Lamp: FC<LampProps> = props => {
     state === 'done'
       ? th.c('done', th.accent)
       : state === 'failed'
-      ? th.c('failed', colors.error)
-      : state === 'writing'
-      ? th.c('writing', '#ffb03a')
-      : state === 'preparing' || state === 'ready'
-      ? th.c('preparing', '#a08a6a')
-      : th.c('waiting', '#4a423c')
+        ? th.c('failed', colors.error)
+        : state === 'writing'
+          ? th.c('writing', '#ffb03a')
+          : state === 'preparing' || state === 'ready'
+            ? th.c('preparing', '#a08a6a')
+            : th.c('waiting', '#4a423c')
   const glow = th.c('glow', '#00000000')
   const lit = state !== 'waiting'
   const [blink, setBlink] = useState(true)
