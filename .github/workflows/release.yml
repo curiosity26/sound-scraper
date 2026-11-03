@@ -61,13 +61,13 @@ jobs:
       github.event_name != 'pull_request' ||
       (github.event.action == 'labeled' && github.event.label.name == 'release-dry-run') ||
       (github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'release-dry-run'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       prerelease: ${{ steps.v.outputs.prerelease }}
       # true: a cache warm-up run (a push to main or the schedule).
       warm-up: ${{ github.event_name == 'schedule' || (github.event_name == 'push' && github.ref_type == 'branch') }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: v
         env:
           TAG: ${{ github.event_name == 'push' && github.ref_type == 'tag' && github.ref_name || '' }}
@@ -85,7 +85,7 @@ jobs:
     # warm-up uses an environment without any (GitHub creates it on first use).
     environment: ${{ github.event_name == 'push' && github.ref_type == 'tag' && 'release' || 'release-dry-run' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # Xcode's compilation cache for the C, C++ and Objective-C compile:
       # React Native's pods, most of the build. They change with Podfile.lock
       # or Xcode, so that's the key; an older cache (restore-keys) still
@@ -94,7 +94,7 @@ jobs:
       - id: cas
         run: echo "key=macos-xcode-cas-xcode$(xcodebuild -version | shasum | cut -c1-8)-${{ hashFiles('app/macos/Podfile.lock') }}" >> "$GITHUB_OUTPUT"
       # A warm-up only needs to know whether it's there.
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         id: lookup
         if: needs.version.outputs.warm-up == 'true'
         with:
@@ -104,14 +104,14 @@ jobs:
       # false: a warm-up whose cache is there, with nothing to do.
       - id: build
         run: echo "build=${{ steps.lookup.outputs.cache-hit != 'true' }}" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         id: restore
         if: steps.build.outputs.build == 'true'
         with:
           path: app/macos/build/CompilationCache
           key: ${{ steps.cas.outputs.key }}
           restore-keys: macos-xcode-cas-xcode
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: steps.build.outputs.build == 'true'
         with:
           node-version-file: app/.nvmrc
@@ -177,13 +177,13 @@ jobs:
           du -sh "$COMPILATION_CACHE_CAS_PATH"
 
       # Saved on main only: tags and pull requests restore from main.
-      - uses: actions/cache/save@v4
+      - uses: actions/cache/save@v6
         if: github.ref == 'refs/heads/main' && steps.build.outputs.build == 'true' && steps.restore.outputs.cache-hit != 'true'
         with:
           path: app/macos/build/CompilationCache
           key: ${{ steps.cas.outputs.key }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: needs.version.outputs.warm-up != 'true'
         with:
           name: macos
@@ -212,7 +212,7 @@ jobs:
             rust-target: x86_64-pc-windows-msvc
     steps:
       - run: git config --system core.longpaths true
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # The NuGet packages the build restores (react-native-windows' prebuilt
       # Microsoft.ReactNative, Hermes and the rest), a 3-minute download. They
       # change with react-native-windows and the projects, so that's the key.
@@ -223,7 +223,7 @@ jobs:
           rnw=$(jq -er '.packages["node_modules/react-native-windows"].version' app/package-lock.json)
           echo "key=windows-nuget-${{ matrix.platform }}-rnw$rnw-${{ hashFiles('app/windows/**/*.vcxproj', 'app/windows/**/*.props') }}" >> "$GITHUB_OUTPUT"
       # A warm-up only needs to know whether it's there.
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         id: lookup
         if: needs.version.outputs.warm-up == 'true'
         with:
@@ -234,14 +234,14 @@ jobs:
       - id: build
         shell: bash
         run: echo "build=${{ steps.lookup.outputs.cache-hit != 'true' }}" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         id: restore
         if: steps.build.outputs.build == 'true'
         with:
           path: ~/.nuget/packages
           key: ${{ steps.nuget.outputs.key }}
           restore-keys: windows-nuget-${{ matrix.platform }}-
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: steps.build.outputs.build == 'true'
         with:
           node-version-file: app/.nvmrc
@@ -297,7 +297,7 @@ jobs:
         shell: powershell
         run: .\scripts\package-windows.ps1 -Platform ${{ matrix.platform }} -WindowsSdk $env:WINDOWS_SDK
       # Dry run: the .msix stays unsigned.
-      - uses: azure/login@v2
+      - uses: azure/login@v3
         if: github.event_name == 'push' && github.ref_type == 'tag'
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -309,13 +309,13 @@ jobs:
         run: .\scripts\package-windows.ps1 -Platform ${{ matrix.platform }} -WindowsSdk $env:WINDOWS_SDK -ArtifactSigning -SignOnly -Metadata "$env:RUNNER_TEMP\metadata.json"
 
       # Saved on main only: tags and pull requests restore from main.
-      - uses: actions/cache/save@v4
+      - uses: actions/cache/save@v6
         if: github.ref == 'refs/heads/main' && steps.build.outputs.build == 'true' && steps.restore.outputs.cache-hit != 'true'
         with:
           path: ~/.nuget/packages
           key: ${{ steps.nuget.outputs.key }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: needs.version.outputs.warm-up != 'true'
         with:
           name: windows-${{ matrix.platform }}
@@ -349,7 +349,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build, install and start the package
         env:
           CONTAINER_ENGINE: docker
@@ -357,7 +357,7 @@ jobs:
         run: |
           scripts/package-linux-in-container.sh "${{ matrix.distro.image }}" ${{ matrix.distro.format }} ${{ matrix.distro.tag }}
           ls -la dist
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: linux-${{ matrix.distro.tag }}-${{ matrix.arch }}
           path: |
@@ -385,13 +385,13 @@ jobs:
       # flatpak-builder-tools, pinned: the npm and cargo sources generators.
       BUILDER_TOOLS: 74697c75b630d7330e77250fc13cb5ea688d9479
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # flatpak-builder's state: the SDK build of React Native, Hermes and
       # the host (the long part), and downloads. Saved on main (below), the
       # only place a tag's run can restore it from.
       - id: rngtk
         run: echo "key=$(scripts/rngtk-cache-key.sh flatpak-${{ matrix.arch }}-${{ hashFiles('scripts/flatpak_manifest.py') }})" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache/restore@v6
         id: restore
         with:
           path: ~/.cache/react-native-gtk4/flatpak/state
@@ -412,7 +412,7 @@ jobs:
           "$RUNNER_TEMP/venv/bin/pip" install -q "$RUNNER_TEMP/tools/node" aiohttp PyYAML tomlkit
           echo "FLATPAK_NODE_GENERATOR=$RUNNER_TEMP/venv/bin/flatpak-node-generator" >> "$GITHUB_ENV"
           echo "FLATPAK_CARGO_GENERATOR=$RUNNER_TEMP/venv/bin/python3 $RUNNER_TEMP/tools/cargo/flatpak-cargo-generator.py" >> "$GITHUB_ENV"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: steps.build.outputs.build == 'true'
         with:
           node-version-file: app/.nvmrc
@@ -432,12 +432,12 @@ jobs:
         run: |
           rm -rf ~/.cache/react-native-gtk4/flatpak/state/build
           du -sh ~/.cache/react-native-gtk4/flatpak/state
-      - uses: actions/cache/save@v4
+      - uses: actions/cache/save@v6
         if: github.ref == 'refs/heads/main' && steps.restore.outputs.cache-hit != 'true'
         with:
           path: ~/.cache/react-native-gtk4/flatpak/state
           key: ${{ steps.rngtk.outputs.key }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: needs.version.outputs.warm-up != 'true'
         with:
           name: linux-flatpak-${{ matrix.arch }}
@@ -448,12 +448,12 @@ jobs:
     needs: [version, macos, windows, linux, flatpak]
     # Not for dry runs or warm-ups.
     if: github.event_name == 'push' && github.ref_type == 'tag'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
