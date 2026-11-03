@@ -1969,7 +1969,7 @@ dependencies = [
 
 [[package]]
 name = "sound_scraper_capture"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "block2",
  "libc",
@@ -1986,7 +1986,7 @@ dependencies = [
 
 [[package]]
 name = "sound_scraper_core"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "cbindgen",
  "chrono",
@@ -2016,7 +2016,7 @@ dependencies = [
 
 [[package]]
 name = "sound_scraper_disc"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "cc",
  "serde",
@@ -2028,7 +2028,7 @@ dependencies = [
 
 [[package]]
 name = "sound_scraper_layout"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -2036,7 +2036,7 @@ dependencies = [
 
 [[package]]
 name = "sound_scraper_nowplaying"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "base64",
  "libc",
@@ -2048,7 +2048,7 @@ dependencies = [
 
 [[package]]
 name = "sound_scraper_probe"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "hound",
  "id3",
@@ -2058,7 +2058,7 @@ dependencies = [
 
 [[package]]
 name = "sound_scraper_skin"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "image",
  "jsonschema",
@@ -2072,7 +2072,7 @@ dependencies = [
 
 [[package]]
 name = "sound_scraper_vis"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "realfft",
  "rtrb",
