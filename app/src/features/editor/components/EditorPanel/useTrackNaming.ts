@@ -56,7 +56,7 @@ export const useTrackNaming = (
     if (!keep || !name) {
       return edits
     }
-    let renamed = edits
+    let renamed: typeof edits
     if (owner === 'first') {
       renamed = name === edits.firstName ? edits : { ...edits, firstName: name }
     } else {

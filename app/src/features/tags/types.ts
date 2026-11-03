@@ -6,11 +6,7 @@ export type Field = (typeof TEXT_FIELDS)[number]
 export type Merged = { kind: 'value'; text: string } | { kind: 'mixed' }
 
 export type CoverState =
-  | { kind: 'none' }
-  | { kind: 'image'; path: string }
-  | { kind: 'mixed' }
+  { kind: 'none' } | { kind: 'image'; path: string } | { kind: 'mixed' }
 
 export type CoverChange =
-  | { kind: 'keep' }
-  | { kind: 'remove' }
-  | { kind: 'set'; path: string }
+  { kind: 'keep' } | { kind: 'remove' } | { kind: 'set'; path: string }

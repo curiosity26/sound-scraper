@@ -45,10 +45,10 @@ export const ToolButton: FC<ToolButtonProps> = props => {
           backgroundColor: props.accent
             ? th.accent
             : props.active
-            ? th.raised
-            : hover || pressed
-            ? th.raised
-            : 'transparent',
+              ? th.raised
+              : hover || pressed
+                ? th.raised
+                : 'transparent',
           borderColor: props.active ? th.accent : 'transparent',
           opacity: props.disabled ? 0.35 : pressed ? 0.75 : 1,
         },

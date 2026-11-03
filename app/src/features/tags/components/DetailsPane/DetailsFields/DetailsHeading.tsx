@@ -20,7 +20,7 @@ export const DetailsHeading: FC = () => {
   return (
     <InlineField
       label="File name"
-      value={recording ? displayName(recording) : fileNames[0] ?? ''}
+      value={recording ? displayName(recording) : (fileNames[0] ?? '')}
       onCommit={rename}
       large
     />

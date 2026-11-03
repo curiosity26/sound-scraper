@@ -4,9 +4,4 @@
  * MP3 encoding quality (docs/design.md §4).
  */
 export type Quality =
-  | 'cbr128'
-  | 'cbr192'
-  | 'cbr256'
-  | 'cbr320'
-  | 'vbr0'
-  | 'vbr2'
+  'cbr128' | 'cbr192' | 'cbr256' | 'cbr320' | 'vbr0' | 'vbr2'

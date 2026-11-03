@@ -12,8 +12,8 @@ export const imageSource = (image: ImageRef, density = PixelRatio.get()) => {
     density > 2 && image.path4x != null
       ? [image.path4x, 4]
       : density >= 1.5 && image.path2x != null
-      ? [image.path2x, 2]
-      : [image.path, 1]
+        ? [image.path2x, 2]
+        : [image.path, 1]
   return {
     uri: fileUri(path),
     width: image.width,

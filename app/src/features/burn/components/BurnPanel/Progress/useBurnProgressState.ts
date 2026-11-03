@@ -42,18 +42,18 @@ const headlineOf = (status: BurnStatus | null, name: string): string => {
   return !status
     ? 'Starting…'
     : status.state === 'done'
-    ? image
-      ? `Saved ${name}.cue`
-      : status.testWrite
-      ? 'Test write finished: the disc would burn fine'
-      : `Burned ${String(status.tracks.length)} tracks to CD`
-    : status.state === 'failed'
-    ? `${verb} failed`
-    : status.state === 'cancelled'
-    ? `${verb} cancelled`
-    : speed && status.state === 'writing'
-    ? `${status.phase} at ${speed}`
-    : status.phase
+      ? image
+        ? `Saved ${name}.cue`
+        : status.testWrite
+          ? 'Test write finished: the disc would burn fine'
+          : `Burned ${String(status.tracks.length)} tracks to CD`
+      : status.state === 'failed'
+        ? `${verb} failed`
+        : status.state === 'cancelled'
+          ? `${verb} cancelled`
+          : speed && status.state === 'writing'
+            ? `${status.phase} at ${speed}`
+            : status.phase
 }
 
 /**

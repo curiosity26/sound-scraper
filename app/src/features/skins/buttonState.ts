@@ -16,15 +16,15 @@ export const buttonState = (
       ? [`${mode}Disabled`, mode, 'disabled']
       : ['disabled']
     : mode && flags.pressed
-    ? [`${mode}Pressed`, 'activePressed', 'pressed']
-    : mode
-    ? [mode, 'active']
-    : flags.pressed && flags.active
-    ? ['activePressed', 'pressed', 'active']
-    : flags.pressed
-    ? ['pressed']
-    : flags.active
-    ? ['active']
-    : []
+      ? [`${mode}Pressed`, 'activePressed', 'pressed']
+      : mode
+        ? [mode, 'active']
+        : flags.pressed && flags.active
+          ? ['activePressed', 'pressed', 'active']
+          : flags.pressed
+            ? ['pressed']
+            : flags.active
+              ? ['active']
+              : []
   return candidates.find(s => s in states) ?? 'normal'
 }

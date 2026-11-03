@@ -24,8 +24,9 @@ export type AsyncBoundaryProps = {
 
 const renderFallback =
   (what: string) =>
-  ({ error, resetErrorBoundary }: FallbackProps): ReactNode =>
+  ({ error, resetErrorBoundary }: FallbackProps): ReactNode => (
     <ErrorFallback what={what} error={error} onRetry={resetErrorBoundary} />
+  )
 
 export const AsyncBoundary: FC<AsyncBoundaryProps> = props => (
   <ErrorBoundary

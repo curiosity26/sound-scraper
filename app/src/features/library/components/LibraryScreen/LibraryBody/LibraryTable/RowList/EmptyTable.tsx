@@ -19,8 +19,8 @@ export const EmptyTable: FC = () => {
           ? 'This playlist is empty. Choose + Add Recordings… above, or record while it is showing.'
           : 'Nothing in this playlist matches your search.'
         : recordings.length === 0
-        ? 'No recordings yet. Press Record to make one.'
-        : 'No recordings match your search.'}
+          ? 'No recordings yet. Press Record to make one.'
+          : 'No recordings match your search.'}
     </Text>
   )
 }

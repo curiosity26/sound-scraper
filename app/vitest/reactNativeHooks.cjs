@@ -8,11 +8,11 @@
 //   the RN Babel preset,
 // - resolve platform files (Foo.ios.js / Foo.native.js before Foo.js),
 // - let react-native/jest/setup.js (run by ./setup.ts) reach Libraries/*.
-const fs = require('node:fs')
-const path = require('node:path')
-const Module = require('node:module')
-const { fileURLToPath, pathToFileURL } = require('node:url')
 const babel = require('@babel/core')
+const fs = require('node:fs')
+const Module = require('node:module')
+const path = require('node:path')
+const { fileURLToPath, pathToFileURL } = require('node:url')
 
 const rnRoot = path.dirname(require.resolve('react-native/package.json'))
 // react-native-gtk4's JS (the Linux tests) is Flow too.

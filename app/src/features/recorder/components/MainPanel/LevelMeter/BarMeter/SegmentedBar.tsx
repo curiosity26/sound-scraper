@@ -44,10 +44,10 @@ export const SegmentedBar: FC<SegmentedBarProps> = props => {
           const fill = !lit
             ? off
             : i >= segments * 0.9
-            ? clip
-            : i >= segments * 0.7
-            ? hot
-            : on
+              ? clip
+              : i >= segments * 0.7
+                ? hot
+                : on
           const a = i * (segSize + gap)
           const b = row * (rowSize + gap)
           return (

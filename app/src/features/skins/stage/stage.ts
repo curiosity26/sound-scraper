@@ -342,7 +342,7 @@ const start = () => {
     scale: null,
   })
   // Saved sizes are at the saved scale; applyMainLayout scales them.
-  mainScale = spot ? layout?.scale ?? pendingScale : pendingScale
+  mainScale = spot ? (layout?.scale ?? pendingScale) : pendingScale
   for (const panel of RESTORED) {
     if (layout?.panels?.some(p => p.id === panel && p.visible === true)) {
       waiting.add(panel)

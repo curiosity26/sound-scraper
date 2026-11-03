@@ -3,7 +3,7 @@ import type { Tags } from '@/bridge/types'
 import type { TrackRow } from './types'
 
 const pick = (own: string | undefined, recording: string | null | undefined) =>
-  own === undefined ? recording ?? null : own || null
+  own === undefined ? (recording ?? null) : own || null
 
 /**
  * The tags a track is saved with: its name as the title, its own tags over
@@ -27,9 +27,9 @@ export const effectiveTags = (
     track: own.track ?? track.number,
     coverPath:
       own.cover === undefined
-        ? recording?.coverPath ?? null
+        ? (recording?.coverPath ?? null)
         : own.cover
-        ? coverPath(own.cover)
-        : null,
+          ? coverPath(own.cover)
+          : null,
   }
 }

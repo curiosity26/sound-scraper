@@ -10,11 +10,7 @@ import type {
 } from '@/bridge/generated'
 
 export type BurnAnswer =
-  | DevicesAnswer
-  | SimSettings
-  | BurnStatus
-  | number
-  | null
+  DevicesAnswer | SimSettings | BurnStatus | number | null
 
 /** A burn job's status; preparing, with nothing done yet, unless changed. */
 export const burnStatus = (extra: Partial<BurnStatus> = {}): BurnStatus => ({

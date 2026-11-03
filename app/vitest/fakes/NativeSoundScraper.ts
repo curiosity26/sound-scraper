@@ -243,8 +243,8 @@ const applyEdit = (tags: Tags, edit: TagEdit): Tags => {
     edit.cover === 'keep'
       ? tags.coverPath
       : edit.cover === 'set'
-      ? edit.coverPath
-      : null
+        ? edit.coverPath
+        : null
   return { ...tags, ...changed, coverPath: cover }
 }
 

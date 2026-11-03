@@ -15,8 +15,8 @@ export const readiness = (
   const action = image
     ? 'Save Image…'
     : device.media.state === 'erasable'
-    ? 'Erase and Burn'
-    : 'Burn'
+      ? 'Erase and Burn'
+      : 'Burn'
   if (capacity.tracks === 0) {
     return { ok: false, action, reason: 'There are no tracks to burn.' }
   }
@@ -44,8 +44,8 @@ export const readiness = (
       reason: image
         ? `${over} too long for an 80-minute CD.`
         : minutes === 74 && capacity.fit === 'fits80'
-        ? `${over} too long for this 74-minute disc. Use an 80-minute CD-R.`
-        : `${over} too long for this disc.`,
+          ? `${over} too long for this 74-minute disc. Use an 80-minute CD-R.`
+          : `${over} too long for this disc.`,
     }
   }
   return { ok: true, action }

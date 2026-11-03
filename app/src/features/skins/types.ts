@@ -36,11 +36,7 @@ export type WindowName = 'main' | PanelName
  * skins.takeOpened).
  */
 export type WindowEventKind =
-  | 'shown'
-  | 'hidden'
-  | 'toggleShade'
-  | 'toggleDoubleSize'
-  | 'skinFilesOpened'
+  'shown' | 'hidden' | 'toggleShade' | 'toggleDoubleSize' | 'skinFilesOpened'
 
 /** A window event from the native side (NativeSkins' onWindowEvent). */
 export type SkinWindowEvent = {

@@ -47,10 +47,10 @@ export const useEditorSelection = (): UseEditorSelectionResult => {
     deleteTarget: range
       ? 'selection'
       : selectedSlice !== null
-      ? 'slice'
-      : selectedRegion !== null
-      ? 'region'
-      : null,
+        ? 'slice'
+        : selectedRegion !== null
+          ? 'region'
+          : null,
     setRange,
     setSelectedSlice,
     setSelectedRegion,

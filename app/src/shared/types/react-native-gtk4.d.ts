@@ -4,12 +4,7 @@
 // installed, its own types (a superset) are used instead.
 declare module '@curiosity26/react-native-gtk4' {
   export type WindowEvent =
-    | 'focus'
-    | 'blur'
-    | 'resize'
-    | 'close-requested'
-    | 'closed'
-    | 'open'
+    'focus' | 'blur' | 'resize' | 'close-requested' | 'closed' | 'open'
 
   /** One of the app's windows (Windows.open, Windows.main). */
   export type WindowHandle = {

@@ -5,8 +5,7 @@ import { isNumber, isOneOf, isShape, isString } from '@/shared/utils/guards'
 import { isVariantOf } from './isVariantOf'
 
 type Status =
-  | { state: 'loading'; progress: number }
-  | { state: 'failed'; message: string }
+  { state: 'loading'; progress: number } | { state: 'failed'; message: string }
 
 const isStatus = isVariantOf<Status, 'state'>('state', {
   loading: isShape({ state: isOneOf('loading'), progress: isNumber }),

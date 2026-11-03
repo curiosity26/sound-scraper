@@ -82,8 +82,8 @@ export const useSourceDisplay = (
     (loaded && title
       ? `♪ ${title}`
       : into
-      ? `${r.sourceName} → ${into}`
-      : r.sourceName)
+        ? `${r.sourceName} → ${into}`
+        : r.sourceName)
 
   return {
     text,

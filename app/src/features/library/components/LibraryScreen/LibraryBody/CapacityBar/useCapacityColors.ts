@@ -22,10 +22,10 @@ export const useCapacityColors = (): UseCapacityColorsResult => {
   return {
     fill:
       c.fit === 'fits74'
-        ? pc.fill ?? theme?.accent ?? colors.accent
+        ? (pc.fill ?? theme?.accent ?? colors.accent)
         : c.fit === 'fits80'
-        ? pc.fill80 ?? '#e0a030'
-        : pc.over ?? colors.error,
+          ? (pc.fill80 ?? '#e0a030')
+          : (pc.over ?? colors.error),
     text,
     track: pc.track ?? '#0004',
     mark: pc.mark ?? text ?? '#fff',

@@ -76,8 +76,8 @@ const native = {
     return answer === undefined
       ? Promise.reject(new Error('Not a skin'))
       : answer instanceof Error
-      ? Promise.reject(answer)
-      : Promise.resolve(JSON.stringify(answer))
+        ? Promise.reject(answer)
+        : Promise.resolve(JSON.stringify(answer))
   }),
   skinPreview: vi.fn((_idOrPath: string) => notInTests()),
   packageSkin: vi.fn((_dir: string, _outPath: string) => notInTests()),
