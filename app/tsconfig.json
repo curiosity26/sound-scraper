@@ -7,11 +7,10 @@
     "verbatimModuleSyntax": true,
     "erasableSyntaxOnly": true,
     "lib": ["ES2023"],
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@test/*": ["vitest/*"],
-      "@e2e/*": ["e2e/*"]
+      "@/*": ["./src/*"],
+      "@test/*": ["./vitest/*"],
+      "@e2e/*": ["./e2e/*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx"],
