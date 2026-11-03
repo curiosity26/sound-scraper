@@ -44,6 +44,9 @@ updates:
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
       - dependency-name: "@curiosity26/react-native-gtk4"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      # 0.5 needs ESLint 9+; bump it with the ESLint migration.
+      - dependency-name: eslint-plugin-react-refresh
+        versions: [">=0.5.0"]
 
   - package-ecosystem: cargo
     directory: /core

@@ -9280,7 +9280,7 @@
 },
 {
 "name": "react",
-"version": "19.2.3",
+"version": "19.3.1",
 "license": "MIT",
 "repository": "https://github.com/facebook/react.git",
 "texts": [
@@ -9341,7 +9341,7 @@
 },
 {
 "name": "react-native-windows",
-"version": "0.83.2",
+"version": "0.83.3",
 "license": "MIT",
 "repository": "git@github.com:microsoft/react-native-windows.git",
 "texts": [
