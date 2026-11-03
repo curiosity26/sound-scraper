@@ -81,12 +81,19 @@ jobs:
           workspaces: core
           key: codeql-macos-arm64
           save-if: ${{ github.ref == 'refs/heads/main' }}
-      # Outside CodeQL's tracing: only the app's own Swift needs extracting.
+      # Outside CodeQL's tracing: the pods, Hermes and the Rust core build
+      # untraced first (a traced cold build takes about an hour), so the
+      # traced build below only recompiles the app's own Swift.
       - if: matrix.language == 'swift'
-        name: Install JS dependencies and pods
+        name: Install dependencies and pre-build the macOS app
         run: |
           npm ci --prefix app
           cd app/macos && BUNDLE_GEMFILE=../Gemfile bundle exec pod install
+          set -o pipefail
+          xcodebuild -workspace SoundScraper.xcworkspace -scheme SoundScraper-macOS \
+            -configuration Debug -derivedDataPath build/CodeQL ARCHS=arm64 \
+            CODE_SIGNING_ALLOWED=NO COMPILER_INDEX_STORE_ENABLE=NO build \
+            | grep -E "error:|BUILD (SUCCEEDED|FAILED)"
 
       - uses: github/codeql-action/init@v4
         with:
@@ -94,10 +101,11 @@ jobs:
           build-mode: ${{ matrix.build-mode }}
 
       - if: matrix.language == 'swift'
-        name: Build the macOS app
+        name: Rebuild the app's Swift under CodeQL
         working-directory: app/macos
         run: |
           set -o pipefail
+          touch SoundScraper-macOS/*.swift
           xcodebuild -workspace SoundScraper.xcworkspace -scheme SoundScraper-macOS \
             -configuration Debug -derivedDataPath build/CodeQL ARCHS=arm64 \
             CODE_SIGNING_ALLOWED=NO COMPILER_INDEX_STORE_ENABLE=NO build \
