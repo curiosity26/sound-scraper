@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "core-js": "3.50.0",
-    "react": "19.2.0",
+    "react": "19.2.3",
     "react-error-boundary": "6.1.6",
     "react-native": "0.83.10",
     "react-native-macos": "0.83.0",
