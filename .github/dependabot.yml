@@ -16,9 +16,7 @@ updates:
         patterns: ["*"]
 
   - package-ecosystem: npm
-    directories:
-      - /app
-      - /app/eslint-rules
+    directory: /app
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
@@ -56,10 +54,3 @@ updates:
       cargo-minor-and-patch:
         update-types: [minor, patch]
 
-  - package-ecosystem: bundler
-    directory: /app
-    schedule:
-      interval: monthly
-    groups:
-      bundler:
-        patterns: ["*"]
