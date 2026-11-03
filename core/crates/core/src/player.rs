@@ -33,14 +33,12 @@ use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use rubato::{FftFixedIn, Resampler};
 use sound_scraper_vis::{Analyzer, Tap, VisHub};
 use symphonia::core::{
-    audio::SampleBuffer,
-    codecs::{CODEC_TYPE_NULL, Decoder, DecoderOptions},
+    codecs::audio::{AudioDecoder, AudioDecoderOptions},
     errors::Error as SymphoniaError,
-    formats::{FormatOptions, FormatReader, SeekMode, SeekTo},
+    formats::{FormatOptions, FormatReader, SeekMode, SeekTo, TrackType, probe::Hint},
     io::MediaSourceStream,
     meta::MetadataOptions,
-    probe::Hint,
-    units::Time,
+    units::{Time, Timestamp},
 };
 
 const PROGRESS_INTERVAL: Duration = Duration::from_millis(100);
@@ -282,7 +280,7 @@ fn emit(events: &Option<PlayerSink>, event: &PlayerEvent) {
 /// used by the track editor).
 pub(crate) struct Source {
     format: Box<dyn FormatReader>,
-    decoder: Box<dyn Decoder>,
+    decoder: Box<dyn AudioDecoder>,
     track_id: u32,
     pub(crate) rate: u32,
     pub(crate) duration: Duration,
@@ -301,35 +299,40 @@ impl Source {
         if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
             hint.with_extension(ext);
         }
-        let options = FormatOptions {
-            enable_gapless: true,
-            ..Default::default()
-        };
-        let probed = symphonia::default::get_probe()
-            .format(&hint, stream, &options, &MetadataOptions::default())
+        let format = symphonia::default::get_probe()
+            .probe(
+                &hint,
+                stream,
+                FormatOptions::default(),
+                MetadataOptions::default(),
+            )
             .map_err(|e| format!("{} isn't a playable MP3: {e}", path.display()))?;
-        let format = probed.format;
         let track = format
-            .tracks()
-            .iter()
-            .find(|t| t.codec_params.codec != CODEC_TYPE_NULL)
+            .default_track(TrackType::Audio)
             .ok_or_else(|| format!("{} has no audio", path.display()))?;
-        let params = track.codec_params.clone();
+        let params = track
+            .codec_params
+            .as_ref()
+            .and_then(|p| p.audio())
+            .ok_or_else(|| format!("{} has no audio", path.display()))?;
         let rate = params.sample_rate.ok_or("unknown sample rate")?;
+        // Gapless (the default): the decoder trims the encoder delay and
+        // padding, so frame 0 is the first real sample.
         let decoder = symphonia::default::get_codecs()
-            .make(&params, &DecoderOptions::default())
+            .make_audio_decoder(params, &AudioDecoderOptions::default())
             .map_err(|e| format!("can't decode {}: {e}", path.display()))?;
-        let duration = params
-            .n_frames
+        let n_frames = track.num_frames;
+        let duration = n_frames
             .map(|n| Duration::from_secs_f64(n as f64 / f64::from(rate)))
             .unwrap_or_default();
+        let track_id = track.id;
         Ok(Self {
-            track_id: track.id,
+            track_id,
             format,
             decoder,
             rate,
             duration,
-            n_frames: params.n_frames,
+            n_frames,
             skip_until: 0,
             eof: false,
         })
@@ -340,14 +343,18 @@ impl Source {
     pub(crate) fn seek_frame(&mut self, ts: u64) -> bool {
         self.eof = false;
         self.skip_until = 0;
-        let to = SeekTo::TimeStamp {
+        let Ok(ts) = Timestamp::try_from(ts) else {
+            self.eof = true;
+            return false;
+        };
+        let to = SeekTo::Timestamp {
             ts,
             track_id: self.track_id,
         };
         match self.format.seek(SeekMode::Accurate, to) {
             Ok(seeked) => {
                 self.decoder.reset();
-                self.skip_until = seeked.required_ts;
+                self.skip_until = frame_of(seeked.required_ts);
                 true
             }
             Err(_) => {
@@ -367,14 +374,14 @@ impl Source {
         self.eof = false;
         self.skip_until = 0;
         let to = SeekTo::Time {
-            time: Time::from(at.as_secs_f64()),
+            time: Time::try_from_secs_f64(at.as_secs_f64()).unwrap_or(Time::ZERO),
             track_id: Some(self.track_id),
         };
         match self.format.seek(SeekMode::Accurate, to) {
             Ok(seeked) => {
                 self.decoder.reset();
-                self.skip_until = seeked.required_ts;
-                Duration::from_secs_f64(seeked.required_ts as f64 / f64::from(self.rate))
+                self.skip_until = frame_of(seeked.required_ts);
+                Duration::from_secs_f64(self.skip_until as f64 / f64::from(self.rate))
             }
             // Past the end (or unseekable): treat as finished there.
             Err(_) => {
@@ -392,7 +399,11 @@ impl Source {
                 return false;
             }
             let packet = match self.format.next_packet() {
-                Ok(packet) => packet,
+                Ok(Some(packet)) => packet,
+                Ok(None) => {
+                    self.eof = true;
+                    return false;
+                }
                 Err(SymphoniaError::ResetRequired) => {
                     self.decoder.reset();
                     continue;
@@ -402,7 +413,7 @@ impl Source {
                     return false;
                 }
             };
-            if packet.track_id() != self.track_id {
+            if packet.track_id != self.track_id {
                 continue;
             }
             let decoded = match self.decoder.decode(&packet) {
@@ -414,16 +425,16 @@ impl Source {
                     return false;
                 }
             };
-            let spec = *decoded.spec();
-            let channels = spec.channels.count().max(1);
-            let mut buf = SampleBuffer::<f32>::new(decoded.capacity() as u64, spec);
-            buf.copy_interleaved_ref(decoded);
-            let samples = buf.samples();
+            let channels = decoded.spec().channels().count().max(1);
+            let mut samples = Vec::<f32>::new();
+            decoded.copy_to_vec_interleaved(&mut samples);
             let frames = samples.len() / channels;
-            let skip = self
-                .skip_until
-                .saturating_sub(packet.ts())
-                .min(frames as u64) as usize;
+            // The first frame left after the decoder trimmed the delay.
+            let first = packet
+                .pts
+                .checked_add(packet.trim_start)
+                .map_or(0, frame_of);
+            let skip = self.skip_until.saturating_sub(first).min(frames as u64) as usize;
             for frame in samples.chunks_exact(channels).skip(skip) {
                 let left = frame[0];
                 let right = if channels > 1 { frame[1] } else { left };
@@ -435,6 +446,11 @@ impl Source {
             }
         }
     }
+}
+
+/// A track timestamp as a frame index (the encoder delay is negative).
+fn frame_of(ts: Timestamp) -> u64 {
+    u64::try_from(ts.get()).unwrap_or(0)
 }
 
 // ------------------------------------------------------------------ output
