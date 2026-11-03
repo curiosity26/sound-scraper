@@ -17,6 +17,7 @@ use std::{
     ffi::OsString,
     fs::File,
     io::Read,
+    num::NonZeroUsize,
     os::unix::ffi::OsStringExt,
     path::PathBuf,
     sync::{
@@ -29,11 +30,11 @@ use std::{
 };
 
 use zbus::{
-    MatchRule,
-    blocking::{Connection, MessageIterator, connection, fdo::DBusProxy},
+    Connection, MatchRule, MessageStream, OwnedVariant, Variant, block_on, connection,
+    export::futures_core::Stream,
+    fdo::DBusProxy,
     message::{Message, Type as MessageType},
     names::BusName,
-    zvariant::{OwnedValue, Value},
 };
 
 use crate::{
@@ -56,7 +57,7 @@ const WAKE_MEMBER: &str = "Wake";
 const METHOD_TIMEOUT: Duration = Duration::from_secs(2);
 /// Bigger than zbus's default 64 so a burst of signals during startup never
 /// back-pressures the socket; the reader drains it immediately anyway.
-const MAX_QUEUED: usize = 1024;
+const MAX_QUEUED: NonZeroUsize = NonZeroUsize::new(1024).unwrap();
 /// Players hand out whatever image they like; anything bigger is not cover
 /// art worth embedding.
 const MAX_ART_BYTES: u64 = 10 * 1024 * 1024;
@@ -94,9 +95,13 @@ impl Shutdown {
         if let Some(me) = self.conn.unique_name() {
             // If this fails the bus is gone, and the reader's stream ends on
             // its own.
-            let _ =
-                self.conn
-                    .emit_signal(Some(me.as_str()), OBJECT_PATH, WAKE_IFACE, WAKE_MEMBER, &());
+            let _ = block_on(self.conn.emit_signal(
+                Some(me.as_str()),
+                OBJECT_PATH,
+                WAKE_IFACE,
+                WAKE_MEMBER,
+                &(),
+            ));
         }
     }
 }
@@ -124,17 +129,18 @@ impl NowPlayingBackend for Mpris {
     /// reported to the caller as `Unavailable`.
     fn start(&mut self, sink: Sender<BackendEvent>) -> Result<(), NowPlayingError> {
         self.stop();
-        let conn = connection::Builder::session()
-            .and_then(|b| {
-                b.method_timeout(METHOD_TIMEOUT)
-                    .max_queued(MAX_QUEUED)
-                    .build()
-            })
-            .map_err(|e| NowPlayingError::Unavailable(format!("D-Bus session bus: {e}")))?;
+        let conn = block_on(
+            connection::Builder::session()
+                .method_timeout(METHOD_TIMEOUT)
+                .max_queued(MAX_QUEUED)
+                .build(),
+        )
+        .map_err(|e| NowPlayingError::Unavailable(format!("D-Bus session bus: {e}")))?;
         // Subscribe before adding match rules so nothing between the two is
         // lost.
-        let messages = MessageIterator::from(&conn);
-        add_match_rules(&conn).map_err(|e| NowPlayingError::Os(format!("D-Bus AddMatch: {e}")))?;
+        let messages = MessageStream::from(&conn);
+        block_on(add_match_rules(&conn))
+            .map_err(|e| NowPlayingError::Os(format!("D-Bus AddMatch: {e}")))?;
 
         let shutdown = Arc::new(Shutdown {
             flag: AtomicBool::new(false),
@@ -190,37 +196,43 @@ fn spawn(name: &str, f: impl FnOnce() + Send + 'static) -> Result<JoinHandle<()>
         .map_err(|e| NowPlayingError::Os(format!("spawning {name}: {e}")))
 }
 
-fn add_match_rules(conn: &Connection) -> zbus::Result<()> {
-    let dbus = DBusProxy::new(conn)?;
+/// The stream's next message; zbus 6 is async only, and this crate drives
+/// it from plain threads with `zbus::block_on`.
+async fn next(messages: &mut MessageStream) -> Option<zbus::Result<Message>> {
+    std::future::poll_fn(|cx| std::pin::Pin::new(&mut *messages).poll_next(cx)).await
+}
+
+async fn add_match_rules(conn: &Connection) -> zbus::Result<()> {
+    let dbus = DBusProxy::new(conn).await?;
     let name_owner = MatchRule::builder()
         .msg_type(MessageType::Signal)
-        .sender(DBUS_IFACE)?
-        .interface(DBUS_IFACE)?
-        .member("NameOwnerChanged")?
-        .arg0ns("org.mpris.MediaPlayer2")?
-        .build();
+        .sender(DBUS_IFACE)
+        .interface(DBUS_IFACE)
+        .member("NameOwnerChanged")
+        .arg0ns("org.mpris.MediaPlayer2")
+        .build()?;
     let properties = MatchRule::builder()
         .msg_type(MessageType::Signal)
-        .interface(PROPERTIES_IFACE)?
-        .member("PropertiesChanged")?
-        .path(OBJECT_PATH)?
-        .arg(0, PLAYER_IFACE)?
-        .build();
+        .interface(PROPERTIES_IFACE)
+        .member("PropertiesChanged")
+        .path(OBJECT_PATH)
+        .arg(0, PLAYER_IFACE)
+        .build()?;
     let seeked = MatchRule::builder()
         .msg_type(MessageType::Signal)
-        .interface(PLAYER_IFACE)?
-        .member("Seeked")?
-        .path(OBJECT_PATH)?
-        .build();
+        .interface(PLAYER_IFACE)
+        .member("Seeked")
+        .path(OBJECT_PATH)
+        .build()?;
     for rule in [name_owner, properties, seeked] {
-        dbus.add_match_rule(rule)?;
+        dbus.add_match_rule(rule).await?;
     }
     Ok(())
 }
 
 /// Forwards every incoming signal to the worker until shut down.
-fn read_messages(messages: MessageIterator, tx: Sender<Message>, shutdown: &Shutdown) {
-    for msg in messages {
+fn read_messages(mut messages: MessageStream, tx: Sender<Message>, shutdown: &Shutdown) {
+    while let Some(msg) = block_on(next(&mut messages)) {
         if shutdown.is_set() {
             break;
         }
@@ -280,15 +292,17 @@ impl Worker {
     }
 
     fn add_existing_players(&mut self) {
-        let Ok(dbus) = DBusProxy::new(&self.conn) else {
+        let Ok(dbus) = block_on(DBusProxy::new(&self.conn)) else {
             return;
         };
-        let Ok(names) = dbus.list_names() else { return };
+        let Ok(names) = block_on(dbus.list_names()) else {
+            return;
+        };
         for name in names {
             if !is_player_name(name.as_str()) {
                 continue;
             }
-            let Ok(owner) = dbus.get_name_owner(name.inner().clone()) else {
+            let Ok(owner) = block_on(dbus.get_name_owner(name.inner().clone())) else {
                 continue;
             };
             self.add_player(name.as_str(), owner.as_str());
@@ -308,7 +322,7 @@ impl Worker {
                 }
             }
             (PROPERTIES_IFACE, "PropertiesChanged") => {
-                type Body = (String, HashMap<String, OwnedValue>, Vec<String>);
+                type Body = (String, HashMap<String, OwnedVariant>, Vec<String>);
                 if let Ok((iface, changed, invalidated)) = msg.body().deserialize::<Body>()
                     && iface == PLAYER_IFACE
                     && touches_snapshot(changed.keys().chain(&invalidated))
@@ -340,13 +354,14 @@ impl Worker {
     }
 
     fn add_player(&mut self, name: &str, owner: &str) {
-        let pid = DBusProxy::new(&self.conn)
-            .and_then(|dbus| {
-                let owner = BusName::try_from(owner)?;
-                dbus.get_connection_unix_process_id(owner)
-                    .map_err(zbus::Error::from)
-            })
-            .ok();
+        let pid = block_on(async {
+            let dbus = DBusProxy::new(&self.conn).await?;
+            let owner = BusName::try_from(owner)?;
+            dbus.get_connection_unix_process_id(owner)
+                .await
+                .map_err(zbus::Error::from)
+        })
+        .ok();
         let player = Player {
             id: PlayerId {
                 app_id: name.to_owned(),
@@ -385,7 +400,7 @@ impl Worker {
         let position_at = SystemTime::now();
         let metadata = props
             .get("Metadata")
-            .and_then(|v| HashMap::<String, OwnedValue>::try_from(v.try_clone().ok()?).ok())
+            .and_then(|v| HashMap::<String, OwnedVariant>::try_from(v.try_clone().ok()?).ok())
             .unwrap_or_default();
         let mut track = track_from_metadata(&metadata);
         if let Some(track) = &mut track {
@@ -431,16 +446,15 @@ fn touches_snapshot<'a>(mut names: impl Iterator<Item = &'a String>) -> bool {
     names.any(|n| n == "Metadata" || n == "PlaybackStatus")
 }
 
-fn get_player_properties(conn: &Connection, owner: &str) -> Option<HashMap<String, OwnedValue>> {
-    let reply = conn
-        .call_method(
-            Some(owner),
-            OBJECT_PATH,
-            Some(PROPERTIES_IFACE),
-            "GetAll",
-            &(PLAYER_IFACE,),
-        )
-        .ok()?;
+fn get_player_properties(conn: &Connection, owner: &str) -> Option<HashMap<String, OwnedVariant>> {
+    let reply = block_on(conn.call_method(
+        Some(owner),
+        OBJECT_PATH,
+        Some(PROPERTIES_IFACE),
+        "GetAll",
+        &(PLAYER_IFACE,),
+    ))
+    .ok()?;
     reply.body().deserialize().ok()
 }
 
@@ -455,7 +469,7 @@ fn playback_state(status: &str) -> PlaybackState {
 /// Maps an MPRIS `Metadata` dictionary to a [`Track`], without artwork
 /// (that needs I/O, see [`art_url`]). `None` when the player says nothing
 /// useful, as players do between tracks.
-pub(crate) fn track_from_metadata(metadata: &HashMap<String, OwnedValue>) -> Option<Track> {
+pub(crate) fn track_from_metadata(metadata: &HashMap<String, OwnedVariant>) -> Option<Track> {
     let get = |key: &str| metadata.get(key).map(|v| &**v);
     let track = Track {
         title: get("xesam:title").and_then(string),
@@ -478,7 +492,7 @@ pub(crate) fn track_from_metadata(metadata: &HashMap<String, OwnedValue>) -> Opt
 }
 
 /// `mpris:artUrl`, if the player gave one.
-pub(crate) fn art_url(metadata: &HashMap<String, OwnedValue>) -> Option<String> {
+pub(crate) fn art_url(metadata: &HashMap<String, OwnedVariant>) -> Option<String> {
     metadata.get("mpris:artUrl").and_then(|v| string(v))
 }
 
@@ -561,18 +575,18 @@ pub(crate) fn sniff_image_mime(data: &[u8]) -> Option<&'static str> {
 }
 
 /// Some players wrap values in an extra variant; look through it.
-fn unwrap_variant<'a>(mut value: &'a Value<'a>) -> &'a Value<'a> {
-    while let Value::Value(inner) = value {
+fn unwrap_variant<'a>(mut value: &'a Variant<'a>) -> &'a Variant<'a> {
+    while let Variant::Variant(inner) = value {
         value = inner;
     }
     value
 }
 
 /// A non-empty string (object paths included, for `mpris:trackid`).
-fn string(value: &Value<'_>) -> Option<String> {
+fn string(value: &Variant<'_>) -> Option<String> {
     let s = match unwrap_variant(value) {
-        Value::Str(s) => s.as_str(),
-        Value::ObjectPath(p) => p.as_str(),
+        Variant::Str(s) => s.as_str(),
+        Variant::ObjectPath(p) => p.as_str(),
         _ => return None,
     };
     (!s.is_empty()).then(|| s.to_owned())
@@ -580,9 +594,9 @@ fn string(value: &Value<'_>) -> Option<String> {
 
 /// A string, or an array of strings joined with ", " (the spec says arrays
 /// for artists and genres; some players send a plain string anyway).
-fn joined(value: &Value<'_>) -> Option<String> {
+fn joined(value: &Variant<'_>) -> Option<String> {
     match unwrap_variant(value) {
-        Value::Array(items) => {
+        Variant::Array(items) => {
             let parts: Vec<String> = items.iter().filter_map(string).collect();
             (!parts.is_empty()).then(|| parts.join(", "))
         }
@@ -591,21 +605,21 @@ fn joined(value: &Value<'_>) -> Option<String> {
 }
 
 /// Any integer type: the spec says `i32`/`i64`, players send what they like.
-fn integer(value: &Value<'_>) -> Option<i64> {
+fn integer(value: &Variant<'_>) -> Option<i64> {
     match *unwrap_variant(value) {
-        Value::U8(n) => Some(n.into()),
-        Value::I16(n) => Some(n.into()),
-        Value::U16(n) => Some(n.into()),
-        Value::I32(n) => Some(n.into()),
-        Value::U32(n) => Some(n.into()),
-        Value::I64(n) => Some(n),
-        Value::U64(n) => i64::try_from(n).ok(),
+        Variant::U8(n) => Some(n.into()),
+        Variant::I16(n) => Some(n.into()),
+        Variant::U16(n) => Some(n.into()),
+        Variant::I32(n) => Some(n.into()),
+        Variant::U32(n) => Some(n.into()),
+        Variant::I64(n) => Some(n),
+        Variant::U64(n) => i64::try_from(n).ok(),
         _ => None,
     }
 }
 
 /// A non-negative microsecond count (`mpris:length`, `Position`).
-fn micros(value: &Value<'_>) -> Option<Duration> {
+fn micros(value: &Variant<'_>) -> Option<Duration> {
     let n = integer(value)?;
     u64::try_from(n).ok().map(Duration::from_micros)
 }
@@ -642,13 +656,13 @@ pub(crate) fn ppid_from_stat(stat: &str) -> Option<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zbus::zvariant::ObjectPath;
+    use zbus::ObjectPath;
 
-    fn owned(value: Value<'_>) -> OwnedValue {
+    fn owned(value: Variant<'_>) -> OwnedVariant {
         value.try_to_owned().expect("no fds")
     }
 
-    fn metadata(entries: Vec<(&str, Value<'_>)>) -> HashMap<String, OwnedValue> {
+    fn metadata(entries: Vec<(&str, Variant<'_>)>) -> HashMap<String, OwnedVariant> {
         entries
             .into_iter()
             .map(|(k, v)| (k.to_owned(), owned(v)))
@@ -658,16 +672,16 @@ mod tests {
     #[test]
     fn maps_full_metadata() {
         let md = metadata(vec![
-            ("xesam:title", Value::from("Song")),
-            ("xesam:artist", Value::from(vec!["A", "B"])),
-            ("xesam:album", Value::from("Album")),
-            ("xesam:albumArtist", Value::from(vec!["Various"])),
-            ("xesam:trackNumber", Value::I32(7)),
-            ("xesam:genre", Value::from(vec!["Rock", "Pop"])),
-            ("mpris:length", Value::I64(215_500_000)),
+            ("xesam:title", Variant::from("Song")),
+            ("xesam:artist", Variant::from(vec!["A", "B"])),
+            ("xesam:album", Variant::from("Album")),
+            ("xesam:albumArtist", Variant::from(vec!["Various"])),
+            ("xesam:trackNumber", Variant::I32(7)),
+            ("xesam:genre", Variant::from(vec!["Rock", "Pop"])),
+            ("mpris:length", Variant::I64(215_500_000)),
             (
                 "mpris:trackid",
-                Value::ObjectPath(ObjectPath::from_static_str_unchecked("/org/x/track/1")),
+                Variant::ObjectPath(ObjectPath::from_static_str_unchecked("/org/x/track/1")),
             ),
         ]);
         let track = track_from_metadata(&md).unwrap();
@@ -693,13 +707,13 @@ mod tests {
         let md = metadata(vec![
             (
                 "xesam:title",
-                Value::Value(Box::new(Value::from("Wrapped"))),
+                Variant::Variant(Box::new(Variant::from("Wrapped"))),
             ),
-            ("xesam:artist", Value::from("Plain String")),
-            ("mpris:length", Value::U64(1_000_000)),
-            ("mpris:trackid", Value::from("spotify:track:abc")),
-            ("xesam:trackNumber", Value::from("not a number")),
-            ("xesam:album", Value::I32(3)),
+            ("xesam:artist", Variant::from("Plain String")),
+            ("mpris:length", Variant::U64(1_000_000)),
+            ("mpris:trackid", Variant::from("spotify:track:abc")),
+            ("xesam:trackNumber", Variant::from("not a number")),
+            ("xesam:album", Variant::I32(3)),
         ]);
         let track = track_from_metadata(&md).unwrap();
         assert_eq!(track.title.as_deref(), Some("Wrapped"));
@@ -713,14 +727,14 @@ mod tests {
     #[test]
     fn empty_values_are_missing() {
         let md = metadata(vec![
-            ("xesam:album", Value::from("Kept")),
-            ("xesam:title", Value::from("")),
-            ("xesam:artist", Value::from(vec![""])),
-            ("xesam:trackNumber", Value::I32(0)),
-            ("mpris:length", Value::I64(-5)),
+            ("xesam:album", Variant::from("Kept")),
+            ("xesam:title", Variant::from("")),
+            ("xesam:artist", Variant::from(vec![""])),
+            ("xesam:trackNumber", Variant::I32(0)),
+            ("mpris:length", Variant::I64(-5)),
             (
                 "mpris:trackid",
-                Value::ObjectPath(ObjectPath::from_static_str_unchecked(NO_TRACK)),
+                Variant::ObjectPath(ObjectPath::from_static_str_unchecked(NO_TRACK)),
             ),
         ]);
         let track = track_from_metadata(&md).unwrap();
@@ -731,7 +745,7 @@ mod tests {
         assert_eq!(track.id, None);
 
         assert_eq!(track_from_metadata(&HashMap::new()), None);
-        let blank = metadata(vec![("xesam:title", Value::from(""))]);
+        let blank = metadata(vec![("xesam:title", Variant::from(""))]);
         assert_eq!(track_from_metadata(&blank), None);
     }
 

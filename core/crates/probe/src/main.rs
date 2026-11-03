@@ -24,13 +24,11 @@
 use std::{f64::consts::PI, fs::File, path::Path, process::ExitCode};
 
 use symphonia::core::{
-    audio::SampleBuffer,
-    codecs::{CODEC_TYPE_NULL, DecoderOptions},
+    codecs::audio::AudioDecoderOptions,
     errors::Error as SymphoniaError,
-    formats::FormatOptions,
+    formats::{FormatOptions, TrackType, probe::Hint},
     io::MediaSourceStream,
     meta::MetadataOptions,
-    probe::Hint,
 };
 
 const TONE_RATE: u32 = 48_000;
@@ -186,42 +184,40 @@ fn decode_mono(file: &Path) -> Result<(Vec<f32>, u32), String> {
     if let Some(ext) = file.extension().and_then(|e| e.to_str()) {
         hint.with_extension(ext);
     }
-    let probed = symphonia::default::get_probe()
-        .format(
+    let mut format = symphonia::default::get_probe()
+        .probe(
             &hint,
             stream,
-            &FormatOptions {
-                enable_gapless: true,
-                ..Default::default()
-            },
-            &MetadataOptions::default(),
+            FormatOptions::default(),
+            MetadataOptions::default(),
         )
         .map_err(|e| format!("{} isn't an MP3: {e}", file.display()))?;
-    let mut format = probed.format;
     let track = format
-        .tracks()
-        .iter()
-        .find(|t| t.codec_params.codec != CODEC_TYPE_NULL)
+        .default_track(TrackType::Audio)
         .ok_or_else(|| format!("{} has no audio", file.display()))?;
     let track_id = track.id;
-    let rate = track
+    let params = track
         .codec_params
-        .sample_rate
-        .ok_or("unknown sample rate")?;
+        .as_ref()
+        .and_then(|p| p.audio())
+        .ok_or_else(|| format!("{} has no audio", file.display()))?;
+    let rate = params.sample_rate.ok_or("unknown sample rate")?;
+    // Gapless by default: the encoder delay and padding are trimmed.
     let mut decoder = symphonia::default::get_codecs()
-        .make(&track.codec_params, &DecoderOptions::default())
+        .make_audio_decoder(params, &AudioDecoderOptions::default())
         .map_err(|e| e.to_string())?;
     let mut mono = Vec::new();
     loop {
         let packet = match format.next_packet() {
-            Ok(packet) => packet,
+            Ok(Some(packet)) => packet,
+            Ok(None) => break,
             Err(SymphoniaError::ResetRequired) => {
                 decoder.reset();
                 continue;
             }
             Err(_) => break,
         };
-        if packet.track_id() != track_id {
+        if packet.track_id != track_id {
             continue;
         }
         let decoded = match decoder.decode(&packet) {
@@ -229,11 +225,11 @@ fn decode_mono(file: &Path) -> Result<(Vec<f32>, u32), String> {
             Err(SymphoniaError::DecodeError(_)) => continue,
             Err(e) => return Err(e.to_string()),
         };
-        let channels = decoded.spec().channels.count();
-        let mut buf = SampleBuffer::<f32>::new(decoded.capacity() as u64, *decoded.spec());
-        buf.copy_interleaved_ref(decoded);
+        let channels = decoded.spec().channels().count().max(1);
+        let mut samples = Vec::<f32>::new();
+        decoded.copy_to_vec_interleaved(&mut samples);
         mono.extend(
-            buf.samples()
+            samples
                 .chunks(channels)
                 .map(|frame| frame.iter().sum::<f32>() / channels as f32),
         );
