@@ -131,7 +131,7 @@ fn default_skin_matches_the_schema() {
     let validator = jsonschema::validator_for(&schema).unwrap();
     let errors: Vec<String> = validator
         .iter_errors(&skin)
-        .map(|e| format!("{} at {}", e, e.instance_path))
+        .map(|e| format!("{} at {}", e, e.instance_path()))
         .collect();
     assert!(errors.is_empty(), "{errors:#?}");
     // And the schema rejects what the loader rejects.
@@ -168,7 +168,7 @@ fn hifi_skin_is_complete_and_clean() {
     let validator = jsonschema::validator_for(&schema).unwrap();
     let errors: Vec<String> = validator
         .iter_errors(&manifest)
-        .map(|e| format!("{} at {}", e, e.instance_path))
+        .map(|e| format!("{} at {}", e, e.instance_path()))
         .collect();
     assert!(errors.is_empty(), "{errors:#?}");
 }
