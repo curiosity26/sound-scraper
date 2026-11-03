@@ -24,7 +24,35 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # The Swift scan takes about 50 minutes (most of it extracting the SDK
+  # and React Native modules the app imports), so a pull request only runs
+  # it when it changes the app's Swift; main, the weekly run and manual
+  # runs always do.
+  languages:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.pick.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: pick
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          langs='{"language":"actions","sarif":"actions","build-mode":"none"},
+            {"language":"c-cpp","sarif":"cpp","build-mode":"none"},
+            {"language":"javascript-typescript","sarif":"javascript","build-mode":"none"},
+            {"language":"python","sarif":"python","build-mode":"none"},
+            {"language":"ruby","sarif":"ruby","build-mode":"none"},
+            {"language":"rust","sarif":"rust","build-mode":"none"}'
+          if [ -z "$BASE" ] || git diff --name-only "$BASE" HEAD | grep -q '^app/macos/.*\.swift$'; then
+            langs="$langs"',{"language":"swift","sarif":"swift","build-mode":"manual"}'
+          fi
+          echo "matrix=[$(echo "$langs" | tr -d '\n ')]" >> "$GITHUB_OUTPUT"
+
   analyze:
+    needs: languages
     name: analyze (${{ matrix.language }})
     runs-on: ${{ matrix.language == 'swift' && 'macos-26' || 'ubuntu-24.04' }}
     permissions:
@@ -35,28 +63,7 @@ jobs:
       fail-fast: false
       # sarif: the file name CodeQL gives the language's results.
       matrix:
-        include:
-          - language: actions
-            sarif: actions
-            build-mode: none
-          - language: c-cpp
-            sarif: cpp
-            build-mode: none
-          - language: javascript-typescript
-            sarif: javascript
-            build-mode: none
-          - language: python
-            sarif: python
-            build-mode: none
-          - language: ruby
-            sarif: ruby
-            build-mode: none
-          - language: rust
-            sarif: rust
-            build-mode: none
-          - language: swift
-            sarif: swift
-            build-mode: manual
+        include: ${{ fromJSON(needs.languages.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v7
 
