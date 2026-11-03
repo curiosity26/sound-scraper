@@ -213,7 +213,10 @@ pub fn extract_archive(archive: &Path, dest: &Path) -> Result<PathBuf, String> {
     let mut total = 0u64;
     for index in 0..zip.len() {
         let mut entry = zip.by_index(index).map_err(|e| format!("{name}: {e}"))?;
-        let entry_name = entry.name().to_string();
+        let entry_name = entry
+            .name()
+            .map_err(|e| format!("{name}: {e}"))?
+            .into_owned();
         if is_junk(&entry_name) {
             continue;
         }
