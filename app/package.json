@@ -52,6 +52,10 @@
   "optionalDependencies": {
     "@curiosity26/react-native-gtk4": "0.83.6"
   },
+  "overrides": {
+    "@xmldom/xmldom": "0.8.15",
+    "fast-xml-parser": "^5.7.0"
+  },
   "engines": {
     "node": "^22.15.0 || >=24.0.0"
   },
