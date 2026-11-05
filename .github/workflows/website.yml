@@ -46,8 +46,21 @@ on:
 permissions:
   contents: read
 
+# Deploys queue one at a time in "deploy". A pull request gets its own
+# group, and so does a Release run that isn't a published release (a pull
+# request's dry run or a warm-up on main): it builds nothing, and in
+# "deploy" it would wait behind a deploy and push a queued one out of line.
 concurrency:
-  group: website-${{ github.event_name == 'pull_request' && github.ref || 'deploy' }}
+  group: >-
+    website-${{
+      (github.event_name == 'pull_request' && github.ref) ||
+      (github.event_name == 'workflow_run' &&
+       !(github.event.workflow_run.conclusion == 'success' &&
+         github.event.workflow_run.event == 'push' &&
+         startsWith(github.event.workflow_run.head_branch, 'v')) &&
+       github.run_id) ||
+      'deploy'
+    }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

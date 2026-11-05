@@ -1,4 +1,4 @@
-# Code-quality checks for every pull request (main takes changes only
+# Code-quality checks for pull requests that touch the app or the core (main takes changes only
 # through pull requests, so pushes to it aren't checked again): ESLint
 # (React Native config + Prettier), TypeScript, Vitest, cargo fmt, clippy with
 # warnings denied, the Rust tests, that the generated bridge types
@@ -18,7 +18,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Which checks a pull request needs: the JS ones when it changes app/, the
+  # Rust ones when it changes core/, skins/ (the core's tests load them) or
+  # the toolchain, the bridge types when it changes any of those. A
+  # website-only pull request skips them all.
+  changes:
+    runs-on: ubuntu-24.04
+    outputs:
+      js: ${{ steps.changes.outputs.js }}
+      rust: ${{ steps.changes.outputs.rust }}
+      bridge: ${{ steps.changes.outputs.bridge }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - id: changes
+        run: >-
+          scripts/ci-changes.sh
+          'js=^(app/|scripts/ci-changes\.sh$|\.github/workflows/lint\.yml$)'
+          'rust=^(core/|skins/|skin\.schema\.json$|rust-toolchain\.toml$|scripts/ci-changes\.sh$|\.github/workflows/lint\.yml$)'
+          'bridge=^(app/|core/|skins/|skin\.schema\.json$|rust-toolchain\.toml$|scripts/ci-changes\.sh$|\.github/workflows/lint\.yml$)'
+
   js:
+    needs: changes
+    if: needs.changes.outputs.js == 'true'
     runs-on: ubuntu-24.04
     defaults:
       run:
@@ -36,6 +59,8 @@ jobs:
       - run: npm test
 
   rustfmt:
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -43,6 +68,8 @@ jobs:
       - run: cargo fmt --manifest-path core/Cargo.toml --all --check
 
   clippy:
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -65,6 +92,8 @@ jobs:
   # The JS bridge types are generated from the Rust types (ts-rs, the `ts`
   # features); fail when the committed ones are stale.
   bridge-types:
+    needs: changes
+    if: needs.changes.outputs.bridge == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
