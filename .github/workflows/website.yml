@@ -13,7 +13,9 @@
 # app's own skin renderer (core/crates/skin, example preview_skin).
 #
 # One-time setup: Settings › Pages › Build and deployment › Source:
-# GitHub Actions.
+# GitHub Actions, and Custom domain: soundscraper.app (with Enforce HTTPS).
+# With a workflow deploy GitHub ignores a CNAME file; the domain is the
+# Pages setting, and configure-pages hands it to the build.
 name: Website
 
 on:

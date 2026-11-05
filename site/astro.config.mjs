@@ -1,12 +1,14 @@
 import { defineConfig } from 'astro/config'
 
-// GitHub Pages serves the site from https://<owner>.github.io/<repo>/ until
-// it has a custom domain. The Pages workflow passes the real origin and
-// base path from actions/configure-pages, so a custom domain needs no
-// change here.
+// The site lives at https://soundscraper.app (GitHub Pages with a custom
+// domain). In CI the Pages workflow passes the origin and base path from
+// actions/configure-pages, so changing the domain in Settings › Pages
+// needs no change here; an empty base path means the domain's root.
+const ci = Boolean(process.env.SITE_ORIGIN)
+
 export default defineConfig({
-  site: process.env.SITE_ORIGIN || 'https://curiosity26.github.io',
-  base: process.env.SITE_BASE_PATH || '/sound-scraper',
+  site: ci ? process.env.SITE_ORIGIN : 'https://soundscraper.app',
+  base: (ci && process.env.SITE_BASE_PATH) || '/',
   trailingSlash: 'ignore',
   vite: {
     // The site uses the app's artwork and screenshots straight from the

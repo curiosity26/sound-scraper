@@ -21,7 +21,7 @@ type Props = Readonly<{
 const { title, description, current } = Astro.props
 const fullTitle = title === 'Sound Scraper' ? title : `${title} · Sound Scraper`
 const ogImage = await getImage({ src: zombie, width: 1024, format: 'jpg' })
-const site = Astro.site ?? new URL('https://curiosity26.github.io')
+const site = Astro.site ?? new URL('https://soundscraper.app')
 ---
 
 <!doctype html>

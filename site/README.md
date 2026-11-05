@@ -19,7 +19,7 @@ GitHub Pages by `.github/workflows/website.yml`.
 nvm use
 npm ci
 npm run previews   # skin pictures (optional; cards show a placeholder without)
-npm run dev        # http://localhost:4321/sound-scraper/
+npm run dev        # http://localhost:4321/
 npm run build      # dist/, plus the Pagefind search index
 npm run check      # astro check (TypeScript)
 npm run format     # Prettier
