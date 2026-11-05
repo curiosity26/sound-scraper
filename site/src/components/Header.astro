@@ -1,0 +1,178 @@
+---
+import { Image } from 'astro:assets'
+
+import zombie from '../../../assets/icon-source.png'
+import { REPO_URL } from '@/lib/constants'
+import { url } from '@/lib/url'
+
+type Props = Readonly<{
+  current?: 'home' | 'docs' | 'download' | undefined
+}>
+
+const { current } = Astro.props
+
+const links = [
+  { href: url('#features'), label: 'Features', id: 'home' },
+  { href: url('docs/'), label: 'Docs', id: 'docs' },
+  { href: url('download/#skins'), label: 'Skins', id: 'skins' },
+  { href: REPO_URL, label: 'GitHub', id: 'github' },
+] as const
+---
+
+<header class="site-header asphalt">
+  <nav class="wrap" aria-label="Main">
+    <a class="brand" href={url()}>
+      <Image src={zombie} alt="" width={44} height={44} loading="eager" />
+      <span class="display">Sound Scraper</span>
+    </a>
+    <ul class="links">
+      {links.map(link => (
+        <li>
+          <a
+            href={link.href}
+            aria-current={link.id === current ? 'page' : undefined}
+          >
+            {link.label}
+          </a>
+        </li>
+      ))}
+    </ul>
+    <a
+      class="btn btn-slime btn-small"
+      href={url('download/')}
+      aria-current={current === 'download' ? 'page' : undefined}
+    >
+      Download
+    </a>
+    <details class="menu">
+      <summary aria-label="Menu">
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.4"
+          stroke-linecap="round"
+          aria-hidden="true"
+        >
+          <path d="M4 7h16"></path>
+          <path d="M4 12h16"></path>
+          <path d="M4 17h16"></path>
+        </svg>
+      </summary>
+      <ul>
+        {links.map(link => (
+          <li>
+            <a href={link.href}>{link.label}</a>
+          </li>
+        ))}
+      </ul>
+    </details>
+  </nav>
+</header>
+
+<style>
+  .site-header {
+    border-bottom: 3px solid var(--slime);
+    position: relative;
+    z-index: 10;
+  }
+  nav {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    padding-block: 16px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-right: auto;
+    text-decoration: none;
+  }
+  .brand img {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    border: 2px solid var(--ink);
+  }
+  .brand span {
+    white-space: nowrap;
+    font-size: 28px;
+    color: var(--slime);
+    line-height: 1;
+  }
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .links {
+    display: flex;
+    gap: 28px;
+  }
+  .links a,
+  .menu a {
+    color: var(--paper);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .links a:hover,
+  .menu a:hover,
+  .links a[aria-current='page'] {
+    color: var(--slime);
+  }
+  .links a[aria-current='page'] {
+    border-bottom: 3px solid var(--slime);
+  }
+  .menu {
+    display: none;
+    position: relative;
+  }
+  .menu summary {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border: 2px solid var(--paper);
+    cursor: pointer;
+  }
+  .menu summary::-webkit-details-marker {
+    display: none;
+  }
+  .menu ul {
+    position: absolute;
+    right: 0;
+    top: 54px;
+    min-width: 200px;
+    background: var(--asphalt);
+    border: var(--border);
+    box-shadow: 6px 6px 0 var(--ink);
+    padding: 8px;
+  }
+  .menu li a {
+    display: block;
+    padding: 10px 12px;
+  }
+  @media (max-width: 760px) {
+    nav {
+      gap: 14px;
+    }
+    .links {
+      display: none;
+    }
+    .menu {
+      display: block;
+    }
+    .brand span {
+      font-size: clamp(18px, 5.5vw, 22px);
+    }
+    .brand img {
+      width: 36px;
+      height: 36px;
+    }
+  }
+</style>

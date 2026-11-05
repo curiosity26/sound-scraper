@@ -1,0 +1,327 @@
+---
+import Base from '@/layouts/Base.astro'
+import { REPO_URL } from '@/lib/constants'
+import { DOC_GROUPS } from '@/lib/docGroups'
+import type { DocPage } from '@/lib/docs'
+import { url } from '@/lib/url'
+
+type Props = Readonly<{
+  pages: readonly DocPage[]
+  page: DocPage | undefined
+  title: string
+  description: string
+}>
+
+const { pages, page, title, description } = Astro.props
+const index = page === undefined ? -1 : pages.indexOf(page)
+const previous = index > 0 ? pages[index - 1] : undefined
+const next = index === -1 ? pages[0] : pages[index + 1]
+const href = (slug: string): string => url(`docs/${slug}/`)
+---
+
+<Base title={title} description={description} current="docs">
+  <div class="paper docs">
+    <div class="wrap layout">
+      <aside aria-label="Docs">
+        <div class="search" id="search" data-pagefind-ui></div>
+        <nav aria-label="Docs pages">
+          {DOC_GROUPS.map(group => (
+            <div class="group">
+              <span class="lcd">{group.toUpperCase()}</span>
+              <ul>
+                {pages
+                  .filter(p => p.group === group)
+                  .map(p => (
+                    <li>
+                      <a
+                        href={href(p.slug)}
+                        aria-current={p === page ? 'page' : undefined}
+                      >
+                        {p.title}
+                      </a>
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          ))}
+        </nav>
+      </aside>
+      <article>
+        <p class="lcd crumb">
+          <a href={url('docs/')}>DOCS</a>
+          {page !== undefined && ` › ${page.group.toUpperCase()}`}
+        </p>
+        <h1 class="display" data-pagefind-meta="title">
+          {title}
+        </h1>
+        <div
+          class="prose"
+          data-pagefind-body={page === undefined ? undefined : ''}
+        >
+          <slot />
+        </div>
+        <nav class="pager" aria-label="Next and previous">
+          {previous !== undefined && (
+            <a class="btn" href={href(previous.slug)}>
+              <span aria-hidden="true">←</span> {previous.title}
+            </a>
+          )}
+          {next !== undefined && (
+            <a class="btn btn-orange next" href={href(next.slug)}>
+              {next.title} <span aria-hidden="true">→</span>
+            </a>
+          )}
+        </nav>
+        {page !== undefined && (
+          <a class="edit" href={`${REPO_URL}/edit/main/${page.source}`}>
+            Edit this page on GitHub
+          </a>
+        )}
+      </article>
+    </div>
+  </div>
+</Base>
+
+<link rel="stylesheet" href={url('pagefind/pagefind-ui.css')} />
+<script is:inline define:vars={{ bundle: url('pagefind/') }}>
+  // Pagefind's search index is built after the site (npm run build), so it
+  // isn't there in `astro dev`.
+  const script = document.createElement('script')
+  script.src = `${bundle}pagefind-ui.js`
+  script.onload = () => {
+    // eslint-disable-next-line no-undef
+    new PagefindUI({
+      element: '#search',
+      bundlePath: bundle,
+      showImages: false,
+      resetStyles: false,
+      translations: { placeholder: 'Search the docs' },
+    })
+  }
+  document.head.append(script)
+</script>
+
+<style>
+  .docs {
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .layout {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 48px;
+    align-items: flex-start;
+    padding-block: 48px 96px;
+  }
+  aside {
+    flex: 1 1 240px;
+    max-width: 290px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  .group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 18px;
+  }
+  .group .lcd {
+    font-size: 20px;
+    color: var(--muted);
+    padding-inline: 12px;
+  }
+  aside ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  aside nav a {
+    display: block;
+    padding: 7px 12px;
+    color: var(--ink);
+    text-decoration: none;
+    font-size: 16px;
+    border: 2px solid transparent;
+  }
+  aside nav a:hover {
+    border-color: var(--ink);
+    background: var(--paper-light);
+    color: var(--ink);
+  }
+  aside nav a[aria-current='page'] {
+    background: var(--slime);
+    border-color: var(--ink);
+    font-weight: 800;
+    box-shadow: 3px 3px 0 var(--ink);
+  }
+  article {
+    flex: 999 1 560px;
+    min-width: 0;
+    max-width: 840px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .crumb {
+    margin: 0;
+    font-size: 20px;
+    color: var(--muted);
+  }
+  .crumb a {
+    color: var(--muted);
+    text-decoration: none;
+  }
+  h1 {
+    font-size: clamp(48px, 6vw, 72px);
+  }
+  .pager {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: space-between;
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 3px dashed var(--rule);
+  }
+  .pager .next {
+    margin-left: auto;
+  }
+  .edit {
+    font-size: 15px;
+  }
+  @media (max-width: 860px) {
+    aside {
+      max-width: none;
+    }
+    aside nav {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0 16px;
+    }
+  }
+
+  /* Pagefind's search box, in the site's look */
+  .search {
+    --pagefind-ui-scale: 0.8;
+    --pagefind-ui-primary: var(--ink);
+    --pagefind-ui-text: var(--ink);
+    --pagefind-ui-background: var(--paper-light);
+    --pagefind-ui-border: var(--ink);
+    --pagefind-ui-tag: var(--slime);
+    --pagefind-ui-border-width: 3px;
+    --pagefind-ui-border-radius: 0;
+    --pagefind-ui-font: var(--font-body);
+  }
+  .search :global(input) {
+    color: var(--ink);
+  }
+
+  /* Markdown */
+  .prose {
+    font-size: 18px;
+    line-height: 1.65;
+  }
+  .prose :global(h2) {
+    margin: 40px 0 8px;
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1.2;
+  }
+  .prose :global(h3) {
+    margin: 28px 0 6px;
+    font-size: 23px;
+    font-weight: 800;
+  }
+  .prose :global(p),
+  .prose :global(ul),
+  .prose :global(ol) {
+    margin: 0 0 16px;
+  }
+  .prose :global(li) {
+    margin-bottom: 6px;
+  }
+  /* The page title comes from the frontmatter (docs/skins.md has its own
+     "# Making a Sound Scraper skin", which the site's title replaces). */
+  .prose > :global(h1:first-child) {
+    display: none;
+  }
+  .prose > :global(p:first-child),
+  .prose > :global(h1:first-child + p) {
+    font-size: 21px;
+    font-weight: 600;
+    line-height: 1.55;
+  }
+  .prose :global(a) {
+    color: var(--slime-dark);
+    font-weight: 600;
+  }
+  .prose :global(strong) {
+    font-weight: 800;
+  }
+  .prose :global(img) {
+    display: block;
+    margin: 24px 0 28px;
+    border: var(--border);
+    box-shadow: 8px 8px 0 var(--ink);
+    background: var(--ink);
+  }
+  .prose :global(:not(pre) > code) {
+    padding: 1px 6px;
+    background: rgb(21 20 15 / 8%);
+    border: 1px solid rgb(21 20 15 / 18%);
+    font-size: 0.88em;
+    overflow-wrap: anywhere;
+  }
+  .prose :global(pre) {
+    margin: 0 0 20px;
+    padding: 18px 20px;
+    overflow-x: auto;
+    border: var(--border);
+    box-shadow: 6px 6px 0 var(--orange);
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  .prose :global(kbd) {
+    font-family: var(--font-lcd);
+    font-size: 1.1em;
+    background: var(--ink);
+    color: var(--slime);
+    padding: 0 7px;
+    border-radius: 3px;
+  }
+  .prose :global(blockquote) {
+    margin: 0 0 20px;
+    padding: 18px 22px;
+    background: var(--lcd);
+    color: #e4f5b8;
+    border: var(--border);
+    box-shadow: 6px 6px 0 var(--orange);
+  }
+  .prose :global(blockquote p:last-child) {
+    margin: 0;
+  }
+  .prose :global(blockquote strong) {
+    color: var(--slime);
+  }
+  .prose :global(blockquote a) {
+    color: var(--slime);
+  }
+  .prose :global(table) {
+    display: block;
+    overflow-x: auto;
+    border-collapse: collapse;
+    margin: 0 0 20px;
+    font-size: 16px;
+  }
+  .prose :global(th),
+  .prose :global(td) {
+    border: 2px solid var(--ink);
+    padding: 8px 12px;
+    text-align: left;
+    vertical-align: top;
+  }
+  .prose :global(th) {
+    background: var(--slime);
+  }
+</style>

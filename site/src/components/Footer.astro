@@ -1,0 +1,74 @@
+---
+import { Image } from 'astro:assets'
+
+import boombox from '../../../assets/dmg/icon-dmg-source.png'
+import { RELEASES_URL, REPO_URL } from '@/lib/constants'
+import { url } from '@/lib/url'
+---
+
+<footer class="site-footer asphalt">
+  <div class="wrap">
+    <Image src={boombox} alt="" width={240} height={240} class="boombox" />
+    <div class="about">
+      <span class="display">Sound Scraper</span>
+      <p>
+        Made by Alex Boyce. MP3 encoding by{' '}
+        <a href="https://lame.sourceforge.io/">LAME</a> (LGPL).{' '}
+        <a href={REPO_URL}>Source code on GitHub</a>.
+      </p>
+    </div>
+    <nav aria-label="Footer">
+      <a href={url('download/')}>Download</a>
+      <a href={url('docs/')}>Docs</a>
+      <a href={url('docs/making-a-skin/')}>Make a skin</a>
+      <a href={RELEASES_URL}>Releases</a>
+      <a href={`${REPO_URL}/issues`}>Report a bug</a>
+    </nav>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    border-top: var(--border);
+  }
+  .wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 32px 40px;
+    align-items: center;
+    padding-block: 48px;
+  }
+  .boombox {
+    width: 120px;
+    height: 120px;
+    transform: rotate(-5deg);
+  }
+  .about {
+    flex: 1 1 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .about .display {
+    font-size: 30px;
+    color: var(--slime);
+  }
+  .about p {
+    margin: 0;
+    font-size: 15px;
+    color: var(--paper-text);
+  }
+  nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 24px;
+  }
+  nav a {
+    color: var(--paper);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  nav a:hover {
+    color: var(--slime);
+  }
+</style>

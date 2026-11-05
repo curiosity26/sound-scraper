@@ -2,9 +2,11 @@
 //! PNG, through the same resolver the app uses (for checking artwork
 //! without running the app):
 //!
-//!     cargo run -p sound_scraper_skin --example preview_skin -- [skin folder] [out.png]
+//!     cargo run -p sound_scraper_skin --example preview_skin -- [--main-only] [skin folder] [out.png]
 //!
-//! Defaults to the Default skin and `skin-preview.png`.
+//! Defaults to the Default skin and `skin-preview.png`. With `--main-only`
+//! it writes just the main panel on a transparent background (the website's
+//! skin cards use that).
 
 use std::path::PathBuf;
 
@@ -14,7 +16,9 @@ use sound_scraper_skin::{SkinStore, preview};
 const SCALE: u32 = 2;
 
 fn main() {
-    let mut args = std::env::args().skip(1);
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let main_only = args.iter().any(|a| a == "--main-only");
+    let mut args = args.into_iter().filter(|a| a != "--main-only");
     let dir = args.next().map(PathBuf::from);
     let out = args.next().unwrap_or_else(|| "skin-preview.png".into());
     let store = SkinStore::new(std::env::temp_dir().join("sound-scraper-skin-preview"));
@@ -30,6 +34,11 @@ fn main() {
         eprintln!("warning: {w}");
     }
     let main = preview::render(&skin, &skin.panels.main.layout, SCALE);
+    if main_only {
+        main.save(&out).unwrap();
+        println!("wrote {out}");
+        return;
+    }
     let shade = skin
         .panels
         .main

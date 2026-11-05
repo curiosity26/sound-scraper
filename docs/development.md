@@ -37,6 +37,7 @@ app/                          React Native 0.83 (TypeScript)
     src/*Module.{h,cc}                          C++ TurboModules over sound_scraper.h; Views.cc the visualizer and waveform
     src/PanelChrome.cc                          moving/resizing the borderless panels, pop-up menus, Ctrl+D
     CMakeLists.txt                              runs cargo and links libsound_scraper_core.a
+site/                         the website (Astro, GitHub Pages): home, downloads, docs; see site/README.md
 ```
 
 The chain: a feature's component → its bridge calls (e.g. `src/features/recorder/recorder.ts`) → Turbo Module `SoundScraper` (spec in `src/bridge/`) → native module → `ss_*` functions in the Rust static library.

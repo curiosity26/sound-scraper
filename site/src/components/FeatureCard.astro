@@ -1,0 +1,75 @@
+---
+type Props = Readonly<{
+  side: string
+  title: string
+  color: 'orange' | 'slime' | 'pink'
+  tilt: number
+}>
+
+const { side, title, color, tilt } = Astro.props
+---
+
+<article class="card" style={`--tilt: ${String(tilt)}deg`}>
+  <div class="top">
+    <span class:list={['badge', color]}>
+      <slot name="icon" />
+    </span>
+    <span class="lcd side">{side}</span>
+  </div>
+  <h3>{title}</h3>
+  <p>
+    <slot />
+  </p>
+</article>
+
+<style>
+  article {
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    transform: rotate(var(--tilt));
+    transition: transform 0.15s;
+  }
+  article:hover {
+    transform: rotate(0deg) scale(1.02);
+  }
+  .top {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .badge {
+    width: 52px;
+    height: 52px;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: var(--border);
+    border-radius: 50%;
+  }
+  .orange {
+    background: var(--orange);
+  }
+  .slime {
+    background: var(--slime);
+  }
+  .pink {
+    background: var(--pink);
+  }
+  .side {
+    font-size: 22px;
+    color: var(--muted);
+  }
+  h3 {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1.2;
+  }
+  p {
+    margin: 0;
+    font-size: 17px;
+  }
+</style>

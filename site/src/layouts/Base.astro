@@ -1,0 +1,66 @@
+---
+import '@fontsource-variable/archivo'
+import '@fontsource/permanent-marker'
+import '@fontsource/rubik-wet-paint'
+import '@fontsource/vt323'
+import '@/styles/global.css'
+
+import { getImage } from 'astro:assets'
+
+import zombie from '../../../assets/icon-source.png'
+import Footer from '@/components/Footer.astro'
+import Header from '@/components/Header.astro'
+import { url } from '@/lib/url'
+
+type Props = Readonly<{
+  title: string
+  description: string
+  current?: 'home' | 'docs' | 'download' | undefined
+}>
+
+const { title, description, current } = Astro.props
+const fullTitle = title === 'Sound Scraper' ? title : `${title} · Sound Scraper`
+const ogImage = await getImage({ src: zombie, width: 1024, format: 'jpg' })
+const site = Astro.site ?? new URL('https://curiosity26.github.io')
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#15140f" />
+    <link rel="icon" type="image/png" href={url('favicon.png')} />
+    <link rel="apple-touch-icon" href={url('apple-touch-icon.png')} />
+    <link rel="canonical" href={new URL(Astro.url.pathname, site)} />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={new URL(ogImage.src, site)} />
+    <meta name="twitter:card" content="summary" />
+  </head>
+  <body>
+    <a class="skip btn btn-slime btn-small" href="#main">
+      Skip to content
+    </a>
+    <Header current={current} />
+    <main id="main">
+      <slot />
+    </main>
+    <Footer />
+  </body>
+</html>
+
+<style>
+  .skip {
+    position: absolute;
+    left: 16px;
+    top: -80px;
+    z-index: 100;
+  }
+  .skip:focus {
+    top: 16px;
+  }
+</style>

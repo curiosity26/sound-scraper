@@ -1,0 +1,78 @@
+---
+import Docs from '@/layouts/Docs.astro'
+import { DOC_GROUPS } from '@/lib/docGroups'
+import { docPages } from '@/lib/docs'
+import { url } from '@/lib/url'
+
+const pages = await docPages()
+---
+
+<Docs
+  pages={pages}
+  page={undefined}
+  title="Docs"
+  description="How to record, tag, slice, play, burn and skin with Sound Scraper."
+>
+  <p>
+    Everything Sound Scraper does, from your first recording to burning a
+    mixtape and painting your own skin.
+  </p>
+  <div class="groups">
+    {DOC_GROUPS.map(group => (
+      <section class="card">
+        <h2>{group}</h2>
+        <ul>
+          {pages
+            .filter(p => p.group === group)
+            .map(p => (
+              <li>
+                <a href={url(`docs/${p.slug}/`)}>{p.title}</a>
+                <span>{p.description}</span>
+              </li>
+            ))}
+        </ul>
+      </section>
+    ))}
+  </div>
+</Docs>
+
+<style>
+  .groups {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+    gap: 32px;
+    margin-top: 24px;
+  }
+  .card {
+    padding: 24px 28px;
+  }
+  .card h2 {
+    margin: 0 0 12px;
+    font-family: var(--font-marker);
+    font-weight: 400;
+    font-size: 28px;
+  }
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  li {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 0;
+  }
+  li a {
+    font-size: 19px;
+    font-weight: 800;
+  }
+  li span {
+    font-size: 15px;
+    line-height: 1.45;
+    color: var(--muted);
+  }
+</style>
