@@ -3,7 +3,7 @@
 # tone plays, then the recordings it made are decoded and checked for the
 # tone (app/e2e, core/crates/probe).
 #
-# Linux runs on every pull request, in a private desktop session with a
+# Linux runs on every pull request that touches the app, in a private desktop session with a
 # PipeWire null sink as the sound card (scripts/e2e-linux-session.sh).
 # macOS and Windows come later. The nightly run is on main: it keeps the
 # Rust and npm caches there, since a pull request's run can only restore
@@ -25,7 +25,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # A pull request that changes only the website, the docs or other
+  # workflows skips the tests.
+  changes:
+    runs-on: ubuntu-24.04
+    outputs:
+      app: ${{ steps.changes.outputs.app }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - id: changes
+        run: >-
+          scripts/ci-changes.sh
+          'app!=^(site/|docs/|README\.md$|\.github/dependabot\.yml$|\.github/workflows/(codeql|lint|release|website)\.yml$)'
+
   linux:
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
