@@ -1,0 +1,39 @@
+---
+type Props = Readonly<{
+  items: readonly string[]
+}>
+
+const { items } = Astro.props
+const line = `● ${items.join(' ✦ ')} ✦ `
+---
+
+<div class="ticker" aria-hidden="true">
+  <div class="track lcd">
+    <span>{line}</span>
+    <span>{line}</span>
+  </div>
+</div>
+
+<style>
+  .ticker {
+    background: var(--lcd);
+    border-block: var(--border);
+    overflow: hidden;
+    white-space: nowrap;
+    padding-block: 8px;
+  }
+  .track {
+    display: inline-flex;
+    font-size: 34px;
+    color: var(--slime);
+    animation: scroll 40s linear infinite;
+  }
+  .track span {
+    padding-right: 0.5em;
+  }
+  @keyframes scroll {
+    to {
+      transform: translateX(-50%);
+    }
+  }
+</style>

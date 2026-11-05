@@ -1,0 +1,94 @@
+---
+import SkinPreview from '@/components/SkinPreview.astro'
+import { RELEASES_URL } from '@/lib/constants'
+import { formatSize } from '@/lib/formatSize'
+import type { Skin } from '@/lib/skins'
+
+type Props = Readonly<{
+  skin: Skin
+}>
+
+const { skin } = Astro.props
+---
+
+<article class="card">
+  <SkinPreview skin={skin} />
+  <div class="info">
+    <div class="text">
+      <div class="title">
+        <h3>{skin.name}</h3>
+        <span class="lcd">
+          v{skin.version} · {skin.author}
+        </span>
+      </div>
+      <p>{skin.description}</p>
+    </div>
+    {skin.builtIn ? (
+      <span class="built-in">Built in</span>
+    ) : skin.download === undefined ? (
+      <a class="btn btn-slime btn-small" href={RELEASES_URL}>
+        Get it on GitHub
+      </a>
+    ) : (
+      <a
+        class="btn btn-slime btn-small"
+        href={skin.download.url}
+        download={skin.download.name}
+      >
+        Download · {formatSize(skin.download.size)}
+      </a>
+    )}
+  </div>
+</article>
+
+<style>
+  article {
+    display: flex;
+    flex-direction: column;
+  }
+  article :global(.stage) {
+    border: 0;
+    border-bottom: var(--border);
+    min-height: 230px;
+  }
+  .info {
+    padding: 24px 28px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 24px;
+    align-items: center;
+    flex-grow: 1;
+  }
+  .text {
+    flex: 1 1 240px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .title {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 12px;
+    align-items: baseline;
+  }
+  h3 {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 800;
+  }
+  .title .lcd {
+    font-size: 20px;
+    color: var(--muted);
+  }
+  p {
+    margin: 0;
+    font-size: 16px;
+  }
+  .built-in {
+    font-weight: 800;
+    font-size: 16px;
+    padding: 10px 16px;
+    border: 3px dashed var(--ink);
+  }
+</style>

@@ -1,0 +1,62 @@
+---
+import { latestRelease } from '@/lib/release'
+import { url } from '@/lib/url'
+
+type Props = Readonly<{
+  look?: 'orange' | 'ink'
+}>
+
+const { look = 'orange' } = Astro.props
+const release = latestRelease
+---
+
+<a
+  class:list={['btn', 'btn-big', look === 'ink' ? 'btn-ink' : 'btn-orange']}
+  href={url('download/')}
+  data-download-button
+  data-page={url('download/')}
+  data-mac={release?.mac?.url}
+  data-windows-x64={release?.windows.x64?.url}
+  data-windows-arm64={release?.windows.arm64?.url}
+>
+  <svg
+    width="26"
+    height="26"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2.6"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M12 3v12"></path>
+    <path d="M6 10l6 6 6-6"></path>
+    <path d="M4 20h16"></path>
+  </svg>
+  <span data-label>Download</span>
+</a>
+
+<script>
+  import { detectOs, detectWindowsArch } from '@/lib/detect'
+
+  const NAMES = { mac: 'macOS', windows: 'Windows', linux: 'Linux' } as const
+
+  const os = detectOs()
+  const arch = os === 'windows' ? await detectWindowsArch() : undefined
+
+  for (const button of document.querySelectorAll<HTMLAnchorElement>(
+    '[data-download-button]',
+  )) {
+    const label = button.querySelector('[data-label]')
+    if (os === undefined || label === null) {
+      continue
+    }
+    label.textContent = `Download for ${NAMES[os]}`
+    const { mac, windowsX64, windowsArm64, page = '' } = button.dataset
+    const direct =
+      os === 'mac' ? mac : arch === 'arm64' ? windowsArm64 : windowsX64
+    // Linux needs a choice of package, so it goes to the downloads page.
+    button.href = direct ?? `${page}#${os}`
+  }
+</script>

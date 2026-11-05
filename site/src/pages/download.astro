@@ -1,0 +1,711 @@
+---
+import { Image } from 'astro:assets'
+
+import boombox from '../../../assets/dmg/icon-dmg-source.png'
+import SkinCard from '@/components/SkinCard.astro'
+import Base from '@/layouts/Base.astro'
+import { RELEASES_URL } from '@/lib/constants'
+import { formatSize } from '@/lib/formatSize'
+import { latestRelease } from '@/lib/release'
+import { skins } from '@/lib/skins'
+import type { Download, LinuxArch, Os, WindowsArch } from '@/lib/types'
+import { url } from '@/lib/url'
+
+const release = latestRelease
+const version = release?.version
+
+const PLATFORMS: readonly Readonly<{ os: Os; name: string; stamp: string }>[] =
+  [
+    { os: 'mac', name: 'macOS', stamp: 'notarized by Apple' },
+    { os: 'windows', name: 'Windows', stamp: 'signed. no scary popups.' },
+    { os: 'linux', name: 'Linux', stamp: 'GTK 4. no Electron.' },
+  ]
+
+const WINDOWS_ARCHS: readonly Readonly<{
+  arch: WindowsArch
+  label: string
+}>[] = [
+  { arch: 'x64', label: 'x64 (Intel or AMD)' },
+  { arch: 'arm64', label: 'ARM64 (Snapdragon and other ARM)' },
+]
+
+const LINUX_ARCHS: readonly Readonly<{ arch: LinuxArch; label: string }>[] = [
+  { arch: 'x86_64', label: 'x86_64 / amd64' },
+  { arch: 'aarch64', label: 'aarch64 / arm64' },
+]
+
+const windows: readonly Readonly<{
+  arch: WindowsArch
+  label: string
+  download: Download
+}>[] = WINDOWS_ARCHS.flatMap(({ arch, label }) => {
+  const download = release?.windows[arch]
+  return download === undefined ? [] : [{ arch, label, download }]
+})
+
+const KIND_BUTTON = {
+  flatpak: 'Flatpak',
+  deb: '.deb',
+  rpm: '.rpm',
+  tarball: '.tar.gz',
+} as const
+---
+
+<Base
+  title="Download"
+  description="Download Sound Scraper for macOS, Windows or Linux, and grab extra skins."
+  current="download"
+>
+  <section class="asphalt top">
+    <div class="wrap">
+      <div class="heading">
+        <h1 class="display slimed">Get the tape deck</h1>
+        <p class="marker scrawl" data-detected hidden></p>
+      </div>
+      <p class="mobile-note" data-mobile-note hidden>
+        Sound Scraper is a desktop app. Pick the computer you'll record on and
+        download it there.
+      </p>
+
+      <div
+        class="tabs"
+        role="tablist"
+        aria-label="Your computer"
+        data-tabs
+        hidden
+      >
+        {PLATFORMS.map(({ os, name }) => (
+          <button
+            type="button"
+            role="tab"
+            id={`tab-${os}`}
+            aria-controls={os}
+            aria-selected="false"
+            data-tab={os}
+          >
+            {name}
+          </button>
+        ))}
+      </div>
+
+      <div class="panels">
+        {PLATFORMS.map(({ os, name, stamp }) => (
+          <section
+            class="panel"
+            id={os}
+            role="tabpanel"
+            aria-labelledby={`tab-${os}`}
+            data-panel={os}
+          >
+            <div class="card box">
+              <div class="title">
+                <h2>Sound Scraper for {name}</h2>
+                {version !== undefined && <span class="chip">v{version}</span>}
+              </div>
+
+              {os === 'mac' && (
+                <>
+                  <p>
+                    For Macs with Apple silicon (M1 or newer) and macOS 14.2 or
+                    later. Open the .dmg and drag Sound Scraper into
+                    Applications. The first time you record, allow System Audio
+                    Recording.
+                  </p>
+                  {release?.mac !== undefined ? (
+                    <div class="get">
+                      <a class="btn btn-orange btn-big" href={release.mac.url}>
+                        Download .dmg
+                      </a>
+                      <span class="lcd file">
+                        {release.mac.name} · {formatSize(release.mac.size)}
+                      </span>
+                    </div>
+                  ) : (
+                    <a class="btn btn-orange btn-big" href={RELEASES_URL}>
+                      Download from GitHub
+                    </a>
+                  )}
+                </>
+              )}
+
+              {os === 'windows' && (
+                <>
+                  <p>
+                    Windows 10 or 11 (build 20348 or later to record a single
+                    app). Double-click the .msix and Windows installs it.
+                  </p>
+                  {windows.length > 0 ? (
+                    <>
+                      <div
+                        class="choice"
+                        role="radiogroup"
+                        aria-label="Your PC"
+                        data-arch-group="windows"
+                        hidden
+                      >
+                        <span>Your PC:</span>
+                        {windows.map(({ arch, label }) => (
+                          <button
+                            type="button"
+                            role="radio"
+                            aria-checked="false"
+                            data-arch={arch}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                      {windows.map(({ arch, label, download }) => (
+                        <div class="get" data-arch-item={arch}>
+                          <a class="btn btn-orange btn-big" href={download.url}>
+                            Download .msix
+                            <span class="visually-hidden"> for {label}</span>
+                          </a>
+                          <span class="lcd file">
+                            {download.name} · {formatSize(download.size)}
+                          </span>
+                        </div>
+                      ))}
+                    </>
+                  ) : (
+                    <a class="btn btn-orange btn-big" href={RELEASES_URL}>
+                      Download from GitHub
+                    </a>
+                  )}
+                </>
+              )}
+
+              {os === 'linux' && (
+                <>
+                  <p>
+                    GNOME, Cinnamon or any desktop with GTK 4.14 or newer, on
+                    Wayland or X11, with PulseAudio or PipeWire. Pick your
+                    distribution.
+                  </p>
+                  {(release?.linux.length ?? 0) > 0 ? (
+                    <>
+                      <div
+                        class="choice"
+                        role="radiogroup"
+                        aria-label="Your PC"
+                        data-arch-group="linux"
+                        hidden
+                      >
+                        <span>Your PC:</span>
+                        {LINUX_ARCHS.map(({ arch, label }) => (
+                          <button
+                            type="button"
+                            role="radio"
+                            aria-checked="false"
+                            data-arch={arch}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                      <ul class="packages">
+                        {release?.linux.map(pkg => (
+                          <li data-arch-item={pkg.arch}>
+                            <div class="pkg">
+                              <strong>{pkg.label}</strong>
+                              <span class="lcd file">
+                                {pkg.name} · {formatSize(pkg.size)}
+                              </span>
+                              <div class="install">
+                                <code>{pkg.install}</code>
+                                <button
+                                  type="button"
+                                  class="copy"
+                                  data-copy={pkg.install}
+                                  aria-label={`Copy the install command for ${pkg.label}`}
+                                >
+                                  Copy
+                                </button>
+                              </div>
+                            </div>
+                            <a
+                              class:list={[
+                                'btn',
+                                'btn-small',
+                                pkg.kind === 'flatpak'
+                                  ? 'btn-orange'
+                                  : pkg.kind === 'tarball'
+                                    ? ''
+                                    : 'btn-slime',
+                              ]}
+                              href={pkg.url}
+                            >
+                              {KIND_BUTTON[pkg.kind]}
+                              <span class="visually-hidden">
+                                {' '}
+                                for {pkg.label}, {pkg.arch}
+                              </span>
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                      <p class="small">
+                        Panels dock and snap together on one monitor
+                        (Ctrl+Shift+M moves them to the next). CD burning isn't
+                        available on Linux yet.
+                      </p>
+                    </>
+                  ) : (
+                    <a class="btn btn-orange btn-big" href={RELEASES_URL}>
+                      Download from GitHub
+                    </a>
+                  )}
+                </>
+              )}
+
+              <div class="more">
+                {release !== undefined && (
+                  <a href={release.url}>What's new in {version}</a>
+                )}
+                {release?.checksums !== undefined && (
+                  <a href={release.checksums.url}>SHA256SUMS.txt</a>
+                )}
+                <a href={RELEASES_URL}>Betas and older versions</a>
+              </div>
+            </div>
+            <div class="art">
+              <Image
+                src={boombox}
+                alt="A grimy kid jamming a blank tape into a boombox"
+                width={360}
+                widths={[360, 720]}
+                sizes="360px"
+                loading="eager"
+                class="sticker boombox"
+              />
+              <span class="tag stamp">{stamp}</span>
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section id="skins" class="halftone skins">
+    <div class="wrap">
+      <div class="skins-heading">
+        <div>
+          <h2 class="display">Skins</h2>
+          <p>
+            Download a .sskin, then double-click it or drop it on any Sound
+            Scraper window. Switch skins any time in Settings › Skin.
+          </p>
+        </div>
+        <p class="marker note">new skins ship with every release</p>
+      </div>
+      <div class="skin-grid">
+        {skins.map(skin => (
+          <SkinCard skin={skin} />
+        ))}
+        <article class="yours">
+          <h3 class="marker">Your skin here?</h3>
+          <p>
+            Start from the template in Settings › Skin, paint some PNGs, and
+            Sound Scraper redraws as you save. Then send it our way.
+          </p>
+          <a class="btn" href={url('docs/making-a-skin/')}>
+            Read the skin guide
+          </a>
+        </article>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<script>
+  import { detectLinuxArch, detectOs, detectWindowsArch } from '@/lib/detect'
+  import type { Os } from '@/lib/types'
+
+  const NAMES: Readonly<Record<Os, string>> = {
+    mac: 'macOS',
+    windows: 'Windows',
+    linux: 'Linux',
+  }
+  const isOs = (value: string | undefined): value is Os =>
+    value === 'mac' || value === 'windows' || value === 'linux'
+
+  const tabs = [...document.querySelectorAll<HTMLButtonElement>('[data-tab]')]
+  const panels = [...document.querySelectorAll<HTMLElement>('[data-panel]')]
+
+  const select = (os: Os, focus = false): void => {
+    for (const tab of tabs) {
+      const on = tab.dataset['tab'] === os
+      tab.setAttribute('aria-selected', String(on))
+      tab.tabIndex = on ? 0 : -1
+      if (on && focus) {
+        tab.focus()
+      }
+    }
+    for (const panel of panels) {
+      panel.hidden = panel.dataset['panel'] !== os
+    }
+  }
+
+  const chooseArch = (group: HTMLElement, arch: string): void => {
+    for (const button of group.querySelectorAll<HTMLButtonElement>(
+      '[data-arch]',
+    )) {
+      button.setAttribute(
+        'aria-checked',
+        String(button.dataset['arch'] === arch),
+      )
+    }
+    const panel = group.closest('[data-panel]')
+    for (const item of panel?.querySelectorAll<HTMLElement>(
+      '[data-arch-item]',
+    ) ?? []) {
+      item.hidden = item.dataset['archItem'] !== arch
+    }
+  }
+
+  const detected = detectOs()
+  const hash = window.location.hash.slice(1)
+  select(isOs(hash) ? hash : (detected ?? 'mac'))
+  document.querySelector<HTMLElement>('[data-tabs]')?.removeAttribute('hidden')
+
+  const scrawl = document.querySelector<HTMLElement>('[data-detected]')
+  if (detected !== undefined && scrawl !== null) {
+    scrawl.textContent = `looks like you're on ${NAMES[detected]}!`
+    scrawl.hidden = false
+  }
+  if (detected === undefined) {
+    document
+      .querySelector<HTMLElement>('[data-mobile-note]')
+      ?.removeAttribute('hidden')
+  }
+
+  tabs.forEach((tab, i) => {
+    tab.addEventListener('click', () => {
+      const os = tab.dataset['tab']
+      if (isOs(os)) {
+        select(os)
+        history.replaceState(null, '', `#${os}`)
+      }
+    })
+    tab.addEventListener('keydown', event => {
+      const step =
+        event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0
+      const next = tabs[(i + step + tabs.length) % tabs.length]?.dataset['tab']
+      if (step !== 0 && isOs(next)) {
+        event.preventDefault()
+        select(next, true)
+      }
+    })
+  })
+
+  const archs = {
+    windows: await detectWindowsArch(),
+    linux: detectLinuxArch(),
+  }
+  for (const group of document.querySelectorAll<HTMLElement>(
+    '[data-arch-group]',
+  )) {
+    const os = group.dataset['archGroup'] === 'linux' ? 'linux' : 'windows'
+    chooseArch(group, archs[os])
+    group.hidden = false
+    for (const button of group.querySelectorAll<HTMLButtonElement>(
+      '[data-arch]',
+    )) {
+      button.addEventListener('click', () => {
+        chooseArch(group, button.dataset['arch'] ?? '')
+      })
+    }
+  }
+
+  for (const button of document.querySelectorAll<HTMLButtonElement>(
+    '[data-copy]',
+  )) {
+    button.addEventListener('click', () => {
+      void navigator.clipboard
+        .writeText(button.dataset['copy'] ?? '')
+        .then(() => {
+          button.textContent = 'Copied'
+          setTimeout(() => {
+            button.textContent = 'Copy'
+          }, 1500)
+        })
+    })
+  }
+</script>
+
+<style>
+  .top .wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    padding-block: 64px 96px;
+  }
+  .heading {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 28px;
+    align-items: flex-end;
+  }
+  h1 {
+    font-size: clamp(60px, 8vw, 100px);
+  }
+  .scrawl {
+    margin: 0 0 14px;
+    font-size: 24px;
+    color: var(--pink);
+    transform: rotate(-3deg);
+  }
+  .mobile-note {
+    margin: 0;
+    max-width: 640px;
+    font-size: 19px;
+    color: var(--paper-text);
+  }
+  .tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .tabs button,
+  .choice button,
+  .copy {
+    font-family: var(--font-body);
+    font-weight: 800;
+    font-size: 17px;
+    min-height: 48px;
+    padding: 10px 20px;
+    border: var(--border);
+    background: #2a2923;
+    color: var(--paper);
+    cursor: pointer;
+  }
+  .tabs button[aria-selected='true'] {
+    background: var(--slime);
+    color: var(--ink);
+    box-shadow: 4px 4px 0 var(--ink);
+  }
+  .panel {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 40px;
+    align-items: stretch;
+  }
+  .panel + .panel {
+    margin-top: 40px;
+  }
+  .panel[hidden] {
+    display: none;
+  }
+  .panels:has(.panel[hidden]) .panel + .panel {
+    margin-top: 0;
+  }
+  .box {
+    flex: 1 1 600px;
+    min-width: 0;
+    padding: clamp(24px, 4vw, 40px);
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    align-items: flex-start;
+  }
+  .title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 18px;
+  }
+  h2 {
+    margin: 0;
+    font-size: clamp(30px, 4vw, 44px);
+    font-weight: 800;
+    line-height: 1.1;
+  }
+  .box p {
+    margin: 0;
+  }
+  .get {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 20px;
+    align-items: center;
+  }
+  .get[hidden],
+  .packages li[hidden],
+  .choice[hidden] {
+    display: none;
+  }
+  .file {
+    font-size: 22px;
+    color: var(--muted);
+    overflow-wrap: anywhere;
+  }
+  .choice {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    font-weight: 600;
+  }
+  .choice button {
+    background: var(--paper-light);
+    color: var(--ink);
+    font-size: 16px;
+  }
+  .choice button[aria-checked='true'] {
+    background: var(--slime);
+    box-shadow: 4px 4px 0 var(--ink);
+  }
+  .packages {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    border: var(--border);
+  }
+  .packages li {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 20px;
+    align-items: center;
+    padding: 16px 18px;
+    border-bottom: 2px solid #d8ccae;
+  }
+  .packages li:last-child {
+    border-bottom: 0;
+  }
+  .pkg {
+    flex: 1 1 320px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .pkg .file {
+    font-size: 19px;
+  }
+  .install {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+    margin-top: 4px;
+  }
+  code {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding: 8px 10px;
+    background: var(--lcd);
+    color: var(--slime);
+    font-family: var(--font-lcd);
+    font-size: 19px;
+  }
+  .copy {
+    min-height: 44px;
+    padding: 6px 14px;
+    font-size: 15px;
+    background: var(--paper-light);
+    color: var(--ink);
+  }
+  .small {
+    font-size: 15px;
+    color: var(--muted);
+  }
+  .more {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 24px;
+    font-size: 15px;
+    font-weight: 600;
+    width: 100%;
+    border-top: 2px dashed var(--rule);
+    padding-top: 18px;
+  }
+  .more a {
+    color: var(--slime-dark);
+  }
+  .art {
+    flex: 1 1 340px;
+    min-width: 0;
+    position: relative;
+    min-height: 420px;
+  }
+  .stamp {
+    position: absolute;
+    right: 0;
+    top: 10px;
+    z-index: 2;
+    background: var(--slime);
+    color: var(--ink);
+    transform: rotate(7deg);
+  }
+  .boombox {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: min(360px, 100%);
+    transform: translate(-50%, -50%) rotate(4deg);
+  }
+  @media (max-width: 1080px) {
+    .art {
+      display: none;
+    }
+  }
+
+  .skins .wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+    padding-block: 96px 112px;
+  }
+  .skins-heading {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px 40px;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+  .skins-heading > div {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 700px;
+  }
+  .skins-heading h2 {
+    font-size: clamp(56px, 7vw, 80px);
+    font-family: var(--font-display);
+    font-weight: 400;
+  }
+  .skins-heading p {
+    margin: 0;
+  }
+  .note {
+    margin: 0 0 8px;
+    font-size: 22px;
+    color: var(--orange-dark);
+    transform: rotate(-2deg);
+  }
+  .skin-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 480px), 1fr));
+    gap: 40px;
+  }
+  .yours {
+    border: 3px dashed var(--ink);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 16px;
+    padding: 40px;
+    min-height: 260px;
+  }
+  .yours h3 {
+    margin: 0;
+    font-size: 34px;
+  }
+  .yours p {
+    margin: 0;
+    max-width: 440px;
+  }
+</style>

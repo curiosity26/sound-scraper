@@ -1,0 +1,5 @@
+dist/
+.astro/
+node_modules/
+# Rendered by `npm run previews` (and in CI) from skins/.
+src/generated/

@@ -1,0 +1,577 @@
+---
+import { Image } from 'astro:assets'
+
+import zombie from '../../../assets/icon-source.png'
+import mainWindow from '../../../docs/images/main-window.png'
+import trackEditor from '../../../docs/images/track-editor.png'
+import DownloadButton from '@/components/DownloadButton.astro'
+import FeatureCard from '@/components/FeatureCard.astro'
+import SkinPreview from '@/components/SkinPreview.astro'
+import Ticker from '@/components/Ticker.astro'
+import Base from '@/layouts/Base.astro'
+import { RELEASES_URL } from '@/lib/constants'
+import { latestRelease } from '@/lib/release'
+import { skins } from '@/lib/skins'
+import { url } from '@/lib/url'
+
+const version = latestRelease?.version
+const teaser = skins.slice(0, 2)
+---
+
+<Base
+  title="Sound Scraper"
+  description="Record whatever your computer is playing, all system audio or just one app, straight to MP3. Tag it, slice it into tracks and burn it to CD in a skinnable player. Free for Mac, Windows and Linux."
+  current="home"
+>
+  <section class="hero asphalt">
+    <div class="wrap">
+      <div class="pitch">
+        <p class="marker scrawl">free for Mac, Windows &amp; Linux!!</p>
+        <h1 class="display slimed">
+          Sound
+          <br />
+          Scraper
+        </h1>
+        <p class="lede">
+          Rip whatever your computer is playing. Straight to MP3.
+        </p>
+        <p class="sub">
+          All system audio or just one app. Pause through the ads, tag it, slice
+          it into tracks and burn it to CD, in a skinnable player that looks
+          like it fell out of 1998.
+        </p>
+        <div class="cta">
+          <DownloadButton />
+          <div class="cta-note">
+            {version !== undefined && (
+              <span class="lcd">v{version} · macOS, Windows, Linux</span>
+            )}
+            <a href={url('download/')}>All downloads and skins</a>
+          </div>
+        </div>
+      </div>
+      <div class="art">
+        <div class="screen">
+          <Image
+            src={mainWindow}
+            alt="Sound Scraper's main panel, library and details panel"
+            widths={[640, 960, 1280]}
+            sizes="(max-width: 900px) 92vw, 600px"
+            loading="eager"
+            class="shot"
+          />
+        </div>
+        <span
+          class="tape"
+          style="left: 34%; top: 22px; transform: rotate(-4deg)"
+        ></span>
+        <Image
+          src={zombie}
+          alt="The Sound Scraper zombie hammering REC on an orange tape deck"
+          width={300}
+          widths={[300, 600]}
+          sizes="300px"
+          loading="eager"
+          class="sticker zombie"
+        />
+        <span class="tag pink-tag">it's free. really.</span>
+      </div>
+    </div>
+  </section>
+
+  <Ticker
+    items={[
+      'REC',
+      'ALL SYSTEM AUDIO',
+      'ONE APP AT A TIME',
+      'UP TO 320 KBPS MP3',
+      'ID3 TAGS + COVER ART',
+      'AUTO SLICE',
+      'BURN TO CD',
+      'SKINS',
+    ]}
+  />
+
+  <section id="features" class="halftone features">
+    <div class="wrap">
+      <div class="heading">
+        <h2 class="display">What's on the tape</h2>
+        <p class="marker note">side A. no skips.</p>
+      </div>
+      <div class="grid">
+        <FeatureCard
+          side="A1"
+          title="Record anything"
+          color="orange"
+          tilt={-1.2}
+        >
+          <svg
+            slot="icon"
+            width="26"
+            height="26"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#15140f"
+            stroke-width="2.4"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="5" fill="#15140f"></circle>
+            <circle cx="12" cy="12" r="9.5"></circle>
+          </svg>
+          Grab all system audio, or just one app while the rest of your computer
+          keeps making noise. If it plays, you can scrape it.
+        </FeatureCard>
+        <FeatureCard
+          side="A2"
+          title="Pause through the ads"
+          color="slime"
+          tilt={0.8}
+        >
+          <svg
+            slot="icon"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="#15140f"
+            aria-hidden="true"
+          >
+            <rect x="6" y="5" width="4" height="14"></rect>
+            <rect x="14" y="5" width="4" height="14"></rect>
+          </svg>
+          Pause keeps the same file going, so the ad or the DJ talking simply
+          never happened. Dead air at the start and end gets trimmed off.
+        </FeatureCard>
+        <FeatureCard
+          side="A3"
+          title="Knows what's playing"
+          color="pink"
+          tilt={-0.6}
+        >
+          <svg
+            slot="icon"
+            width="26"
+            height="26"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#15140f"
+            stroke-width="2.4"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M9 18V5l11-2v13"></path>
+            <circle cx="6" cy="18" r="3"></circle>
+            <circle cx="17" cy="16" r="3"></circle>
+          </svg>
+          Title, artist, album and cover come from whatever your player says is
+          on, and when the song changes, the editor proposes a split there,
+          already named.
+        </FeatureCard>
+        <FeatureCard
+          side="A4"
+          title="Slice it into tracks"
+          color="orange"
+          tilt={1.1}
+        >
+          <svg
+            slot="icon"
+            width="26"
+            height="26"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#15140f"
+            stroke-width="2.4"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="6" cy="6" r="3"></circle>
+            <circle cx="6" cy="18" r="3"></circle>
+            <path d="M20 4L8.1 15.9"></path>
+            <path d="M14.5 14.5L20 20"></path>
+            <path d="M8.1 8.1L12 12"></path>
+          </svg>
+          Recorded a whole album or radio show? Auto Slice finds the gaps
+          between songs. Cuts don't re-encode, so every track sounds exactly
+          like the original.
+        </FeatureCard>
+        <FeatureCard
+          side="A5"
+          title="A library you can tag"
+          color="slime"
+          tilt={-1}
+        >
+          <svg
+            slot="icon"
+            width="26"
+            height="26"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#15140f"
+            stroke-width="2.4"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"></path>
+            <circle cx="8" cy="8" r="1.6" fill="#15140f"></circle>
+          </svg>
+          Rename, search and sort every recording. Edit ID3 tags and cover art
+          one at a time or a whole stack at once.
+        </FeatureCard>
+        <FeatureCard
+          side="A6"
+          title="Mixtapes, for real"
+          color="pink"
+          tilt={0.7}
+        >
+          <svg
+            slot="icon"
+            width="26"
+            height="26"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#15140f"
+            stroke-width="2.4"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="9.5"></circle>
+            <circle cx="12" cy="12" r="2.5"></circle>
+          </svg>
+          Build playlists, watch them fill a 74 or 80 minute CD, then burn an
+          audio CD with CD-Text that plays in any car stereo.
+        </FeatureCard>
+      </div>
+    </div>
+  </section>
+
+  <section class="editor">
+    <div class="wrap">
+      <div class="copy">
+        <p class="lcd kicker">B1 · THE TRACK EDITOR</p>
+        <h2 class="display">Cut the boring bits</h2>
+        <p class="strong">
+          Scrub the waveform, drop a slice with M, drag across an ad and hit
+          Delete. Nothing changes until you save, and you choose whether the
+          original sticks around.
+        </p>
+        <ul>
+          <li>Auto Slice presets for digital and for vinyl or radio</li>
+          <li>Undo, redo, snap and zoom</li>
+          <li>Optional lossless masters for long sessions</li>
+        </ul>
+        <a class="btn btn-ink" href={url('docs/track-editor/')}>
+          How the editor works
+        </a>
+      </div>
+      <div class="picture">
+        <Image
+          src={trackEditor}
+          alt="The track editor with a recording sliced into three tracks"
+          widths={[700, 1050, 1400]}
+          sizes="(max-width: 1000px) 92vw, 700px"
+          class="shot"
+        />
+        <span
+          class="tape"
+          style="right: 40px; top: -14px; transform: rotate(5deg)"
+        ></span>
+      </div>
+    </div>
+  </section>
+
+  <section id="skins" class="asphalt skins">
+    <div class="wrap">
+      <div class="heading split">
+        <div>
+          <h2 class="display slime-text">Pick your deck</h2>
+          <p class="sub">
+            The whole player is skinnable. Panels snap and dock together, the
+            visualizer has several looks, and a skin is just a zip of PNGs and a
+            JSON file, so you can make your own.
+          </p>
+        </div>
+        <a class="btn" href={url('download/#skins')}>
+          Get more skins
+        </a>
+      </div>
+      <div class="skin-grid">
+        {teaser.map((skin, i) => (
+          <figure>
+            <SkinPreview
+              skin={skin}
+              shadow={i % 2 === 0 ? 'orange' : 'slime'}
+            />
+            <figcaption>
+              <strong>{skin.name}</strong>
+              <span>{skin.description}</span>
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="press">
+    <div class="wrap">
+      <div>
+        <h2 class="display">Press REC.</h2>
+        <p>
+          Signed and notarized on macOS, signed on Windows, and packaged for
+          Ubuntu, Debian, Fedora, RHEL and Flatpak.
+        </p>
+      </div>
+      <div class="press-cta">
+        <DownloadButton look="ink" />
+        <a href={RELEASES_URL}>All releases on GitHub</a>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .hero .wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 48px;
+    align-items: center;
+    padding-block: 72px 96px;
+  }
+  .pitch {
+    flex: 1 1 480px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  .scrawl {
+    margin: 0;
+    font-size: 22px;
+    color: var(--pink);
+    transform: rotate(-2deg);
+    transform-origin: left;
+  }
+  h1 {
+    font-size: clamp(76px, 11vw, 132px);
+    line-height: 0.88;
+  }
+  .lede {
+    margin: 0;
+    font-size: clamp(22px, 2.6vw, 30px);
+    font-weight: 800;
+    line-height: 1.2;
+    max-width: 560px;
+  }
+  .sub {
+    margin: 0;
+    font-size: 19px;
+    max-width: 600px;
+    color: var(--paper-text);
+  }
+  .cta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    align-items: center;
+    margin-top: 8px;
+  }
+  .cta-note {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 15px;
+  }
+  .cta-note .lcd {
+    font-size: 22px;
+    color: var(--slime);
+  }
+  .art {
+    flex: 1 1 440px;
+    min-width: 0;
+    position: relative;
+    min-height: 520px;
+  }
+  .screen {
+    position: absolute;
+    left: 0;
+    top: 40px;
+    width: 96%;
+    transform: rotate(3deg);
+  }
+  .zombie {
+    position: absolute;
+    right: -8px;
+    bottom: -16px;
+    width: min(300px, 55%);
+    transform: rotate(-8deg);
+  }
+  .pink-tag {
+    position: absolute;
+    left: 4px;
+    bottom: 20px;
+    color: var(--paper-light);
+    background: var(--pink);
+    transform: rotate(-6deg);
+  }
+  @media (max-width: 600px) {
+    .art {
+      min-height: 360px;
+    }
+  }
+
+  .features .wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 56px;
+    padding-block: 96px 112px;
+  }
+  .heading {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px 32px;
+    align-items: flex-end;
+  }
+  .heading h2 {
+    font-size: clamp(52px, 7vw, 80px);
+  }
+  .note {
+    margin: 0 0 10px;
+    font-size: 22px;
+    color: var(--orange-dark);
+    transform: rotate(-2deg);
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 40px 36px;
+  }
+
+  .editor {
+    background: var(--orange);
+    color: var(--ink);
+    border-block: var(--border);
+  }
+  .editor .wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 56px;
+    align-items: center;
+    padding-block: 96px;
+  }
+  .copy {
+    flex: 1 1 340px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    align-items: flex-start;
+  }
+  .kicker {
+    margin: 0;
+    font-size: 24px;
+  }
+  .copy h2 {
+    font-size: clamp(52px, 6vw, 72px);
+  }
+  .strong {
+    margin: 0;
+    font-size: 19px;
+    font-weight: 600;
+  }
+  .copy ul {
+    margin: 0;
+    padding-left: 22px;
+    line-height: 1.8;
+  }
+  .picture {
+    flex: 1 1 600px;
+    min-width: 0;
+    position: relative;
+  }
+  .picture .shot {
+    transform: rotate(-1.5deg);
+    box-shadow: 12px 12px 0 var(--ink);
+    width: 100%;
+  }
+
+  .skins .wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+    padding-block: 104px;
+  }
+  .split {
+    justify-content: space-between;
+  }
+  .split > div {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 700px;
+  }
+  .slime-text {
+    color: var(--slime);
+  }
+  .skin-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr));
+    gap: 40px;
+  }
+  figure {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  figcaption {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    align-items: baseline;
+    color: var(--paper-text);
+  }
+  figcaption strong {
+    font-size: 22px;
+    color: var(--paper);
+  }
+
+  .press {
+    background: var(--slime);
+    color: var(--ink);
+    border-top: var(--border);
+  }
+  .press .wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 40px;
+    align-items: center;
+    justify-content: space-between;
+    padding-block: 88px;
+  }
+  .press .wrap > div:first-child {
+    flex: 1 1 480px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .press h2 {
+    font-size: clamp(64px, 9vw, 100px);
+    line-height: 0.9;
+  }
+  .press p {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    max-width: 560px;
+  }
+  .press-cta {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .press-cta a:not(.btn) {
+    color: var(--ink);
+    font-weight: 600;
+  }
+</style>

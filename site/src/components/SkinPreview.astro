@@ -1,0 +1,53 @@
+---
+import { Image } from 'astro:assets'
+
+import type { Skin } from '@/lib/skins'
+
+type Props = Readonly<{
+  skin: Skin
+  shadow?: 'orange' | 'slime' | 'none'
+}>
+
+const { skin, shadow = 'none' } = Astro.props
+---
+
+<div class:list={['stage', shadow]}>
+  {skin.preview === undefined ? (
+    <p class="lcd missing">{skin.name}</p>
+  ) : (
+    <Image
+      src={skin.preview}
+      alt={`The ${skin.name} skin's main panel while recording`}
+      widths={[480, 920, skin.preview.width]}
+      sizes="(max-width: 1000px) 88vw, 540px"
+    />
+  )}
+</div>
+
+<style>
+  .stage {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    padding: clamp(14px, 3vw, 32px);
+    background: var(--teal);
+    border: var(--border);
+  }
+  .orange {
+    box-shadow: 8px 8px 0 var(--orange);
+  }
+  .slime {
+    box-shadow: 8px 8px 0 var(--slime);
+  }
+  img {
+    display: block;
+    width: 100%;
+    filter: drop-shadow(0 6px 10px rgb(0 0 0 / 35%));
+  }
+  .missing {
+    margin: 0;
+    font-size: 32px;
+    color: var(--slime);
+  }
+</style>

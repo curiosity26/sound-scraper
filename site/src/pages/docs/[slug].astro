@@ -1,0 +1,28 @@
+---
+import { render } from 'astro:content'
+
+import Docs from '@/layouts/Docs.astro'
+import { docPages, type DocPage } from '@/lib/docs'
+
+type Props = Readonly<{ page: DocPage; pages: readonly DocPage[] }>
+
+export const getStaticPaths = async () => {
+  const pages = await docPages()
+  return pages.map(page => ({
+    params: { slug: page.slug },
+    props: { page, pages },
+  }))
+}
+
+const { page, pages } = Astro.props
+const { Content } = await render(page.entry)
+---
+
+<Docs
+  pages={pages}
+  page={page}
+  title={page.title}
+  description={page.description}
+>
+  <Content />
+</Docs>
