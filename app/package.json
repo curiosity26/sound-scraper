@@ -73,7 +73,7 @@
     }
   },
   "engines": {
-    "node": "^22.15.0 || >=24.0.0"
+    "node": ">=24.0.0"
   },
   "react-native-windows": {
     "init-windows": {

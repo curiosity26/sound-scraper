@@ -142,7 +142,7 @@ const editField = async (
 }
 
 /** Side B's cover, as an image source. */
-const guestCover = [{ uri: 'file:///drafts/Side%20A.mp3/covers/guest.png' }]
+const guestCover = { uri: 'file:///drafts/Side%20A.mp3/covers/guest.png' }
 
 describe('track tags in the editor', () => {
   beforeEach(async () => {
@@ -192,9 +192,9 @@ describe('track tags in the editor', () => {
 
     it("shows the recording's cover for a track without one", async () => {
       await openEditor()
-      expect(screen.getByLabelText('Track 1 cover')).toHaveProp('source', [
-        { uri: 'file:///covers/recording.jpg' },
-      ])
+      expect(screen.getByLabelText('Track 1 cover')).toHaveProp('source', {
+        uri: 'file:///covers/recording.jpg',
+      })
     })
 
     describe('when the editor opens and a moment passes', () => {
@@ -342,7 +342,7 @@ describe('track tags in the editor', () => {
           await pickTrack1()
           expect(form().getByRole('image', { name: 'Cover' })).toHaveProp(
             'source',
-            [{ uri: 'file:///covers/recording.jpg' }],
+            { uri: 'file:///covers/recording.jpg' },
           )
         })
       })

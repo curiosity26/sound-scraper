@@ -133,7 +133,7 @@ On Windows the same test uses WASAPI (see below).
 | react-native | 0.83.10 (pinned to what react-native-macos supports) |
 | react-native-macos | 0.83.0 |
 | react-native-windows | 0.83.2 |
-| Node | 22 (`app/.nvmrc`; needs ≥ 20.19.4) |
+| Node | 24 LTS (`app/.nvmrc`) |
 | Rust | stable, edition 2024; cbindgen 0.29 runs as a build dependency (no global install) |
 
 ## Rust core (any OS)
@@ -218,7 +218,7 @@ warnings, and commit both together.
 
 ## Tests
 
-The app's tests run on Vitest (`cd app && npm test`; Node 22.15+, see
+The app's tests run on Vitest (`cd app && npm test`; Node 24, see
 `app/.nvmrc`) and follow the testing section of the style guide:
 
 - Each test sits beside the file it tests, named after it
@@ -293,7 +293,7 @@ Build and run:
 
 ```sh
 cd app
-nvm use                     # Node 22
+nvm use                     # Node 24
 npm install
 cd macos && RCT_NEW_ARCH_ENABLED=1 pod install && cd ..
 npm run macos               # or open macos/SoundScraper.xcworkspace and Run
@@ -310,7 +310,7 @@ If Xcode can't find Node (nvm), put `export NODE_BINARY=$(command -v node)` in `
 Tested on Windows 11 ARM64 (build 22621) in Parallels. Requirements:
 
 - Visual Studio 2026 (18.6.1 or later, as RN Windows 0.83 requires) with the "Desktop development with C++", ".NET desktop development" and "Universal Windows Platform development" workloads, the ARM64 (or x64) C++ build tools, "Universal Windows Platform support" and the Windows 11 SDK 10.0.22621
-- Node.js 22.14 or later, Git, and Rust via rustup (MSVC host). `rust-toolchain.toml` pins the version and the Windows targets; run `rustup toolchain install` in the clone once
+- Node.js 24 (LTS), Git, and Rust via rustup (MSVC host). `rust-toolchain.toml` pins the version and the Windows targets; run `rustup toolchain install` in the clone once
 - Developer Mode on (Settings › System › For developers) and long paths enabled (`reg add HKLM\SYSTEM\CurrentControlSet\Control\FileSystem /v LongPathsEnabled /t REG_DWORD /d 1 /f` from an admin terminal)
 
 Keep the clone on a local disk with a short path (e.g. `C:\src\SoundScraper`). Don't build from a shared folder or copy `node_modules` across from macOS; run `npm ci` in Windows.
@@ -358,7 +358,7 @@ sudo apt install -y clang cmake ninja-build pkg-config git python3 \
   libpulse-dev libasound2-dev
 ```
 
-plus Node 22 (not Ubuntu's packaged 18) and Rust via rustup.
+plus Node 24 (not Ubuntu's packaged 18) and Rust via rustup.
 
 `@curiosity26/react-native-gtk4` is an **optional dependency**, installed from public npm (no token): `npm ci` installs it on Linux and skips it on macOS and Windows (it's Linux-only).
 

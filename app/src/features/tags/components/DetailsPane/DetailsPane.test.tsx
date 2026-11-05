@@ -237,7 +237,7 @@ describe('the details pane', () => {
       await renderDetailsPane(['Song.mp3'])
       expect(await screen.findByRole('image', { name: 'Cover' })).toHaveProp(
         'source',
-        [{ uri: 'file:///Users/me/My%20Cover.png' }],
+        { uri: 'file:///Users/me/My%20Cover.png' },
       )
     })
   })
@@ -248,7 +248,7 @@ describe('the details pane', () => {
       await renderDetailsPane(['Song.mp3'])
       expect(await screen.findByRole('image', { name: 'Cover' })).toHaveProp(
         'source',
-        [{ uri: 'file:///C:/covers/a.png' }],
+        { uri: 'file:///C:/covers/a.png' },
       )
     })
   })
@@ -330,7 +330,7 @@ describe('the details pane', () => {
         await renderDetailsPane(['A.mp3', 'B.mp3'])
         expect(await screen.findByRole('image', { name: 'Cover' })).toHaveProp(
           'source',
-          [{ uri: 'file:///covers/c.png' }],
+          { uri: 'file:///covers/c.png' },
         )
       })
     })

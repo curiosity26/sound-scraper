@@ -113,7 +113,12 @@ Module.registerHooks({
 })
 
 globalThis.__rnRequireActual = (req, id) => {
-  const file = req.resolve(id)
+  // Since Node 24, require.resolve goes through the resolve hook too, so a
+  // mocked module resolves to its mock; requireActual wants the real file.
+  const resolved = req.resolve(id)
+  const file = resolved.endsWith(mockSuffix)
+    ? resolved.slice(0, -mockSuffix.length)
+    : resolved
   return path.isAbsolute(file) ? req(actualPrefix + file) : req(id)
 }
 globalThis.__rnMock = file => {
@@ -144,7 +149,12 @@ function setUpReactNative(vi) {
     // Later requires of the module get factory() (or an automock), built on
     // first use like Jest's.
     mock: (id, factory) => {
-      const file = rnRequire.resolve(id)
+      // Resolve as the hooks do (Foo.ios.js before Foo.js), so the mock
+      // replaces the file the app's imports reach. Node 22's require.resolve
+      // skipped the hooks, which left Image (Image.ios.js) unmocked.
+      const file =
+        resolveInRN(id, path.join(rnRoot, 'jest', 'setup.js')) ??
+        rnRequire.resolve(id)
       mocks.set(file, {
         factory: factory ?? (() => automock(rnRequire(actualPrefix + file))),
       })

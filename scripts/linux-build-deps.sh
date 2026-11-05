@@ -4,7 +4,7 @@
 # Rocky): the system packages react-native-gtk4 and the Rust core build
 # against, the packaging tools, a display for --smoke (Xvfb,
 # or a headless Weston on EL 10, which has no Xvfb; and Mesa's GLES, which
-# GTK's renderer loads and a minimal container lacks), Node 22 (from nodejs.org
+# GTK's renderer loads and a minimal container lacks), Node 24 (from nodejs.org
 # when the distribution's is older) and Rust (rustup). Run as root, e.g. in
 # the release workflow's containers, or locally:
 #
@@ -15,7 +15,7 @@
 # Debian 13, Fedora 40, EL 10).
 set -euo pipefail
 
-node_version=22.20.0
+node_version=24.22.2
 
 . /etc/os-release
 family=" ${ID:-} ${ID_LIKE:-} "
@@ -63,10 +63,10 @@ case $family in
     ;;
 esac
 
-# Node: react-native-gtk4 needs 22.13 or newer.
+# Node: the app is built with Node 24 LTS (app/.nvmrc).
 have_node() {
   command -v node >/dev/null &&
-    node -e 'const [a, b] = process.versions.node.split(".").map(Number); process.exit(a > 22 || (a === 22 && b >= 13) ? 0 : 1)'
+    node -e 'const [a] = process.versions.node.split(".").map(Number); process.exit(a >= 24 ? 0 : 1)'
 }
 if ! have_node; then
   case $(uname -m) in
