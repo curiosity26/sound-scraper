@@ -57,6 +57,14 @@ updates:
     groups:
       site-minor-and-patch:
         update-types: [minor, patch]
+    ignore:
+      # astro check (@astrojs/check) supports TypeScript 5 and 6 only; move
+      # to 7 when it does.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+      # Matches the Node version in site/.nvmrc; bump it with that.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: cargo
     directory: /core
