@@ -7,7 +7,7 @@ order: 8
 
 With a [playlist](../playlists/) showing, click **Burn CD…** to burn it to an audio CD that plays in any CD player, car stereo included.
 
-<img src="../../../../docs/images/burn-panel.png" alt="The Burn panel writing a playlist to a disc image" width="360">
+![The Burn panel writing a playlist to a disc image](../../../../docs/images/burn-panel.png)
 
 ## Setting up the burn
 
