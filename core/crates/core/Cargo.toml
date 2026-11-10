@@ -35,7 +35,7 @@ sound_scraper_nowplaying = { path = "../nowplaying" }
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 hound = "3.5"
 id3 = "1.17"
-mp3lame-encoder = "0.2"
+mp3lame-encoder = "0.3"
 # kqueue instead of FSEvents on macOS: FSEvents batched changes for seconds,
 # and we only watch one flat folder.
 notify = { version = "8", default-features = false, features = ["macos_kqueue"] }
