@@ -1,3 +1,4 @@
+import sitemap from '@astrojs/sitemap'
 import { defineConfig } from 'astro/config'
 
 // The site lives at https://soundscraper.app (GitHub Pages with a custom
@@ -10,6 +11,9 @@ export default defineConfig({
   site: ci ? process.env.SITE_ORIGIN : 'https://soundscraper.app',
   base: (ci && process.env.SITE_BASE_PATH) || '/',
   trailingSlash: 'ignore',
+  // sitemap-index.xml for search engines; robots.txt (src/pages/robots.txt.ts)
+  // points to it.
+  integrations: [sitemap()],
   vite: {
     // The site uses the app's artwork and screenshots straight from the
     // repo (assets/, docs/images/, skins/).
