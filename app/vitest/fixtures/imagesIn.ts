@@ -8,4 +8,4 @@ type HostElement = ReturnType<typeof screen.getByRole>
  * position in the sheet, so its `left` and `top` say which cell shows.
  */
 export const imagesIn = (element: HostElement): HostElement[] =>
-  element.queryAll(node => node.type === 'RCTImageView')
+  element.queryAll(node => node.type === 'Image')

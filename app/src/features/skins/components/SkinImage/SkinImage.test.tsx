@@ -27,9 +27,10 @@ describe('a skin image', () => {
     it('uses the 1x file', async () => {
       vi.spyOn(PixelRatio, 'get').mockReturnValue(1)
       await render(<SkinImage image={sheet} />)
-      expect(image()).toHaveProp('source', [
+      expect(image()).toHaveProp(
+        'source',
         expect.objectContaining({ uri: 'file:///skins/x/sheet.png', scale: 1 }),
-      ])
+      )
     })
   })
 
@@ -37,14 +38,12 @@ describe('a skin image', () => {
     it('uses the @2x file', async () => {
       vi.spyOn(PixelRatio, 'get').mockReturnValue(2)
       await render(<SkinImage image={sheet} />)
-      expect(image()).toHaveProp('source', [
-        {
-          uri: 'file:///skins/x/sheet@2x.png',
-          width: 100,
-          height: 40,
-          scale: 2,
-        },
-      ])
+      expect(image()).toHaveProp('source', {
+        uri: 'file:///skins/x/sheet@2x.png',
+        width: 100,
+        height: 40,
+        scale: 2,
+      })
     })
 
     it('draws at its size in points', async () => {
@@ -64,23 +63,25 @@ describe('a skin image', () => {
       it('uses the @4x file', async () => {
         vi.spyOn(PixelRatio, 'get').mockReturnValue(2)
         await renderDoubled(sheet)
-        expect(image()).toHaveProp('source', [
+        expect(image()).toHaveProp(
+          'source',
           expect.objectContaining({
             uri: 'file:///skins/x/sheet@4x.png',
             scale: 4,
           }),
-        ])
+        )
       })
 
       it('falls back to the @2x file when there is no @4x', async () => {
         vi.spyOn(PixelRatio, 'get').mockReturnValue(2)
         await renderDoubled({ ...sheet, path4x: null })
-        expect(image()).toHaveProp('source', [
+        expect(image()).toHaveProp(
+          'source',
           expect.objectContaining({
             uri: 'file:///skins/x/sheet@2x.png',
             scale: 2,
           }),
-        ])
+        )
       })
 
       it('draws at twice its size', async () => {
@@ -97,9 +98,10 @@ describe('a skin image', () => {
       await render(
         <SkinImage image={{ ...sheet, path: '/a b/#1.png', path2x: null }} />,
       )
-      expect(image()).toHaveProp('source', [
+      expect(image()).toHaveProp(
+        'source',
         expect.objectContaining({ uri: 'file:///a%20b/%231.png' }),
-      ])
+      )
     })
   })
 })
