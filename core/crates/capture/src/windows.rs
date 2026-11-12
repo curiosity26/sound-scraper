@@ -135,7 +135,7 @@ fn capture_thread(
             CaptureSource::System { .. } => {
                 let device = DeviceEnumerator::new()
                     .map_err(os_err)?
-                    .get_default_device(&Direction::Render)
+                    .get_default_device(Direction::Render)
                     .map_err(os_err)?;
                 let mut client = device.get_iaudioclient().map_err(os_err)?;
                 let mix = client.get_mixformat().map_err(os_err)?;
@@ -143,7 +143,7 @@ fn capture_thread(
                 let format = WaveFormat::new(
                     32,
                     32,
-                    &SampleType::Float,
+                    SampleType::Float,
                     rate as usize,
                     channels as usize,
                     None,
@@ -154,7 +154,7 @@ fn capture_thread(
                     buffer_duration_hns: 2_000_000,
                 };
                 client
-                    .initialize_client(&format, &Direction::Capture, &mode)
+                    .initialize_client(&format, Direction::Capture, mode, None)
                     .map_err(os_err)?;
                 Ok((client, rate, channels, false))
             }
@@ -162,13 +162,13 @@ fn capture_thread(
                 let mut client =
                     AudioClient::new_application_loopback_client(app.pid, true).map_err(os_err)?;
                 // Process loopback has no mix format; ask for 48 kHz stereo float.
-                let format = WaveFormat::new(32, 32, &SampleType::Float, 48000, 2, None);
+                let format = WaveFormat::new(32, 32, SampleType::Float, 48000, 2, None);
                 let mode = StreamMode::EventsShared {
                     autoconvert: true,
                     buffer_duration_hns: 0,
                 };
                 client
-                    .initialize_client(&format, &Direction::Capture, &mode)
+                    .initialize_client(&format, Direction::Capture, mode, None)
                     .map_err(os_err)?;
                 Ok((client, 48000, 2, true))
             }
@@ -271,7 +271,7 @@ fn audio_apps() -> Result<Vec<AppTarget>, CaptureError> {
     let _ = initialize_mta();
     let device = DeviceEnumerator::new()
         .map_err(os_err)?
-        .get_default_device(&Direction::Render)
+        .get_default_device(Direction::Render)
         .map_err(os_err)?;
     let sessions = device
         .get_iaudiosessionmanager()
