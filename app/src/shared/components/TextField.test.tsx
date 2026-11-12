@@ -61,38 +61,5 @@ describe('a text field', () => {
       await render(<TextField accessibilityLabel="Name" style={styles.field} />)
       expect(screen.getByLabelText('Name')).not.toHaveProp('multiline', true)
     })
-
-    describe('when a single-line box asks to select its text on focus', () => {
-      it('leaves selecting to the native box', async () => {
-        await render(
-          <TextField
-            accessibilityLabel="Name"
-            style={styles.field}
-            selectTextOnFocus
-          />,
-        )
-        expect(screen.getByLabelText('Name')).toHaveProp(
-          'selectTextOnFocus',
-          false,
-        )
-      })
-    })
-
-    describe('when a multiline box asks to select its text on focus', () => {
-      it('passes the request on', async () => {
-        await render(
-          <TextField
-            accessibilityLabel="Notes"
-            style={styles.field}
-            multiline
-            selectTextOnFocus
-          />,
-        )
-        expect(screen.getByLabelText('Notes')).toHaveProp(
-          'selectTextOnFocus',
-          true,
-        )
-      })
-    })
   })
 })

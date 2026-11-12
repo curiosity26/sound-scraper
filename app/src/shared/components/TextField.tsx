@@ -6,10 +6,6 @@
 // and submits only on its submitKeyEvents). Its placeholder there is drawn
 // near-black whatever the text color, so it gets the text color, faded, as
 // on macOS.
-// On macOS, selectTextOnFocus is left to the native single-line box, which
-// selects its text whenever it takes focus: react-native-macos 0.83 answers
-// the prop by sending selectAll: to an NSTextField, which has no such
-// method, and the app crashes on any click into the field.
 // Use this instead of TextInput everywhere.
 import { type FC, type Ref, useContext, useEffect, useRef } from 'react'
 import {
@@ -43,7 +39,6 @@ export type TextFieldProps = TextInputProps & {
 export const TextField: FC<TextFieldProps> = props => {
   const windows = Platform.OS === 'windows'
   const fix = windows && !props.multiline ? windowsSingleLine : null
-  const macSingleLine = Platform.OS === 'macos' && !props.multiline
   const color = StyleSheet.flatten(props.style).color
   const placeholderTextColor =
     windows && typeof color === 'string' && color.startsWith('#')
@@ -75,7 +70,6 @@ export const TextField: FC<TextFieldProps> = props => {
       {...fix}
       {...props}
       {...(fix && { multiline: true })}
-      {...(macSingleLine && { selectTextOnFocus: false })}
       onFocus={e => {
         setFocus(true)
         props.onFocus?.(e)
