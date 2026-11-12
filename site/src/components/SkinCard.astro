@@ -3,6 +3,7 @@ import SkinPreview from '@/components/SkinPreview.astro'
 import { RELEASES_URL } from '@/lib/constants'
 import { formatSize } from '@/lib/formatSize'
 import type { Skin } from '@/lib/skins'
+import { trackAttrs } from '@/lib/track'
 
 type Props = Readonly<{
   skin: Skin
@@ -26,7 +27,11 @@ const { skin } = Astro.props
     {skin.builtIn ? (
       <span class="built-in">Built in</span>
     ) : skin.download === undefined ? (
-      <a class="btn btn-slime btn-small" href={RELEASES_URL}>
+      <a
+        class="btn btn-slime btn-small"
+        href={RELEASES_URL}
+        {...trackAttrs({ os: 'any', package: 'github', source: 'skin_card' })}
+      >
         Get it on GitHub
       </a>
     ) : (
@@ -34,6 +39,13 @@ const { skin } = Astro.props
         class="btn btn-slime btn-small"
         href={skin.download.url}
         download={skin.download.name}
+        {...trackAttrs({
+          os: 'any',
+          package: 'sskin',
+          source: 'skin_card',
+          version: skin.version,
+          fileName: skin.download.name,
+        })}
       >
         Download · {formatSize(skin.download.size)}
       </a>
