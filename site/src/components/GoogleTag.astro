@@ -1,0 +1,83 @@
+---
+import {
+  consentKey,
+  googleTagEnabled as enabled,
+  googleTagId as id,
+} from '@/lib/google-tag'
+---
+
+{enabled && (
+  <>
+    {/*
+        Consent Mode v2 defaults, set before the container loads. Analytics
+        storage waits for the visitor's OK in the EEA, the UK and
+        Switzerland, and is on elsewhere; ad signals are always off (the
+        site has no ads). A choice made in ConsentBanner is applied here on
+        later visits.
+      */}
+    <script is:inline define:vars={{ consentKey }}>
+      window.dataLayer = window.dataLayer || []
+      window.gtag = function gtag() {
+        dataLayer.push(arguments)
+      }
+      const denied = {
+        ad_storage: 'denied',
+        ad_user_data: 'denied',
+        ad_personalization: 'denied',
+      }
+      gtag('consent', 'default', {
+        ...denied,
+        analytics_storage: 'denied',
+        region: [
+          'AT',
+          'BE',
+          'BG',
+          'HR',
+          'CY',
+          'CZ',
+          'DK',
+          'EE',
+          'FI',
+          'FR',
+          'DE',
+          'GR',
+          'HU',
+          'IS',
+          'IE',
+          'IT',
+          'LV',
+          'LI',
+          'LT',
+          'LU',
+          'MT',
+          'NL',
+          'NO',
+          'PL',
+          'PT',
+          'RO',
+          'SK',
+          'SI',
+          'ES',
+          'SE',
+          'GB',
+          'CH',
+        ],
+      })
+      gtag('consent', 'default', { ...denied, analytics_storage: 'granted' })
+      try {
+        const choice = localStorage.getItem(consentKey)
+        if (choice === 'granted' || choice === 'denied') {
+          gtag('consent', 'update', { analytics_storage: choice })
+        }
+      } catch {
+        // Storage blocked: keep the defaults.
+      }
+      gtag('js', new Date())
+    </script>
+    <script
+      is:inline
+      async
+      src={`https://www.googletagmanager.com/gtm.js?id=${id}`}
+    />
+  </>
+)}

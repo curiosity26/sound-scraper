@@ -1,0 +1,114 @@
+---
+import { consentKey, googleTagEnabled as enabled } from '@/lib/google-tag'
+---
+
+{enabled && (
+  <section
+    class="consent card"
+    aria-label="Analytics cookies"
+    data-consent-key={consentKey}
+    hidden
+  >
+    <p>
+      Can we use Google Analytics cookies to count visits? It only helps us see
+      which pages people read. No ads, no selling data.
+    </p>
+    <div class="actions">
+      <button
+        type="button"
+        class="btn btn-small btn-slime"
+        data-choice="granted"
+      >
+        Allow
+      </button>
+      <button type="button" class="btn btn-small" data-choice="denied">
+        No thanks
+      </button>
+    </div>
+  </section>
+)}
+
+<script>
+  type Choice = 'granted' | 'denied'
+  type Gtag = (command: 'consent', action: 'update', params: object) => void
+
+  const banner = document.querySelector<HTMLElement>('.consent')
+  const key = banner?.dataset.consentKey
+
+  const stored = (): string | null => {
+    try {
+      return key ? localStorage.getItem(key) : null
+    } catch {
+      return null
+    }
+  }
+
+  // Visitors whose clock is set to a European time zone get asked; elsewhere
+  // analytics is on by default and the footer's "Cookie settings" opens this.
+  const inEurope = (): boolean => {
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    return (
+      zone.startsWith('Europe/') ||
+      [
+        'Atlantic/Reykjavik',
+        'Atlantic/Canary',
+        'Atlantic/Madeira',
+        'Atlantic/Azores',
+        'Atlantic/Faroe',
+      ].includes(zone)
+    )
+  }
+
+  const choose = (choice: Choice): void => {
+    try {
+      if (key) localStorage.setItem(key, choice)
+    } catch {
+      // Storage blocked: the choice lasts for this page only.
+    }
+    const gtag = (window as unknown as { gtag?: Gtag }).gtag
+    gtag?.('consent', 'update', { analytics_storage: choice })
+    if (banner) banner.hidden = true
+  }
+
+  if (banner) {
+    for (const button of banner.querySelectorAll<HTMLButtonElement>(
+      '[data-choice]',
+    )) {
+      button.addEventListener('click', () => {
+        choose(button.dataset.choice === 'granted' ? 'granted' : 'denied')
+      })
+    }
+    if (stored() === null && inEurope()) banner.hidden = false
+    document.addEventListener('click', event => {
+      if ((event.target as Element | null)?.closest('[data-consent-open]')) {
+        banner.hidden = false
+        banner.querySelector('button')?.focus()
+      }
+    })
+  }
+</script>
+
+<style>
+  .consent {
+    position: fixed;
+    z-index: 50;
+    inset: auto 16px 16px;
+    max-width: 520px;
+    margin-inline: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px 20px;
+  }
+  .consent[hidden] {
+    display: none;
+  }
+  .consent p {
+    margin: 0;
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+</style>

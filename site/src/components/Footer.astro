@@ -3,6 +3,7 @@ import { Image } from 'astro:assets'
 
 import boombox from '../../../assets/dmg/icon-dmg-source.png'
 import { RELEASES_URL, REPO_URL } from '@/lib/constants'
+import { googleTagEnabled } from '@/lib/google-tag'
 import { url } from '@/lib/url'
 ---
 
@@ -23,6 +24,11 @@ import { url } from '@/lib/url'
       <a href={url('docs/making-a-skin/')}>Make a skin</a>
       <a href={RELEASES_URL}>Releases</a>
       <a href={`${REPO_URL}/issues`}>Report a bug</a>
+      {googleTagEnabled && (
+        <button type="button" class="link" data-consent-open>
+          Cookie settings
+        </button>
+      )}
     </nav>
   </div>
 </footer>
@@ -63,12 +69,19 @@ import { url } from '@/lib/url'
     flex-wrap: wrap;
     gap: 12px 24px;
   }
-  nav a {
+  nav a,
+  nav .link {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    cursor: pointer;
     color: var(--paper);
     font-weight: 600;
     text-decoration: none;
   }
-  nav a:hover {
+  nav a:hover,
+  nav .link:hover {
     color: var(--slime);
   }
 </style>

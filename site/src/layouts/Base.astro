@@ -8,7 +8,10 @@ import '@/styles/global.css'
 import { getImage } from 'astro:assets'
 
 import zombie from '../../../assets/icon-source.png'
+import ConsentBanner from '@/components/ConsentBanner.astro'
 import Footer from '@/components/Footer.astro'
+import GoogleTag from '@/components/GoogleTag.astro'
+import GoogleTagNoscript from '@/components/GoogleTagNoscript.astro'
 import Header from '@/components/Header.astro'
 import { url } from '@/lib/url'
 
@@ -29,6 +32,7 @@ const site = Astro.site ?? new URL('https://soundscraper.app')
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <GoogleTag />
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
     <meta name="theme-color" content="#15140f" />
@@ -43,6 +47,7 @@ const site = Astro.site ?? new URL('https://soundscraper.app')
     <meta name="twitter:card" content="summary" />
   </head>
   <body>
+    <GoogleTagNoscript />
     <a class="skip btn btn-slime btn-small" href="#main">
       Skip to content
     </a>
@@ -51,6 +56,7 @@ const site = Astro.site ?? new URL('https://soundscraper.app')
       <slot />
     </main>
     <Footer />
+    <ConsentBanner />
   </body>
 </html>
 
