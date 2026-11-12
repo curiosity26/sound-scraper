@@ -70,16 +70,16 @@ def js():
     return sorted(seen.values(), key=lambda p: (p['name'], p['version']))
 
 def lame():
-    base = os.path.join(ROOT, 'core', 'vendor', 'mp3lame-sys', 'lame-3.100')
+    base = os.path.join(ROOT, 'core', 'vendor', 'mp3lame-sys', 'lame-4.0')
     with open(os.path.join(base, 'COPYING'), encoding='utf-8', errors='replace') as f:
         text = add_text(f.read())
-    return {'name': 'LAME', 'version': '3.100', 'license': 'LGPL-2.0-or-later', 'repository': 'https://lame.sourceforge.io/',
+    return {'name': 'LAME', 'version': '4.0', 'license': 'LGPL-2.0-or-later', 'repository': 'https://lame.sourceforge.io/',
             'texts': [text],
             'note': ('Sound Scraper uses LAME, the MP3 encoder, as a separately loaded library '
                      '(libmp3lame.0.dylib in the macOS app bundle\'s Frameworks folder; libmp3lame.dll '
                      'next to SoundScraper.exe on Windows; libmp3lame.so.0 in /usr/lib/SoundScraper on '
                      'Linux). You may replace it with your own build of '
-                     'LAME 3.100 or later. Its source is in core/vendor/mp3lame-sys/lame-3.100 of the '
+                     'LAME 4.0 or later. Its source is in core/vendor/mp3lame-sys/lame-4.0 of the '
                      'Sound Scraper source code.')}
 
 def mediaremote_adapter():
