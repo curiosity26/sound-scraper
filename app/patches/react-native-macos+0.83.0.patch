@@ -1,0 +1,72 @@
+diff --git a/node_modules/react-native-macos/React/Fabric/Mounting/ComponentViews/TextInput/RCTTextInputComponentView.mm b/node_modules/react-native-macos/React/Fabric/Mounting/ComponentViews/TextInput/RCTTextInputComponentView.mm
+index d229217..9385a1c 100644
+--- a/node_modules/react-native-macos/React/Fabric/Mounting/ComponentViews/TextInput/RCTTextInputComponentView.mm
++++ b/node_modules/react-native-macos/React/Fabric/Mounting/ComponentViews/TextInput/RCTTextInputComponentView.mm
+@@ -162,6 +162,9 @@ static NSSet<NSNumber *> *returnKeyTypesSet;
+ #else // [macOS
+       NSWindow *window = [_backedTextInputView window];
+       [window makeFirstResponder:_backedTextInputView.responder];
++      if (props.traits.selectTextOnFocus) {
++        [self _selectAllText];
++      }
+ #endif // macOS]
+       [self scrollCursorIntoView];
+     }
+@@ -968,6 +971,12 @@ static NSSet<NSNumber *> *returnKeyTypesSet;
+ #if !TARGET_OS_OSX // [macOS]
+   [_backedTextInputView becomeFirstResponder];
+ #else // [macOS
++  // TextInput focuses on every press, including clicks inside a box being
++  // edited. Making the field first responder again would end that editing
++  // session (a blur) and start a new one, so leave it, as iOS does.
++  if ([self _isEditing]) {
++    return;
++  }
+   NSWindow *window = [_backedTextInputView window];
+   NSResponder *responder = [_backedTextInputView respondsToSelector:@selector(responder)]
+       ? _backedTextInputView.responder
+@@ -983,13 +992,42 @@ static NSSet<NSNumber *> *returnKeyTypesSet;
+   }
+ 
+   if (props.traits.selectTextOnFocus) {
+-    [_backedTextInputView selectAll:nil];
+-    [self textInputDidChangeSelection];
++    [self _selectAllText];
+   }
+ 
+   [self scrollCursorIntoView];
+ }
+ 
++#if TARGET_OS_OSX // [macOS
++// An NSTextField being edited isn't the first responder itself: its field
++// editor (an NSTextView) is.
++- (BOOL)_isEditing
++{
++  if ([_backedTextInputView isKindOfClass:[NSTextField class]]) {
++    return [(NSTextField *)_backedTextInputView currentEditor] != nil;
++  }
++  NSResponder *responder = [_backedTextInputView respondsToSelector:@selector(responder)]
++      ? _backedTextInputView.responder
++      : (NSResponder *)_backedTextInputView;
++  return [[_backedTextInputView window] firstResponder] == responder;
++}
++#endif // macOS]
++
++- (void)_selectAllText
++{
++#if TARGET_OS_OSX // [macOS
++  // NSTextField has no selectAll:; its field editor does.
++  if ([_backedTextInputView isKindOfClass:[NSTextField class]]) {
++    [[(NSTextField *)_backedTextInputView currentEditor] selectAll:nil];
++  } else {
++    [_backedTextInputView selectAll:nil];
++  }
++#else // [macOS]
++  [_backedTextInputView selectAll:nil];
++#endif // macOS]
++  [self textInputDidChangeSelection];
++}
++
+ - (void)blur
+ {
+ #if !TARGET_OS_OSX // [macOS]

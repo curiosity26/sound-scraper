@@ -303,6 +303,9 @@ const native = {
   playerState: vi.fn(() => state.player.state),
   listRecordings: vi.fn(() => Promise.resolve([...state.recordings])),
   renameRecording: vi.fn((fileName: string, newName: string) => {
+    if (!state.recordings.some(r => r.fileName === fileName)) {
+      return Promise.reject(new Error(`${fileName} no longer exists`))
+    }
     const renamed = `${newName}.mp3`
     state.recordings = state.recordings.map(r =>
       r.fileName === fileName

@@ -136,6 +136,8 @@ On Windows the same test uses WASAPI (see below).
 | Node | 24 LTS (`app/.nvmrc`) |
 | Rust | stable, edition 2024; cbindgen 0.29 runs as a build dependency (no global install) |
 
+`app/patches/` holds fixes to dependencies, which `npm install`/`npm ci` apply (patch-package, in `postinstall`). `react-native-macos+0.83.0.patch` makes a single-line box's `focus()` leave a box that is already being edited alone (TextInput focuses on every click, which otherwise blurred the box) and selects text on focus through the field editor (NSTextField has no `selectAll:`). Regenerate it with `npx patch-package react-native-macos` after editing the file in `node_modules`, and drop it once upstream fixes both.
+
 ## Rust core (any OS)
 
 ```sh

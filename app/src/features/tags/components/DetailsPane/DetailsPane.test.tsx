@@ -1,4 +1,11 @@
-import { render, screen, userEvent } from '@testing-library/react-native'
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  userEvent,
+  waitFor,
+} from '@testing-library/react-native'
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -201,6 +208,46 @@ describe('the details pane', () => {
         await renderDetailsPane(['Song.mp3'])
         await editField('File name', 'Song', 'New name')
         expect(onRenamed).toHaveBeenCalledWith('Song.mp3', 'New name.mp3')
+      })
+    })
+
+    describe('when the file name is submitted and the field then loses focus', () => {
+      // Enter blurs the field on macOS: the blur arrives while the rename
+      // is still running.
+      const submitThenBlur = async () => {
+        const rename = fakeCore.native.renameRecording
+        const real = rename.getMockImplementation()
+        let finish = () => {}
+        rename.mockImplementationOnce(
+          (fileName, newName) =>
+            new Promise((resolve, reject) => {
+              finish = () => {
+                real?.(fileName, newName).then(resolve, reject)
+              }
+            }),
+        )
+        await renderDetailsPane(['Song.mp3'])
+        await userEvent.setup().press(await field('File name', 'Song'))
+        const input = screen.getByDisplayValue('Song')
+        await fireEvent.changeText(input, 'New name')
+        await fireEvent(input, 'submitEditing')
+        await fireEvent(input, 'blur')
+        await act(() => {
+          finish()
+        })
+        await waitFor(() => {
+          expect(onRenamed).toHaveBeenCalled()
+        })
+      }
+
+      it('renames the file once', async () => {
+        await submitThenBlur()
+        expect(fakeCore.native.renameRecording).toHaveBeenCalledTimes(1)
+      })
+
+      it('shows no error', async () => {
+        await submitThenBlur()
+        expect(screen.queryByText(/Couldn't rename/)).not.toBeOnTheScreen()
       })
     })
 
