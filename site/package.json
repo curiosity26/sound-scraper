@@ -12,6 +12,7 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
+    "@astrojs/sitemap": "^3.7.4",
     "@fontsource-variable/archivo": "^5.3.0",
     "@fontsource/permanent-marker": "^5.3.0",
     "@fontsource/rubik-wet-paint": "^5.3.0",
