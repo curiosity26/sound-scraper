@@ -8,6 +8,7 @@ import { RELEASES_URL } from '@/lib/constants'
 import { formatSize } from '@/lib/formatSize'
 import { latestRelease } from '@/lib/release'
 import { skins } from '@/lib/skins'
+import { trackAttrs } from '@/lib/track'
 import type { Download, LinuxArch, Os, WindowsArch } from '@/lib/types'
 import { url } from '@/lib/url'
 
@@ -113,7 +114,18 @@ const KIND_BUTTON = {
                   </p>
                   {release?.mac !== undefined ? (
                     <div class="get">
-                      <a class="btn btn-orange btn-big" href={release.mac.url}>
+                      <a
+                        class="btn btn-orange btn-big"
+                        href={release.mac.url}
+                        {...trackAttrs({
+                          os: 'mac',
+                          package: 'dmg',
+                          source: 'downloads_page',
+                          arch: 'arm64',
+                          version,
+                          fileName: release.mac.name,
+                        })}
+                      >
                         Download .dmg
                       </a>
                       <span class="lcd file">
@@ -121,7 +133,15 @@ const KIND_BUTTON = {
                       </span>
                     </div>
                   ) : (
-                    <a class="btn btn-orange btn-big" href={RELEASES_URL}>
+                    <a
+                      class="btn btn-orange btn-big"
+                      href={RELEASES_URL}
+                      {...trackAttrs({
+                        os,
+                        package: 'github',
+                        source: 'downloads_page',
+                      })}
+                    >
                       Download from GitHub
                     </a>
                   )}
@@ -157,7 +177,18 @@ const KIND_BUTTON = {
                       </div>
                       {windows.map(({ arch, label, download }) => (
                         <div class="get" data-arch-item={arch}>
-                          <a class="btn btn-orange btn-big" href={download.url}>
+                          <a
+                            class="btn btn-orange btn-big"
+                            href={download.url}
+                            {...trackAttrs({
+                              os: 'windows',
+                              package: 'msix',
+                              source: 'downloads_page',
+                              arch,
+                              version,
+                              fileName: download.name,
+                            })}
+                          >
                             Download .msix
                             <span class="visually-hidden"> for {label}</span>
                           </a>
@@ -168,7 +199,15 @@ const KIND_BUTTON = {
                       ))}
                     </>
                   ) : (
-                    <a class="btn btn-orange btn-big" href={RELEASES_URL}>
+                    <a
+                      class="btn btn-orange btn-big"
+                      href={RELEASES_URL}
+                      {...trackAttrs({
+                        os,
+                        package: 'github',
+                        source: 'downloads_page',
+                      })}
+                    >
                       Download from GitHub
                     </a>
                   )}
@@ -217,6 +256,16 @@ const KIND_BUTTON = {
                                   type="button"
                                   class="copy"
                                   data-copy={pkg.install}
+                                  {...trackAttrs({
+                                    os: 'linux',
+                                    package: pkg.kind,
+                                    source: 'downloads_page',
+                                    method: 'copy_command',
+                                    arch: pkg.arch,
+                                    distro: pkg.label,
+                                    version,
+                                    fileName: pkg.name,
+                                  })}
                                   aria-label={`Copy the install command for ${pkg.label}`}
                                 >
                                   Copy
@@ -234,6 +283,15 @@ const KIND_BUTTON = {
                                     : 'btn-slime',
                               ]}
                               href={pkg.url}
+                              {...trackAttrs({
+                                os: 'linux',
+                                package: pkg.kind,
+                                source: 'downloads_page',
+                                arch: pkg.arch,
+                                distro: pkg.label,
+                                version,
+                                fileName: pkg.name,
+                              })}
                             >
                               {KIND_BUTTON[pkg.kind]}
                               <span class="visually-hidden">
@@ -251,7 +309,15 @@ const KIND_BUTTON = {
                       </p>
                     </>
                   ) : (
-                    <a class="btn btn-orange btn-big" href={RELEASES_URL}>
+                    <a
+                      class="btn btn-orange btn-big"
+                      href={RELEASES_URL}
+                      {...trackAttrs({
+                        os,
+                        package: 'github',
+                        source: 'downloads_page',
+                      })}
+                    >
                       Download from GitHub
                     </a>
                   )}
@@ -263,7 +329,17 @@ const KIND_BUTTON = {
                   <a href={release.url}>What's new in {version}</a>
                 )}
                 {release?.checksums !== undefined && (
-                  <a href={release.checksums.url}>SHA256SUMS.txt</a>
+                  <a
+                    href={release.checksums.url}
+                    {...trackAttrs({
+                      os,
+                      package: 'checksums',
+                      source: 'downloads_page',
+                      version,
+                    })}
+                  >
+                    SHA256SUMS.txt
+                  </a>
                 )}
                 <a href={RELEASES_URL}>Betas and older versions</a>
               </div>

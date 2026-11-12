@@ -1,0 +1,44 @@
+---
+// Sends a download_click event for each element with data-track-* attributes
+// (see src/lib/track.ts). Nothing happens where the Google tag isn't loaded
+// (dev builds).
+---
+
+<script>
+  import { detectOs } from '@/lib/detect'
+  import { DOWNLOAD_EVENT } from '@/lib/track'
+
+  type DataLayer = { push: (item: object) => void }
+
+  const detected = detectOs() ?? 'other'
+
+  const track = (event: MouseEvent): void => {
+    const target = event.target instanceof Element ? event.target : null
+    const element = target?.closest<HTMLElement>('[data-track-package]')
+    const dataLayer = (window as unknown as { dataLayer?: DataLayer }).dataLayer
+    if (element === null || element === undefined || dataLayer === undefined) {
+      return
+    }
+    const data = element.dataset
+    dataLayer.push({
+      event: DOWNLOAD_EVENT,
+      download_os: data['trackOs'],
+      download_package: data['trackPackage'],
+      download_source: data['trackSource'],
+      download_method: data['trackMethod'],
+      download_arch: data['trackArch'],
+      download_distro: data['trackDistro'],
+      download_version: data['trackVersion'],
+      download_file: data['trackFile'],
+      detected_os: detected,
+    })
+  }
+
+  document.addEventListener('click', track)
+  // A middle click opens the download in a new tab, which still downloads.
+  document.addEventListener('auxclick', event => {
+    if (event.button === 1) {
+      track(event)
+    }
+  })
+</script>

@@ -18,6 +18,10 @@ const release = latestRelease
   data-mac={release?.mac?.url}
   data-windows-x64={release?.windows.x64?.url}
   data-windows-arm64={release?.windows.arm64?.url}
+  data-mac-file={release?.mac?.name}
+  data-windows-x64-file={release?.windows.x64?.name}
+  data-windows-arm64-file={release?.windows.arm64?.name}
+  data-version={release?.version}
 >
   <svg
     width="26"
@@ -58,5 +62,27 @@ const release = latestRelease
       os === 'mac' ? mac : arch === 'arm64' ? windowsArm64 : windowsX64
     // Linux needs a choice of package, so it goes to the downloads page.
     button.href = direct ?? `${page}#${os}`
+    if (direct !== undefined && os !== 'linux') {
+      const data = button.dataset
+      const track: Record<string, string | undefined> = {
+        trackOs: os,
+        trackPackage: os === 'mac' ? 'dmg' : 'msix',
+        trackSource: 'home_button',
+        trackMethod: 'link',
+        trackArch: os === 'mac' ? 'arm64' : (arch ?? 'x64'),
+        trackVersion: data['version'],
+        trackFile:
+          os === 'mac'
+            ? data['macFile']
+            : arch === 'arm64'
+              ? data['windowsArm64File']
+              : data['windowsX64File'],
+      }
+      for (const [key, value] of Object.entries(track)) {
+        if (value !== undefined) {
+          data[key] = value
+        }
+      }
+    }
   }
 </script>
