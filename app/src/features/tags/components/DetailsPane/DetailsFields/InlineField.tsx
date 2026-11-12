@@ -1,4 +1,4 @@
-import React, { type FC, useState } from 'react'
+import React, { type FC, useRef, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { useDetailsPane } from '@/features/tags/components/DetailsPane/useDetailsPane'
@@ -10,6 +10,8 @@ import { errorText } from '@/shared/utils/errorText'
 /**
  * A value shown as text; click to edit in place. Enter (or leaving the
  * field) commits, Esc cancels. `onCommit` resolves false to keep editing.
+ * One commit at a time: Enter blurs the field too, and a second commit
+ * of the same text would rename a file that is already gone.
  */
 export type InlineFieldProps = {
   readonly label: string
@@ -30,8 +32,11 @@ export const InlineField: FC<InlineFieldProps> = props => {
   const { textStyle } = useDetailsPane()
   const t = usePanelStyles()
   const [editing, setEditing] = useState<string>()
+  // Set while a commit runs, and after one succeeds until editing starts
+  // again (a blur can still arrive from the field being closed).
+  const committing = useRef(false)
   const commit = async () => {
-    if (editing === undefined) {
+    if (editing === undefined || committing.current) {
       return
     }
     const text = editing
@@ -39,7 +44,14 @@ export const InlineField: FC<InlineFieldProps> = props => {
       setEditing(undefined)
       return
     }
-    if (await props.onCommit(text)) {
+    committing.current = true
+    let done = false
+    try {
+      done = await props.onCommit(text)
+    } finally {
+      committing.current = done
+    }
+    if (done) {
       setEditing(undefined)
     }
   }
@@ -79,6 +91,7 @@ export const InlineField: FC<InlineFieldProps> = props => {
             props.mixed ? 'Mixed' : props.value || 'empty'
           }. Click to edit.`}
           onPress={() => {
+            committing.current = false
             setEditing(props.mixed ? '' : props.value)
           }}
           style={styles.valueBox}
