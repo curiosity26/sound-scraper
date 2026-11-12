@@ -1,9 +1,8 @@
 //! MP3 encoding through LAME, plus the frame-level helpers used to finalize
 //! and recover files (docs/design.md §3, §4).
 //!
-//! LAME (LGPL) is currently compiled in statically by `mp3lame-sys`. Before
-//! distribution it has to move to a separately shipped dynamic library (or
-//! ship relinkable objects); see docs/development.md "Licensing".
+//! LAME (LGPL) is linked dynamically: `core/vendor/mp3lame-sys` builds it as a
+//! shared library; see docs/development.md "Licensing".
 
 use std::{
     fs::File,

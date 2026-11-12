@@ -408,7 +408,7 @@ Then run `SIGN_IDENTITY="Developer ID Application: <Name> (<TEAMID>)" scripts/pa
 
 ## Licensing
 
-LAME (LGPL) is linked **dynamically**. `core/vendor/mp3lame-sys` is a fork of `mp3lame-sys` that builds the bundled LAME 3.100 source as a shared library: `libmp3lame.0.dylib` on macOS (install name `@rpath/libmp3lame.0.dylib`, embedded in `Contents/Frameworks` by the "Embed LAME (LGPL)" build phase) `libmp3lame.dll` on Windows (shipped next to the exe and in the MSIX), and `libmp3lame.so.0` on Linux (next to the executable, `/usr/lib/SoundScraper/` when installed). Users can swap in their own LAME build. The LAME source is in `core/vendor/mp3lame-sys/lame-3.100`.
+LAME (LGPL) is linked **dynamically**. `core/vendor/mp3lame-sys` is a fork of `mp3lame-sys` that builds the bundled LAME 4.0 source as a shared library: `libmp3lame.0.dylib` on macOS (install name `@rpath/libmp3lame.0.dylib`, embedded in `Contents/Frameworks` by the "Embed LAME (LGPL)" build phase) `libmp3lame.dll` on Windows (shipped next to the exe and in the MSIX), and `libmp3lame.so.0` on Linux (next to the executable, `/usr/lib/SoundScraper/` when installed). Users can swap in their own LAME build. The LAME source is in `core/vendor/mp3lame-sys/lame-4.0`.
 
 ## Changing the native API
 

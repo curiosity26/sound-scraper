@@ -118,7 +118,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO COMPILER_INDEX_STORE_ENABLE=NO build \
             | grep -E "error:|BUILD (SUCCEEDED|FAILED)"
 
-      # Vendored LAME 3.100 is upstream third-party code (we don't patch it),
+      # Vendored LAME 4.0 is upstream third-party code (we don't patch it),
       # so its findings are dropped before upload; everything else is kept.
       - uses: github/codeql-action/analyze@v4
         with:
@@ -128,7 +128,7 @@ jobs:
       - uses: advanced-security/filter-sarif@v1.1
         with:
           patterns: |
-            -core/vendor/mp3lame-sys/lame-3.100/**
+            -core/vendor/mp3lame-sys/lame-4.0/**
           input: sarif-results/${{ matrix.sarif }}.sarif
           output: sarif-results/${{ matrix.sarif }}.sarif
       - uses: github/codeql-action/upload-sarif@v4

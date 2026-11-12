@@ -9,11 +9,11 @@ fn main() {
     let _ = initialize_mta();
     let enumerator = DeviceEnumerator::new().expect("device enumerator");
     let default = enumerator
-        .get_default_device(&Direction::Render)
+        .get_default_device(Direction::Render)
         .and_then(|d| d.get_id())
         .unwrap_or_default();
     let devices = enumerator
-        .get_device_collection(&Direction::Render)
+        .get_device_collection(Direction::Render)
         .expect("render devices");
     for device in &devices {
         let Ok(device) = device else { continue };

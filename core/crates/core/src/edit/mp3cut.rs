@@ -282,7 +282,7 @@ impl Mp3Index {
                 frame[w + 19..w + 21].copy_from_slice(&src[w + 19..w + 21]); // flags/ATH, bitrate
                 frame[w + 24..w + 28].copy_from_slice(&src[w + 24..w + 28]); // misc, gain, preset
             }
-            None => frame[w..w + 9].copy_from_slice(b"LAME3.100"),
+            None => frame[w..w + 9].copy_from_slice(b"LAME4.0 \0"),
         }
         let trim = ((delay.min(MAX_DELAY_FIELD) as u32) << 12) | padding as u32;
         frame[w + 21..w + 24].copy_from_slice(&trim.to_be_bytes()[1..]);
